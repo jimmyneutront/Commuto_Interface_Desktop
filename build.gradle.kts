@@ -22,7 +22,6 @@ repositories {
 
 dependencies {
     implementation(compose.desktop.currentOs)
-    implementation("com.squareup.sqldelight:gradle-plugin:1.5.1")
     implementation("com.squareup.sqldelight:sqlite-driver:1.5.1")
 }
 
