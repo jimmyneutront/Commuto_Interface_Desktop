@@ -1,9 +1,11 @@
+createKeyPairTable:
 CREATE TABLE KeyPair (
 interfaceId TEXT NOT NULL,
 publicKey TEXT NOT NULL,
 privateKey TEXT NOT NULL
 );
 
+createPublicKeyTable:
 CREATE TABLE PublicKey (
 interfaceId TEXT NOT NULL,
 publicKey TEXT NOT NULL

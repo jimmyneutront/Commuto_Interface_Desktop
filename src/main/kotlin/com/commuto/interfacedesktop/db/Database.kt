@@ -6,6 +6,11 @@ internal class Database(databaseDriverFactory: DatabaseDriverFactory) {
     private val database = CommutoInterfaceDB(databaseDriverFactory.createDriver())
     private val dbQuery = database.commutoInterfaceDBQueries
 
+    internal fun createTables() {
+        dbQuery.createPublicKeyTable()
+        dbQuery.createKeyPairTable()
+    }
+
     internal fun clearDatabase() {
         dbQuery.transaction {
             dbQuery.removeAllKeyPairs()

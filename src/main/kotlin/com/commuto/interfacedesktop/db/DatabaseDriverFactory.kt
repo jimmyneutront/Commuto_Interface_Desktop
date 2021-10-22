@@ -5,6 +5,7 @@ import com.squareup.sqldelight.sqlite.driver.JdbcSqliteDriver
 
 class DatabaseDriverFactory {
     fun createDriver(): SqlDriver {
-        return JdbcSqliteDriver("test.db")
+        //TODO: Figure out why file database isn't working
+        return JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
     }
 }

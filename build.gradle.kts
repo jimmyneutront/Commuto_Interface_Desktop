@@ -12,7 +12,6 @@ group = "me.jimmyt"
 version = "1.0"
 
 repositories {
-    jcenter()
     mavenCentral()
     maven("https://maven.pkg.jetbrains.space/public/p/compose/dev")
     google()
@@ -23,6 +22,8 @@ repositories {
 dependencies {
     implementation(compose.desktop.currentOs)
     implementation("com.squareup.sqldelight:sqlite-driver:1.5.1")
+    implementation("org.junit.jupiter:junit-jupiter:5.7.0")
+    testImplementation(kotlin("test"))
 }
 
 tasks.withType<KotlinCompile>() {
