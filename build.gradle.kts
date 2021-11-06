@@ -22,7 +22,8 @@ repositories {
 dependencies {
     implementation(compose.desktop.currentOs)
     implementation("com.squareup.sqldelight:sqlite-driver:1.5.1")
-    implementation("org.junit.jupiter:junit-jupiter:5.7.0")
+    implementation ("org.web3j:core:4.8.7")
+    //implementation("org.bouncycastle:bcpg-jdk15on:1.69")
     testImplementation(kotlin("test"))
 }
 
