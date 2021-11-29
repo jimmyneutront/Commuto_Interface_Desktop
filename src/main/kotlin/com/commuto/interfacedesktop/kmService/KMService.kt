@@ -1,13 +1,15 @@
 package com.commuto.interfacedesktop.kmService
 
 import com.commuto.interfacedesktop.dbService.DBService
+import com.commuto.interfacedesktop.kmService.kmTypes.KeyPair
+import com.commuto.interfacedesktop.kmService.kmTypes.PublicKey
 import org.bouncycastle.asn1.*
 import java.security.KeyFactory
-import java.security.KeyPair
+import java.security.KeyPair as JavaSecKeyPair
 import java.security.KeyPairGenerator
 import java.security.MessageDigest
 import java.security.PrivateKey
-import java.security.PublicKey
+import java.security.PublicKey as JavaSecPublicKey
 import java.security.spec.RSAPrivateKeySpec
 import java.security.spec.RSAPrivateCrtKeySpec
 import java.security.spec.X509EncodedKeySpec
@@ -28,91 +30,85 @@ import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo
 class KMService(var dbService: DBService) {
 
     /**
-     * Generates an 2048-bit RSA key pair, and computes the key pair's interface id, which is a SHA-256 hash of the
-     * PKCS#1 byte array encoded representation of the public key.
+     * Generates a new KeyPair, and optionally stores it in the database
      *
      * @param storeResult indicate whether the generated key pair should be stored in the database. This will primarily
      * be left as true, but testing code may set as false to generate a key pair for testing duplicate key protection.
      * If true, each key pair is stored in the database as Base64 encoded Strings of byte representations of the public
      * and private keys in PKCS#1 format.
      *
-     * @return Pair of ByteArray and KeyPair. The KeyPair is a 2048-bit RSA key pair, and the ByteArray is the key
-     * pair's interface id, which is a SHA-256 hash of the PKCS#1 byte array encoded representation of the public key.
+     * @return a new KeyPair object
      */
-    fun generateKeyPair(storeResult: Boolean = true): Pair<ByteArray, KeyPair> {
+    fun generateKeyPair(storeResult: Boolean = true): KeyPair {
         val keyPairGenerator: KeyPairGenerator = KeyPairGenerator.getInstance("RSA")
         keyPairGenerator.initialize(2048)
-        val keyPair: KeyPair = keyPairGenerator.generateKeyPair()
-        val interfaceId: ByteArray = MessageDigest.getInstance("SHA-256")
-            .digest(pubKeyToPkcs1Bytes(keyPair.public))
+        val keyPair = KeyPair(keyPairGenerator.generateKeyPair())
         val encoder = Base64.getEncoder()
         if (storeResult) {
-            dbService.storeKeyPair(encoder.encodeToString(interfaceId),
-                encoder.encodeToString(pubKeyToPkcs1Bytes(keyPair.public)),
-                encoder.encodeToString(privKeyToPkcs1Bytes(keyPair.private)))
+            dbService.storeKeyPair(encoder.encodeToString(keyPair.interfaceId),
+                encoder.encodeToString(keyPair.pubKeyToPkcs1Bytes()),
+                encoder.encodeToString(keyPair.privKeyToPkcs1Bytes()))
         }
-        return Pair(interfaceId, keyPair)
+        return keyPair
     }
 
     /**
-     * Retrieves the persistently stored key pair associated with the given interface id, or returns null if not
+     * Retrieves the persistently stored KeyPair associated with the given interface id, or returns null if not
      * present.
      *
      * @param interfaceId the interface id of the key pair, a SHA-256 hash of the PKCS#1 byte array encoded
      * representation of its public key.
      *
-     * @return Pair of ByteArray and KeyPair. The KeyPair is a 2048-bit RSA key pair, and the ByteArray is the key
-     * pair's interface id, which is a SHA-256 hash of the PKCS#1 byte array encoded representation of the public key.
-     * @return null if no key pair is found with the given interface id
+     * @return KeyPair?
+     * @return null if no KeyPair is found with the given interface id
      */
-    fun getKeyPair(interfaceId: ByteArray): Pair<ByteArray, KeyPair>? {
+    fun getKeyPair(interfaceId: ByteArray): KeyPair? {
         val encoder = Base64.getEncoder()
         val dbKeyPair: com.commuto.interfacedesktop.db.KeyPair? = dbService
             .getKeyPair(encoder.encodeToString(interfaceId))
         val decoder = Base64.getDecoder()
         if (dbKeyPair != null) {
-            val pubKey: PublicKey = pubKeyFromPkcs1Bytes(decoder.decode(dbKeyPair.publicKey))
+            val pubKey: JavaSecPublicKey = pubKeyFromPkcs1Bytes(decoder.decode(dbKeyPair.publicKey))
             val privKey: PrivateKey = privKeyFromPkcs1Bytes(decoder.decode(dbKeyPair.privateKey))
-            val keyPair = KeyPair(pubKey, privKey)
-            return Pair(interfaceId, keyPair)
+            val keyPair = JavaSecKeyPair(pubKey, privKey)
+            return KeyPair(keyPair)
         } else {
             return null
         }
     }
 
     /**
-     * Persistently stores a public key associated with an interface id. This will generate a PKCS#1 byte array
-     * representation of the PublicKey, encode it as a Base64 String and store it in the databse.
+     * Persistently stores a PublicKey associated with an interface id. This will generate a PKCS#1 byte array
+     * representation of the public key, encode it as a Base64 String and store it in the database.
      *
      * @param pubKey the public key to be stored
      */
     fun storePublicKey(pubKey: PublicKey) {
         val interfaceId: ByteArray = MessageDigest.getInstance("SHA-256")
-            .digest(pubKeyToPkcs1Bytes(pubKey))
+            .digest(pubKey.toPkcs1Bytes())
         val encoder = Base64.getEncoder()
         dbService.storePublicKey(encoder.encodeToString(interfaceId),
-            encoder.encodeToString(pubKeyToPkcs1Bytes(pubKey)))
+            encoder.encodeToString(pubKey.toPkcs1Bytes()))
     }
 
     /**
-     * Retrieves the persistently stored public key associated with the given interface id, or returns null if not
+     * Retrieves the persistently stored PublicKey associated with the given interface id, or returns null if not
      * present
      *
      * @param interfaceId the interface id of the public key, a SHA-256 hash of its PKCS#1 byte array encoded
      * representation
      *
-     * @return Pair of ByteArray and PublicKey. The PublicKey is an RSA public key, and the byte array is the public
-     * key's interface id, which is a SHA-256 hash of its PKCS#1 byte array encoded representation.
-     * @return null if no public key is found with the given interface id
+     * @return PublicKey?
+     * @return null if no PublicKey is found with the given interface id
      */
-    fun getPublicKey(interfaceId: ByteArray): Pair<ByteArray, PublicKey>? {
+    fun getPublicKey(interfaceId: ByteArray): PublicKey? {
         val encoder = Base64.getEncoder()
         val dbPubKey: com.commuto.interfacedesktop.db.PublicKey? = dbService
             .getPublicKey(encoder.encodeToString(interfaceId))
         val decoder = Base64.getDecoder()
         if (dbPubKey != null) {
-            val pubKey: PublicKey = pubKeyFromPkcs1Bytes(decoder.decode(dbPubKey.publicKey))
-            return Pair(interfaceId, pubKey)
+            val pubKey: JavaSecPublicKey = pubKeyFromPkcs1Bytes(decoder.decode(dbPubKey.publicKey))
+            return PublicKey(pubKey)
         } else {
             return null
         }
@@ -125,7 +121,7 @@ class KMService(var dbService: DBService) {
      *
      * @return a ByteArray containing the PKCS1 representation of the passed RSA public key
      */
-    fun pubKeyToPkcs1Bytes(pubKey: PublicKey): ByteArray {
+    fun pubKeyToPkcs1Bytes(pubKey: JavaSecPublicKey): ByteArray {
         val pubKeyX509Bytes = pubKey.encoded
         val sPubKeyInfo: SubjectPublicKeyInfo = SubjectPublicKeyInfo.getInstance(pubKeyX509Bytes)
         val pubKeyPrimitive: ASN1Primitive = sPubKeyInfo.parsePublicKey()
@@ -136,14 +132,14 @@ class KMService(var dbService: DBService) {
     /**
      * Restores a RSA PublicKey from a PKCS1 formatted byte representation
      *
-     * @param pucKeyPkcs1Bytes the PKCS1 representation of the public RSA key to be restored
+     * @param pubKeyPkcs1Bytes the PKCS1 representation of the public RSA key to be restored
      *
      * @return the restored PublicKey described in by pubKeyPkcs1Bytes
      */
-    fun pubKeyFromPkcs1Bytes(pubKeyPkcs1Bytes: ByteArray): PublicKey {
+    fun pubKeyFromPkcs1Bytes(pubKeyPkcs1Bytes: ByteArray): JavaSecPublicKey {
         val algorithmIdentifier: AlgorithmIdentifier = AlgorithmIdentifier(PKCSObjectIdentifiers.rsaEncryption, DERNull.INSTANCE);
         val pubKeyX509Bytes: ByteArray = SubjectPublicKeyInfo(algorithmIdentifier, pubKeyPkcs1Bytes).encoded
-        val pubKey: PublicKey = KeyFactory.getInstance("RSA").generatePublic(X509EncodedKeySpec(pubKeyX509Bytes))
+        val pubKey: JavaSecPublicKey = KeyFactory.getInstance("RSA").generatePublic(X509EncodedKeySpec(pubKeyX509Bytes))
         return pubKey
     }
 

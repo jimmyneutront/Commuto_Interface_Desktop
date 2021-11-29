@@ -2,7 +2,8 @@ package com.commuto.interfacedesktop.kmService
 
 import com.commuto.interfacedesktop.db.DatabaseDriverFactory
 import com.commuto.interfacedesktop.dbService.DBService
-import java.security.KeyPair
+import com.commuto.interfacedesktop.kmService.kmTypes.KeyPair
+import java.security.KeyPair as JavaSecKeyPair
 import java.security.PrivateKey
 import java.security.PublicKey
 import java.util.*
@@ -25,12 +26,12 @@ class XPlatCryptoCompatibility {
      */
     @Test
     fun testGenB64RSAKeys() {
-        val keyPairAndId: Pair<ByteArray, KeyPair> = kmService.generateKeyPair(storeResult = false)
+        val keyPair: KeyPair = kmService.generateKeyPair(storeResult = false)
         val encoder = Base64.getEncoder()
         println("Public Key B64:")
-        println(encoder.encodeToString(kmService.pubKeyToPkcs1Bytes(keyPairAndId.second.public)))
+        println(encoder.encodeToString(keyPair.pubKeyToPkcs1Bytes()))
         println("Private Key B64:")
-        println(encoder.encodeToString(kmService.privKeyToPkcs1Bytes(keyPairAndId.second.private)))
+        println(encoder.encodeToString(keyPair.privKeyToPkcs1Bytes()))
     }
 
     /**
