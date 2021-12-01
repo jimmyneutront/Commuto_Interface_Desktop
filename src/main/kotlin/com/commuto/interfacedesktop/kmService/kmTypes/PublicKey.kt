@@ -3,7 +3,11 @@ package com.commuto.interfacedesktop.kmService.kmTypes
 import org.bouncycastle.asn1.ASN1Primitive
 import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo
 import java.security.MessageDigest
+import java.security.spec.MGF1ParameterSpec
 import java.security.PublicKey as JavaSecPublicKey
+import javax.crypto.Cipher
+import javax.crypto.spec.OAEPParameterSpec
+import javax.crypto.spec.PSource
 
 /**
  * The PublicKey class is a wrapper around the java.security.PublicKey class, with support for Commuto Interface IDs and
@@ -22,6 +26,19 @@ class PublicKey(publicKey: JavaSecPublicKey) {
         this.publicKey = publicKey
         this.interfaceId = MessageDigest.getInstance("SHA-256")
             .digest(toPkcs1Bytes())
+    }
+
+    /**
+     * Encrypt the passed data using this KeyPair's RSA public key, using OEAP SHA-256 padding.
+     *
+     * @param clearData: the data to be encrypted
+     * @return ByteArray: the encrypted data
+     */
+    fun encrypt(clearData: ByteArray): ByteArray {
+        val encryptCipher = Cipher.getInstance("RSA/ECB/OAEPWithSHA-256AndMGF1Padding")
+        val oaepParams = OAEPParameterSpec("SHA-256", "MGF1", MGF1ParameterSpec("SHA-256"), PSource.PSpecified.DEFAULT)
+        encryptCipher.init(Cipher.ENCRYPT_MODE, this.publicKey, oaepParams)
+        return encryptCipher.doFinal(clearData)
     }
 
     /**

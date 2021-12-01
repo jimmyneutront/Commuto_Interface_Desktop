@@ -3,6 +3,7 @@ package com.commuto.interfacedesktop.kmService
 import com.commuto.interfacedesktop.db.DatabaseDriverFactory
 import com.commuto.interfacedesktop.dbService.DBService
 import com.commuto.interfacedesktop.kmService.kmTypes.KeyPair
+import java.nio.charset.Charset
 import java.security.PrivateKey
 import java.security.PublicKey as JavaSecPublicKey
 import kotlin.test.BeforeTest
@@ -17,6 +18,18 @@ internal class KMServiceUtilsTest {
     @BeforeTest
     fun testCreateTables() {
         dbService.createTables()
+    }
+
+    @Test
+    fun testAsymmetricEncryptionWithKeyPair() {
+        val keyPair: KeyPair = kmService.generateKeyPair(storeResult = false)
+        val charset = Charset.forName("UTF-16")
+        val originalString = "test"
+        val originalMessage = originalString.toByteArray(charset)
+        val encryptedMessage = keyPair.encrypt(originalMessage)
+        val decryptedMessage = keyPair.decrypt(encryptedMessage)
+        val restoredString = String(decryptedMessage, charset)
+        assert(originalString.equals(restoredString))
     }
 
     @Test
