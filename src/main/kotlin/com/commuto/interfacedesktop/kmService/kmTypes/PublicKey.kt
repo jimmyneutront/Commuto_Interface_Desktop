@@ -3,6 +3,7 @@ package com.commuto.interfacedesktop.kmService.kmTypes
 import org.bouncycastle.asn1.ASN1Primitive
 import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo
 import java.security.MessageDigest
+import java.security.Signature
 import java.security.spec.MGF1ParameterSpec
 import java.security.PublicKey as JavaSecPublicKey
 import javax.crypto.Cipher
@@ -26,6 +27,21 @@ class PublicKey(publicKey: JavaSecPublicKey) {
         this.publicKey = publicKey
         this.interfaceId = MessageDigest.getInstance("SHA-256")
             .digest(toPkcs1Bytes())
+    }
+
+    /**
+     * Verifies a signature using this PublicKey's public key
+     *
+     * @param signedData: the data that was signed
+     * @param signature: the signature
+     *
+     * @return Boolean: indicating the success of the verification
+     */
+    fun verifySignature(signedData: ByteArray, signature: ByteArray): Boolean {
+        val signatureObj = Signature.getInstance("SHA256withRSA")
+        signatureObj.initVerify(this.publicKey)
+        signatureObj.update(signedData)
+        return signatureObj.verify(signature)
     }
 
     /**

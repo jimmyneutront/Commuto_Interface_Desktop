@@ -5,6 +5,7 @@ import org.bouncycastle.asn1.ASN1Primitive
 import org.bouncycastle.asn1.pkcs.PrivateKeyInfo
 import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo
 import java.security.MessageDigest
+import java.security.Signature
 import java.security.KeyPair as JavaSecKeyPair
 import java.security.spec.MGF1ParameterSpec
 import javax.crypto.Cipher
@@ -28,6 +29,34 @@ class KeyPair(keyPair: JavaSecKeyPair) {
         this.keyPair = keyPair
         this.interfaceId = MessageDigest.getInstance("SHA-256")
             .digest(pubKeyToPkcs1Bytes())
+    }
+
+    /**
+     * Create a signature from the passed ByteArray using this KeyPair's private key
+     *
+     * @param data: the data to be signed
+     * @return ByteArray: the signature
+     */
+    fun sign(data: ByteArray): ByteArray {
+        val signatureObj = Signature.getInstance("SHA256withRSA")
+        signatureObj.initSign(this.keyPair.private)
+        signatureObj.update(data)
+        return signatureObj.sign()
+    }
+
+    /**
+     * Verifies a signature using this KeyPair's public key
+     *
+     * @param signedData: the data that was signed
+     * @param signature: the signature
+     *
+     * @return Boolean: indicating the success of the verification
+     */
+    fun verifySignature(signedData: ByteArray, signature: ByteArray): Boolean {
+        val signatureObj = Signature.getInstance("SHA256withRSA")
+        signatureObj.initVerify(this.keyPair.public)
+        signatureObj.update(signedData)
+        return signatureObj.verify(signature)
     }
 
     /**
