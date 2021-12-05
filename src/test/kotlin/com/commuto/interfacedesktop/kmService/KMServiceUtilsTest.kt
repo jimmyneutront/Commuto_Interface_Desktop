@@ -3,9 +3,12 @@ package com.commuto.interfacedesktop.kmService
 import com.commuto.interfacedesktop.db.DatabaseDriverFactory
 import com.commuto.interfacedesktop.dbService.DBService
 import com.commuto.interfacedesktop.kmService.kmTypes.KeyPair
+import com.commuto.interfacedesktop.kmService.kmTypes.SymmetricKey
+import com.commuto.interfacedesktop.kmService.kmTypes.newSymmetricKey
 import java.nio.charset.Charset
 import java.security.PrivateKey
 import java.security.PublicKey as JavaSecPublicKey
+import java.util.Arrays
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 
@@ -18,6 +21,15 @@ internal class KMServiceUtilsTest {
     @BeforeTest
     fun testCreateTables() {
         dbService.createTables()
+    }
+
+    @Test
+    fun testSymmetricEncryption() {
+        val key: SymmetricKey = newSymmetricKey()
+        val charset = Charset.forName("UTF-16")
+        val originalData = "test".toByteArray(charset)
+        val encryptedData = key.encrypt(originalData)
+        assert(Arrays.equals(originalData, key.decrypt(encryptedData)))
     }
 
     @Test
