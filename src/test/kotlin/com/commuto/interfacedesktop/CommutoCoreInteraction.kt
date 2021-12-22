@@ -1,10 +1,7 @@
 package com.commuto.interfacedesktop
 
 import com.commuto.interfacedesktop.contractwrapper.CommutoSwap
-import okhttp3.internal.wait
-import org.web3j.abi.TypeReference
-import org.web3j.abi.datatypes.DynamicArray
-import org.web3j.abi.datatypes.DynamicBytes
+import com.commuto.interfacedesktop.contractwrapper.CommutoSwap.Offer
 import org.web3j.codegen.SolidityFunctionWrapperGenerator
 import org.web3j.contracts.eip20.generated.ERC20
 import org.web3j.crypto.Credentials
@@ -19,7 +16,6 @@ import org.web3j.tx.ChainIdLong
 import org.web3j.tx.RawTransactionManager
 import org.web3j.tx.Transfer
 import org.web3j.tx.gas.ContractGasProvider
-import org.web3j.tx.response.EmptyTransactionReceipt
 import org.web3j.tx.response.NoOpProcessor
 import org.web3j.utils.Convert
 import java.io.File
@@ -91,8 +87,21 @@ internal class CommutoCoreInteraction {
         wrapperGenerator.generate()
     }
 
+    //Setup swap direction and participant role enums for testSwapProcess()
+    enum class SwapDirection {
+        BUY, SELL
+    }
+
+    enum class ParticipantRole {
+        MAKER, TAKER
+    }
+
     @Test
     fun testSwapProcess() {
+        //Specify swap direction and participant roles
+        val direction = SwapDirection.SELL
+        val role = ParticipantRole.TAKER
+
         //Restore Hardhat account #2
         val key_two = Credentials.create("5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a")
 
@@ -140,138 +149,152 @@ internal class CommutoCoreInteraction {
         //Get initial Dai balance
         val initialDaiBalance = dai.balanceOf(key_two.address).sendAsync().get()
 
-        //Find OfferOpened events
-        /*
-        Note: As of now, this will try to take the first OfferOpened event that it finds, even if the offer is closed
-        or there exists more than one open offer
-         */
-        var foundOpenOfferEvent = false
-        var offerId: ByteArray = ByteArray(32)
-        var interfaceId: ByteArray = ByteArray(32)
-        while (!foundOpenOfferEvent) {
-            if (web3.ethBlockNumber().send().blockNumber > lastParsedBlockNumber) {
-                val blockToParseNumber = DefaultBlockParameter
-                    .valueOf(lastParsedBlockNumber + BigInteger.valueOf(1))
-                val lastBlockTxns = web3.ethGetBlockByNumber(blockToParseNumber, false).send()
-                    .block.transactions
-                val lastBlockTxnHashes = lastBlockTxns.map { it.get() }
-                var lastBlockTxnReceipts = ArrayList<TransactionReceipt>()
-                for (txnHash in lastBlockTxnHashes) {
-                    val txReceiptOptional = web3.ethGetTransactionReceipt(txnHash as String).send().transactionReceipt
-                    if (txReceiptOptional.isPresent) {
-                        lastBlockTxnReceipts.add(txReceiptOptional.get())
+        var offer: Offer? = null
+        var offerId: ByteArray? = null
+
+        if (role == ParticipantRole.TAKER) {
+            //Find OfferOpened events
+            /*
+            Note: As of now, this will try to take the first OfferOpened event that it finds, even if the offer is closed
+            or there exists more than one open offer
+             */
+            var foundOpenOfferEvent = false
+            var interfaceId: ByteArray = ByteArray(32)
+            while (!foundOpenOfferEvent) {
+                if (web3.ethBlockNumber().send().blockNumber > lastParsedBlockNumber) {
+                    val blockToParseNumber = DefaultBlockParameter
+                        .valueOf(lastParsedBlockNumber + BigInteger.valueOf(1))
+                    val lastBlockTxns = web3.ethGetBlockByNumber(blockToParseNumber, false).send()
+                        .block.transactions
+                    val lastBlockTxnHashes = lastBlockTxns.map { it.get() }
+                    var lastBlockTxnReceipts = ArrayList<TransactionReceipt>()
+                    for (txnHash in lastBlockTxnHashes) {
+                        val txReceiptOptional = web3.ethGetTransactionReceipt(txnHash as String).send().transactionReceipt
+                        if (txReceiptOptional.isPresent) {
+                            lastBlockTxnReceipts.add(txReceiptOptional.get())
+                        }
                     }
-                }
-                for (txnReceipt in lastBlockTxnReceipts) {
-                    val events = commutoSwap.getOfferOpenedEvents(txnReceipt)
-                    if (events.count() > 0) {
-                        foundOpenOfferEvent = true
-                        offerId = events.elementAt(0).offerID
-                        interfaceId = events.elementAt(0).offerID
+                    for (txnReceipt in lastBlockTxnReceipts) {
+                        val events = commutoSwap.getOfferOpenedEvents(txnReceipt)
+                        if (events.count() > 0) {
+                            foundOpenOfferEvent = true
+                            offerId = events.elementAt(0).offerID
+                            interfaceId = events.elementAt(0).offerID
+                        }
                     }
+                    lastParsedBlockNumber += BigInteger.valueOf(1)
                 }
-                lastParsedBlockNumber += BigInteger.valueOf(1)
+                if (!foundOpenOfferEvent) {
+                    Thread.sleep(1000)
+                }
             }
-            if (!foundOpenOfferEvent) {
-                Thread.sleep(5000)
-            }
+            //TODO: Fix issue parsing DynamicArray<DynamicBytes> in returned Offer struct
+            //Note: Right now, this only works if custom JARs which support decoding DynamicArray<DynamicBytes> are used
+            offer = commutoSwap.getOffer(offerId).send()
         }
 
-        //TODO: Fix issue parsing DynamicArray<DynamicBytes> in returned Offer struct
-        //Note: Right now, this only works if custom JARs which support decoding DynamicArray<DynamicBytes> are used
-        val offer = commutoSwap.getOffer(offerId).send()
-
-        //Approve DAI swap
+        //Approve DAI transfer
         dai.approve(commutoSwapContractAddress, BigInteger.valueOf(11)).sendAsync().get()
 
-        //Create Swap object and take offer
-        val swap = CommutoSwap.Swap(
-            true,
-            true,
-            offer.maker,
-            offer.interfaceId,
-            key_two.address,
-            "maker's interface id here".toByteArray(),
-            offer.stablecoin,
-            offer.amountLowerBound,
-            offer.amountUpperBound,
-            offer.securityDepositAmount,
-            BigInteger.valueOf(100),
-            BigInteger.valueOf(1),
-            offer.direction,
-            offer.price,
-            offer.settlementMethods[0],
-            BigInteger.valueOf(1),
-            offer.extraData,
-            MessageDigest.getInstance("SHA-256").digest("taker's extra data in here".toByteArray()),
-            false,
-            false,
-            false,
-            false
-        )
-        commutoSwap.takeOffer(offerId, swap).sendAsync().get()
+        //Assert that offer and offerId are not null
+        offer!!
+        offerId!!
 
-        //Start listening for SwapFilled event
-        /*
-        Note: As of now, this will try to take the first SwapFilled event that it finds
-         */
-        var foundSwapFilledEvent = false
-        while (!foundSwapFilledEvent) {
-            if (web3.ethBlockNumber().send().blockNumber > lastParsedBlockNumber) {
-                val blockToParseNumber = DefaultBlockParameter
-                    .valueOf(lastParsedBlockNumber + BigInteger.valueOf(1))
-                val lastBlockTxns = web3.ethGetBlockByNumber(blockToParseNumber, false).send()
-                    .block.transactions
-                val lastBlockTxnHashes = lastBlockTxns.map { it.get() }
-                var lastBlockTxnReceipts = ArrayList<TransactionReceipt>()
-                for (txnHash in lastBlockTxnHashes) {
-                    val txReceiptOptional = web3.ethGetTransactionReceipt(txnHash as String).send().transactionReceipt
-                    if (txReceiptOptional.isPresent) {
-                        lastBlockTxnReceipts.add(txReceiptOptional.get())
+        if (role == ParticipantRole.TAKER) {
+            //Create Swap object and take offer
+            val swap = CommutoSwap.Swap(
+                true,
+                true,
+                offer.maker,
+                offer.interfaceId,
+                key_two.address,
+                "maker's interface id here".toByteArray(),
+                offer.stablecoin,
+                offer.amountLowerBound,
+                offer.amountUpperBound,
+                offer.securityDepositAmount,
+                BigInteger.valueOf(100),
+                BigInteger.valueOf(1),
+                offer.direction,
+                offer.price,
+                offer.settlementMethods[0],
+                BigInteger.valueOf(1),
+                offer.extraData,
+                MessageDigest.getInstance("SHA-256").digest("taker's extra data in here".toByteArray()),
+                false,
+                false,
+                false,
+                false
+            )
+            commutoSwap.takeOffer(offerId, swap).sendAsync().get()
+        }
+
+        if (role == ParticipantRole.TAKER && direction == SwapDirection.SELL) {
+            //Start listening for SwapFilled event
+            /*
+            Note: As of now, this will try to take the first SwapFilled event that it finds
+             */
+            var foundSwapFilledEvent = false
+            while (!foundSwapFilledEvent) {
+                if (web3.ethBlockNumber().send().blockNumber > lastParsedBlockNumber) {
+                    val blockToParseNumber = DefaultBlockParameter
+                        .valueOf(lastParsedBlockNumber + BigInteger.valueOf(1))
+                    val lastBlockTxns = web3.ethGetBlockByNumber(blockToParseNumber, false).send()
+                        .block.transactions
+                    val lastBlockTxnHashes = lastBlockTxns.map { it.get() }
+                    var lastBlockTxnReceipts = ArrayList<TransactionReceipt>()
+                    for (txnHash in lastBlockTxnHashes) {
+                        val txReceiptOptional = web3.ethGetTransactionReceipt(txnHash as String).send().transactionReceipt
+                        if (txReceiptOptional.isPresent) {
+                            lastBlockTxnReceipts.add(txReceiptOptional.get())
+                        }
                     }
-                }
-                for (txnReceipt in lastBlockTxnReceipts) {
-                    val events = commutoSwap.getSwapFilledEvents(txnReceipt)
-                    if (events.count() > 0) {
-                        foundSwapFilledEvent = true
+                    for (txnReceipt in lastBlockTxnReceipts) {
+                        val events = commutoSwap.getSwapFilledEvents(txnReceipt)
+                        if (events.count() > 0) {
+                            foundSwapFilledEvent = true
+                        }
                     }
+                    lastParsedBlockNumber += BigInteger.valueOf(1)
                 }
-                lastParsedBlockNumber += BigInteger.valueOf(1)
-            }
-            if (!foundSwapFilledEvent) {
-                Thread.sleep(5000)
+                if (!foundSwapFilledEvent) {
+                    Thread.sleep(1000)
+                }
             }
         }
 
-        //Report payment sent
-        commutoSwap.reportPaymentSent(offerId).sendAsync().get()
+        if ((role == ParticipantRole.MAKER && direction == SwapDirection.BUY) ||
+            (role == ParticipantRole.TAKER && direction == SwapDirection.SELL)) {
+            //Report payment sent
+            commutoSwap.reportPaymentSent(offerId).sendAsync().get()
 
-        //Start listening for PaymentReceived event
-        var foundPaymentReceivedEvent = false
-        while (!foundPaymentReceivedEvent) {
-            if (web3.ethBlockNumber().send().blockNumber > lastParsedBlockNumber) {
-                val blockToParseNumber = DefaultBlockParameter
-                    .valueOf(lastParsedBlockNumber + BigInteger.valueOf(1))
-                val lastBlockTxns = web3.ethGetBlockByNumber(blockToParseNumber, false).send()
-                    .block.transactions
-                val lastBlockTxnHashes = lastBlockTxns.map { it.get() }
-                var lastBlockTxnReceipts = ArrayList<TransactionReceipt>()
-                for (txnHash in lastBlockTxnHashes) {
-                    val txReceiptOptional = web3.ethGetTransactionReceipt(txnHash as String).send().transactionReceipt
-                    if (txReceiptOptional.isPresent) {
-                        lastBlockTxnReceipts.add(txReceiptOptional.get())
+            //Start listening for PaymentReceived event
+            var foundPaymentReceivedEvent = false
+            while (!foundPaymentReceivedEvent) {
+                if (web3.ethBlockNumber().send().blockNumber > lastParsedBlockNumber) {
+                    val blockToParseNumber = DefaultBlockParameter
+                        .valueOf(lastParsedBlockNumber + BigInteger.valueOf(1))
+                    val lastBlockTxns = web3.ethGetBlockByNumber(blockToParseNumber, false).send()
+                        .block.transactions
+                    val lastBlockTxnHashes = lastBlockTxns.map { it.get() }
+                    var lastBlockTxnReceipts = ArrayList<TransactionReceipt>()
+                    for (txnHash in lastBlockTxnHashes) {
+                        val txReceiptOptional = web3.ethGetTransactionReceipt(txnHash as String).send().transactionReceipt
+                        if (txReceiptOptional.isPresent) {
+                            lastBlockTxnReceipts.add(txReceiptOptional.get())
+                        }
                     }
-                }
-                for (txnReceipt in lastBlockTxnReceipts) {
-                    val events = commutoSwap.getPaymentReceivedEvents(txnReceipt)
-                    if (events.count() > 0) {
-                        foundPaymentReceivedEvent = true
+                    for (txnReceipt in lastBlockTxnReceipts) {
+                        val events = commutoSwap.getPaymentReceivedEvents(txnReceipt)
+                        if (events.count() > 0) {
+                            foundPaymentReceivedEvent = true
+                        }
                     }
+                    lastParsedBlockNumber += BigInteger.valueOf(1)
                 }
-                lastParsedBlockNumber += BigInteger.valueOf(1)
-            }
-            if (!foundPaymentReceivedEvent) {
-                Thread.sleep(5000)
+                if (!foundPaymentReceivedEvent) {
+                    Thread.sleep(1000)
+                }
             }
         }
 
@@ -280,7 +303,11 @@ internal class CommutoCoreInteraction {
 
         //check that balance has changed by proper amount
         val finalDaiBalance = dai.balanceOf(key_two.address).sendAsync().get()
-        assertEquals(initialDaiBalance + BigInteger.valueOf(99), finalDaiBalance)
+
+        if ((role == ParticipantRole.MAKER && direction == SwapDirection.BUY) ||
+            (role == ParticipantRole.TAKER && direction == SwapDirection.SELL)) {
+            assertEquals(initialDaiBalance + BigInteger.valueOf(99), finalDaiBalance)
+        }
     }
 
 }
