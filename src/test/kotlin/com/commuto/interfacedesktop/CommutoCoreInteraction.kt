@@ -21,7 +21,10 @@ import org.web3j.utils.Convert
 import java.io.File
 import java.math.BigDecimal
 import java.math.BigInteger
+import java.nio.ByteBuffer
 import java.security.MessageDigest
+import java.util.*
+import kotlin.collections.ArrayList
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -100,13 +103,13 @@ internal class CommutoCoreInteraction {
     fun testSwapProcess() {
         //Specify swap direction and participant roles
         val direction = SwapDirection.BUY
-        val role = ParticipantRole.TAKER
+        val role = ParticipantRole.MAKER
 
         //Restore Hardhat account #2
         val key_two = Credentials.create("5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a")
 
         //Establish connection to Hardhat node
-        val endpoint = "http://192.168.1.12:8545"
+        val endpoint = "http://192.168.0.195:8545"
         val web3 = Web3j.build(HttpService(endpoint))
 
         //Setup CommutoSwap contract interface
@@ -149,10 +152,79 @@ internal class CommutoCoreInteraction {
         //Get initial Dai balance
         val initialDaiBalance = dai.balanceOf(key_two.address).sendAsync().get()
 
-        var offer: Offer? = null
+        var offer: CommutoSwap.Offer? = null
         var offerId: ByteArray? = null
+        var swap: CommutoSwap.Swap? = null
 
-        if (role == ParticipantRole.TAKER) {
+        if (role == ParticipantRole.MAKER) {
+            //Approve transfer to open offer
+            dai.approve(commutoSwapContractAddress, BigInteger.valueOf(11)).sendAsync().get()
+
+            //Open swap offer
+            val offerIdUUID = UUID.randomUUID()
+            val offerIdByteBuffer = ByteBuffer.wrap(ByteArray(16))
+            offerIdByteBuffer.putLong(offerIdUUID.mostSignificantBits)
+            offerIdByteBuffer.putLong(offerIdUUID.leastSignificantBits)
+            //offerId = offerIdByteBuffer.array()
+            offerId = byteArrayOf(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16)
+            var directionInt: BigInteger? = null
+            if (direction == SwapDirection.BUY) {
+                directionInt = BigInteger.valueOf(0)
+            } else if (direction == SwapDirection.SELL) {
+                directionInt = BigInteger.valueOf(1)
+            }
+            val settlementMethods = ArrayList<ByteArray>()
+            settlementMethods.add("USD-SWIFT".toByteArray(Charsets.UTF_8))
+            offer = CommutoSwap.Offer(
+                true,
+                false,
+                key_two.address,
+                "maker's interface Id here".toByteArray(Charsets.UTF_8),
+                dummyDaiContractAddress,
+                BigInteger.valueOf(100),
+                BigInteger.valueOf(100),
+                BigInteger.valueOf(10),
+                directionInt!!,
+                "a price here".toByteArray(Charsets.UTF_8),
+                settlementMethods,
+                BigInteger.valueOf(1),
+                MessageDigest.getInstance("SHA-256").digest("A bunch of extra data in here".toByteArray())
+            )
+            commutoSwap.openOffer(offerId, offer).sendAsync().get()
+
+            //Wait for offer to be taken
+            var isOfferTaken = false
+            while(!isOfferTaken) {
+                if (web3.ethBlockNumber().send().blockNumber > lastParsedBlockNumber) {
+                    val blockToParseNumber = DefaultBlockParameter
+                        .valueOf(lastParsedBlockNumber + BigInteger.valueOf(1))
+                    val lastBlockTxns = web3.ethGetBlockByNumber(blockToParseNumber, false).send()
+                        .block.transactions
+                    val lastBlockTxnHashes = lastBlockTxns.map { it.get() }
+                    var lastBlockTxnReceipts = ArrayList<TransactionReceipt>()
+                    for (txnHash in lastBlockTxnHashes) {
+                        val txReceiptOptional = web3.ethGetTransactionReceipt(txnHash as String).send()
+                            .transactionReceipt
+                        if (txReceiptOptional.isPresent) {
+                            lastBlockTxnReceipts.add(txReceiptOptional.get())
+                        }
+                    }
+                    for (txnReceipt in lastBlockTxnReceipts) {
+                        val events = commutoSwap.getOfferTakenEvents(txnReceipt)
+                        if (events.count() > 0) {
+                            isOfferTaken = true
+                        }
+                    }
+                    lastParsedBlockNumber += BigInteger.valueOf(1)
+                }
+                if (!isOfferTaken) {
+                    Thread.sleep(1000)
+                }
+            }
+
+            //Get the newly taken swap
+            swap = commutoSwap.getSwap(offerId).sendAsync().get()
+        } else if (role == ParticipantRole.TAKER) {
             //Listen for new offers
             /*
             Note: As of now, this will try to take the first OfferOpened event that it finds, even if the offer is closed
@@ -169,7 +241,8 @@ internal class CommutoCoreInteraction {
                     val lastBlockTxnHashes = lastBlockTxns.map { it.get() }
                     var lastBlockTxnReceipts = ArrayList<TransactionReceipt>()
                     for (txnHash in lastBlockTxnHashes) {
-                        val txReceiptOptional = web3.ethGetTransactionReceipt(txnHash as String).send().transactionReceipt
+                        val txReceiptOptional = web3.ethGetTransactionReceipt(txnHash as String).send()
+                            .transactionReceipt
                         if (txReceiptOptional.isPresent) {
                             lastBlockTxnReceipts.add(txReceiptOptional.get())
                         }
@@ -204,7 +277,7 @@ internal class CommutoCoreInteraction {
             dai.approve(commutoSwapContractAddress, allowanceValue).sendAsync().get()
 
             //Create swap object and take offer
-            val swap = CommutoSwap.Swap(
+            swap = CommutoSwap.Swap(
                 true,
                 true,
                 offer.maker, //maker
@@ -233,7 +306,11 @@ internal class CommutoCoreInteraction {
 
         if (direction == SwapDirection.SELL) {
             if (role == ParticipantRole.MAKER) {
+                //Create allowance to fill swap
+                dai.approve(commutoSwapContractAddress, BigInteger.valueOf(100)).sendAsync().get()
 
+                //Fill swap
+                commutoSwap.fillSwap(offerId).sendAsync().get()
             } else if (role == ParticipantRole.TAKER) {
                 //Start listening for SwapFilled event
                 /*
@@ -350,7 +427,7 @@ internal class CommutoCoreInteraction {
             assertEquals(initialDaiBalance + BigInteger.valueOf(99), finalDaiBalance)
         } else if ((direction == SwapDirection.SELL && role == ParticipantRole.MAKER) ||
             (direction == SwapDirection.BUY && role == ParticipantRole.TAKER)) {
-
+            assertEquals(initialDaiBalance, finalDaiBalance + BigInteger.valueOf(101))
         }
     }
 
