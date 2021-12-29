@@ -45,7 +45,7 @@ public class WorkingCommutoSwap extends CommutoSwap {
                 Arrays.<Type>asList(new org.web3j.abi.datatypes.generated.Bytes16(offerID),
                         newOffer),
                 Collections.<TypeReference<?>>emptyList());
-        String txHash = transactionManager.getTransactionHash(this.gasProvider.getGasPrice(function.getName()), this.gasProvider.getGasLimit(function.getName()), this.contractAddress, FunctionEncoder.encode(function), BigInteger.ZERO, false);
+        String txHash = transactionManager.getTransactionHash(this.gasProvider.getGasPrice(function.getName()), this.gasProvider.getGasLimit(function.getName()), this.contractAddress, CommutoFunctionEncoder.encode(function), BigInteger.ZERO, false);
         return new Pair<>(txHash, executeRemoteCallTransaction(function).sendAsync());
     }
 
