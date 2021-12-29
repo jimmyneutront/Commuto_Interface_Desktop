@@ -2,6 +2,8 @@ package com.commuto.interfacedesktop
 
 import com.commuto.interfacedesktop.contractwrapper.CommutoSwap
 import com.commuto.interfacedesktop.contractwrapper.CommutoSwap.Offer
+import com.commuto.interfacedesktop.contractwrapper.CommutoTransactionManager
+import com.commuto.interfacedesktop.contractwrapper.WorkingCommutoSwap
 import org.web3j.codegen.SolidityFunctionWrapperGenerator
 import org.web3j.contracts.eip20.generated.ERC20
 import org.web3j.crypto.Credentials
@@ -24,6 +26,7 @@ import java.math.BigInteger
 import java.nio.ByteBuffer
 import java.security.MessageDigest
 import java.util.*
+import java.util.concurrent.CompletableFuture
 import kotlin.collections.ArrayList
 import kotlin.random.Random
 import kotlin.test.Test
@@ -102,8 +105,8 @@ internal class CommutoCoreInteraction {
     @Test
     fun testSwapProcess() {
         //Specify swap direction and participant roles
-        val direction = SwapDirection.BUY
-        val role = ParticipantRole.MAKER
+        val direction = SwapDirection.SELL
+        val role = ParticipantRole.TAKER
 
         //Restore Hardhat account #2
         val key_two = Credentials.create("5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a")
@@ -129,16 +132,9 @@ internal class CommutoCoreInteraction {
             }
         }
         val gasProvider = DumbGasProvider()
-        /*
-        Using a noOpProcessor will immediately return an empty tx receipt with just a hash when calling .send() instead
-        waiting for tx confirmation, so Commuto must handle polling for tx confirmation itself.
-         */
-        val noOpProcessor = NoOpProcessor(web3)
-        /*
-        TODO: ditch generated contract wrapper code in favor of my own, since I can't get back my own receipts immediately
-         */
-        val txManager = RawTransactionManager(web3, key_two, ChainIdLong.NONE, noOpProcessor)
-        val commutoSwap = CommutoSwap.load(commutoSwapContractAddress, web3, key_two, gasProvider)
+
+        val txManager = CommutoTransactionManager(web3, key_two, ChainIdLong.NONE)
+        val commutoSwap = WorkingCommutoSwap.load(commutoSwapContractAddress, web3, txManager, gasProvider)
 
         //Don't parse any blocks earlier than that with this block number looking for events emitted by Commuto, because there won't be any
         var lastParsedBlockNumber: BigInteger = BigInteger.valueOf(0)//web3.ethBlockNumber().send().blockNumber
@@ -146,12 +142,14 @@ internal class CommutoCoreInteraction {
         //Start listening for OfferOpened event emission
 
         //Setup dummy Dai contract interface
+        //TODO: Custom ERC20 wrapper with 'approval' funciton that immediately returns txId
         val dummyDaiContractAddress = "0x5FbDB2315678afecb367f032d93F642f64180aa3"
         val dai = ERC20.load(dummyDaiContractAddress, web3, key_two, gasProvider)
 
         //Get initial Dai balance
         val initialDaiBalance = dai.balanceOf(key_two.address).sendAsync().get()
 
+        var functionCallResult: Pair<String, CompletableFuture<TransactionReceipt>>? = null
         var offer: CommutoSwap.Offer? = null
         var offerId: ByteArray? = null
         var swap: CommutoSwap.Swap? = null
@@ -190,7 +188,8 @@ internal class CommutoCoreInteraction {
                 BigInteger.valueOf(1),
                 MessageDigest.getInstance("SHA-256").digest("A bunch of extra data in here".toByteArray())
             )
-            commutoSwap.openOffer(offerId, offer).sendAsync().get()
+            functionCallResult = commutoSwap.openOfferAndGetTXID(offerId, offer)
+            functionCallResult.second.get()
 
             //Wait for offer to be taken
             var isOfferTaken = false
@@ -263,8 +262,6 @@ internal class CommutoCoreInteraction {
             }
 
             //Get new offer
-            //TODO: Fix issue parsing DynamicArray<DynamicBytes> in returned Offer struct
-            //Note: Right now, this only works if custom JARs which support decoding DynamicArray<DynamicBytes> are used
             offer = commutoSwap.getOffer(offerId).send()
 
             //Create allowance to take offer
@@ -301,7 +298,8 @@ internal class CommutoCoreInteraction {
                 false,
                 false
             )
-            commutoSwap.takeOffer(offerId, swap).sendAsync().get()
+            functionCallResult = commutoSwap.takeOfferAndGetTXID(offerId, swap)
+            functionCallResult.second.get()
         }
 
         if (direction == SwapDirection.SELL) {
@@ -310,7 +308,8 @@ internal class CommutoCoreInteraction {
                 dai.approve(commutoSwapContractAddress, BigInteger.valueOf(100)).sendAsync().get()
 
                 //Fill swap
-                commutoSwap.fillSwap(offerId).sendAsync().get()
+                functionCallResult = commutoSwap.fillSwapAndGetTXID(offerId)
+                functionCallResult.second.get()
             } else if (role == ParticipantRole.TAKER) {
                 //Start listening for SwapFilled event
                 /*
@@ -349,7 +348,8 @@ internal class CommutoCoreInteraction {
         if ((direction == SwapDirection.BUY && role == ParticipantRole.MAKER) ||
             (direction == SwapDirection.SELL && role == ParticipantRole.TAKER)) {
             //Report payment sent
-            commutoSwap.reportPaymentSent(offerId).sendAsync().get()
+            functionCallResult = commutoSwap.reportPaymentSentAndGetTXID(offerId)
+            functionCallResult.second.get()
 
             //Start listening for PaymentReceived event
             var foundPaymentReceivedEvent = false
@@ -413,11 +413,13 @@ internal class CommutoCoreInteraction {
             }
 
             //Report payment received
-            commutoSwap.reportPaymentReceived(offerId).sendAsync().get()
+            functionCallResult = commutoSwap.reportPaymentReceivedAndGetTXID(offerId)
+            functionCallResult.second.get()
         }
 
         //call closeSwap
-        commutoSwap.closeSwap(offerId).sendAsync().get()
+        functionCallResult = commutoSwap.closeSwapAndGetTXID(offerId)
+        functionCallResult.second.get()
 
         //check that balance has changed by proper amount
         val finalDaiBalance = dai.balanceOf(key_two.address).sendAsync().get()
@@ -430,5 +432,4 @@ internal class CommutoCoreInteraction {
             assertEquals(initialDaiBalance, finalDaiBalance + BigInteger.valueOf(101))
         }
     }
-
 }

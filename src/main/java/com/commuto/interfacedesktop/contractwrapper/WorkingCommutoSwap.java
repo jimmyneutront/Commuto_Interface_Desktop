@@ -3,12 +3,14 @@ package com.commuto.interfacedesktop.contractwrapper;
 import kotlin.Pair;
 import org.web3j.abi.FunctionEncoder;
 import org.web3j.abi.TypeReference;
+import org.web3j.abi.datatypes.Address;
 import org.web3j.abi.datatypes.Function;
 import org.web3j.abi.datatypes.Type;
 import org.web3j.protocol.Web3j;
 import org.web3j.protocol.core.RemoteFunctionCall;
 import org.web3j.protocol.core.methods.response.TransactionReceipt;
 import org.web3j.protocol.exceptions.TransactionException;
+import org.web3j.tx.exceptions.ContractCallException;
 import org.web3j.tx.gas.ContractGasProvider;
 import org.web3j.utils.RevertReasonExtractor;
 
@@ -16,6 +18,7 @@ import java.io.IOException;
 import java.math.BigInteger;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 
 /*
@@ -45,7 +48,14 @@ public class WorkingCommutoSwap extends CommutoSwap {
         String txHash = transactionManager.getTransactionHash(this.gasProvider.getGasPrice(function.getName()), this.gasProvider.getGasLimit(function.getName()), this.contractAddress, FunctionEncoder.encode(function), BigInteger.ZERO, false);
         return new Pair<>(txHash, executeRemoteCallTransaction(function).sendAsync());
     }
-    //TODO: Implement getOffer
+
+    @Override
+    public RemoteFunctionCall<Offer> getOffer(byte[] offerID) {
+        final org.web3j.abi.datatypes.Function function = new org.web3j.abi.datatypes.Function(FUNC_GETOFFER,
+                Arrays.<Type>asList(new org.web3j.abi.datatypes.generated.Bytes16(offerID)),
+                Arrays.<TypeReference<?>>asList(new TypeReference<Offer>() {}));
+        return executeRemoteCallSingleValueReturn(function, Offer.class);
+    }
 
     public Pair<String, CompletableFuture<TransactionReceipt>> takeOfferAndGetTXID(byte[] offerID, Swap newSwap) throws IOException{
         final org.web3j.abi.datatypes.Function function = new org.web3j.abi.datatypes.Function(
@@ -95,6 +105,41 @@ public class WorkingCommutoSwap extends CommutoSwap {
 
     public static WorkingCommutoSwap load(String contractAddress, Web3j web3j, CommutoTransactionManager transactionManager, ContractGasProvider contractGasProvider) {
         return new WorkingCommutoSwap(contractAddress, web3j, transactionManager, contractGasProvider);
+    }
+
+    protected <T> RemoteFunctionCall<T> executeRemoteCallSingleValueReturn(Function function, Class<T> returnType) {
+        return new RemoteFunctionCall(function, () -> {
+            return this.executeCallSingleValueReturn(function, returnType);
+        });
+    }
+
+    protected <T extends Type, R> R executeCallSingleValueReturn(Function function, Class<R> returnType) throws IOException {
+        T result = this.executeCallSingleValueReturn(function);
+        if (result == null) {
+            throw new ContractCallException("Empty value (0x) returned from contract");
+        } else {
+            Object value = result.getValue();
+            if (returnType.isAssignableFrom(result.getClass())) {
+                return (R)result;
+            } else if (returnType.isAssignableFrom(value.getClass())) {
+                return (R)value;
+            } else if (result.getClass().equals(Address.class) && returnType.equals(String.class)) {
+                return (R)result.toString();
+            } else {
+                throw new ContractCallException("Unable to convert response: " + value + " to expected type: " + returnType.getSimpleName());
+            }
+        }
+    }
+
+    protected <T extends Type> T executeCallSingleValueReturn(Function function) throws IOException {
+        List<Type> values = this.executeCall(function);
+        return !values.isEmpty() ? (T)values.get(0) : null;
+    }
+
+    private List<Type> executeCall(Function function) throws IOException {
+        String encodedFunction = FunctionEncoder.encode(function);
+        String value = this.call(this.contractAddress, encodedFunction, this.defaultBlockParameter);
+        return CommutoFunctionReturnDecoder.decode(value, function.getOutputParameters());
     }
 
     protected RemoteFunctionCall<TransactionReceipt> executeRemoteCallTransaction(Function function) {
