@@ -22,8 +22,26 @@ repositories {
 dependencies {
     implementation(compose.desktop.currentOs)
     implementation("com.squareup.sqldelight:sqlite-driver:1.5.1")
-    implementation("org.web3j:core:4.8.7")
+    implementation("io.github.ma1uta.matrix:client-impl:0.13.1")
     implementation("org.bouncycastle:bcprov-jdk15on:1.69")
+
+    implementation(files("/Users/jamestelzrow/Documents/Junk_Drawer/web3j/abi/build/libs/abi-4.8.9-SNAPSHOT.jar"))
+    implementation(files("/Users/jamestelzrow/Documents/Junk_Drawer/web3j/codegen/build/libs/codegen-4.8.9-SNAPSHOT.jar"))
+    implementation(files("/Users/jamestelzrow/Documents/Junk_Drawer/web3j/contracts/build/libs/contracts-4.8.9-SNAPSHOT.jar"))
+    implementation(files("/Users/jamestelzrow/Documents/Junk_Drawer/web3j/core/build/libs/core-4.8.9-SNAPSHOT.jar"))
+    implementation(files("/Users/jamestelzrow/Documents/Junk_Drawer/web3j/crypto/build/libs/crypto-4.8.9-SNAPSHOT.jar"))
+    implementation(files("/Users/jamestelzrow/Documents/Junk_Drawer/web3j/rlp/build/libs/rlp-4.8.9-SNAPSHOT.jar"))
+    implementation(files("/Users/jamestelzrow/Documents/Junk_Drawer/web3j/utils/build/libs/utils-4.8.9-SNAPSHOT.jar"))
+
+    implementation("io.reactivex.rxjava2:rxjava:2.2.2")
+    implementation("com.squareup.okhttp3:okhttp:4.9.0")
+    implementation("com.squareup.okhttp3:logging-interceptor:4.9.0")
+
+    /*
+    implementation("org.web3j:codegen:4.8.7")
+    implementation("org.web3j:contracts:4.8.7")
+    implementation("org.web3j:core:4.8.7")
+    */
     //implementation("org.bouncycastle:bcpg-jdk15on:1.69")
     testImplementation(kotlin("test"))
 }
