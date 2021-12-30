@@ -1,7 +1,7 @@
 package com.commuto.interfacedesktop
 
+import com.commuto.interfacedesktop.contractwrapper.CommutoERC20
 import com.commuto.interfacedesktop.contractwrapper.CommutoSwap
-import com.commuto.interfacedesktop.contractwrapper.CommutoSwap.Offer
 import com.commuto.interfacedesktop.contractwrapper.CommutoTransactionManager
 import com.commuto.interfacedesktop.contractwrapper.WorkingCommutoSwap
 import org.web3j.codegen.SolidityFunctionWrapperGenerator
@@ -15,10 +15,8 @@ import org.web3j.protocol.core.DefaultBlockParameterName
 import org.web3j.protocol.core.methods.response.TransactionReceipt
 import org.web3j.protocol.http.HttpService
 import org.web3j.tx.ChainIdLong
-import org.web3j.tx.RawTransactionManager
 import org.web3j.tx.Transfer
 import org.web3j.tx.gas.ContractGasProvider
-import org.web3j.tx.response.NoOpProcessor
 import org.web3j.utils.Convert
 import java.io.File
 import java.math.BigDecimal
@@ -144,7 +142,7 @@ internal class CommutoCoreInteraction {
         //Setup dummy Dai contract interface
         //TODO: Custom ERC20 wrapper with 'approval' funciton that immediately returns txId
         val dummyDaiContractAddress = "0x5FbDB2315678afecb367f032d93F642f64180aa3"
-        val dai = ERC20.load(dummyDaiContractAddress, web3, key_two, gasProvider)
+        val dai = CommutoERC20.load(dummyDaiContractAddress, web3, txManager, gasProvider)
 
         //Get initial Dai balance
         val initialDaiBalance = dai.balanceOf(key_two.address).sendAsync().get()
@@ -156,7 +154,15 @@ internal class CommutoCoreInteraction {
 
         if (role == ParticipantRole.MAKER) {
             //Approve transfer to open offer
-            dai.approve(commutoSwapContractAddress, BigInteger.valueOf(11)).sendAsync().get()
+            functionCallResult = dai.approveAndGetTXID(commutoSwapContractAddress, BigInteger.valueOf(11))
+            var isDaiApprovalTxConfirmed = false
+            while (!isDaiApprovalTxConfirmed) {
+                try {
+                    if (web3.ethGetTransactionByHash(functionCallResult.first).send().result.blockNumber != null) {
+                        isDaiApprovalTxConfirmed = true
+                    }
+                } catch (exception: NullPointerException) {}
+            }
 
             //Open swap offer
             val offerIdUUID = UUID.randomUUID()
@@ -164,7 +170,6 @@ internal class CommutoCoreInteraction {
             offerIdByteBuffer.putLong(offerIdUUID.mostSignificantBits)
             offerIdByteBuffer.putLong(offerIdUUID.leastSignificantBits)
             offerId = offerIdByteBuffer.array()
-            //offerId = byteArrayOf(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16)
             var directionInt: BigInteger? = null
             if (direction == SwapDirection.BUY) {
                 directionInt = BigInteger.valueOf(0)
@@ -278,7 +283,15 @@ internal class CommutoCoreInteraction {
             } else if (direction == SwapDirection.SELL) {
                 allowanceValue = BigInteger.valueOf(11)
             }
-            dai.approve(commutoSwapContractAddress, allowanceValue).sendAsync().get()
+            functionCallResult = dai.approveAndGetTXID(commutoSwapContractAddress, allowanceValue)
+            var isDaiApprovalTxConfirmed = false
+            while (!isDaiApprovalTxConfirmed) {
+                try {
+                    if (web3.ethGetTransactionByHash(functionCallResult.first).send().result.blockNumber != null) {
+                        isDaiApprovalTxConfirmed = true
+                    }
+                } catch (exception: NullPointerException) {}
+            }
 
             //Create swap object and take offer
             swap = CommutoSwap.Swap(
@@ -319,7 +332,15 @@ internal class CommutoCoreInteraction {
         if (direction == SwapDirection.SELL) {
             if (role == ParticipantRole.MAKER) {
                 //Create allowance to fill swap
-                dai.approve(commutoSwapContractAddress, BigInteger.valueOf(100)).sendAsync().get()
+                functionCallResult = dai.approveAndGetTXID(commutoSwapContractAddress, BigInteger.valueOf(100))
+                var isDaiApprovalTxConfirmed = false
+                while (!isDaiApprovalTxConfirmed) {
+                    try {
+                        if (web3.ethGetTransactionByHash(functionCallResult.first).send().result.blockNumber != null) {
+                            isDaiApprovalTxConfirmed = true
+                        }
+                    } catch (exception: NullPointerException) {}
+                }
 
                 //Fill swap
                 functionCallResult = commutoSwap.fillSwapAndGetTXID(offerId)
