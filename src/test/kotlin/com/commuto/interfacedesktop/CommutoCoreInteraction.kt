@@ -106,7 +106,7 @@ internal class CommutoCoreInteraction {
     fun testSwapProcess() {
         //Specify swap direction and participant roles
         val direction = SwapDirection.SELL
-        val role = ParticipantRole.TAKER
+        val role = ParticipantRole.MAKER
 
         //Restore Hardhat account #2
         val key_two = Credentials.create("5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a")
@@ -163,8 +163,8 @@ internal class CommutoCoreInteraction {
             val offerIdByteBuffer = ByteBuffer.wrap(ByteArray(16))
             offerIdByteBuffer.putLong(offerIdUUID.mostSignificantBits)
             offerIdByteBuffer.putLong(offerIdUUID.leastSignificantBits)
-            //offerId = offerIdByteBuffer.array()
-            offerId = byteArrayOf(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16)
+            offerId = offerIdByteBuffer.array()
+            //offerId = byteArrayOf(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16)
             var directionInt: BigInteger? = null
             if (direction == SwapDirection.BUY) {
                 directionInt = BigInteger.valueOf(0)
@@ -189,7 +189,14 @@ internal class CommutoCoreInteraction {
                 MessageDigest.getInstance("SHA-256").digest("A bunch of extra data in here".toByteArray())
             )
             functionCallResult = commutoSwap.openOfferAndGetTXID(offerId, offer)
-            functionCallResult.second.get()
+            var isOpenOfferTxConfirmed = false
+            while (!isOpenOfferTxConfirmed) {
+                try {
+                    if (web3.ethGetTransactionByHash(functionCallResult.first).send().result.blockNumber != null) {
+                        isOpenOfferTxConfirmed = true
+                    }
+                } catch (exception: NullPointerException) {}
+            }
 
             //Wait for offer to be taken
             var isOfferTaken = false
@@ -299,7 +306,14 @@ internal class CommutoCoreInteraction {
                 false
             )
             functionCallResult = commutoSwap.takeOfferAndGetTXID(offerId, swap)
-            functionCallResult.second.get()
+            var isTakeOfferTxConfirmed = false
+            while (!isTakeOfferTxConfirmed) {
+                try {
+                    if (web3.ethGetTransactionByHash(functionCallResult.first).send().result.blockNumber != null) {
+                        isTakeOfferTxConfirmed = true
+                    }
+                } catch (exception: NullPointerException) {}
+            }
         }
 
         if (direction == SwapDirection.SELL) {
@@ -309,7 +323,14 @@ internal class CommutoCoreInteraction {
 
                 //Fill swap
                 functionCallResult = commutoSwap.fillSwapAndGetTXID(offerId)
-                functionCallResult.second.get()
+                var isFillSwapTxConfirmed = false
+                while (!isFillSwapTxConfirmed) {
+                    try {
+                        if (web3.ethGetTransactionByHash(functionCallResult.first).send().result.blockNumber != null) {
+                            isFillSwapTxConfirmed = true
+                        }
+                    } catch (exception: NullPointerException) {}
+                }
             } else if (role == ParticipantRole.TAKER) {
                 //Start listening for SwapFilled event
                 /*
@@ -349,7 +370,14 @@ internal class CommutoCoreInteraction {
             (direction == SwapDirection.SELL && role == ParticipantRole.TAKER)) {
             //Report payment sent
             functionCallResult = commutoSwap.reportPaymentSentAndGetTXID(offerId)
-            functionCallResult.second.get()
+            var isReportPaymentSentTxConfirmed = false
+            while (!isReportPaymentSentTxConfirmed) {
+                try {
+                    if (web3.ethGetTransactionByHash(functionCallResult.first).send().result.blockNumber != null) {
+                        isReportPaymentSentTxConfirmed = true
+                    }
+                } catch (exception: NullPointerException) {}
+            }
 
             //Start listening for PaymentReceived event
             var foundPaymentReceivedEvent = false
@@ -414,12 +442,26 @@ internal class CommutoCoreInteraction {
 
             //Report payment received
             functionCallResult = commutoSwap.reportPaymentReceivedAndGetTXID(offerId)
-            functionCallResult.second.get()
+            var isReportReceivedTxConfirmed = false
+            while (!isReportReceivedTxConfirmed) {
+                try {
+                    if (web3.ethGetTransactionByHash(functionCallResult.first).send().result.blockNumber != null) {
+                        isReportReceivedTxConfirmed = true
+                    }
+                } catch (exception: NullPointerException) {}
+            }
         }
 
         //call closeSwap
         functionCallResult = commutoSwap.closeSwapAndGetTXID(offerId)
-        functionCallResult.second.get()
+        var isSwapClosedTxConfirmed = false
+        while (!isSwapClosedTxConfirmed) {
+            try {
+                if (web3.ethGetTransactionByHash(functionCallResult.first).send().result.blockNumber != null) {
+                    isSwapClosedTxConfirmed = true
+                }
+            } catch (exception: NullPointerException) {}
+        }
 
         //check that balance has changed by proper amount
         val finalDaiBalance = dai.balanceOf(key_two.address).sendAsync().get()
