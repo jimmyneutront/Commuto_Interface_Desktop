@@ -92,7 +92,7 @@ public class CommutoFunctionEncoder extends FunctionEncoder {
 
     protected static String buildMethodSignature(String methodName, List<Type> parameters) {
         if (methodName == "openOffer") {
-            return "openOffer(bytes16,(bool,bool,address,bytes,address,uint256,uint256,uint256,uint8,bytes,bytes[],uint256,bytes32))";
+            return "openOffer(bytes16,(bool,bool,address,bytes,address,uint256,uint256,uint256,uint8,bytes,bytes[],uint256))";
         } else {
             StringBuilder result = new StringBuilder();
             result.append(methodName);

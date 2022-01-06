@@ -2,21 +2,9 @@ package com.commuto.interfacedesktop.contractwrapper;
 
 import io.reactivex.Flowable;
 import io.reactivex.functions.Function;
-import java.math.BigInteger;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.concurrent.Callable;
 import org.web3j.abi.EventEncoder;
 import org.web3j.abi.TypeReference;
-import org.web3j.abi.datatypes.Address;
-import org.web3j.abi.datatypes.Bool;
-import org.web3j.abi.datatypes.DynamicArray;
-import org.web3j.abi.datatypes.DynamicBytes;
-import org.web3j.abi.datatypes.DynamicStruct;
-import org.web3j.abi.datatypes.Event;
-import org.web3j.abi.datatypes.Type;
+import org.web3j.abi.datatypes.*;
 import org.web3j.abi.datatypes.generated.Bytes16;
 import org.web3j.abi.datatypes.generated.Bytes32;
 import org.web3j.abi.datatypes.generated.Uint256;
@@ -32,6 +20,13 @@ import org.web3j.protocol.core.methods.response.TransactionReceipt;
 import org.web3j.tx.Contract;
 import org.web3j.tx.TransactionManager;
 import org.web3j.tx.gas.ContractGasProvider;
+
+import java.math.BigInteger;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.concurrent.Callable;
 
 /**
  * <p>Auto generated code.
@@ -88,39 +83,39 @@ public class CommutoSwap extends Contract {
 
     public static final String FUNC_USDTADDRESS = "usdtAddress";
 
-    public static final Event BUYERCLOSED_EVENT = new Event("BuyerClosed", 
+    public static final Event BUYERCLOSED_EVENT = new Event("BuyerClosed",
             Arrays.<TypeReference<?>>asList(new TypeReference<Bytes16>() {}));
     ;
 
-    public static final Event OFFERCANCELED_EVENT = new Event("OfferCanceled", 
+    public static final Event OFFERCANCELED_EVENT = new Event("OfferCanceled",
             Arrays.<TypeReference<?>>asList(new TypeReference<Bytes16>() {}));
     ;
 
-    public static final Event OFFEROPENED_EVENT = new Event("OfferOpened", 
+    public static final Event OFFEROPENED_EVENT = new Event("OfferOpened",
             Arrays.<TypeReference<?>>asList(new TypeReference<Bytes16>() {}, new TypeReference<DynamicBytes>() {}));
     ;
 
-    public static final Event OFFERTAKEN_EVENT = new Event("OfferTaken", 
+    public static final Event OFFERTAKEN_EVENT = new Event("OfferTaken",
             Arrays.<TypeReference<?>>asList(new TypeReference<Bytes16>() {}, new TypeReference<DynamicBytes>() {}));
     ;
 
-    public static final Event PAYMENTRECEIVED_EVENT = new Event("PaymentReceived", 
+    public static final Event PAYMENTRECEIVED_EVENT = new Event("PaymentReceived",
             Arrays.<TypeReference<?>>asList(new TypeReference<Bytes16>() {}));
     ;
 
-    public static final Event PAYMENTSENT_EVENT = new Event("PaymentSent", 
+    public static final Event PAYMENTSENT_EVENT = new Event("PaymentSent",
             Arrays.<TypeReference<?>>asList(new TypeReference<Bytes16>() {}));
     ;
 
-    public static final Event PRICECHANGED_EVENT = new Event("PriceChanged", 
+    public static final Event PRICECHANGED_EVENT = new Event("PriceChanged",
             Arrays.<TypeReference<?>>asList(new TypeReference<Bytes16>() {}));
     ;
 
-    public static final Event SELLERCLOSED_EVENT = new Event("SellerClosed", 
+    public static final Event SELLERCLOSED_EVENT = new Event("SellerClosed",
             Arrays.<TypeReference<?>>asList(new TypeReference<Bytes16>() {}));
     ;
 
-    public static final Event SWAPFILLED_EVENT = new Event("SwapFilled", 
+    public static final Event SWAPFILLED_EVENT = new Event("SwapFilled",
             Arrays.<TypeReference<?>>asList(new TypeReference<Bytes16>() {}));
     ;
 
@@ -159,9 +154,9 @@ public class CommutoSwap extends Contract {
     }
 
     public List<BuyerClosedEventResponse> getBuyerClosedEvents(TransactionReceipt transactionReceipt) {
-        List<Contract.EventValuesWithLog> valueList = extractEventParametersWithLog(BUYERCLOSED_EVENT, transactionReceipt);
+        List<EventValuesWithLog> valueList = extractEventParametersWithLog(BUYERCLOSED_EVENT, transactionReceipt);
         ArrayList<BuyerClosedEventResponse> responses = new ArrayList<BuyerClosedEventResponse>(valueList.size());
-        for (Contract.EventValuesWithLog eventValues : valueList) {
+        for (EventValuesWithLog eventValues : valueList) {
             BuyerClosedEventResponse typedResponse = new BuyerClosedEventResponse();
             typedResponse.log = eventValues.getLog();
             typedResponse.swapID = (byte[]) eventValues.getNonIndexedValues().get(0).getValue();
@@ -174,7 +169,7 @@ public class CommutoSwap extends Contract {
         return web3j.ethLogFlowable(filter).map(new Function<Log, BuyerClosedEventResponse>() {
             @Override
             public BuyerClosedEventResponse apply(Log log) {
-                Contract.EventValuesWithLog eventValues = extractEventParametersWithLog(BUYERCLOSED_EVENT, log);
+                EventValuesWithLog eventValues = extractEventParametersWithLog(BUYERCLOSED_EVENT, log);
                 BuyerClosedEventResponse typedResponse = new BuyerClosedEventResponse();
                 typedResponse.log = log;
                 typedResponse.swapID = (byte[]) eventValues.getNonIndexedValues().get(0).getValue();
@@ -190,9 +185,9 @@ public class CommutoSwap extends Contract {
     }
 
     public List<OfferCanceledEventResponse> getOfferCanceledEvents(TransactionReceipt transactionReceipt) {
-        List<Contract.EventValuesWithLog> valueList = extractEventParametersWithLog(OFFERCANCELED_EVENT, transactionReceipt);
+        List<EventValuesWithLog> valueList = extractEventParametersWithLog(OFFERCANCELED_EVENT, transactionReceipt);
         ArrayList<OfferCanceledEventResponse> responses = new ArrayList<OfferCanceledEventResponse>(valueList.size());
-        for (Contract.EventValuesWithLog eventValues : valueList) {
+        for (EventValuesWithLog eventValues : valueList) {
             OfferCanceledEventResponse typedResponse = new OfferCanceledEventResponse();
             typedResponse.log = eventValues.getLog();
             typedResponse.offerID = (byte[]) eventValues.getNonIndexedValues().get(0).getValue();
@@ -205,7 +200,7 @@ public class CommutoSwap extends Contract {
         return web3j.ethLogFlowable(filter).map(new Function<Log, OfferCanceledEventResponse>() {
             @Override
             public OfferCanceledEventResponse apply(Log log) {
-                Contract.EventValuesWithLog eventValues = extractEventParametersWithLog(OFFERCANCELED_EVENT, log);
+                EventValuesWithLog eventValues = extractEventParametersWithLog(OFFERCANCELED_EVENT, log);
                 OfferCanceledEventResponse typedResponse = new OfferCanceledEventResponse();
                 typedResponse.log = log;
                 typedResponse.offerID = (byte[]) eventValues.getNonIndexedValues().get(0).getValue();
@@ -221,9 +216,9 @@ public class CommutoSwap extends Contract {
     }
 
     public List<OfferOpenedEventResponse> getOfferOpenedEvents(TransactionReceipt transactionReceipt) {
-        List<Contract.EventValuesWithLog> valueList = extractEventParametersWithLog(OFFEROPENED_EVENT, transactionReceipt);
+        List<EventValuesWithLog> valueList = extractEventParametersWithLog(OFFEROPENED_EVENT, transactionReceipt);
         ArrayList<OfferOpenedEventResponse> responses = new ArrayList<OfferOpenedEventResponse>(valueList.size());
-        for (Contract.EventValuesWithLog eventValues : valueList) {
+        for (EventValuesWithLog eventValues : valueList) {
             OfferOpenedEventResponse typedResponse = new OfferOpenedEventResponse();
             typedResponse.log = eventValues.getLog();
             typedResponse.offerID = (byte[]) eventValues.getNonIndexedValues().get(0).getValue();
@@ -237,7 +232,7 @@ public class CommutoSwap extends Contract {
         return web3j.ethLogFlowable(filter).map(new Function<Log, OfferOpenedEventResponse>() {
             @Override
             public OfferOpenedEventResponse apply(Log log) {
-                Contract.EventValuesWithLog eventValues = extractEventParametersWithLog(OFFEROPENED_EVENT, log);
+                EventValuesWithLog eventValues = extractEventParametersWithLog(OFFEROPENED_EVENT, log);
                 OfferOpenedEventResponse typedResponse = new OfferOpenedEventResponse();
                 typedResponse.log = log;
                 typedResponse.offerID = (byte[]) eventValues.getNonIndexedValues().get(0).getValue();
@@ -254,9 +249,9 @@ public class CommutoSwap extends Contract {
     }
 
     public List<OfferTakenEventResponse> getOfferTakenEvents(TransactionReceipt transactionReceipt) {
-        List<Contract.EventValuesWithLog> valueList = extractEventParametersWithLog(OFFERTAKEN_EVENT, transactionReceipt);
+        List<EventValuesWithLog> valueList = extractEventParametersWithLog(OFFERTAKEN_EVENT, transactionReceipt);
         ArrayList<OfferTakenEventResponse> responses = new ArrayList<OfferTakenEventResponse>(valueList.size());
-        for (Contract.EventValuesWithLog eventValues : valueList) {
+        for (EventValuesWithLog eventValues : valueList) {
             OfferTakenEventResponse typedResponse = new OfferTakenEventResponse();
             typedResponse.log = eventValues.getLog();
             typedResponse.offerID = (byte[]) eventValues.getNonIndexedValues().get(0).getValue();
@@ -270,7 +265,7 @@ public class CommutoSwap extends Contract {
         return web3j.ethLogFlowable(filter).map(new Function<Log, OfferTakenEventResponse>() {
             @Override
             public OfferTakenEventResponse apply(Log log) {
-                Contract.EventValuesWithLog eventValues = extractEventParametersWithLog(OFFERTAKEN_EVENT, log);
+                EventValuesWithLog eventValues = extractEventParametersWithLog(OFFERTAKEN_EVENT, log);
                 OfferTakenEventResponse typedResponse = new OfferTakenEventResponse();
                 typedResponse.log = log;
                 typedResponse.offerID = (byte[]) eventValues.getNonIndexedValues().get(0).getValue();
@@ -287,9 +282,9 @@ public class CommutoSwap extends Contract {
     }
 
     public List<PaymentReceivedEventResponse> getPaymentReceivedEvents(TransactionReceipt transactionReceipt) {
-        List<Contract.EventValuesWithLog> valueList = extractEventParametersWithLog(PAYMENTRECEIVED_EVENT, transactionReceipt);
+        List<EventValuesWithLog> valueList = extractEventParametersWithLog(PAYMENTRECEIVED_EVENT, transactionReceipt);
         ArrayList<PaymentReceivedEventResponse> responses = new ArrayList<PaymentReceivedEventResponse>(valueList.size());
-        for (Contract.EventValuesWithLog eventValues : valueList) {
+        for (EventValuesWithLog eventValues : valueList) {
             PaymentReceivedEventResponse typedResponse = new PaymentReceivedEventResponse();
             typedResponse.log = eventValues.getLog();
             typedResponse.swapID = (byte[]) eventValues.getNonIndexedValues().get(0).getValue();
@@ -302,7 +297,7 @@ public class CommutoSwap extends Contract {
         return web3j.ethLogFlowable(filter).map(new Function<Log, PaymentReceivedEventResponse>() {
             @Override
             public PaymentReceivedEventResponse apply(Log log) {
-                Contract.EventValuesWithLog eventValues = extractEventParametersWithLog(PAYMENTRECEIVED_EVENT, log);
+                EventValuesWithLog eventValues = extractEventParametersWithLog(PAYMENTRECEIVED_EVENT, log);
                 PaymentReceivedEventResponse typedResponse = new PaymentReceivedEventResponse();
                 typedResponse.log = log;
                 typedResponse.swapID = (byte[]) eventValues.getNonIndexedValues().get(0).getValue();
@@ -318,9 +313,9 @@ public class CommutoSwap extends Contract {
     }
 
     public List<PaymentSentEventResponse> getPaymentSentEvents(TransactionReceipt transactionReceipt) {
-        List<Contract.EventValuesWithLog> valueList = extractEventParametersWithLog(PAYMENTSENT_EVENT, transactionReceipt);
+        List<EventValuesWithLog> valueList = extractEventParametersWithLog(PAYMENTSENT_EVENT, transactionReceipt);
         ArrayList<PaymentSentEventResponse> responses = new ArrayList<PaymentSentEventResponse>(valueList.size());
-        for (Contract.EventValuesWithLog eventValues : valueList) {
+        for (EventValuesWithLog eventValues : valueList) {
             PaymentSentEventResponse typedResponse = new PaymentSentEventResponse();
             typedResponse.log = eventValues.getLog();
             typedResponse.swapID = (byte[]) eventValues.getNonIndexedValues().get(0).getValue();
@@ -333,7 +328,7 @@ public class CommutoSwap extends Contract {
         return web3j.ethLogFlowable(filter).map(new Function<Log, PaymentSentEventResponse>() {
             @Override
             public PaymentSentEventResponse apply(Log log) {
-                Contract.EventValuesWithLog eventValues = extractEventParametersWithLog(PAYMENTSENT_EVENT, log);
+                EventValuesWithLog eventValues = extractEventParametersWithLog(PAYMENTSENT_EVENT, log);
                 PaymentSentEventResponse typedResponse = new PaymentSentEventResponse();
                 typedResponse.log = log;
                 typedResponse.swapID = (byte[]) eventValues.getNonIndexedValues().get(0).getValue();
@@ -349,9 +344,9 @@ public class CommutoSwap extends Contract {
     }
 
     public List<PriceChangedEventResponse> getPriceChangedEvents(TransactionReceipt transactionReceipt) {
-        List<Contract.EventValuesWithLog> valueList = extractEventParametersWithLog(PRICECHANGED_EVENT, transactionReceipt);
+        List<EventValuesWithLog> valueList = extractEventParametersWithLog(PRICECHANGED_EVENT, transactionReceipt);
         ArrayList<PriceChangedEventResponse> responses = new ArrayList<PriceChangedEventResponse>(valueList.size());
-        for (Contract.EventValuesWithLog eventValues : valueList) {
+        for (EventValuesWithLog eventValues : valueList) {
             PriceChangedEventResponse typedResponse = new PriceChangedEventResponse();
             typedResponse.log = eventValues.getLog();
             typedResponse.offerID = (byte[]) eventValues.getNonIndexedValues().get(0).getValue();
@@ -364,7 +359,7 @@ public class CommutoSwap extends Contract {
         return web3j.ethLogFlowable(filter).map(new Function<Log, PriceChangedEventResponse>() {
             @Override
             public PriceChangedEventResponse apply(Log log) {
-                Contract.EventValuesWithLog eventValues = extractEventParametersWithLog(PRICECHANGED_EVENT, log);
+                EventValuesWithLog eventValues = extractEventParametersWithLog(PRICECHANGED_EVENT, log);
                 PriceChangedEventResponse typedResponse = new PriceChangedEventResponse();
                 typedResponse.log = log;
                 typedResponse.offerID = (byte[]) eventValues.getNonIndexedValues().get(0).getValue();
@@ -380,9 +375,9 @@ public class CommutoSwap extends Contract {
     }
 
     public List<SellerClosedEventResponse> getSellerClosedEvents(TransactionReceipt transactionReceipt) {
-        List<Contract.EventValuesWithLog> valueList = extractEventParametersWithLog(SELLERCLOSED_EVENT, transactionReceipt);
+        List<EventValuesWithLog> valueList = extractEventParametersWithLog(SELLERCLOSED_EVENT, transactionReceipt);
         ArrayList<SellerClosedEventResponse> responses = new ArrayList<SellerClosedEventResponse>(valueList.size());
-        for (Contract.EventValuesWithLog eventValues : valueList) {
+        for (EventValuesWithLog eventValues : valueList) {
             SellerClosedEventResponse typedResponse = new SellerClosedEventResponse();
             typedResponse.log = eventValues.getLog();
             typedResponse.swapID = (byte[]) eventValues.getNonIndexedValues().get(0).getValue();
@@ -395,7 +390,7 @@ public class CommutoSwap extends Contract {
         return web3j.ethLogFlowable(filter).map(new Function<Log, SellerClosedEventResponse>() {
             @Override
             public SellerClosedEventResponse apply(Log log) {
-                Contract.EventValuesWithLog eventValues = extractEventParametersWithLog(SELLERCLOSED_EVENT, log);
+                EventValuesWithLog eventValues = extractEventParametersWithLog(SELLERCLOSED_EVENT, log);
                 SellerClosedEventResponse typedResponse = new SellerClosedEventResponse();
                 typedResponse.log = log;
                 typedResponse.swapID = (byte[]) eventValues.getNonIndexedValues().get(0).getValue();
@@ -411,9 +406,9 @@ public class CommutoSwap extends Contract {
     }
 
     public List<SwapFilledEventResponse> getSwapFilledEvents(TransactionReceipt transactionReceipt) {
-        List<Contract.EventValuesWithLog> valueList = extractEventParametersWithLog(SWAPFILLED_EVENT, transactionReceipt);
+        List<EventValuesWithLog> valueList = extractEventParametersWithLog(SWAPFILLED_EVENT, transactionReceipt);
         ArrayList<SwapFilledEventResponse> responses = new ArrayList<SwapFilledEventResponse>(valueList.size());
-        for (Contract.EventValuesWithLog eventValues : valueList) {
+        for (EventValuesWithLog eventValues : valueList) {
             SwapFilledEventResponse typedResponse = new SwapFilledEventResponse();
             typedResponse.log = eventValues.getLog();
             typedResponse.swapID = (byte[]) eventValues.getNonIndexedValues().get(0).getValue();
@@ -426,7 +421,7 @@ public class CommutoSwap extends Contract {
         return web3j.ethLogFlowable(filter).map(new Function<Log, SwapFilledEventResponse>() {
             @Override
             public SwapFilledEventResponse apply(Log log) {
-                Contract.EventValuesWithLog eventValues = extractEventParametersWithLog(SWAPFILLED_EVENT, log);
+                EventValuesWithLog eventValues = extractEventParametersWithLog(SWAPFILLED_EVENT, log);
                 SwapFilledEventResponse typedResponse = new SwapFilledEventResponse();
                 typedResponse.log = log;
                 typedResponse.swapID = (byte[]) eventValues.getNonIndexedValues().get(0).getValue();
@@ -451,7 +446,7 @@ public class CommutoSwap extends Contract {
     public RemoteFunctionCall<TransactionReceipt> cancelOffer(byte[] offerID) {
         final org.web3j.abi.datatypes.Function function = new org.web3j.abi.datatypes.Function(
                 FUNC_CANCELOFFER, 
-                Arrays.<Type>asList(new org.web3j.abi.datatypes.generated.Bytes16(offerID)), 
+                Arrays.<Type>asList(new Bytes16(offerID)),
                 Collections.<TypeReference<?>>emptyList());
         return executeRemoteCallTransaction(function);
     }
@@ -459,7 +454,7 @@ public class CommutoSwap extends Contract {
     public RemoteFunctionCall<TransactionReceipt> closeSwap(byte[] swapID) {
         final org.web3j.abi.datatypes.Function function = new org.web3j.abi.datatypes.Function(
                 FUNC_CLOSESWAP, 
-                Arrays.<Type>asList(new org.web3j.abi.datatypes.generated.Bytes16(swapID)), 
+                Arrays.<Type>asList(new Bytes16(swapID)),
                 Collections.<TypeReference<?>>emptyList());
         return executeRemoteCallTransaction(function);
     }
@@ -474,10 +469,10 @@ public class CommutoSwap extends Contract {
     public RemoteFunctionCall<TransactionReceipt> editOffer(byte[] offerID, Offer editedOffer, Boolean editPrice, Boolean editSettlementMethods) {
         final org.web3j.abi.datatypes.Function function = new org.web3j.abi.datatypes.Function(
                 FUNC_EDITOFFER, 
-                Arrays.<Type>asList(new org.web3j.abi.datatypes.generated.Bytes16(offerID), 
+                Arrays.<Type>asList(new Bytes16(offerID),
                 editedOffer, 
-                new org.web3j.abi.datatypes.Bool(editPrice), 
-                new org.web3j.abi.datatypes.Bool(editSettlementMethods)), 
+                new Bool(editPrice),
+                new Bool(editSettlementMethods)),
                 Collections.<TypeReference<?>>emptyList());
         return executeRemoteCallTransaction(function);
     }
@@ -485,14 +480,14 @@ public class CommutoSwap extends Contract {
     public RemoteFunctionCall<TransactionReceipt> fillSwap(byte[] swapID) {
         final org.web3j.abi.datatypes.Function function = new org.web3j.abi.datatypes.Function(
                 FUNC_FILLSWAP, 
-                Arrays.<Type>asList(new org.web3j.abi.datatypes.generated.Bytes16(swapID)), 
+                Arrays.<Type>asList(new Bytes16(swapID)),
                 Collections.<TypeReference<?>>emptyList());
         return executeRemoteCallTransaction(function);
     }
 
     public RemoteFunctionCall<Offer> getOffer(byte[] offerID) {
         final org.web3j.abi.datatypes.Function function = new org.web3j.abi.datatypes.Function(FUNC_GETOFFER, 
-                Arrays.<Type>asList(new org.web3j.abi.datatypes.generated.Bytes16(offerID)), 
+                Arrays.<Type>asList(new Bytes16(offerID)),
                 Arrays.<TypeReference<?>>asList(new TypeReference<Offer>() {}));
         return executeRemoteCallSingleValueReturn(function, Offer.class);
     }
@@ -529,7 +524,7 @@ public class CommutoSwap extends Contract {
 
     public RemoteFunctionCall<Swap> getSwap(byte[] swapID) {
         final org.web3j.abi.datatypes.Function function = new org.web3j.abi.datatypes.Function(FUNC_GETSWAP, 
-                Arrays.<Type>asList(new org.web3j.abi.datatypes.generated.Bytes16(swapID)), 
+                Arrays.<Type>asList(new Bytes16(swapID)),
                 Arrays.<TypeReference<?>>asList(new TypeReference<Swap>() {}));
         return executeRemoteCallSingleValueReturn(function, Swap.class);
     }
@@ -537,7 +532,7 @@ public class CommutoSwap extends Contract {
     public RemoteFunctionCall<TransactionReceipt> openOffer(byte[] offerID, Offer newOffer) {
         final org.web3j.abi.datatypes.Function function = new org.web3j.abi.datatypes.Function(
                 FUNC_OPENOFFER, 
-                Arrays.<Type>asList(new org.web3j.abi.datatypes.generated.Bytes16(offerID), 
+                Arrays.<Type>asList(new Bytes16(offerID),
                 newOffer), 
                 Collections.<TypeReference<?>>emptyList());
         return executeRemoteCallTransaction(function);
@@ -560,7 +555,7 @@ public class CommutoSwap extends Contract {
     public RemoteFunctionCall<TransactionReceipt> reportPaymentReceived(byte[] swapID) {
         final org.web3j.abi.datatypes.Function function = new org.web3j.abi.datatypes.Function(
                 FUNC_REPORTPAYMENTRECEIVED, 
-                Arrays.<Type>asList(new org.web3j.abi.datatypes.generated.Bytes16(swapID)), 
+                Arrays.<Type>asList(new Bytes16(swapID)),
                 Collections.<TypeReference<?>>emptyList());
         return executeRemoteCallTransaction(function);
     }
@@ -568,7 +563,7 @@ public class CommutoSwap extends Contract {
     public RemoteFunctionCall<TransactionReceipt> reportPaymentSent(byte[] swapID) {
         final org.web3j.abi.datatypes.Function function = new org.web3j.abi.datatypes.Function(
                 FUNC_REPORTPAYMENTSENT, 
-                Arrays.<Type>asList(new org.web3j.abi.datatypes.generated.Bytes16(swapID)), 
+                Arrays.<Type>asList(new Bytes16(swapID)),
                 Collections.<TypeReference<?>>emptyList());
         return executeRemoteCallTransaction(function);
     }
@@ -583,8 +578,8 @@ public class CommutoSwap extends Contract {
     public RemoteFunctionCall<TransactionReceipt> setSettlementMethodSupport(byte[] settlementMethod, Boolean support) {
         final org.web3j.abi.datatypes.Function function = new org.web3j.abi.datatypes.Function(
                 FUNC_SETSETTLEMENTMETHODSUPPORT, 
-                Arrays.<Type>asList(new org.web3j.abi.datatypes.DynamicBytes(settlementMethod), 
-                new org.web3j.abi.datatypes.Bool(support)), 
+                Arrays.<Type>asList(new DynamicBytes(settlementMethod),
+                new Bool(support)),
                 Collections.<TypeReference<?>>emptyList());
         return executeRemoteCallTransaction(function);
     }
@@ -592,8 +587,8 @@ public class CommutoSwap extends Contract {
     public RemoteFunctionCall<TransactionReceipt> setStablecoinSupport(String stablecoin, Boolean support) {
         final org.web3j.abi.datatypes.Function function = new org.web3j.abi.datatypes.Function(
                 FUNC_SETSTABLECOINSUPPORT, 
-                Arrays.<Type>asList(new org.web3j.abi.datatypes.Address(160, stablecoin), 
-                new org.web3j.abi.datatypes.Bool(support)), 
+                Arrays.<Type>asList(new Address(160, stablecoin),
+                new Bool(support)),
                 Collections.<TypeReference<?>>emptyList());
         return executeRemoteCallTransaction(function);
     }
@@ -601,7 +596,7 @@ public class CommutoSwap extends Contract {
     public RemoteFunctionCall<TransactionReceipt> takeOffer(byte[] offerID, Swap newSwap) {
         final org.web3j.abi.datatypes.Function function = new org.web3j.abi.datatypes.Function(
                 FUNC_TAKEOFFER, 
-                Arrays.<Type>asList(new org.web3j.abi.datatypes.generated.Bytes16(offerID), 
+                Arrays.<Type>asList(new Bytes16(offerID),
                 newSwap), 
                 Collections.<TypeReference<?>>emptyList());
         return executeRemoteCallTransaction(function);
@@ -664,11 +659,9 @@ public class CommutoSwap extends Contract {
 
         public BigInteger protocolVersion;
 
-        public byte[] extraData;
-
         //TODO: Node the modifications made to this and the constructor below it to deal with DynamicBytes/DynamicArray/byte[] issues
-        public Offer(Boolean isCreated, Boolean isTaken, String maker, byte[] interfaceId, String stablecoin, BigInteger amountLowerBound, BigInteger amountUpperBound, BigInteger securityDepositAmount, BigInteger direction, byte[] price, List<byte[]> settlementMethods, BigInteger protocolVersion, byte[] extraData) {
-            super(new org.web3j.abi.datatypes.Bool(isCreated),new org.web3j.abi.datatypes.Bool(isTaken),new org.web3j.abi.datatypes.Address(maker),new org.web3j.abi.datatypes.DynamicBytes(interfaceId),new org.web3j.abi.datatypes.Address(stablecoin),new org.web3j.abi.datatypes.generated.Uint256(amountLowerBound),new org.web3j.abi.datatypes.generated.Uint256(amountUpperBound),new org.web3j.abi.datatypes.generated.Uint256(securityDepositAmount),new org.web3j.abi.datatypes.generated.Uint8(direction),new org.web3j.abi.datatypes.DynamicBytes(price),new org.web3j.abi.datatypes.DynamicArray<org.web3j.abi.datatypes.DynamicBytes>(buildDynamicBytesArrList(settlementMethods)),new org.web3j.abi.datatypes.generated.Uint256(protocolVersion),new org.web3j.abi.datatypes.generated.Bytes32(extraData));
+        public Offer(Boolean isCreated, Boolean isTaken, String maker, byte[] interfaceId, String stablecoin, BigInteger amountLowerBound, BigInteger amountUpperBound, BigInteger securityDepositAmount, BigInteger direction, byte[] price, List<byte[]> settlementMethods, BigInteger protocolVersion) {
+            super(new org.web3j.abi.datatypes.Bool(isCreated),new org.web3j.abi.datatypes.Bool(isTaken),new org.web3j.abi.datatypes.Address(maker),new org.web3j.abi.datatypes.DynamicBytes(interfaceId),new org.web3j.abi.datatypes.Address(stablecoin),new org.web3j.abi.datatypes.generated.Uint256(amountLowerBound),new org.web3j.abi.datatypes.generated.Uint256(amountUpperBound),new org.web3j.abi.datatypes.generated.Uint256(securityDepositAmount),new org.web3j.abi.datatypes.generated.Uint8(direction),new org.web3j.abi.datatypes.DynamicBytes(price),new org.web3j.abi.datatypes.DynamicArray<org.web3j.abi.datatypes.DynamicBytes>(buildDynamicBytesArrList(settlementMethods)),new org.web3j.abi.datatypes.generated.Uint256(protocolVersion));
             this.isCreated = isCreated;
             this.isTaken = isTaken;
             this.maker = maker;
@@ -681,11 +674,10 @@ public class CommutoSwap extends Contract {
             this.price = price;
             this.settlementMethods = settlementMethods;
             this.protocolVersion = protocolVersion;
-            this.extraData = extraData;
         }
 
-        public Offer(Bool isCreated, Bool isTaken, Address maker, DynamicBytes interfaceId, Address stablecoin, Uint256 amountLowerBound, Uint256 amountUpperBound, Uint256 securityDepositAmount, Uint8 direction, DynamicBytes price, DynamicArray<DynamicBytes> settlementMethods, Uint256 protocolVersion, Bytes32 extraData) {
-            super(isCreated,isTaken,maker,interfaceId,stablecoin,amountLowerBound,amountUpperBound,securityDepositAmount,direction,price,settlementMethods,protocolVersion,extraData);
+        public Offer(Bool isCreated, Bool isTaken, Address maker, DynamicBytes interfaceId, Address stablecoin, Uint256 amountLowerBound, Uint256 amountUpperBound, Uint256 securityDepositAmount, Uint8 direction, DynamicBytes price, DynamicArray<DynamicBytes> settlementMethods, Uint256 protocolVersion) {
+            super(isCreated,isTaken,maker,interfaceId,stablecoin,amountLowerBound,amountUpperBound,securityDepositAmount,direction,price,settlementMethods,protocolVersion);
             this.isCreated = isCreated.getValue();
             this.isTaken = isTaken.getValue();
             this.maker = maker.getValue();
@@ -698,7 +690,6 @@ public class CommutoSwap extends Contract {
             this.price = price.getValue();
             this.settlementMethods = buildByteArrList(settlementMethods);
             this.protocolVersion = protocolVersion.getValue();
-            this.extraData = extraData.getValue();
         }
     }
 
@@ -735,10 +726,6 @@ public class CommutoSwap extends Contract {
 
         public BigInteger protocolVersion;
 
-        public byte[] makerExtraData;
-
-        public byte[] takerExtraData;
-
         public Boolean isPaymentSent;
 
         public Boolean isPaymentReceived;
@@ -747,8 +734,8 @@ public class CommutoSwap extends Contract {
 
         public Boolean hasSellerClosed;
 
-        public Swap(Boolean isCreated, Boolean requiresFill, String maker, byte[] makerInterfaceId, String taker, byte[] takerInterfaceId, String stablecoin, BigInteger amountLowerBound, BigInteger amountUpperBound, BigInteger securityDepositAmount, BigInteger takenSwapAmount, BigInteger serviceFeeAmount, BigInteger direction, byte[] price, byte[] settlementMethod, BigInteger protocolVersion, byte[] makerExtraData, byte[] takerExtraData, Boolean isPaymentSent, Boolean isPaymentReceived, Boolean hasBuyerClosed, Boolean hasSellerClosed) {
-            super(new org.web3j.abi.datatypes.Bool(isCreated),new org.web3j.abi.datatypes.Bool(requiresFill),new org.web3j.abi.datatypes.Address(maker),new org.web3j.abi.datatypes.DynamicBytes(makerInterfaceId),new org.web3j.abi.datatypes.Address(taker),new org.web3j.abi.datatypes.DynamicBytes(takerInterfaceId),new org.web3j.abi.datatypes.Address(stablecoin),new org.web3j.abi.datatypes.generated.Uint256(amountLowerBound),new org.web3j.abi.datatypes.generated.Uint256(amountUpperBound),new org.web3j.abi.datatypes.generated.Uint256(securityDepositAmount),new org.web3j.abi.datatypes.generated.Uint256(takenSwapAmount),new org.web3j.abi.datatypes.generated.Uint256(serviceFeeAmount),new org.web3j.abi.datatypes.generated.Uint8(direction),new org.web3j.abi.datatypes.DynamicBytes(price),new org.web3j.abi.datatypes.DynamicBytes(settlementMethod),new org.web3j.abi.datatypes.generated.Uint256(protocolVersion),new org.web3j.abi.datatypes.generated.Bytes32(makerExtraData),new org.web3j.abi.datatypes.generated.Bytes32(takerExtraData),new org.web3j.abi.datatypes.Bool(isPaymentSent),new org.web3j.abi.datatypes.Bool(isPaymentReceived),new org.web3j.abi.datatypes.Bool(hasBuyerClosed),new org.web3j.abi.datatypes.Bool(hasSellerClosed));
+        public Swap(Boolean isCreated, Boolean requiresFill, String maker, byte[] makerInterfaceId, String taker, byte[] takerInterfaceId, String stablecoin, BigInteger amountLowerBound, BigInteger amountUpperBound, BigInteger securityDepositAmount, BigInteger takenSwapAmount, BigInteger serviceFeeAmount, BigInteger direction, byte[] price, byte[] settlementMethod, BigInteger protocolVersion, Boolean isPaymentSent, Boolean isPaymentReceived, Boolean hasBuyerClosed, Boolean hasSellerClosed) {
+            super(new Bool(isCreated),new Bool(requiresFill),new Address(maker),new DynamicBytes(makerInterfaceId),new Address(taker),new DynamicBytes(takerInterfaceId),new Address(stablecoin),new Uint256(amountLowerBound),new Uint256(amountUpperBound),new Uint256(securityDepositAmount),new Uint256(takenSwapAmount),new Uint256(serviceFeeAmount),new Uint8(direction),new DynamicBytes(price),new DynamicBytes(settlementMethod),new Uint256(protocolVersion),new Bool(isPaymentSent),new Bool(isPaymentReceived),new Bool(hasBuyerClosed),new Bool(hasSellerClosed));
             this.isCreated = isCreated;
             this.requiresFill = requiresFill;
             this.maker = maker;
@@ -765,16 +752,14 @@ public class CommutoSwap extends Contract {
             this.price = price;
             this.settlementMethod = settlementMethod;
             this.protocolVersion = protocolVersion;
-            this.makerExtraData = makerExtraData;
-            this.takerExtraData = takerExtraData;
             this.isPaymentSent = isPaymentSent;
             this.isPaymentReceived = isPaymentReceived;
             this.hasBuyerClosed = hasBuyerClosed;
             this.hasSellerClosed = hasSellerClosed;
         }
 
-        public Swap(Bool isCreated, Bool requiresFill, Address maker, DynamicBytes makerInterfaceId, Address taker, DynamicBytes takerInterfaceId, Address stablecoin, Uint256 amountLowerBound, Uint256 amountUpperBound, Uint256 securityDepositAmount, Uint256 takenSwapAmount, Uint256 serviceFeeAmount, Uint8 direction, DynamicBytes price, DynamicBytes settlementMethod, Uint256 protocolVersion, Bytes32 makerExtraData, Bytes32 takerExtraData, Bool isPaymentSent, Bool isPaymentReceived, Bool hasBuyerClosed, Bool hasSellerClosed) {
-            super(isCreated,requiresFill,maker,makerInterfaceId,taker,takerInterfaceId,stablecoin,amountLowerBound,amountUpperBound,securityDepositAmount,takenSwapAmount,serviceFeeAmount,direction,price,settlementMethod,protocolVersion,makerExtraData,takerExtraData,isPaymentSent,isPaymentReceived,hasBuyerClosed,hasSellerClosed);
+        public Swap(Bool isCreated, Bool requiresFill, Address maker, DynamicBytes makerInterfaceId, Address taker, DynamicBytes takerInterfaceId, Address stablecoin, Uint256 amountLowerBound, Uint256 amountUpperBound, Uint256 securityDepositAmount, Uint256 takenSwapAmount, Uint256 serviceFeeAmount, Uint8 direction, DynamicBytes price, DynamicBytes settlementMethod, Uint256 protocolVersion, Bool isPaymentSent, Bool isPaymentReceived, Bool hasBuyerClosed, Bool hasSellerClosed) {
+            super(isCreated,requiresFill,maker,makerInterfaceId,taker,takerInterfaceId,stablecoin,amountLowerBound,amountUpperBound,securityDepositAmount,takenSwapAmount,serviceFeeAmount,direction,price,settlementMethod,protocolVersion,isPaymentSent,isPaymentReceived,hasBuyerClosed,hasSellerClosed);
             this.isCreated = isCreated.getValue();
             this.requiresFill = requiresFill.getValue();
             this.maker = maker.getValue();
@@ -791,8 +776,6 @@ public class CommutoSwap extends Contract {
             this.price = price.getValue();
             this.settlementMethod = settlementMethod.getValue();
             this.protocolVersion = protocolVersion.getValue();
-            this.makerExtraData = makerExtraData.getValue();
-            this.takerExtraData = takerExtraData.getValue();
             this.isPaymentSent = isPaymentSent.getValue();
             this.isPaymentReceived = isPaymentReceived.getValue();
             this.hasBuyerClosed = hasBuyerClosed.getValue();

@@ -5,7 +5,6 @@ import com.commuto.interfacedesktop.contractwrapper.CommutoSwap
 import com.commuto.interfacedesktop.contractwrapper.CommutoTransactionManager
 import com.commuto.interfacedesktop.contractwrapper.WorkingCommutoSwap
 import org.web3j.codegen.SolidityFunctionWrapperGenerator
-import org.web3j.contracts.eip20.generated.ERC20
 import org.web3j.crypto.Credentials
 import org.web3j.crypto.MnemonicUtils
 import org.web3j.crypto.WalletUtils
@@ -22,7 +21,6 @@ import java.io.File
 import java.math.BigDecimal
 import java.math.BigInteger
 import java.nio.ByteBuffer
-import java.security.MessageDigest
 import java.util.*
 import java.util.concurrent.CompletableFuture
 import kotlin.collections.ArrayList
@@ -110,7 +108,7 @@ internal class CommutoCoreInteraction {
         val key_two = Credentials.create("5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a")
 
         //Establish connection to Hardhat node
-        val endpoint = "http://192.168.0.195:8545"
+        val endpoint = "http://192.168.1.12:8545"
         val web3 = Web3j.build(HttpService(endpoint))
 
         //Setup CommutoSwap contract interface
@@ -191,7 +189,6 @@ internal class CommutoCoreInteraction {
                 "a price here".toByteArray(Charsets.UTF_8),
                 settlementMethods,
                 BigInteger.valueOf(1),
-                MessageDigest.getInstance("SHA-256").digest("A bunch of extra data in here".toByteArray())
             )
             functionCallResult = commutoSwap.openOfferAndGetTXID(offerId, offer)
             var isOpenOfferTxConfirmed = false
@@ -311,8 +308,6 @@ internal class CommutoCoreInteraction {
                 offer.price,
                 offer.settlementMethods[0], //settlementMethod
                 BigInteger.valueOf(1), //protocolVersion
-                offer.extraData, //makerExtraData
-                MessageDigest.getInstance("SHA-256").digest("taker's extra data in here".toByteArray()), //takerExtraData
                 false,
                 false,
                 false,
