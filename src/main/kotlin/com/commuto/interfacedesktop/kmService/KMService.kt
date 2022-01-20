@@ -68,10 +68,6 @@ class KMService(var dbService: DBService) {
             .getKeyPair(encoder.encodeToString(interfaceId))
         val decoder = Base64.getDecoder()
         if (dbKeyPair != null) {
-            /*
-            val pubKey: JavaSecPublicKey = pubKeyFromPkcs1Bytes(decoder.decode(dbKeyPair.publicKey))
-            val privKey: PrivateKey = privKeyFromPkcs1Bytes(decoder.decode(dbKeyPair.privateKey))
-            val keyPair = JavaSecKeyPair(pubKey, privKey)*/
             return KeyPair(decoder.decode(dbKeyPair.publicKey), decoder.decode(dbKeyPair.privateKey))
         } else {
             return null
