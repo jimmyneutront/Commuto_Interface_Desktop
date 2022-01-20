@@ -2,12 +2,20 @@ package com.commuto.interfacedesktop.kmService.kmTypes
 
 import org.bouncycastle.asn1.ASN1Encodable
 import org.bouncycastle.asn1.ASN1Primitive
+import org.bouncycastle.asn1.ASN1Sequence
+import org.bouncycastle.asn1.DERNull
+import org.bouncycastle.asn1.pkcs.PKCSObjectIdentifiers
 import org.bouncycastle.asn1.pkcs.PrivateKeyInfo
+import org.bouncycastle.asn1.pkcs.RSAPrivateKey
+import org.bouncycastle.asn1.x509.AlgorithmIdentifier
 import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo
-import java.security.MessageDigest
-import java.security.Signature
+import java.security.*
+import java.security.PublicKey
 import java.security.KeyPair as JavaSecKeyPair
 import java.security.spec.MGF1ParameterSpec
+import java.security.spec.RSAPrivateCrtKeySpec
+import java.security.spec.RSAPrivateKeySpec
+import java.security.spec.X509EncodedKeySpec
 import javax.crypto.Cipher
 import javax.crypto.spec.OAEPParameterSpec
 import javax.crypto.spec.PSource
@@ -20,16 +28,52 @@ import javax.crypto.spec.PSource
  * @property keyPair the java.security.KeyPair object around which this class is wrapped.
  * @property interfaceId the interface id derived from the key pair's public key
  */
-class KeyPair(keyPair: JavaSecKeyPair) {
+class KeyPair {
 
-    val interfaceId: ByteArray
-    val keyPair: JavaSecKeyPair
+    /**
+     * Creates a KeyPair object using the PKCS#1 byte formats of a 2048-bit RSA private key and its public key
+     *
+     * @param publicKeyBytes: the PKCS#1 byte encoded representation of the public key to be restored
+     * @param privateKeyBytes: the PKCS#1 byte encoded representation of the 2048-bit RSA private key to be restored
+     */
+    constructor(publicKeyBytes: ByteArray, privateKeyBytes: ByteArray) {
+        //Restore public key
+        val algorithmIdentifier = AlgorithmIdentifier(PKCSObjectIdentifiers.rsaEncryption, DERNull.INSTANCE);
+        val pubKeyX509Bytes = SubjectPublicKeyInfo(algorithmIdentifier, publicKeyBytes).encoded
+        val publicKey: PublicKey = KeyFactory.getInstance("RSA")
+            .generatePublic(X509EncodedKeySpec(pubKeyX509Bytes))
 
-    init {
+        //Restore private key
+        val rsaPrivKey: RSAPrivateKey = RSAPrivateKey.getInstance(ASN1Sequence.fromByteArray(privateKeyBytes))
+        val privKeySpec: RSAPrivateKeySpec = RSAPrivateCrtKeySpec(rsaPrivKey.modulus,
+            rsaPrivKey.publicExponent,
+            rsaPrivKey.privateExponent,
+            rsaPrivKey.prime1,
+            rsaPrivKey.prime2,
+            rsaPrivKey.exponent1,
+            rsaPrivKey.exponent2,
+            rsaPrivKey.coefficient
+        )
+        val privateKey: PrivateKey = KeyFactory.getInstance("RSA").generatePrivate(privKeySpec)
+
+        this.keyPair = JavaSecKeyPair(publicKey, privateKey)
+        this.interfaceId = MessageDigest.getInstance("SHA-256")
+            .digest(pubKeyToPkcs1Bytes())
+    }
+
+    /**
+     * Creates a KeyPair object using an RSA JavaSecKeyPair
+     *
+     * @param keyPair: the JavaSecKeyPair to be wrapped in a KeyPair
+     */
+    constructor(keyPair: JavaSecKeyPair) {
         this.keyPair = keyPair
         this.interfaceId = MessageDigest.getInstance("SHA-256")
             .digest(pubKeyToPkcs1Bytes())
     }
+
+    val interfaceId: ByteArray
+    val keyPair: JavaSecKeyPair
 
     /**
      * Create a signature from the passed ByteArray using this KeyPair's private key

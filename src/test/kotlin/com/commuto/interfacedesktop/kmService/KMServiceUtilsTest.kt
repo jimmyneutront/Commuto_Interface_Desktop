@@ -3,6 +3,7 @@ package com.commuto.interfacedesktop.kmService
 import com.commuto.interfacedesktop.db.DatabaseDriverFactory
 import com.commuto.interfacedesktop.dbService.DBService
 import com.commuto.interfacedesktop.kmService.kmTypes.KeyPair
+import com.commuto.interfacedesktop.kmService.kmTypes.PublicKey
 import com.commuto.interfacedesktop.kmService.kmTypes.SymmetricKey
 import com.commuto.interfacedesktop.kmService.kmTypes.newSymmetricKey
 import java.nio.charset.Charset
@@ -56,15 +57,16 @@ internal class KMServiceUtilsTest {
     fun testPubKeyPkcs1Operations() {
         val keyPair: KeyPair = kmService.generateKeyPair(storeResult = false)
         val pubKeyPkcs1Bytes: ByteArray = keyPair.pubKeyToPkcs1Bytes()
-        val restoredPubKey: JavaSecPublicKey = kmService.pubKeyFromPkcs1Bytes(pubKeyPkcs1Bytes)
-        assert(keyPair.keyPair.public.equals(restoredPubKey))
+        val restoredPubKey = PublicKey(pubKeyPkcs1Bytes)
+        assert(keyPair.keyPair.public.equals(restoredPubKey.publicKey))
     }
 
     @Test
     fun testPrivKeyPkcs1Operations() {
         val keyPair: KeyPair = kmService.generateKeyPair(storeResult = false)
+        val pubKeyPkcs1Bytes: ByteArray = keyPair.pubKeyToPkcs1Bytes()
         val privKeyPkcs1Bytes: ByteArray = keyPair.privKeyToPkcs1Bytes()
-        val restoredPrivKey: PrivateKey = kmService.privKeyFromPkcs1Bytes(privKeyPkcs1Bytes)
-        assert(keyPair.keyPair.private.equals(restoredPrivKey))
+        val restoredKeyPair = KeyPair(pubKeyPkcs1Bytes, privKeyPkcs1Bytes)
+        assert(keyPair.keyPair.private.equals(restoredKeyPair.keyPair.private))
     }
 }
