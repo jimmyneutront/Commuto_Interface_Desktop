@@ -31,6 +31,17 @@ import javax.crypto.spec.PSource
 class KeyPair {
 
     /**
+     * Creates a KeyPair object wrapped around a new 2058-bit RSA private key and its public key
+     */
+    constructor() {
+        val keyPairGenerator: KeyPairGenerator = KeyPairGenerator.getInstance("RSA")
+        keyPairGenerator.initialize(2048)
+        this.keyPair = keyPairGenerator.generateKeyPair()
+        this.interfaceId = MessageDigest.getInstance("SHA-256")
+            .digest(pubKeyToPkcs1Bytes())
+    }
+
+    /**
      * Creates a KeyPair object using the PKCS#1 byte formats of a 2048-bit RSA private key and its public key
      *
      * @param publicKeyBytes: the PKCS#1 byte encoded representation of the public key to be restored
@@ -38,7 +49,7 @@ class KeyPair {
      */
     constructor(publicKeyBytes: ByteArray, privateKeyBytes: ByteArray) {
         //Restore public key
-        val algorithmIdentifier = AlgorithmIdentifier(PKCSObjectIdentifiers.rsaEncryption, DERNull.INSTANCE);
+        val algorithmIdentifier = AlgorithmIdentifier(PKCSObjectIdentifiers.rsaEncryption, DERNull.INSTANCE)
         val pubKeyX509Bytes = SubjectPublicKeyInfo(algorithmIdentifier, publicKeyBytes).encoded
         val publicKey: PublicKey = KeyFactory.getInstance("RSA")
             .generatePublic(X509EncodedKeySpec(pubKeyX509Bytes))
@@ -130,9 +141,9 @@ class KeyPair {
     }
 
     /**
-     * Encodes the RSA PublicKey to a PKCS1 formatted byte representation
+     * Encodes the RSA PublicKey to a PKCS#1 formatted byte representation
      *
-     * @return a ByteArray containing the PKCS1 representation of the KeyPair's RSA public key
+     * @return a ByteArray containing the PKCS#1 representation of the KeyPair's RSA public key
      */
     fun pubKeyToPkcs1Bytes(): ByteArray {
         val pubKeyX509Bytes = this.keyPair.public.encoded
@@ -143,9 +154,9 @@ class KeyPair {
     }
 
     /**
-     * Encodes the 2048-bit RSA PrivateKey to a PKCS1 formatted byte representation
+     * Encodes the 2048-bit RSA PrivateKey to a PKCS#1 formatted byte representation
      *
-     * @return a ByteArray containing the PKCS1 representation of the  RSA private key
+     * @return a ByteArray containing the PKCS#1 representation of the  RSA private key
      */
     fun privKeyToPkcs1Bytes(): ByteArray {
         val privKeyInfo = PrivateKeyInfo.getInstance(this.keyPair.private.encoded)

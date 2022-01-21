@@ -31,7 +31,7 @@ class PublicKey {
      * @param publicKeyBytes: the PKCS#1 byte encoded representation of the public key to be restored
      */
     constructor(publicKeyBytes: ByteArray) {
-        val algorithmIdentifier = AlgorithmIdentifier(PKCSObjectIdentifiers.rsaEncryption, DERNull.INSTANCE);
+        val algorithmIdentifier = AlgorithmIdentifier(PKCSObjectIdentifiers.rsaEncryption, DERNull.INSTANCE)
         val pubKeyX509Bytes = SubjectPublicKeyInfo(algorithmIdentifier, publicKeyBytes).encoded
         val publicKey: JavaSecPublicKey = KeyFactory.getInstance("RSA")
             .generatePublic(X509EncodedKeySpec(pubKeyX509Bytes))
@@ -83,9 +83,9 @@ class PublicKey {
     }
 
     /**
-     * Encodes the RSA PublicKey to a PKCS1 formatted byte representation
+     * Encodes the RSA PublicKey to a PKCS#1 formatted byte representation
      *
-     * @return a ByteArray containing the PKCS1 representation of the PublicKey object
+     * @return a ByteArray containing the PKCS#1 representation of the PublicKey object
      */
     fun toPkcs1Bytes(): ByteArray {
         val pubKeyX509Bytes = this.publicKey.encoded

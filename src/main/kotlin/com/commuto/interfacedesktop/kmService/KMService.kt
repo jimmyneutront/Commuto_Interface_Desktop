@@ -40,9 +40,7 @@ class KMService(var dbService: DBService) {
      * @return a new KeyPair object
      */
     fun generateKeyPair(storeResult: Boolean = true): KeyPair {
-        val keyPairGenerator: KeyPairGenerator = KeyPairGenerator.getInstance("RSA")
-        keyPairGenerator.initialize(2048)
-        val keyPair = KeyPair(keyPairGenerator.generateKeyPair())
+        val keyPair = KeyPair()
         val encoder = Base64.getEncoder()
         if (storeResult) {
             dbService.storeKeyPair(encoder.encodeToString(keyPair.interfaceId),

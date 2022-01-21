@@ -56,7 +56,7 @@ class XPlatCryptoCompatibility {
      */
     @Test
     fun testPrintSignature() {
-        val keyPair: KeyPair = kmService.generateKeyPair(storeResult = false)
+        val keyPair = KeyPair()
         val encoder = Base64.getEncoder()
         println("Signed Data B64:\n" + encoder.encodeToString("test".toByteArray(Charset.forName("UTF-16"))))
         println("Public Key B64:")
@@ -71,11 +71,11 @@ class XPlatCryptoCompatibility {
     @Test
     fun testVerifySignature() {
         val decoder = Base64.getDecoder()
-        var signedData = decoder.decode("//50AGUAcwB0AA==")
+        val signedData = decoder.decode("//50AGUAcwB0AA==")
         val pubKeyB64 = "MIIBCgKCAQEAnvuNlBeukUvDiF76DoNoNuhV8llOq6R2fdECyNCC1MrDmXZlShyn2NrPq6/W0tJi3PsSNopSv6He12d7Le4I0/umKpxJxEg5iJ4zm3Xthd6EaFkwPyqa+7E0ZeFOo0wcDThdRZ/5UzQQmnBwua8xCFZrxQVLY8h/eoucQQ6MJknF6iAk4fFSic5Pa8SeIJeQBjO+dmje/+POCmlMBFmhLBVJA5QG+eI7WEa274On7bxIHeMK0zx673kfLADwBTHHS10oKDaGi5Pn2hGUf4Ksihv6yI+GDJJI0uemESi1J95e2NXXlPHqqteJKUzEAENh0QXHg97XJhhJtNV7gh/60wIDAQAB"
-        var signatureB64 = "D74DCCZFlsjRifmyKmGYo7qpYyxoGOEgNJ8+f0E+lg7DEI5TLFurk1Z+bwlS8tj9M6FxNjJED6iVMiHGGJREmFYrgvIJZbl+bgurDcHL2hO2xR6GOoOoBpmAoi7UiPeC5eGN2+lK9IiNKWx3XbSsGiBW0ysuZzcPyVmDE2jK1j3ZXi26BMFvkXBCQbmrQaJ9ApxKF6hkZtT4eKBvcu0K6kNAYTRrA90af5yt0TFf2aPhp9XFMlYBF1nSjG4CBQrrXIR/qK7MC+VfUJ4tvRjF0W7pwCHjIUxczfUtx1uldY7aMnYmpcfEuKi4O/QGEMWMr/JGEgpWnKl2zCjTqNYXzw=="
+        val signatureB64 = "D74DCCZFlsjRifmyKmGYo7qpYyxoGOEgNJ8+f0E+lg7DEI5TLFurk1Z+bwlS8tj9M6FxNjJED6iVMiHGGJREmFYrgvIJZbl+bgurDcHL2hO2xR6GOoOoBpmAoi7UiPeC5eGN2+lK9IiNKWx3XbSsGiBW0ysuZzcPyVmDE2jK1j3ZXi26BMFvkXBCQbmrQaJ9ApxKF6hkZtT4eKBvcu0K6kNAYTRrA90af5yt0TFf2aPhp9XFMlYBF1nSjG4CBQrrXIR/qK7MC+VfUJ4tvRjF0W7pwCHjIUxczfUtx1uldY7aMnYmpcfEuKi4O/QGEMWMr/JGEgpWnKl2zCjTqNYXzw=="
         val pubKey = PublicKey(decoder.decode(pubKeyB64))
-        var signature = decoder.decode(signatureB64)
+        val signature = decoder.decode(signatureB64)
         assert(pubKey.verifySignature(signedData, signature))
     }
 
@@ -86,7 +86,7 @@ class XPlatCryptoCompatibility {
      */
     @Test
     fun testPrintEncryptedMessage() {
-        val keyPair: KeyPair = kmService.generateKeyPair(storeResult = false)
+        val keyPair = KeyPair()
         val encoder = Base64.getEncoder()
         println("Public Key B64:")
         println(encoder.encodeToString(keyPair.pubKeyToPkcs1Bytes()))
@@ -124,7 +124,7 @@ class XPlatCryptoCompatibility {
      */
     @Test
     fun testGenB64RSAKeys() {
-        val keyPair: KeyPair = kmService.generateKeyPair(storeResult = false)
+        val keyPair = KeyPair()
         val encoder = Base64.getEncoder()
         println("Public Key B64:")
         println(encoder.encodeToString(keyPair.pubKeyToPkcs1Bytes()))
@@ -141,6 +141,6 @@ class XPlatCryptoCompatibility {
         val pubKeyB64 = "MIIBCgKCAQEA6nRs5aMeFg2TIxbhH6MMh946mZ35sP5d27J+Fm1ha1IZlz9+Z7Knw7FOJ827BhLLcaeHCSI3/opnWc1TKPD6exArNZQsJLSWXJeLfBOm/zseKJyCr9PHahhQYBD3X6HfuZYqzUV4B/BZSu5cJbcvgqTsSbnR7tlRscwW32m1l/jWixLrsmE3zBg0SWBDtZ8ouOMJJ5ZSS6MXJeQUfzyrEIhc8cABpI8MFsVL82UYPdXxGvQ86AUnNMnEDGWtGvUvYqzcWCuLNpcSkx5y9+VKdnC7zevLJbuj0fyjjBadAkMc6jNcgeaGJSsWxbtKC11CawMWPuXuckzIRsAJUYFnhQIDAQAB"
         val privKeyB64 = "MIIEogIBAAKCAQEA6nRs5aMeFg2TIxbhH6MMh946mZ35sP5d27J+Fm1ha1IZlz9+Z7Knw7FOJ827BhLLcaeHCSI3/opnWc1TKPD6exArNZQsJLSWXJeLfBOm/zseKJyCr9PHahhQYBD3X6HfuZYqzUV4B/BZSu5cJbcvgqTsSbnR7tlRscwW32m1l/jWixLrsmE3zBg0SWBDtZ8ouOMJJ5ZSS6MXJeQUfzyrEIhc8cABpI8MFsVL82UYPdXxGvQ86AUnNMnEDGWtGvUvYqzcWCuLNpcSkx5y9+VKdnC7zevLJbuj0fyjjBadAkMc6jNcgeaGJSsWxbtKC11CawMWPuXuckzIRsAJUYFnhQIDAQABAoIBAA9uB5pU/J58w2LzDHBUVEy0eFH9UVOPvgC+3mjz8bjKKlh89iugGJs6q0HX2o0zsJ4Y0CcupcA+VBRsfKKsZKkI30sd/AoTX3TrB/lBDYPCcdbq4U1DMwkdXgbLKbiVEuqoF8YyzPY6yr7xcRuN/YC2gWgjDvj45j/nsQFVjT0EeWednEDhqPlo1FWMFrH0woLOTRVRhzemlrMxsxhFxc/Tvr4kJtnmacOT9+am82Fn5eOelg+Dafms6G6z+8r/EQmaiLUeXwzQYinQWpLL5jEbVEbRz4fZhBXaz++D8uK9lzF/N1Quv31V5OtHLtBAGe17OibarP9bPwLbg2knilkCgYEA9R8cYI8E6umr2TEyCUNxfpFv1XkdyTTZNv0H/ZIRh5qUVg84r/VCUguPaIq4nbmOngskgpaiwx1kYGAmJCabHV3L20yEztLAOtltBQFoTodaz6Apkws4gyharg7dQ1Z75RqZTfdHSiKZwO0Ihu4EkTEPTdY6/+wzZnt31Kzf2O0CgYEA9Nwgfra6QHw1AN5QkfYUxHqRKuPWrJoYwupwl3g+VGW7NfbrCOS/VcezdBzIgvuz5AOIEQxkNPf61kjKS6/t+/V2XE76qGV5tQ5B0Mdgm8eViAT6IoTNl2YPFZhgJizEMJ5ybGWC2Q+8hnPOBmvh1u+pQ/mG8nWGXAF9qHVE7fkCgYBUbmjp4ZmCCQcGgumHQ1HelN3+m/9khO2lATc1YpDjMp2RnyCZi1NSy2SUT+QTgAzd51ymFpjtuDwQ7k10+k9HqD1Fxm+ghftsyePBa6CwG/NtvO9VFPJcSxQhDEGupiV63tSbhGdr48suJvde8rFkCZAJ8ZbU/FkgHbtC6GEaaQKBgB2z7kUwyVs1NgDK9x8dqNtEuwNm7A24C7TpV4soTPdT9+fN8ij8BrHTLdOyAijRe7r3KrRWunkqc8U2w0N3LflYh2kfM4zl8mOiPR2kcfWzulHruKQjVAU/nijSeSdoWsxDDEJV9g96tzXgKmfhAl5eaDwUsugKlafnjmS3BQuRAoGAZp6D6LIndvr6t4025GgepDYXjcFU/irPHi6WR3LOimJouQHIB56gWRxEVmiS4/k02GmgZIpAtEpHEHcz6svCzgI8ZKzk5+P91wqNpO8TfS1O2Nl9RO+/zBxIAnbkf6TxCbo5JhVtClWCFLIXOqzE7baQOi4aMjXk1rzOQNeu9vQ="
         val decoder = Base64.getDecoder()
-        val keyPair = KeyPair(decoder.decode(pubKeyB64), decoder.decode(privKeyB64))
+        KeyPair(decoder.decode(pubKeyB64), decoder.decode(privKeyB64))
     }
 }

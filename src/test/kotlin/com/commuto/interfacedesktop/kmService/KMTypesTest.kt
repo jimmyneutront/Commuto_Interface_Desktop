@@ -13,7 +13,7 @@ import java.util.Arrays
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 
-internal class KMServiceUtilsTest {
+internal class KMTypesTest {
 
     private var driver = DatabaseDriverFactory()
     private var dbService = DBService(driver)
