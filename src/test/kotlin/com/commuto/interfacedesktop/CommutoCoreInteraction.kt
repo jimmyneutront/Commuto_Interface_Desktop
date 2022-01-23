@@ -57,18 +57,6 @@ import java.security.spec.X509EncodedKeySpec
 internal class CommutoCoreInteraction {
 
     @Test
-    fun testJSONUtils() {
-        val swiftDetails = USD_SWIFT_Details(
-            "Bob Roberts",
-            "293649254057",
-            "BOBROB38"
-        )
-        val jsonString = Json.encodeToString(mapOf("USD-SWIFT" to swiftDetails))
-        print(jsonString)
-        Json.decodeFromString<Map<String, USD_SWIFT_Details>>(jsonString)
-    }
-
-    @Test
     fun testTransferEth() {
         //Restore Hardhat account #1
         val key_one = Credentials.create("59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d")
@@ -204,6 +192,7 @@ internal class CommutoCoreInteraction {
         var offerId: ByteArray? = null
         var swap: CommutoSwap.Swap? = null
 
+        /*
         //Prepare this interface's payment method details JSON string
         val swiftDetails = USD_SWIFT_Details(
             "Jeff Roberts",
@@ -211,6 +200,8 @@ internal class CommutoCoreInteraction {
             "JEFROB38"
         )
         val ownPaymentDetails = Json.encodeToString(mapOf("USD-SWIFT" to swiftDetails)).toByteArray(Charset.forName("UTF-8"))
+         */
+        val ownPaymentDetails = "deets_here".toByteArray()
 
         if (role == ParticipantRole.MAKER) {
             //Approve transfer to open offer
@@ -746,6 +737,7 @@ internal class CommutoCoreInteraction {
         }
 
         //Re-create maker's public key
+        //TODO: Check that interface id matches "sender" field
         val publicKey = try {
             PublicKey(decoder.decode(payload.pubKey))
         } catch (e: Exception) {
@@ -793,6 +785,238 @@ internal class CommutoCoreInteraction {
         //Check that the original and restored interface ids (and thus keys) are identical
         assert(Arrays.equals(keyPair.interfaceId, restoredJvmPublicKey.interfaceId))
         assert(Arrays.equals(keyPair.interfaceId, restoredSwiftPublicKey.interfaceId))
+    }
+
+    fun createTakerInfoMessage(keyPair: KeyPair, makerPubKey: PublicKey, swapId: ByteArray,
+                               paymentDetails: SerializablePaymentMethodDetails): String {
+        //Setup encoder
+        val encoder = Base64.getEncoder()
+
+        //Create message object
+        val message = SerializableTakerInfoMessage(
+            encoder.encodeToString(keyPair.interfaceId),
+            encoder.encodeToString(makerPubKey.interfaceId),
+            "",
+            "",
+            "",
+            ""
+        )
+
+        //Create Base64-encoded string of taker's public key in PKCS#1 bytes
+        val pubKeyString = encoder.encodeToString(keyPair.pubKeyToPkcs1Bytes())
+
+        //Create Base-64 encoded string of swap id
+        val swapIdString = encoder.encodeToString(swapId)
+
+        //Create payload object
+        val payload = SerializableTakerInfoPayload(
+            "takerInfo",
+            pubKeyString,
+            swapIdString,
+            ""
+        )
+
+        //Create payment details UTF-8 bytes and their Base64-encoded string
+        val paymentDetailsString = Json.encodeToString(paymentDetails)
+        val paymentDetailsUTFBytes = paymentDetailsString.toByteArray(Charset.forName("UTF-8"))
+
+        //Set "paymentDetails" field of payload
+        payload.paymentDetails = encoder.encodeToString(paymentDetailsUTFBytes)
+
+        //Create payload UTF-8 bytes and their Base64-encoded string
+        val payloadString = Json.encodeToString(payload)
+        val payloadUTF8Bytes = payloadString.toByteArray(Charset.forName("UTF-8"))
+
+        //Generate a new symmetric key and initialization vector, and encrypt the payload bytes
+        val symmetricKey = newSymmetricKey()
+        val encryptedPayload = symmetricKey.encrypt(payloadUTF8Bytes)
+
+        //Set "payload" field of message
+        message.payload = encoder.encodeToString(encryptedPayload.encryptedData)
+
+        //Create signature of encrypted payload
+        val encryptedPayloadHash = MessageDigest.getInstance("SHA-256").digest(encryptedPayload.encryptedData)
+        val signature = keyPair.sign(encryptedPayloadHash)
+
+        //Set signature field of message
+        message.signature = encoder.encodeToString(signature)
+
+        //Encrypt symmetric key and initialization vector with maker's public key
+        val encryptedKey = makerPubKey.encrypt(symmetricKey.keyBytes)
+        val encryptedIV = makerPubKey.encrypt(encryptedPayload.initializationVector)
+
+        //Set "encryptedKey" and "encryptedIV" fields of message
+        message.encryptedKey = encoder.encodeToString(encryptedKey)
+        message.encryptedIV = encoder.encodeToString(encryptedIV)
+
+        //Prepare and return message string
+        val messageString = Json.encodeToString(message)
+        return messageString
+    }
+
+    fun parseTakerInfoMessage(messageString: String, keyPair: KeyPair, takerInterfaceId: ByteArray,
+                              swapId: ByteArray): Pair<PublicKey, SerializablePaymentMethodDetails>? {
+        //setup decoder
+        val decoder = Base64.getDecoder()
+
+        //Restore message object
+        val message = try {
+            Json.decodeFromString<SerializableTakerInfoMessage>(messageString)
+        } catch (e: Exception) {
+            return null
+        }
+
+        //Ensure that the sender is the taker and the recipient is the maker
+        try {
+            if (!Arrays.equals(decoder.decode(message.sender), takerInterfaceId) ||
+                !Arrays.equals(decoder.decode(message.recipient), keyPair.interfaceId)) {
+                return null
+            }
+        } catch (e: Exception) {
+            return null
+        }
+
+        //Decrypt symmetric key, initialization vector and encrypted payload
+        val symmetricKey = try {
+            val encryptedKey = decoder.decode(message.encryptedKey)
+            val decryptedKeyBytes = keyPair.decrypt(encryptedKey)
+            SymmetricKey(decryptedKeyBytes)
+        } catch (e: Exception) {
+            return null
+        }
+        val encryptedPayloadBytes = try {
+            decoder.decode(message.payload)
+        } catch (e: Exception) {
+            return null
+        }
+        val decryptedPayloadBytes = try {
+            val encryptedIV = decoder.decode(message.encryptedIV)
+            val decryptedIV = keyPair.decrypt(encryptedIV)
+            val encryptedPayload = SymmetricallyEncryptedData(encryptedPayloadBytes, decryptedIV)
+            symmetricKey.decrypt(encryptedPayload)
+        } catch (e: Exception) {
+            return null
+        }
+
+        //Restore payload object
+        val payload = try {
+            val payloadString = decryptedPayloadBytes.toString(Charset.forName("UTF-8"))
+            Json.decodeFromString<SerializableTakerInfoPayload>(payloadString)
+        } catch (e: Exception) {
+            return null
+        }
+
+        //Ensure the message is a taker info message
+        if (payload.msgType != "takerInfo") {
+            return null
+        }
+
+        //Ensure that the swap id in the takerInfo message matches the swap in qustion
+        try {
+            if (!Arrays.equals(decoder.decode(payload.swapId), swapId)) {
+                return null
+            }
+        } catch (e: Exception) {
+            return null
+        }
+
+        //Re-create taker's public key
+        val publicKey = try {
+            PublicKey(decoder.decode(payload.pubKey))
+        } catch (e: Exception) {
+            return null
+        }
+
+        //Check that interface id of taker's key matches value in "sender" field of message
+        try {
+            if (!Arrays.equals(decoder.decode(message.sender), publicKey.interfaceId)) {
+                return null
+            }
+        } catch (e: Exception) {
+            return null
+        }
+
+        //Create hash of encrypted payload
+        val encryptedPayloadDataHash = MessageDigest.getInstance("SHA-256").digest(encryptedPayloadBytes)
+
+        //Verify signature
+        try {
+            if (!publicKey.verifySignature(encryptedPayloadDataHash, decoder.decode(message.signature))) {
+                return null
+            }
+        } catch (e: Exception) {
+            return null
+        }
+
+        //Restore payment details object
+        /*
+        TODO: In production, we should know the sort of payment info we are looking for, try to deserialize that type
+        exactly, and return null if the payment info is for a different payment method
+         */
+        val paymentDetails = try {
+            val paymentDetailsBytes = decoder.decode(payload.paymentDetails)
+            val paymentDetailsString = paymentDetailsBytes.toString(Charset.forName("UTF-8"))
+            /*
+            Ignore unknown keys, because for some reason kotlinx.serialization can't decode the "type" key it put into
+            the message in the first place
+             */
+            Json { ignoreUnknownKeys = true} .decodeFromString<SerializableUSD_SWIFT_Details>(paymentDetailsString)
+        } catch (e: Exception) {
+            return null
+        }
+
+        return Pair(publicKey, paymentDetails)
+    }
+
+    @Test
+    fun testTakerInfoParsing() {
+        //Setup decoder
+        val decoder = Base64.getDecoder()
+
+        //Restore the maker's public and private key
+        val makerPubKeyB64 = "MIIBCgKCAQEAnnDB4zV2llEwwLHw7c934eV7t69Om52dpLcuctXtOtjGsaKyOAV96egmxX6+C+MptFST3yX4wO6qK3/NSuOHWBXIHkhQGZEdTHOn4HE9hHdw2axJ0F9GQKZeT8t8kw+58+n+nlbQUaFHUw5iypl3WiI1K7En4XV2egfXGk9ujElMqXZO/eFun3eAM+asT1g7o/k2ysOpY5X+sqesLsJ0gzaGH4jfDVuWifS5YhdgFKkBi1i3U1tfPdc3sN53uNCPEhxjjuOuYH5I3WI9VzjpJezYoSlwzI4hYNOjY0cWzZM9kqeUt93KzTpvX4FeQigT9UO20cs23M5NbIW4q7lA4wIDAQAB"
+        val makerPrivKeyB64 = "MIIEogIBAAKCAQEAnnDB4zV2llEwwLHw7c934eV7t69Om52dpLcuctXtOtjGsaKyOAV96egmxX6+C+MptFST3yX4wO6qK3/NSuOHWBXIHkhQGZEdTHOn4HE9hHdw2axJ0F9GQKZeT8t8kw+58+n+nlbQUaFHUw5iypl3WiI1K7En4XV2egfXGk9ujElMqXZO/eFun3eAM+asT1g7o/k2ysOpY5X+sqesLsJ0gzaGH4jfDVuWifS5YhdgFKkBi1i3U1tfPdc3sN53uNCPEhxjjuOuYH5I3WI9VzjpJezYoSlwzI4hYNOjY0cWzZM9kqeUt93KzTpvX4FeQigT9UO20cs23M5NbIW4q7lA4wIDAQABAoIBACWe/ZLfS4DG144x0lUNedhUPsuvXzl5NAj8DBXtcQ6TkZ51VN8TgsHrQ2WKwkKdVnZAzPnkEMxy/0oj5xG8tBL43RM/tXFUsUHJhpe3G9Xb7JprG/3T2aEZP/Sviy16QvvFWJWtZHq1knOIy3Fy/lGTJM/ymVciJpc0TGGtccDyeQDBxaoQrr1r4Q9q5CMED/kEXq5KNLmzbfB1WInQZJ7wQhtyyAJiXJxKIeR3hVGR1dfBJGSbIIgYA5sYv8HPnXrorU7XEgDWLkILjSNgCvaGOgC5B4sgTB1pmwPQ173ee3gbn+PCai6saU9lciXeCteQp9YRBBWfwl+DDy5oGsUCgYEA0TB+kXbUgFyatxI46LLYRFGYTHgOPZz6Reu2ZKRaVNWC75NHyFTQdLSxvYLnQTnKGmjLapCTUwapiEAB50tLSko/uVcf4bG44EhCfL4S8hmfS3uCczokhhBjR/tZxnamXb/T1Wn2X06QsPSYQQmZB7EoQ6G0u/K792YgGn/qh+cCgYEAweUWInTK5nIAGyA/k0v0BNOefNTvfgV25wfR6nvXM3SJamHUTuO8wZntekD/epd4EewTP57rEb9kCzwdQnMkAaT1ejr7pQE4RFAZcL86o2C998QS0k25fw5xUhRiOIxSMqK7RLkAlRsThel+6BzHQ+jHxB06te3yyIjxnqP576UCgYA7tvAqbhVzHvw7TkRYiNUbi39CNPM7u1fmJcdHK3NtzBU4dn6DPVLUPdCPHJMPF4QNzeRjYynrBXfXoQ3qDKBNcKyIJ8q+DpGL1JTGLywRWCcU0QkIA4zxiDQPFD0oXi5XjK7XuQvPYQoEuY3M4wSAIZ4w0DRbgosNsGVxqxoz+QKBgClYh3LLguTHFHy0ULpBLQTGd3pZEcTGt4cmZL3isI4ZYKAdwl8cMwj5oOk76P6kRAdWVvhvE+NR86xtojOkR95N5catwzF5ZB01E2e2b3OdUoT9+6F6z35nfwSoshUq3vBLQTGzXYtuHaillNk8IcW6YrbQIM/gsK/Qe+1/O/G9AoGAYJhKegiRuasxY7ig1viAdYmhnCbtKhOa6qsq4cvI4avDL+Qfcgq6E8V5xgUsPsl2QUGz4DkBDw+E0D1Z4uT60y2TTTPbK7xmDs7KZy6Tvb+UKQNYlxL++DKbjFvxz6VJg17btqid8sP+LMhT3oqfRSakyGS74Bn3NBpLUeonYkQ="
+        val makerKeyPair = KeyPair(decoder.decode(makerPubKeyB64), decoder.decode(makerPrivKeyB64))
+        val makerPublicKey = PublicKey(decoder.decode(makerPubKeyB64))
+
+        //Restore the taker's public and private key
+        val takerPubKeyB64 = "MIIBCgKCAQEAstQwQCanMBPJIEj1Mjc1m80sL3eJ/y1SDM3iVoDk2oNN6WOZly0GWbv1xjNMM94U8GLnYrzEGUek2IKcicBAVYhwsegeVo2DHOts72g6GpVWOPKndpT87raKCqSkd+IqR2OWAo+olGWmjWgAbesH/ojqJPNHaKlhi4b0JSwNAMfTP2HqcN2lXLXnSbR7F7MnrvjHbUxEUulthmX1mLId/7bznQ2hjyUP2yOQY92C7DFwVl/J33YV2F1GJbx5xGqB/cRRB+0hTRoqQvHscZAlGykWIVgvrdPw2JOsadQVePUhDBU5jvS5qyD6JxAlRWgN7FZsMTFLVM2XNW40N3jMIwIDAQAB"
+        val takerPrivKeyB64 = "MIIEowIBAAKCAQEAstQwQCanMBPJIEj1Mjc1m80sL3eJ/y1SDM3iVoDk2oNN6WOZly0GWbv1xjNMM94U8GLnYrzEGUek2IKcicBAVYhwsegeVo2DHOts72g6GpVWOPKndpT87raKCqSkd+IqR2OWAo+olGWmjWgAbesH/ojqJPNHaKlhi4b0JSwNAMfTP2HqcN2lXLXnSbR7F7MnrvjHbUxEUulthmX1mLId/7bznQ2hjyUP2yOQY92C7DFwVl/J33YV2F1GJbx5xGqB/cRRB+0hTRoqQvHscZAlGykWIVgvrdPw2JOsadQVePUhDBU5jvS5qyD6JxAlRWgN7FZsMTFLVM2XNW40N3jMIwIDAQABAoIBADez/Kue3qkNILMbxrSzmdFEIaVPeP6xYUN3xi7ny2F9UQGH8smyTq4Y7D+mru/hF2ihhi2tWu/87w458QS/i8qYy3G/OeQABH03oCEauC6bodXvT9aSJg89cNZL3qcxHbZLAOkfUoWW/EBDyw5yDXVttHF6Dh491JKfoOELTamWD4KxIScR/Nf6ih6UqB/SwmLz1X5+fZpW4iGZXIRsPzOzDtDmoSGajNXoi0Ln2x9DkUeXpx9r7TTT9DBT0jTLbCUiB3LYU4I/VR6upm0bDUKKRi9VTkQjOAV5rD3qdoraPVRCSzjUVqCwL7jqfunXsG/hhRccD+Di5pXaCuPeOsECgYEA3p4LLVHDzLhF269oUcvflMoBUVKo9UNHL/wmyujdV+RwFi5J2sxVLgKHsdKHCy7FdrDmxax7Mrgh57KS3+zfdDhs98w181JLwgFxzEAxIP2PnHd4P3NEbxCxnxhILW4fEotUVzJWjjhEHXe5QhOW2z2yIZIOEqBzFfRx33kWrbMCgYEAzaUrDMaTkIkOoVI7BbNS7n5CBWL/DaPOID1UiL4eHWngeoOwaeI+CB0cxSrxngykue0xM3aI3KVFaeIYSdn7DZAxWAS3U143VApgLxgLyxZBtVX18HYiTZQx/PiTczMH6kFA5z0L7iNlf0uQrQQJgDzM6QY0kKasufoss+Baj9ECgYA1BjvvTXxvtKyfCQa2BPN6QytRLXklAiNgoJS03AZsuvKfteLNhMH9NYkQp+6WkUtjW/t7tfuaNxWMVJJ7V7ZZvl7mHvPywvVcfm+WkOuiygJ86E/x/Qid08Ia/POkLoikKB+srUbElU5UHoI35OaXzfgx2tITSbhf0FuXOQZX1QKBgAj7A4xFR8ByG89ztdwj3qVHoj51+klwM9o4k259Tvdd3k27XoLhPHBCRTVfELokNzVfZFyo+oUYOpXLJ+BhwpLvDxiW7CKZ5LSo11Z3KFywFiKDJIBhyFG2/Q/dEyNewSO7wcfXZKP7q70JYcIMgRW2kgRDHxyKCtT8VeNtEsdhAoGBAJHzNruW/ZS31o0rvQxHu8tBcd8osTsPNZBhuHs60mbPFRHwBaU8JSofl4XjR8B7K9vjYtxVYMEsIX6NqNf1JMXGDva/cTCHXyPuiCnuUMbHkK0YpsFxQABwYA+sOSlujwJwMNPu4ylzHL1HDyv9m4x74/NM20zDFW6MB/zD6G0c"
+        val takerKeyPair = KeyPair(decoder.decode(takerPubKeyB64), decoder.decode(takerPrivKeyB64))
+        val takerPublicKey = PublicKey(decoder.decode(takerPubKeyB64))
+
+        //Restore swap id
+        val swapId = decoder.decode("9tGMGTr0SbuySqE0QOsAMQ==")
+
+        //Create payment details
+        val paymentDetails = SerializableUSD_SWIFT_Details(
+            "USD-SWIFT",
+            "Take Ker",
+            "2039482",
+            "TAK3940"
+        )
+
+        //Create taker info message string
+        val jvmTakerInfoMessageString = createTakerInfoMessage(takerKeyPair, makerPublicKey, swapId, paymentDetails)
+
+        //A taker info message string generated by Swift code
+        val swiftTakerInfoMessageString = "{\"payload\":\"1S2NePK2idq0EfrWEa3lvamx03oqmKLT0Y\\/6Lx7xL6M5cmCKAsQW5CRGOo\\/fsmyYr5rVzjjDJsdHdj5JIbam\\/Fo5FIud0jLdMBnK3kkG98T62BZH492zdH4pP7vO+9\\/yGUgALHNo06hRBmzSvVpygCrP7+LvzMTYba42jYgYwihwdVdXjIdhv9E1ziCEbvBRrGWGvOUWAEC6PO8AMUasvrenW\\/f6v5+++01TgHrAzSLvE+gWiR\\/InuuJbqRCvKgN8OpJzAKkDehjp+acN0e5K6cMeRnLeD4vFGgywFn3Vg9OCKl+OyUac5YHsFwskMrVjSmf1z7UJZIdJRVwpRThugnhSRY3Lg+SxjpDZGIsun+jPOW\\/VuV7zMXMEimDy1n5ykgSEYDcj+YK4d4xCcpt2WsHS8ZqdTvkbfLpOabQfarYece5WpHWRX1b3iyMjkz7ZSne+dxbL4fkxC0Adl8LlUoFUXJy+VPooCjvsTbLF4jF9T92grpIYeAo16elIN13JZJfPctStZ9RYloDFSg5FfkIFuUgNXKGES3QixI9odnHsMTWafXgqZF9ZceHZcvgFfIi34I23Bl233d6SdxdR8Swk1T5PjUZzEvPNIiAdjBfG5s6kyoHapVpW837U1u0h7iUufOk2Z69IuO\\/tbUaCNGMIaPx9hS2yzpNUYgDLrlWLgWxL51w9xz3NK2m9li60hba8HFP+28GXlgbcVVD9zwMf3QmrK75OKdMj5WJoegc51FI9V0nhOf9Mhxek4G6\",\"sender\":\"HpIWD\\/7nBJ3VP+yQ2WYfh2lq5\\/uCLAkbkNIJ3FFJ2oc=\",\"signature\":\"bXvGF\\/HHoW+Y7kQuKkdTtTL4epWGp7K4rE2Va1uhzZxTE+Pj4snOfuk+hnM2HGnf5lR3Yp02+tn9UB9zkDAYavh\\/u5G8YExVkUim+QinbJv1cTHDqtdKiKHH4cHZhz+e8ErqEpWTpB2\\/rtXod+4jfI4DHvGhJhydRq9DFZV+wKuKe5GK0PMhYucs22cz6QOt0KGXNGq+LR2dcaljR67JKcr9Kp\\/fCkMdni42kbIY6Nry5AiOaVUs86F4ycmnnW+PbK1v+gOeA\\/sHCkM9veYy59dLbDqnTY0sDEMwqK3WvjW8eXVmKhk\\/nGGK1jBWp\\/fbyLLmZeNczxug1AtLQieCdA==\",\"encryptedKey\":\"dW4FUMxgv+6YbBer0MP3p2EYlaJ\\/4gkjYdhZi3lCvEftfPgZ4C1M3VHlaAKjdC8KA0PgtcDTWUEK\\/PYR2kyBfw9IkLvQUi3qYnNKCzcOmcBjanCfOszFF2PJ\\/aMKkLrwosxFVyVfTi5tjJa2GNCTa9XaFQKW4aoV+ujYqFoSgb081yOzEmVPjsyXgSfl159HhLuMZ1GaU5iaw2EmQcRnt\\/C1c6V5+OF1NOioOUO+Fgy31dJEDFl3Dd8NT8bVGRwfeZ7ecf3JBG5GC0yO1Zt95rw2SokRz6av4C7zs8bfSsbm\\/PcnVwfHUCfq0TtC8pU\\/ZuknL+k5G\\/4S+9Ev+kQm4g==\",\"recipient\":\"gXE4i2ZrzX+QK5AdNalVTpU1tJoIA9sEMca6uRfiRSE=\",\"encryptedIV\":\"l10XV+uHKK+zhynhB4hDyoQBMyqu+XkyJBL8eh4nylF3cVELw1jN+8CV8mjdqIk+2RAYhyepV0YtVd3baJK9H5Xker5MfqJCtG1b05vvp9wBp8ROLxz0HBPDqsSB2wXOz7lA+6km9xB8I0XiGv2\\/1Ml4gLz8nFEk\\/DWiHKXKKpcJ02QDSXsIEZt0sU4f1eKRouPUVs9n\\/RzgPIOMmBZycvaZj3eHaOiJGx5\\/\\/Qe8yJDsVptySAGwWOoD5Etkq64RMUWLkCCTVFwwJgg5qqtXWGtuyxx2kBPsebzU4r6HP\\/CPWkcicGOMiw64W0DSfvBuiFdA+\\/MuNmu+G0xfkvoZOg==\"}"
+
+        //Attempt to parse taker info message string generated by JVM code
+        val jvmParsingResults = parseTakerInfoMessage(jvmTakerInfoMessageString, makerKeyPair, takerPublicKey.interfaceId,
+            swapId)
+
+        //Attempt to parse taker info message string generated by Swift code
+        val swiftParsingResults = parseTakerInfoMessage(swiftTakerInfoMessageString, makerKeyPair, takerPublicKey.interfaceId,
+            swapId)
+
+        //Check that the original and restored interface ids (and thus keys) are identical
+        assert(Arrays.equals(takerKeyPair.interfaceId, jvmParsingResults!!.first.interfaceId))
+        assert(Arrays.equals(takerKeyPair.interfaceId, swiftParsingResults!!.first.interfaceId))
+
+        //Check that original and restored payment details are identical
+        assert(paymentDetails.equals(jvmParsingResults.second as SerializableUSD_SWIFT_Details))
+        assert(paymentDetails.equals(swiftParsingResults.second as SerializableUSD_SWIFT_Details))
     }
 
     fun parseTakerInfoMessage(message: String, keyPair: KeyPair, kmService: KMService) : TakerInfo? {

@@ -2,6 +2,7 @@ package com.commuto.interfacedesktop
 
 import com.commuto.interfacedesktop.kmService.kmTypes.PublicKey
 import com.commuto.interfacedesktop.kmService.kmTypes.SymmetricKey
+import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -18,10 +19,41 @@ class SerializablePublicKeyAnnouncementPayload(
     val offerId: String
 )
 
+@Serializable
+class SerializableTakerInfoMessage(
+    val sender: String,
+    val recipient: String,
+    var encryptedKey: String,
+    var encryptedIV: String,
+    var payload: String,
+    var signature: String
+)
+
+@Serializable
+class SerializableTakerInfoPayload(
+    val msgType: String,
+    val pubKey: String,
+    val swapId: String,
+    var paymentDetails: String
+)
+
+@Serializable
+sealed class SerializablePaymentMethodDetails {
+    abstract val name: String
+}
+
+@Serializable
+data class SerializableUSD_SWIFT_Details(
+    override val name: String,
+    val beneficiary: String,
+    val account: String,
+    val bic: String,
+) : SerializablePaymentMethodDetails()
+
 //TODO: Phase all of these out
 
 @Serializable
-class USD_SWIFT_Details(
+class USD_SWIFT_Details_old(
     val Beneficiary: String,
     val Account: String,
     val BIC: String
