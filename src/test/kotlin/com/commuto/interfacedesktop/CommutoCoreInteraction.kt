@@ -737,9 +737,17 @@ internal class CommutoCoreInteraction {
         }
 
         //Re-create maker's public key
-        //TODO: Check that interface id matches "sender" field
         val publicKey = try {
             PublicKey(decoder.decode(payload.pubKey))
+        } catch (e: Exception) {
+            return null
+        }
+
+        //Check that interface id of taker's key matches value in "sender" field of message
+        try {
+            if (!Arrays.equals(decoder.decode(message.sender), publicKey.interfaceId)) {
+                return null
+            }
         } catch (e: Exception) {
             return null
         }
