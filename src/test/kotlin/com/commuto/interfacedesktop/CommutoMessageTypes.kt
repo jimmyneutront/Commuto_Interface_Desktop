@@ -50,6 +50,23 @@ data class SerializableUSD_SWIFT_Details(
     val bic: String,
 ) : SerializablePaymentMethodDetails()
 
+@Serializable
+class SerializableMakerInfoMessage(
+    val sender: String,
+    val recipient: String,
+    var encryptedKey: String,
+    var encryptedIV: String,
+    var payload: String,
+    var signature: String,
+)
+
+@Serializable
+class SerializableMakerInfoPayload(
+    val msgType: String,
+    val swapId: String,
+    var paymentDetails: String
+)
+
 //TODO: Phase all of these out
 
 @Serializable
