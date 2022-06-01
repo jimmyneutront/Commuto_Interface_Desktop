@@ -4,13 +4,13 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
+import com.commuto.interfacedesktop.ui.DaggerViewModelFactory
 import com.commuto.interfacedesktop.ui.OffersComposable
-import com.commuto.interfacedesktop.ui.OffersViewModel
-
 
 fun main() {
 
-    val offersViewModel = OffersViewModel()
+    val viewModelFactory = DaggerViewModelFactory.create()
+    val offersViewModel = viewModelFactory.offersViewModel()
 
     application {
         Window(

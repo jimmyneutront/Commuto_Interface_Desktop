@@ -4,9 +4,15 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
     kotlin("jvm") version "1.6.10"
+    //Required for Dagger
+    kotlin("kapt") version "1.6.10"
     kotlin("plugin.serialization") version "1.6.10"
     id("org.jetbrains.compose") version "1.0.1"
     id("com.squareup.sqldelight") version "1.5.1"
+}
+
+kapt {
+    generateStubs = true
 }
 
 group = "me.jimmyt"
@@ -22,10 +28,14 @@ repositories {
 
 dependencies {
     implementation(compose.desktop.currentOs)
+    implementation("com.google.dagger:dagger:2.42")
+    kapt("com.google.dagger:dagger-compiler:2.42")
     implementation("com.squareup.sqldelight:sqlite-driver:1.5.1")
     implementation("io.ktor:ktor-client-java:1.6.7")
     implementation("net.folivo:trixnity-client-api:1.0.0-RC3")
     implementation("org.bouncycastle:bcprov-jdk15on:1.69")
+
+    // For using local web3j build
     /*
     implementation(files("web3j/abi/build/libs/abi-4.8.9-SNAPSHOT.jar"))
     implementation(files("web3j/codegen/build/libs/codegen-4.8.9-SNAPSHOT.jar"))
@@ -39,6 +49,7 @@ dependencies {
     implementation("com.squareup.okhttp3:okhttp:4.9.0")
     implementation("com.squareup.okhttp3:logging-interceptor:4.9.0")
     */
+
     implementation("org.web3j:codegen:4.8.7")
     implementation("org.web3j:contracts:4.8.7")
     implementation("org.web3j:core:4.8.7")
@@ -46,7 +57,7 @@ dependencies {
     testImplementation(kotlin("test"))
 }
 
-tasks.withType<KotlinCompile>() {
+tasks.withType<KotlinCompile> {
     kotlinOptions.jvmTarget = "11"
 }
 
