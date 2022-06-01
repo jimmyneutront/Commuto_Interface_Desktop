@@ -12,13 +12,13 @@ import androidx.compose.ui.unit.dp
 import com.commuto.interfacedesktop.offer.Offer
 
 @Composable
-fun OffersComposable(offers: List<Offer>) {
+fun OffersComposable(viewModel: OffersViewModel) {
 
     // The offer to show in the offer detail composable
     val focusedOffer = remember { mutableStateOf<Offer?>(null) }
 
     Row {
-        OffersListComposable(Modifier.widthIn(200.dp, 400.dp), offers, focusedOffer)
+        OffersListComposable(Modifier.widthIn(200.dp, 400.dp), viewModel, focusedOffer)
         if (focusedOffer.value != null) {
             Text(text = "id: " + focusedOffer.value!!.id.toString())
         } else {
@@ -30,5 +30,5 @@ fun OffersComposable(offers: List<Offer>) {
 @Preview
 @Composable
 fun PreviewOffersComposable() {
-    OffersComposable(Offer.manySampleOffers)
+    OffersComposable(OffersViewModel())
 }

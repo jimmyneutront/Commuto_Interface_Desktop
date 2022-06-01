@@ -18,7 +18,7 @@ import androidx.compose.ui.unit.dp
 import com.commuto.interfacedesktop.offer.Offer
 
 @Composable
-fun OffersListComposable(modifier: Modifier, offers: List<Offer>, focusedOffer: MutableState<Offer?>) {
+fun OffersListComposable(modifier: Modifier, viewModel: OffersViewModel, focusedOffer: MutableState<Offer?>) {
     Column(modifier = modifier) {
         Text(
             text = "Offers",
@@ -28,7 +28,7 @@ fun OffersListComposable(modifier: Modifier, offers: List<Offer>, focusedOffer: 
         )
         OffersDividerComposable()
         LazyColumn {
-            items(offers) { offer ->
+            items(viewModel.offers.value) { offer ->
                 Button(
                     colors = ButtonDefaults.buttonColors(backgroundColor = Color.Transparent),
                     contentPadding = PaddingValues(10.dp),
@@ -55,5 +55,5 @@ private fun OffersDividerComposable() {
 @Preview
 @Composable
 fun PreviewOffersListComposable() {
-    OffersListComposable(Modifier.widthIn(0.dp, 400.dp), Offer.sampleOffers, mutableStateOf(null))
+    OffersListComposable(Modifier.widthIn(0.dp, 400.dp), OffersViewModel(), mutableStateOf(null))
 }
