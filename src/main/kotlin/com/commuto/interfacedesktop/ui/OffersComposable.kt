@@ -10,6 +10,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.commuto.interfacedesktop.offer.Offer
+import com.commuto.interfacedesktop.offer.OfferService
 
 @Composable
 fun OffersComposable(viewModel: OffersViewModel) {
@@ -30,5 +31,5 @@ fun OffersComposable(viewModel: OffersViewModel) {
 @Preview
 @Composable
 fun PreviewOffersComposable() {
-    OffersComposable(OffersViewModel())
+    OffersComposable(OffersViewModel(OfferService()))
 }

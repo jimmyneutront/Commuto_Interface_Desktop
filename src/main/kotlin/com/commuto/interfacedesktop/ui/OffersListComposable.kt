@@ -16,6 +16,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.commuto.interfacedesktop.offer.Offer
+import com.commuto.interfacedesktop.offer.OfferService
 
 @Composable
 fun OffersListComposable(modifier: Modifier, viewModel: OffersViewModel, focusedOffer: MutableState<Offer?>) {
@@ -55,5 +56,5 @@ private fun OffersDividerComposable() {
 @Preview
 @Composable
 fun PreviewOffersListComposable() {
-    OffersListComposable(Modifier.widthIn(0.dp, 400.dp), OffersViewModel(), mutableStateOf(null))
+    OffersListComposable(Modifier.widthIn(0.dp, 400.dp), OffersViewModel(OfferService()), mutableStateOf(null))
 }
