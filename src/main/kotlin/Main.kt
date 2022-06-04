@@ -11,6 +11,8 @@ fun main() {
 
     val viewModelFactory = DaggerViewModelFactory.create()
     val offersViewModel = viewModelFactory.offersViewModel()
+    val blockchainService = offersViewModel.offerService.createBlockchainService()
+    blockchainService.listen()
 
     application {
         Window(
