@@ -1,4 +1,4 @@
-package com.commuto.interfacedesktop.kmService.kmTypes
+package com.commuto.interfacedesktop.keymanager.types
 
 import org.bouncycastle.asn1.ASN1Encodable
 import org.bouncycastle.asn1.ASN1Primitive

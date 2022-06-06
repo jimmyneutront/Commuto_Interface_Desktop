@@ -6,8 +6,8 @@ import com.commuto.interfacedesktop.contractwrapper.CommutoTransactionManager
 import com.commuto.interfacedesktop.contractwrapper.WorkingCommutoSwap
 import com.commuto.interfacedesktop.db.DatabaseDriverFactory
 import com.commuto.interfacedesktop.dbService.DBService
-import com.commuto.interfacedesktop.kmService.KMService
-import com.commuto.interfacedesktop.kmService.kmTypes.*
+import com.commuto.interfacedesktop.keymanager.KMService
+import com.commuto.interfacedesktop.keymanager.types.*
 import io.ktor.http.*
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.runBlocking
@@ -40,19 +40,8 @@ import kotlinx.serialization.decodeFromString
 import net.folivo.trixnity.clientserverapi.client.MatrixClientServerApiClient
 import net.folivo.trixnity.core.model.RoomId
 import net.folivo.trixnity.core.model.events.m.room.RoomMessageEventContent
-import org.bouncycastle.asn1.ASN1Sequence
-import org.bouncycastle.asn1.DERNull
-import org.bouncycastle.asn1.pkcs.PKCSObjectIdentifiers
-import org.bouncycastle.asn1.pkcs.RSAPrivateKey
-import org.bouncycastle.asn1.x509.AlgorithmIdentifier
-import org.bouncycastle.asn1.x509.SubjectPublicKeyInfo
 import java.nio.charset.Charset
-import java.security.KeyFactory
 import java.security.MessageDigest
-import java.security.PrivateKey
-import java.security.spec.RSAPrivateCrtKeySpec
-import java.security.spec.RSAPrivateKeySpec
-import java.security.spec.X509EncodedKeySpec
 
 internal class CommutoCoreInteraction {
 

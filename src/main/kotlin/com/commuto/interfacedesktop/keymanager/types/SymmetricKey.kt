@@ -1,4 +1,4 @@
-package com.commuto.interfacedesktop.kmService.kmTypes
+package com.commuto.interfacedesktop.keymanager.types
 
 import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
@@ -61,7 +61,7 @@ class SymmetricKey {
  * encrypt it.
  *
  * @property encryptedData: symmetrically encrypted data
- * @property iv: the initialization vector used to encrypt encryptedData
+ * @property initializationVector: the initialization vector used to encrypt encryptedData
  */
 class SymmetricallyEncryptedData(data: ByteArray, iv: ByteArray) {
     val encryptedData = data
