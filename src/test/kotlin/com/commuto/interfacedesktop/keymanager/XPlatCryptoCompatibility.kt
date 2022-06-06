@@ -1,12 +1,9 @@
-package com.commuto.interfacedesktop.kmService
+package com.commuto.interfacedesktop.keymanager
 
 import com.commuto.interfacedesktop.db.DatabaseDriverFactory
 import com.commuto.interfacedesktop.dbService.DBService
-import com.commuto.interfacedesktop.kmService.kmTypes.*
+import com.commuto.interfacedesktop.keymanager.types.*
 import java.nio.charset.Charset
-import java.security.KeyPair as JavaSecKeyPair
-import java.security.PrivateKey
-import java.security.PublicKey as JavaSecPubKey
 import java.util.Arrays
 import java.util.Base64
 import kotlin.test.Test

@@ -1,9 +1,9 @@
-package com.commuto.interfacedesktop.kmService
+package com.commuto.interfacedesktop.keymanager
 
 import com.commuto.interfacedesktop.db.DatabaseDriverFactory
 import com.commuto.interfacedesktop.dbService.DBService
-import com.commuto.interfacedesktop.kmService.kmTypes.KeyPair
-import com.commuto.interfacedesktop.kmService.kmTypes.PublicKey
+import com.commuto.interfacedesktop.keymanager.types.KeyPair
+import com.commuto.interfacedesktop.keymanager.types.PublicKey
 import java.util.*
 import kotlin.test.Test
 import kotlin.test.BeforeTest

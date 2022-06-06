@@ -1,23 +1,8 @@
 package com.commuto.interfacedesktop
 
-import com.commuto.interfacedesktop.kmService.kmTypes.PublicKey
-import com.commuto.interfacedesktop.kmService.kmTypes.SymmetricKey
-import kotlinx.serialization.SerialName
+import com.commuto.interfacedesktop.keymanager.types.PublicKey
+import com.commuto.interfacedesktop.keymanager.types.SymmetricKey
 import kotlinx.serialization.Serializable
-
-@Serializable
-class SerializablePublicKeyAnnouncementMessage(
-    var sender: String,
-    var msgType: String,
-    var payload: String,
-    var signature: String
-)
-
-@Serializable
-class SerializablePublicKeyAnnouncementPayload(
-    val pubKey: String,
-    val offerId: String
-)
 
 @Serializable
 class SerializableTakerInfoMessage(
