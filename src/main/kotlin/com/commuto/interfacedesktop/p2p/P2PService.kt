@@ -25,8 +25,8 @@ class P2PService {
 
     // Matrix REST client
     private val mxClient = MatrixClientServerApiClient(
-        baseUrl = Url("")
-    ).apply { accessToken.value = ""}
+        baseUrl = Url("http://matrix.org")
+    ).apply { accessToken.value = System.getenv("MXKY")}
 
     // The token at the end of the last batch of non-empty messages
     private var lastNonEmptyBatchToken = ""
