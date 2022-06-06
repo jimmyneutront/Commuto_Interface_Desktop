@@ -37,7 +37,7 @@ import kotlin.test.assertEquals
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.decodeFromString
-import net.folivo.trixnity.client.api.MatrixApiClient
+import net.folivo.trixnity.clientserverapi.client.MatrixClientServerApiClient
 import net.folivo.trixnity.core.model.RoomId
 import net.folivo.trixnity.core.model.events.m.room.RoomMessageEventContent
 import org.bouncycastle.asn1.ASN1Sequence
@@ -127,7 +127,7 @@ internal class CommutoCoreInteraction {
     @Test
     fun testSwapProcess() { runBlocking {
         //Specify swap direction and participant roles
-        val direction = SwapDirection.BUY
+        val direction = SwapDirection.SELL
         val role = ParticipantRole.TAKER
 
         //Restore Hardhat account #2
@@ -179,7 +179,7 @@ internal class CommutoCoreInteraction {
         val encoder = Base64.getEncoder()
 
         //Setup mxSession
-        val matrixRestClient = MatrixApiClient(
+        val matrixRestClient = MatrixClientServerApiClient(
             baseUrl = Url("http://matrix.org"),
         ).apply { accessToken.value = "" }
         val CINRoomId = RoomId("!WEuJJHaRpDvkbSveLu:matrix.org")
@@ -312,7 +312,8 @@ internal class CommutoCoreInteraction {
             coroutineScope {
                 matrixRestClient.sync.start(scope =  this)
                 //TODO: Parse last 20 or so messages too
-                matrixRestClient.sync.subscribe<RoomMessageEventContent.TextMessageEventContent> {
+                matrixRestClient.sync.subscribe<RoomMessageEventContent.TextMessageEventContent>(
+                    clazz = RoomMessageEventContent.TextMessageEventContent::class) {
                     println("Parsing message:")
                     println(it.content.body)
                     val takerInfoOptional = parseTakerInfoMessage(it.content.body, keyPair, kmService)

@@ -11,6 +11,11 @@ plugins {
     id("com.squareup.sqldelight") version "1.5.1"
 }
 
+// Trixnity Matrix SDK
+val trixnityVersion = "2.1.1"
+fun trixnity(module: String, version: String = trixnityVersion) =
+    "net.folivo:trixnity-$module:$version"
+
 kapt {
     generateStubs = true
 }
@@ -31,8 +36,6 @@ dependencies {
     implementation("com.google.dagger:dagger:2.42")
     kapt("com.google.dagger:dagger-compiler:2.42")
     implementation("com.squareup.sqldelight:sqlite-driver:1.5.1")
-    implementation("io.ktor:ktor-client-java:1.6.7")
-    implementation("net.folivo:trixnity-client-api:1.0.0-RC3")
     implementation("org.bouncycastle:bcprov-jdk15on:1.69")
 
     // For using local web3j build
@@ -50,11 +53,16 @@ dependencies {
     implementation("com.squareup.okhttp3:logging-interceptor:4.9.0")
     */
 
+    //TODO: Update these to a version with no vulnerabilities
     implementation("org.web3j:codegen:4.8.7")
     implementation("org.web3j:contracts:4.8.7")
     implementation("org.web3j:core:4.8.7")
     //implementation("org.bouncycastle:bcpg-jdk15on:1.69")
     testImplementation(kotlin("test"))
+    // Trixnity Matrix SDK
+    implementation(trixnity("clientserverapi-client"))
+    // Ktor engine for Trixnity
+    implementation("io.ktor:ktor-client-okhttp:2.0.1")
 }
 
 tasks.withType<KotlinCompile> {
