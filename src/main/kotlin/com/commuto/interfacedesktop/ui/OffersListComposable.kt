@@ -13,6 +13,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.commuto.interfacedesktop.i18n.I18n
 import com.commuto.interfacedesktop.offer.Offer
 import com.commuto.interfacedesktop.offer.OfferService
 
@@ -20,7 +21,7 @@ import com.commuto.interfacedesktop.offer.OfferService
 fun OffersListComposable(modifier: Modifier, viewModel: OffersViewModel, focusedOffer: MutableState<Offer?>) {
     Column(modifier = modifier) {
         Text(
-            text = "Offers",
+            text = I18n.get("Offers"),
             style = MaterialTheme.typography.h2,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(horizontal = 10.dp)
@@ -62,7 +63,7 @@ private fun OffersNoneFoundComposable() {
         modifier = Modifier.fillMaxSize()
     ) {
         Text(
-            text = "No offers found",
+            text = I18n.get("NoOffersFound"),
             style = MaterialTheme.typography.body1,
             modifier = Modifier.padding(horizontal = 10.dp)
         )

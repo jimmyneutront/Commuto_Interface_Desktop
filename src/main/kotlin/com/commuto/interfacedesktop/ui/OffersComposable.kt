@@ -9,6 +9,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.commuto.interfacedesktop.i18n.I18n
 import com.commuto.interfacedesktop.offer.Offer
 import com.commuto.interfacedesktop.offer.OfferService
 
@@ -23,7 +24,7 @@ fun OffersComposable(viewModel: OffersViewModel) {
         if (focusedOffer.value != null) {
             Text(text = "id: " + focusedOffer.value!!.id.toString())
         } else {
-            Text("No offer focused")
+            Text(I18n.get("NoOfferFocused"))
         }
     }
 }
