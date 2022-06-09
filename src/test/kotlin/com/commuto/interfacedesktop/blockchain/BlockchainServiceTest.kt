@@ -15,6 +15,8 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.Serializable
 import org.junit.Test
+import java.nio.ByteBuffer
+import java.util.*
 
 class BlockchainServiceTest {
     @Test
@@ -35,7 +37,7 @@ class BlockchainServiceTest {
     @Test
     fun testListen() {
         @Serializable
-        data class TestingServerResponse(val commutoSwapAddress: String)
+        data class TestingServerResponse(val commutoSwapAddress: String, val offerId: String)
 
         val testingServiceUrl = "http://localhost:8546/test_blockchainservice_listen"
         val testingServerClient = HttpClient(OkHttp) {
@@ -50,6 +52,10 @@ class BlockchainServiceTest {
         val testingServerResponse: TestingServerResponse = runBlocking {
             testingServerClient.get(testingServiceUrl).body()
         }
+        val expectedOfferId = UUID.fromString(testingServerResponse.offerId)
+        val offerIdByteBuffer = ByteBuffer.wrap(ByteArray(16))
+        offerIdByteBuffer.putLong(expectedOfferId.mostSignificantBits)
+        offerIdByteBuffer.putLong(expectedOfferId.leastSignificantBits)
 
         class TestBlockchainExceptionHandler : BlockchainExceptionNotifiable {
             @Throws
@@ -90,9 +96,10 @@ class BlockchainServiceTest {
         blockchainService.listen()
         runBlocking {
             withTimeout(30_000) {
-                // TODO: check the properties of the received events
-                val receivedOpenOfferEvent = offerService.offerOpenedEventChannel.receive()
+                val receivedOfferOpenedEvent = offerService.offerOpenedEventChannel.receive()
+                assert(Arrays.equals(receivedOfferOpenedEvent.offerID, offerIdByteBuffer.array()))
                 val receivedOfferTakenEvent = offerService.offerTakenEventChannel.receive()
+                assert(Arrays.equals(receivedOfferTakenEvent.offerID, offerIdByteBuffer.array()))
             }
         }
     }
