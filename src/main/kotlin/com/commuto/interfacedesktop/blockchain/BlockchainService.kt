@@ -11,14 +11,20 @@ import org.web3j.protocol.core.methods.response.*
 import org.web3j.protocol.http.HttpService
 import org.web3j.tx.ChainIdLong
 import java.math.BigInteger
+import java.net.ConnectException
 import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class BlockchainService (val offerService: OfferNotifiable, commutoSwapAddress: String) {
+class BlockchainService (val errorHandler: BlockchainExceptionNotifiable,
+                         val offerService: OfferNotifiable,
+                         commutoSwapAddress: String) {
 
-    @Inject constructor(offerService: OfferNotifiable) :
-            this(offerService, "0x687F36336FCAB8747be1D41366A416b41E7E1a96")
+    @Inject constructor(errorHandler: BlockchainExceptionNotifiable, offerService: OfferNotifiable) :
+            this(errorHandler,
+                offerService,
+                "0x687F36336FCAB8747be1D41366A416b41E7E1a96"
+            )
 
     // Blockchain credentials
     private val creds: Credentials = Credentials.create(
@@ -42,6 +48,9 @@ class BlockchainService (val offerService: OfferNotifiable, commutoSwapAddress: 
     // The coroutine job in which BlockchainService listens to the blockchain
     private var listenJob: Job = Job()
 
+    // Boolean that controls the listen loop
+    private var runLoop = true
+
     // Web3j web3 instance
     //TODO: Inject this
     private val web3: Web3j = Web3j.build(HttpService("http://192.168.1.13:8545"))
@@ -63,25 +72,34 @@ class BlockchainService (val offerService: OfferNotifiable, commutoSwapAddress: 
     @OptIn(DelicateCoroutinesApi::class)
     fun listen() {
         listenJob = GlobalScope.launch {
+            runLoop = true
             listenLoop()
         }
     }
 
     fun stopListening() {
+        runLoop = false
         listenJob.cancel()
     }
 
     suspend fun listenLoop() {
-        while (true) {
-            newestBlockNum = getNewestBlockNumberAsync().await().blockNumber
-            if (newestBlockNum > lastParsedBlockNum) {
-                val block = getBlockAsync(lastParsedBlockNum + BigInteger.ONE).await()
-                    .block
-                parseBlock(block)
+        while (runLoop) {
+            try {
+                newestBlockNum = getNewestBlockNumberAsync().await().blockNumber
+                if (newestBlockNum > lastParsedBlockNum) {
+                    val block = getBlockAsync(lastParsedBlockNum + BigInteger.ONE).await()
+                        .block
+                    parseBlock(block)
 
-                setLastParsedBlockNumber(block.number)
+                    setLastParsedBlockNumber(block.number)
+                }
+                delay(listenInterval)
+            } catch (e: Exception) {
+                errorHandler.handleBlockchainException(e)
+                if (e is ConnectException) {
+                    stopListening()
+                }
             }
-            delay(listenInterval)
         }
     }
 

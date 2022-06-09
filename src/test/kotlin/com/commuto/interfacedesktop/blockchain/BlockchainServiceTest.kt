@@ -2,6 +2,7 @@ package com.commuto.interfacedesktop.blockchain
 
 import com.commuto.interfacedesktop.CommutoSwap
 import com.commuto.interfacedesktop.offer.OfferNotifiable
+import com.commuto.interfacedesktop.offer.OfferService
 import io.ktor.client.*
 import io.ktor.client.call.*
 import io.ktor.client.engine.okhttp.*
@@ -16,6 +17,21 @@ import kotlinx.serialization.Serializable
 import org.junit.Test
 
 class BlockchainServiceTest {
+    @Test
+    fun testBlockchainService() = runBlocking {
+        class TestBlockchainExceptionHandler : BlockchainExceptionNotifiable {
+            @Throws
+            override fun handleBlockchainException(exception: Exception) {
+                throw exception
+            }
+        }
+        val blockchainService = BlockchainService(
+            TestBlockchainExceptionHandler(),
+            OfferService()
+        )
+        blockchainService.listenLoop()
+    }
+
     @Test
     fun testListen() {
         @Serializable
@@ -34,6 +50,14 @@ class BlockchainServiceTest {
         val testingServerResponse: TestingServerResponse = runBlocking {
             testingServerClient.get(testingServiceUrl).body()
         }
+
+        class TestBlockchainExceptionHandler : BlockchainExceptionNotifiable {
+            @Throws
+            override fun handleBlockchainException(exception: Exception) {
+                throw exception
+            }
+        }
+        val blockchainExceptionHandler = TestBlockchainExceptionHandler()
 
         class TestOfferService : OfferNotifiable {
             val offerOpenedEventChannel = Channel<CommutoSwap.OfferOpenedEventResponse>()
@@ -59,6 +83,7 @@ class BlockchainServiceTest {
 
         val offerService = TestOfferService()
         val blockchainService = BlockchainService(
+            blockchainExceptionHandler,
             offerService,
             testingServerResponse.commutoSwapAddress
         )

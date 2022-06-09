@@ -2,7 +2,6 @@ package com.commuto.interfacedesktop.offer
 
 import androidx.compose.runtime.mutableStateListOf
 import com.commuto.interfacedesktop.CommutoSwap
-import com.commuto.interfacedesktop.blockchain.BlockchainService
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import java.nio.ByteBuffer
@@ -29,9 +28,5 @@ class OfferService @Inject constructor(): OfferNotifiable {
         val leastSigBits = offerIdByteBuffer.long
         val offerId = UUID(mostSigBits, leastSigBits)
         offers.removeIf { it.id == offerId }
-    }
-
-    fun createBlockchainService(): BlockchainService {
-        return BlockchainService(this)
     }
 }
