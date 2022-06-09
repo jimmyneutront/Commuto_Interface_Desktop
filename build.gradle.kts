@@ -63,6 +63,12 @@ dependencies {
     implementation(trixnity("clientserverapi-client"))
     // Ktor engine for Trixnity
     implementation("io.ktor:ktor-client-okhttp:2.0.1")
+    // Serialization Library
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.3.3")
+    // Ktor Content negotiation plugin for interactions with TestingServer
+    testImplementation("io.ktor:ktor-client-content-negotiation:2.0.1")
+    // Ktor JSON serialization plugin for interactions with TestingServer
+    testImplementation("io.ktor:ktor-serialization-kotlinx-json:2.0.1")
 }
 
 tasks.withType<KotlinCompile> {

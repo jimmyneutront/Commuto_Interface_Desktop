@@ -1,7 +1,7 @@
 package com.commuto.interfacedesktop.blockchain
 
 import com.commuto.interfacedesktop.CommutoSwap
-import com.commuto.interfacedesktop.offer.OfferService
+import com.commuto.interfacedesktop.offer.OfferNotifiable
 import kotlinx.coroutines.*
 import kotlinx.coroutines.future.asDeferred
 import org.web3j.crypto.Credentials
@@ -15,7 +15,10 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class BlockchainService @Inject constructor(val offerService: OfferService) {
+class BlockchainService (val offerService: OfferNotifiable, commutoSwapAddress: String) {
+
+    @Inject constructor(offerService: OfferNotifiable) :
+            this(offerService, "0x687F36336FCAB8747be1D41366A416b41E7E1a96")
 
     // Blockchain credentials
     private val creds: Credentials = Credentials.create(
@@ -41,8 +44,7 @@ class BlockchainService @Inject constructor(val offerService: OfferService) {
 
     // Web3j web3 instance
     //TODO: Inject this
-    //val web3 = Web3j.build(HttpService("https://data-seed-prebsc-1-s1.binance.org:8545"))
-    private val web3: Web3j = Web3j.build(HttpService("http://192.168.0.195:8545"))
+    private val web3: Web3j = Web3j.build(HttpService("http://192.168.1.13:8545"))
 
     // Gas price provider
     private val gasProvider = DumbGasProvider()
@@ -50,12 +52,9 @@ class BlockchainService @Inject constructor(val offerService: OfferService) {
     // Commuto transaction manager
     private val txManager = CommutoTransactionManager(web3, creds, ChainIdLong.NONE)
 
-    // CommutoSwap contract address
-    private val swapAddress = "0x687F36336FCAB8747be1D41366A416b41E7E1a96"
-
     // Commuto Swap contract instance
     private val commutoSwap: CommutoSwap = CommutoSwap.load(
-        swapAddress,
+        commutoSwapAddress,
         web3,
         txManager,
         gasProvider
