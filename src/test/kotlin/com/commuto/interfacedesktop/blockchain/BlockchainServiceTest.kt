@@ -15,6 +15,9 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.Serializable
 import org.junit.Test
+import org.web3j.protocol.Web3j
+import org.web3j.protocol.http.HttpService
+import java.net.UnknownHostException
 import java.nio.ByteBuffer
 import java.util.*
 
@@ -57,6 +60,8 @@ class BlockchainServiceTest {
         offerIdByteBuffer.putLong(expectedOfferId.mostSignificantBits)
         offerIdByteBuffer.putLong(expectedOfferId.leastSignificantBits)
 
+        val w3 = Web3j.build(HttpService("http://192.168.1.13:8545"))
+
         class TestBlockchainExceptionHandler : BlockchainExceptionNotifiable {
             @Throws
             override fun handleBlockchainException(exception: Exception) {
@@ -91,6 +96,7 @@ class BlockchainServiceTest {
         val blockchainService = BlockchainService(
             blockchainExceptionHandler,
             offerService,
+            w3,
             testingServerResponse.commutoSwapAddress
         )
         blockchainService.listen()
@@ -100,6 +106,52 @@ class BlockchainServiceTest {
                 assert(Arrays.equals(receivedOfferOpenedEvent.offerID, offerIdByteBuffer.array()))
                 val receivedOfferTakenEvent = offerService.offerTakenEventChannel.receive()
                 assert(Arrays.equals(receivedOfferTakenEvent.offerID, offerIdByteBuffer.array()))
+            }
+        }
+    }
+
+    @Test
+    fun testListenErrorHandling() {
+        val w3 = Web3j.build(HttpService("http://not.a.node:8546"))
+        class TestBlockchainExceptionHandler : BlockchainExceptionNotifiable {
+            val exceptionChannel = Channel<Exception>()
+            override fun handleBlockchainException(exception: Exception) {
+                runBlocking {
+                    exceptionChannel.send(exception)
+                }
+            }
+        }
+        val blockchainExceptionHandler = TestBlockchainExceptionHandler()
+
+        class TestOfferService : OfferNotifiable {
+            override fun handleOfferOpenedEvent(
+                offerEventResponse:
+                CommutoSwap.OfferOpenedEventResponse
+            ) {
+                throw IllegalStateException("Should not be called")
+            }
+            override fun handleOfferTakenEvent(
+                offerTakenEventResponse:
+                CommutoSwap.OfferTakenEventResponse
+            ) {
+                throw IllegalStateException("Should not be called")
+            }
+        }
+        val offerService = TestOfferService()
+
+        val blockchainService = BlockchainService(
+            blockchainExceptionHandler,
+            offerService,
+            w3,
+            "0x0000000000000000000000000000000000000000"
+        )
+        blockchainService.listen()
+        runBlocking {
+            withTimeout(10_000) {
+                val exception = blockchainExceptionHandler.exceptionChannel.receive()
+                assert(exception is UnknownHostException)
+                assert(exception.message ==
+                        "not.a.node: nodename nor servname provided, or not known")
             }
         }
     }

@@ -16,13 +16,15 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class BlockchainService (val errorHandler: BlockchainExceptionNotifiable,
-                         val offerService: OfferNotifiable,
+class BlockchainService (private val errorHandler: BlockchainExceptionNotifiable,
+                         private val offerService: OfferNotifiable,
+                         private val web3: Web3j,
                          commutoSwapAddress: String) {
 
     @Inject constructor(errorHandler: BlockchainExceptionNotifiable, offerService: OfferNotifiable) :
             this(errorHandler,
                 offerService,
+                Web3j.build(HttpService("http://192.168.1.13:8545")),
                 "0x687F36336FCAB8747be1D41366A416b41E7E1a96"
             )
 
@@ -50,10 +52,6 @@ class BlockchainService (val errorHandler: BlockchainExceptionNotifiable,
 
     // Boolean that controls the listen loop
     private var runLoop = true
-
-    // Web3j web3 instance
-    //TODO: Inject this
-    private val web3: Web3j = Web3j.build(HttpService("http://192.168.1.13:8545"))
 
     // Gas price provider
     private val gasProvider = DumbGasProvider()
