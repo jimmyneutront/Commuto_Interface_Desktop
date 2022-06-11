@@ -1,4 +1,4 @@
-package com.commuto.interfacedesktop.p2p.messages
+package com.commuto.interfacedesktop.p2p.serializable.payloads
 
 import kotlinx.serialization.Serializable
 

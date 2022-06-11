@@ -1,8 +1,9 @@
 package com.commuto.interfacedesktop.p2p
 
 import com.commuto.interfacedesktop.keymanager.types.PublicKey
-import com.commuto.interfacedesktop.p2p.messages.SerializablePublicKeyAnnouncementMessage
-import com.commuto.interfacedesktop.p2p.messages.SerializablePublicKeyAnnouncementPayload
+import com.commuto.interfacedesktop.p2p.messages.PublicKeyAnnouncement
+import com.commuto.interfacedesktop.p2p.serializable.messages.SerializablePublicKeyAnnouncementMessage
+import com.commuto.interfacedesktop.p2p.serializable.payloads.SerializablePublicKeyAnnouncementPayload
 import io.ktor.http.*
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.GlobalScope
@@ -15,21 +16,26 @@ import net.folivo.trixnity.clientserverapi.model.rooms.GetEvents
 import net.folivo.trixnity.core.model.RoomId
 import net.folivo.trixnity.core.model.events.Event
 import net.folivo.trixnity.core.model.events.m.room.RoomMessageEventContent
+import java.nio.ByteBuffer
 import java.nio.charset.Charset
 import java.security.MessageDigest
 import java.util.*
 import javax.inject.Singleton
 
 @Singleton
-class P2PService {
+class P2PService constructor(private val offerService: OfferMessageNotifiable) {
 
     // Matrix REST client
-    private val mxClient = MatrixClientServerApiClient(
+    val mxClient = MatrixClientServerApiClient(
         baseUrl = Url("http://matrix.org")
     ).apply { accessToken.value = System.getenv("MXKY")}
 
-    // The token at the end of the last batch of non-empty messages
-    private var lastNonEmptyBatchToken = ""
+    /*
+     The token at the end of the last batch of non-empty messages (this token is that from the
+     beginning of the Commuto Interface network test room)
+      */
+    private var lastNonEmptyBatchToken =
+        "t1-2607497254_757284974_11441483_1402797642_1423439559_3319206_507472245_4060289024_0"
 
     private fun updateLastNonEmptyBatchToken(newToken: String) {
         lastNonEmptyBatchToken = newToken
@@ -52,12 +58,13 @@ class P2PService {
     suspend fun listenLoop() {
         while (true) {
             val syncResponse = mxClient.sync.sync(timeout = 60_000)
-            updateLastNonEmptyBatchToken(syncResponse.getOrThrow().nextBatch)
             parseEvents(mxClient.rooms.getEvents(
                 roomId = RoomId(full = "!WEuJJHaRpDvkbSveLu:matrix.org"),
                 from = lastNonEmptyBatchToken,
-                dir = GetEvents.Direction.BACKWARDS
+                dir = GetEvents.Direction.FORWARDS,
+                limit = 1_000_000_000_000L
             ).getOrThrow().chunk!!)
+            updateLastNonEmptyBatchToken(syncResponse.getOrThrow().nextBatch)
         }
     }
 
@@ -66,12 +73,14 @@ class P2PService {
             it.content is RoomMessageEventContent.TextMessageEventContent
         }
         for (event in testMessageEvents) {
-            print(parsePublicKeyAnnouncement((event.content as RoomMessageEventContent.
-            TextMessageEventContent).body))
+            parsePublicKeyAnnouncement((event.content as RoomMessageEventContent.
+            TextMessageEventContent).body)?.let {
+                offerService.handlePublicKeyAnnouncement(it)
+            }
         }
     }
 
-    private fun parsePublicKeyAnnouncement(messageString: String?): PublicKey? {
+    private fun parsePublicKeyAnnouncement(messageString: String?): PublicKeyAnnouncement? {
         // Setup decoder
         val decoder = Base64.getDecoder()
         // Return null if no message string is given
@@ -100,6 +109,15 @@ class P2PService {
         } catch (e: Exception) {
             return null
         }
+        val messageOfferId = try {
+            val offerIdByteArray = decoder.decode(payload.offerId)
+            val offerIdByteBuffer = ByteBuffer.wrap(offerIdByteArray)
+            val mostSigBits = offerIdByteBuffer.long
+            val leastSigBits = offerIdByteBuffer.long
+            UUID(mostSigBits, leastSigBits)
+        } catch (e: Exception) {
+            return null
+        }
         //Re-create maker's public key
         val publicKey = try {
             PublicKey(decoder.decode(payload.pubKey))
@@ -111,7 +129,7 @@ class P2PService {
         //Verify signature
         return try {
             when (publicKey.verifySignature(payloadDataHash, decoder.decode(message.signature))) {
-                true -> publicKey
+                true -> PublicKeyAnnouncement(messageOfferId, publicKey)
                 false -> null
             }
         } catch (e: Exception) {
