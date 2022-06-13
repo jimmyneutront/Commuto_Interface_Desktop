@@ -4,7 +4,6 @@ import com.commuto.interfacedesktop.keymanager.types.PublicKey
 import com.commuto.interfacedesktop.p2p.messages.PublicKeyAnnouncement
 import com.commuto.interfacedesktop.p2p.serializable.messages.SerializablePublicKeyAnnouncementMessage
 import com.commuto.interfacedesktop.p2p.serializable.payloads.SerializablePublicKeyAnnouncementPayload
-import io.ktor.http.*
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.Job
@@ -13,9 +12,12 @@ import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
 import net.folivo.trixnity.clientserverapi.client.MatrixClientServerApiClient
 import net.folivo.trixnity.clientserverapi.model.rooms.GetEvents
+import net.folivo.trixnity.core.ErrorResponse
+import net.folivo.trixnity.core.MatrixServerException
 import net.folivo.trixnity.core.model.RoomId
 import net.folivo.trixnity.core.model.events.Event
 import net.folivo.trixnity.core.model.events.m.room.RoomMessageEventContent
+import java.net.ConnectException
 import java.nio.ByteBuffer
 import java.nio.charset.Charset
 import java.security.MessageDigest
@@ -23,13 +25,9 @@ import java.util.*
 import javax.inject.Singleton
 
 @Singleton
-class P2PService constructor(private val offerService: OfferMessageNotifiable) {
-
-    // Matrix REST client
-    val mxClient = MatrixClientServerApiClient(
-        baseUrl = Url("http://matrix.org")
-    ).apply { accessToken.value = System.getenv("MXKY")}
-
+class P2PService constructor(private val exceptionHandler: P2PExceptionNotifiable,
+                             private val offerService: OfferMessageNotifiable,
+                             private val mxClient: MatrixClientServerApiClient) {
     /*
      The token at the end of the last batch of non-empty messages (this token is that from the
      beginning of the Commuto Interface network test room)
@@ -44,27 +42,39 @@ class P2PService constructor(private val offerService: OfferMessageNotifiable) {
     // The job in which P2PService listens for messages
     private var listenJob: Job = Job()
 
+    // Boolean that controls the listen loop
+    private var runLoop = true
+
     @OptIn(DelicateCoroutinesApi::class)
     fun listen() {
         listenJob = GlobalScope.launch {
+            runLoop = true
             listenLoop()
         }
     }
 
     fun stopListening() {
+        runLoop = false
         listenJob.cancel()
     }
 
     suspend fun listenLoop() {
         while (true) {
-            val syncResponse = mxClient.sync.sync(timeout = 60_000)
-            parseEvents(mxClient.rooms.getEvents(
-                roomId = RoomId(full = "!WEuJJHaRpDvkbSveLu:matrix.org"),
-                from = lastNonEmptyBatchToken,
-                dir = GetEvents.Direction.FORWARDS,
-                limit = 1_000_000_000_000L
-            ).getOrThrow().chunk!!)
-            updateLastNonEmptyBatchToken(syncResponse.getOrThrow().nextBatch)
+            try {
+                val syncResponse = mxClient.sync.sync(timeout = 60_000)
+                parseEvents(mxClient.rooms.getEvents(
+                    roomId = RoomId(full = "!WEuJJHaRpDvkbSveLu:matrix.org"),
+                    from = lastNonEmptyBatchToken,
+                    dir = GetEvents.Direction.FORWARDS,
+                    limit = 1_000_000_000_000L
+                ).getOrThrow().chunk!!)
+                updateLastNonEmptyBatchToken(syncResponse.getOrThrow().nextBatch)
+            } catch (e: Exception) {
+                exceptionHandler.handleP2PException(e)
+                if (e is ConnectException || (e as? MatrixServerException)?.errorResponse is ErrorResponse) {
+                    stopListening()
+                }
+            }
         }
     }
 

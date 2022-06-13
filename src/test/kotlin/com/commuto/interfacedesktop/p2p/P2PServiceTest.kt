@@ -5,11 +5,15 @@ import com.commuto.interfacedesktop.keymanager.types.PublicKey
 import com.commuto.interfacedesktop.p2p.messages.PublicKeyAnnouncement
 import com.commuto.interfacedesktop.p2p.serializable.messages.SerializablePublicKeyAnnouncementMessage
 import com.commuto.interfacedesktop.p2p.serializable.payloads.SerializablePublicKeyAnnouncementPayload
+import io.ktor.http.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import net.folivo.trixnity.clientserverapi.client.MatrixClientServerApiClient
+import net.folivo.trixnity.core.ErrorResponse
+import net.folivo.trixnity.core.MatrixServerException
 import net.folivo.trixnity.core.model.RoomId
 import net.folivo.trixnity.core.model.events.m.room.RoomMessageEventContent
 import org.junit.Test
@@ -21,11 +25,20 @@ import java.util.*
 class P2PServiceTest {
     @Test
     fun testP2PService() = runBlocking {
+        val mxClient = MatrixClientServerApiClient(
+            baseUrl = Url("https://matrix.org"),
+        ).apply { accessToken.value = System.getenv("MXKY") }
+        class TestP2PExceptionHandler : P2PExceptionNotifiable {
+            @Throws
+            override fun handleP2PException(exception: Exception) {
+                throw exception
+            }
+        }
         class TestOfferService : OfferMessageNotifiable {
             override fun handlePublicKeyAnnouncement(message: PublicKeyAnnouncement) {
             }
         }
-        val p2pService = P2PService(TestOfferService())
+        val p2pService = P2PService(TestP2PExceptionHandler(), TestOfferService(), mxClient)
         p2pService.listenLoop()
     }
 
@@ -41,6 +54,17 @@ class P2PServiceTest {
             .putLong(offerId.leastSignificantBits).array()
         val offerIdString = encoder.encodeToString(offerIdBytes)
 
+        val mxClient = MatrixClientServerApiClient(
+            baseUrl = Url("https://matrix.org"),
+        ).apply { accessToken.value = System.getenv("MXKY") }
+
+        class TestP2PExceptionHandler : P2PExceptionNotifiable {
+            @Throws
+            override fun handleP2PException(exception: Exception) {
+                throw exception
+            }
+        }
+
         class TestOfferService constructor(val expectedPKA: PublicKeyAnnouncement) : OfferMessageNotifiable {
             val publicKeyAnnouncementChannel = Channel<PublicKeyAnnouncement>()
             override fun handlePublicKeyAnnouncement(message: PublicKeyAnnouncement) {
@@ -55,7 +79,7 @@ class P2PServiceTest {
 
         val expectedPKA = PublicKeyAnnouncement(offerId, PublicKey(keyPair.keyPair.public))
         val offerService = TestOfferService(expectedPKA)
-        val p2pService = P2PService(offerService)
+        val p2pService = P2PService(TestP2PExceptionHandler(), offerService, mxClient)
         p2pService.listen()
 
         val publicKeyAnnouncementPayload = SerializablePublicKeyAnnouncementPayload(
@@ -76,13 +100,42 @@ class P2PServiceTest {
         publicKeyAnnouncementMsg.signature = encoder.encodeToString(keyPair.sign(payloadDataHash))
         val publicKeyAnnouncementString = Json.encodeToString(publicKeyAnnouncementMsg)
         runBlocking {
-            p2pService.mxClient.rooms.sendMessageEvent(
+            mxClient.rooms.sendMessageEvent(
                 roomId = RoomId(full = "!WEuJJHaRpDvkbSveLu:matrix.org"),
                 eventContent = RoomMessageEventContent
                     .TextMessageEventContent(publicKeyAnnouncementString)
             ).getOrThrow()
             withTimeout(30_000) {
                 offerService.publicKeyAnnouncementChannel.receive()
+            }
+        }
+    }
+
+    @Test
+    fun testListenErrorHandling() {
+        val mxClient = MatrixClientServerApiClient(
+            baseUrl = Url("https://matrix.org"),
+        ).apply { accessToken.value = "not_a_real_token" }
+        class TestP2PExceptionHandler : P2PExceptionNotifiable {
+            val exceptionChannel = Channel<Exception>()
+            override fun handleP2PException(exception: Exception) {
+                runBlocking {
+                    exceptionChannel.send(exception)
+                }
+            }
+        }
+        val p2pExceptionHandler = TestP2PExceptionHandler()
+        class TestOfferService : OfferMessageNotifiable {
+            override fun handlePublicKeyAnnouncement(message: PublicKeyAnnouncement) {}
+        }
+        val p2pService = P2PService(p2pExceptionHandler, TestOfferService(), mxClient)
+        p2pService.listen()
+        runBlocking {
+            withTimeout(10_000) {
+                val exception = p2pExceptionHandler.exceptionChannel.receive()
+                assert(exception is MatrixServerException)
+                assert((exception as MatrixServerException).errorResponse is
+                        ErrorResponse.UnknownToken)
             }
         }
     }
