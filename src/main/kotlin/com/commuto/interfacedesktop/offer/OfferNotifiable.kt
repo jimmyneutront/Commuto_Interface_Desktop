@@ -5,6 +5,7 @@ import javax.inject.Singleton
 
 @Singleton
 interface OfferNotifiable {
-    fun handleOfferOpenedEvent(offerEventResponse: CommutoSwap.OfferOpenedEventResponse)
+    fun handleOfferOpenedEvent(offerOpenedEventResponse: CommutoSwap.OfferOpenedEventResponse)
+    fun handleOfferCanceledEvent(offerCanceledEventResponse: CommutoSwap.OfferCanceledEventResponse)
     fun handleOfferTakenEvent(offerTakenEventResponse: CommutoSwap.OfferTakenEventResponse)
 }

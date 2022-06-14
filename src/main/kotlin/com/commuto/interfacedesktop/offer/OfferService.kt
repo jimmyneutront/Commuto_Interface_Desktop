@@ -14,12 +14,20 @@ class OfferService @Inject constructor(): OfferNotifiable {
     var offers = mutableStateListOf<Offer>() //Offer.manySampleOffers
     private val scope = CoroutineScope(Dispatchers.Default)
 
-    override fun handleOfferOpenedEvent(offerEventResponse: CommutoSwap.OfferOpenedEventResponse) {
-        val offerIdByteBuffer = ByteBuffer.wrap(offerEventResponse.offerID)
+    override fun handleOfferOpenedEvent(offerOpenedEventResponse: CommutoSwap.OfferOpenedEventResponse) {
+        val offerIdByteBuffer = ByteBuffer.wrap(offerOpenedEventResponse.offerID)
         val mostSigBits = offerIdByteBuffer.long
         val leastSigBits = offerIdByteBuffer.long
         val offerId = UUID(mostSigBits, leastSigBits)
         offers.add(Offer(id = offerId, direction = "Buy", price = "1.004", pair = "USD/USDT"))
+    }
+
+    override fun handleOfferCanceledEvent(offerCanceledEventResponse: CommutoSwap.OfferCanceledEventResponse) {
+        val offerIdByteBuffer = ByteBuffer.wrap(offerCanceledEventResponse.offerID)
+        val mostSigBits = offerIdByteBuffer.long
+        val leastSigBits = offerIdByteBuffer.long
+        val offerId = UUID(mostSigBits, leastSigBits)
+        offers.removeIf { it.id == offerId }
     }
 
     override fun handleOfferTakenEvent(offerTakenEventResponse: CommutoSwap.OfferTakenEventResponse) {
