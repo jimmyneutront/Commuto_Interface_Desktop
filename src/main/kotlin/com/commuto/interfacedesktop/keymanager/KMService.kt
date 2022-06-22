@@ -9,21 +9,22 @@ import java.util.Base64
 /**
  * The Key Manager Service Class.
  *
- * This is responsible for generating, storing, and retrieving key pairs, and for storing and retrieving public keys.
+ * This is responsible for generating, persistently storing and retrieving key pairs, and for storing and retrieving
+ * public keys.
  *
- * @property dbService the Database Service used to store and retrieve data
+ * @property dbService The Database Service used to store and retrieve data
  */
 class KMService(var dbService: DBService) {
 
     /**
-     * Generates a new KeyPair, and optionally stores it in the database
+     * Generates an 2048-bit RSA key pair and computes the key pair's interface ID, which is the SHA-256 hash of the
+     * PKCS#1 byte array encoded representation of the public key.
      *
-     * @param storeResult indicate whether the generated key pair should be stored in the database. This will primarily
-     * be left as true, but testing code may set as false to generate a key pair for testing duplicate key protection.
-     * If true, each key pair is stored in the database as Base64 encoded Strings of byte representations of the public
-     * and private keys in PKCS#1 format.
+     * @param storeResult Indicates whether the generated key pair should be stored persistently using [dbService].
+     * This will usually be left as true, but testing code may set it as false.
      *
-     * @return a new KeyPair object
+     * @return A [KeyPair], the private key of which is a 2048-bit RSA private key, and the interface ID of which is the
+     * SHA-256 hash of the PKCS#1 encoded byte representation of the [KeyPair]'s public key.
      */
     fun generateKeyPair(storeResult: Boolean = true): KeyPair {
         val keyPair = KeyPair()
@@ -37,14 +38,14 @@ class KMService(var dbService: DBService) {
     }
 
     /**
-     * Retrieves the persistently stored KeyPair associated with the given interface id, or returns null if not
-     * present.
+     * Retrieves the persistently stored [KeyPair] associated with the specified interface ID, or returns null if such a
+     * [KeyPair] is not found.
      *
-     * @param interfaceId the interface id of the key pair, a SHA-256 hash of the PKCS#1 byte array encoded
-     * representation of its public key.
+     * @param interfaceId The interface ID of the desired [KeyPair], which is the SHA-256 hash of the PKCS#1 byte
+     * encoded representation of the [KeyPair]'s public key.
      *
-     * @return KeyPair?
-     * @return null if no KeyPair is found with the given interface id
+     * @return A [KeyPair], the private key of which is a 2048-bit RSA key pair such that the SHA-256 hash of the PKCS#1
+     * encoded byte representation of its public key is equal to [interfaceId], or null if no such [KeyPair] is found.
      */
     fun getKeyPair(interfaceId: ByteArray): KeyPair? {
         val encoder = Base64.getEncoder()
@@ -59,10 +60,10 @@ class KMService(var dbService: DBService) {
     }
 
     /**
-     * Persistently stores a PublicKey associated with an interface id. This will generate a PKCS#1 byte array
-     * representation of the public key, encode it as a Base64 String and store it in the database.
+     * Persistently stores a [PublicKey] in such a way that it can be retrieved again given its interface ID. This will
+     * generate a PKCS#1 byte representation of [pubKey], encode it as a Base64 [String] and store it using [dbService].
      *
-     * @param pubKey the public key to be stored
+     * @param pubKey The [PublicKey] to be persistently stored.
      */
     fun storePublicKey(pubKey: PublicKey) {
         val interfaceId: ByteArray = MessageDigest.getInstance("SHA-256")
@@ -73,14 +74,14 @@ class KMService(var dbService: DBService) {
     }
 
     /**
-     * Retrieves the persistently stored PublicKey associated with the given interface id, or returns null if not
-     * present
+     * Retrieves the persistently stored [PublicKey] with an interface ID equal to [interfaceId], or returns nill if no
+     * such [PublicKey] is found.
      *
-     * @param interfaceId the interface id of the public key, a SHA-256 hash of its PKCS#1 byte array encoded
-     * representation
+     * @param interfaceId The interface ID of the desired [PublicKey]. This is the SHA-256 hash of the desired
+     * [PublicKey]'s PKCS#1 byte encoded representation.
      *
-     * @return PublicKey?
-     * @return null if no PublicKey is found with the given interface id
+     * @return A [PublicKey], the SHA-256 hash of the PKCS#1 encoded byte representation of which is equal to
+     * [interfaceId], or null if no such [PublicKey] is found.
      */
     fun getPublicKey(interfaceId: ByteArray): PublicKey? {
         val encoder = Base64.getEncoder()
