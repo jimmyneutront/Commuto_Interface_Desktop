@@ -17,6 +17,17 @@ import com.commuto.interfacedesktop.i18n.I18n
 import com.commuto.interfacedesktop.offer.Offer
 import com.commuto.interfacedesktop.offer.OfferService
 
+/**
+ * Displays a [OffersNoneFoundComposable] if there are no open offers in [viewModel], or, if there
+ * are open offers in [viewModel], displays a list containing an [OfferCardComposable]-labeled
+ * [Button] for each open offer in [viewModel] that navigates to "OfferDetailComposable/ + offer id
+ * as a [String]" when pressed.
+ *
+ * @param viewModel The OffersViewModel that acts as a single source of truth for all offer-related
+ * data.
+ * @param focusedOffer The currently focused [Offer], the information of which will be displayed next to the list of
+ * open [Offer]s.
+ */
 @Composable
 fun OffersListComposable(modifier: Modifier, viewModel: OffersViewModel, focusedOffer: MutableState<Offer?>) {
     Column(modifier = modifier) {
@@ -48,6 +59,9 @@ fun OffersListComposable(modifier: Modifier, viewModel: OffersViewModel, focused
     }
 }
 
+/**
+ * Displays a horizontal divider.
+ */
 @Composable
 private fun OffersDividerComposable() {
     Divider(
@@ -56,6 +70,9 @@ private fun OffersDividerComposable() {
     )
 }
 
+/**
+ * Displays the localized, vertically and horizontally centered words "No Offers Found".
+ */
 @Composable
 private fun OffersNoneFoundComposable() {
     Box(
@@ -70,6 +87,9 @@ private fun OffersNoneFoundComposable() {
     }
 }
 
+/**
+ * Displays a preview of [OffersListComposable].
+ */
 @Preview
 @Composable
 fun PreviewOffersListComposable() {
