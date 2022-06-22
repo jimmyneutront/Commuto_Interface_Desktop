@@ -10,6 +10,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.commuto.interfacedesktop.offer.Offer
 
+/**
+ * Displays a card with basic information about an offer, to be shown in the main list of open
+ * offers.
+ *
+ * @param offer The [Offer] for which this card displays basic information.
+ */
 @Composable
 fun OfferCardComposable(offer: Offer) {
     Box {
@@ -31,6 +37,9 @@ fun OfferCardComposable(offer: Offer) {
     }
 }
 
+/**
+ * Displays a preview of [OfferCardComposable] with a sample [Offer].
+ */
 @Preview
 @Composable
 fun PreviewOfferCardComposable() {
