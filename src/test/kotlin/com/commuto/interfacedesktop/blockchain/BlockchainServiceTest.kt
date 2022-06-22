@@ -21,7 +21,14 @@ import java.net.UnknownHostException
 import java.nio.ByteBuffer
 import java.util.*
 
+/**
+ * Tests for [BlockchainService]
+ */
 class BlockchainServiceTest {
+    /**
+     * Runs [BlockchainService.listenLoop] in the current coroutine context. This doesn't actually
+     * test anything.
+     */
     @Test
     fun testBlockchainService() = runBlocking {
         class TestBlockchainExceptionHandler : BlockchainExceptionNotifiable {
@@ -37,6 +44,12 @@ class BlockchainServiceTest {
         blockchainService.listenLoop()
     }
 
+    /**
+     * Tests [BlockchainService] by ensuring it detects and handles
+     * [OfferOpened](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offeropened) and
+     * [OfferTaken](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offertaken) events
+     * for a specific offer properly.
+     */
     @Test
     fun testListenOfferOpenedTaken() {
         @Serializable
@@ -118,6 +131,12 @@ class BlockchainServiceTest {
         }
     }
 
+    /**
+     * Tests [BlockchainService] by ensuring it detects and handles
+     * [OfferOpened](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offeropened) and
+     * [OfferTaken](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offertaken) events
+     * for a specific offer properly.
+     */
     @Test
     fun testListenOfferOpenedCanceled() {
         @Serializable
@@ -197,6 +216,10 @@ class BlockchainServiceTest {
         }
     }
 
+    /**
+     * Tests [BlockchainService]'s [Exception] handling logic by ensuring that it handles empty node
+     * response exceptions properly.
+     */
     @Test
     fun testListenErrorHandling() {
         val w3 = Web3j.build(HttpService("http://not.a.node:8546"))
