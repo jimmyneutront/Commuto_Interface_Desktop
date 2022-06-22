@@ -7,31 +7,39 @@ import javax.crypto.spec.IvParameterSpec
 import javax.crypto.spec.SecretKeySpec
 
 /**
- * The SymmetricKey class is a wrapper around an AES-256 SecretKey, with methods for encrypting and decrypting data
- * using the key.
+ * This is an AES-256 key, with functions for encryption and decryption.
  *
- * @property key: the SecretKey object around which this class is wrapped.
- * @property keyBytes: a ByteArray representation of the wrapped SecretKey.
+ * @property key: The AES-256 key as a [SecretKey].
+ * @property keyBytes: The AES-256 key as a [ByteArray]
  */
 class SymmetricKey {
     val key: SecretKey
     val keyBytes: ByteArray
 
+    /**
+     * Creates a new [SymmetricKey] given an AES-256 [SecretKey].
+     */
     constructor (key: SecretKey) {
         this.key = key
         this.keyBytes = key.encoded
     }
 
+    /**
+     * Creates a new [SymmetricKey] given an AES-256 key as a [ByteArray].
+     */
     constructor(key: ByteArray) {
         this.keyBytes = key
         this.key = SecretKeySpec(key, "AES")
     }
 
     /**
-     * Encrypt data with this key using CBC with PKCS5 padding.
+     * Creates a new initialization vector and then performs AES encryption on the given bytes with this [SymmetricKey]
+     * using CBC with PKCS#5 padding.
      *
-     * @param data: the data to be encrypted
-     * @returns SymmetricallyEncryptedData: the encrypted data along with the initialization vector used.
+     * @param data The bytes to be encrypted, as a [ByteArray].
+     *
+     * @returns [SymmetricallyEncryptedData], containing a new initialization vector and [data] encrypted with this
+     * [SymmetricKey] and the new initialization vector.
      */
     fun encrypt(data: ByteArray): SymmetricallyEncryptedData {
         val cipher = Cipher.getInstance("AES/CBC/PKCS5Padding")
@@ -42,11 +50,14 @@ class SymmetricKey {
     }
 
     /**
-     * Decrypt data encrypted using CBC with PKCS5 padding with this key.
+     * Decrypts [SymmetricallyEncryptedData] that has been AES encrypted with this [SymmetricKey] using CBC with PKCS#5
+     * padding.
      *
-     * @param data: the SymmetricallyEncryptedData object containing both the encrypted data and the initialization
-     * vector used.
-     * @returns ByteArray: the decrypted data
+     * @param data The [SymmetricallyEncryptedData] to be decrypted, which contains the cipher data to be decrypted and
+     * the initialization vector used to decrypt the cipher data.
+     *
+     * @returns The cipher data in the passed [SymmetricallyEncryptedData] decrypted with the initialization vector in
+     * the passed [SymmetricallyEncryptedData] and this [SymmetricKey], as a [ByteArray].
      */
     fun decrypt(data: SymmetricallyEncryptedData): ByteArray {
         val cipher = Cipher.getInstance("AES/CBC/PKCS5Padding")
@@ -56,20 +67,24 @@ class SymmetricKey {
 
 }
 
+// TODO: Move this to its own file
 /**
- * The SymmetricallyEncryptedData class contains symmetrically encrypted data and the initialization vector used to
- * encrypt it.
+ * Contains data encrypted with a [SymmetricKey] and the initialization vector used to encrypt it.
  *
- * @property encryptedData: symmetrically encrypted data
- * @property initializationVector: the initialization vector used to encrypt encryptedData
+ * @property encryptedData The encrypted data as a [ByteArray].
+ * @property initializationVector The initialization vector used to encrypt this [SymmetricallyEncryptedData], as
+ * [Data].
  */
 class SymmetricallyEncryptedData(data: ByteArray, iv: ByteArray) {
     val encryptedData = data
     val initializationVector = iv
 }
 
+// TODO: make this a no-argument constructor of SymmetricKey
 /**
- * Returns a new SymmetricKey object wrapped around an AES-256 SecretKey.
+ * Creates a new [SymmetricKey] wrapped around a new AES-256 [SecretKey].
+ *
+ * @return A new [SymmetricKey].
  */
 fun newSymmetricKey(): SymmetricKey {
     val keyGenerator = KeyGenerator.getInstance("AES")
