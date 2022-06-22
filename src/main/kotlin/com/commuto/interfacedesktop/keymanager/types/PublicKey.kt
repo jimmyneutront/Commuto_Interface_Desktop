@@ -16,19 +16,21 @@ import javax.crypto.spec.OAEPParameterSpec
 import javax.crypto.spec.PSource
 
 /**
- * The PublicKey class is a wrapper around the java.security.PublicKey class, with support for Commuto Interface IDs and
- * several methods for encoding the wrapped public key. The wrapped public key shall be that corresponding to a 2048-bit
- * RSA private key, and interfaceId is the SHA-256 hash of the public key encoded in PKCS#1 byte format.
+ * This is a wrapper around the [JavaSecPublicKey] class with added support for Commuto Interface
+ * IDs and several methods for encoding the wrapped public key. The wrapped key is the public key of
+ * a 2048-bit RSA private key, and the interface ID of a public key is the SHA-256 hash of its
+ * PKCS#1 formatted byte representation.
  *
- * @property publicKey the java.security.PublicKey object around which this class is wrapped.
- * @property interfaceId the interface id derived from the public key
+ * @property interfaceId The interface ID of this [PublicKey], which is the SHA-256 hash of its
+ * PKCS#1 byte representation.
+ * @property publicKey the [JavaSecPublicKey] that this class wraps.
  */
 class PublicKey {
 
     /**
-     * Creates a PublicKey object using the PKCS#1 byte format of an RSA public key
+     * Creates a [PublicKey] using the PKCS#1-formatted byte representation of an RSA public key.
      *
-     * @param publicKeyBytes: the PKCS#1 byte encoded representation of the public key to be restored
+     * @param publicKeyBytes The PKCS#1 bytes of the public key to be created, as a [ByteArray].
      */
     constructor(publicKeyBytes: ByteArray) {
         val algorithmIdentifier = AlgorithmIdentifier(PKCSObjectIdentifiers.rsaEncryption, DERNull.INSTANCE)
@@ -41,9 +43,9 @@ class PublicKey {
     }
 
     /**
-     * Creates a PublicKey object using an RSA JavaSecPublicKey
+     * Creates a [PublicKey] to wrap an RSA [JavaSecPublicKey].
      *
-     * @param publicKey: the JavaSecPublicKey to be wrapped in a PublicKey
+     * @param publicKey The [JavaSecPublicKey] to be wrapped in a [PublicKey].
      */
     constructor(publicKey: JavaSecPublicKey) {
         this.publicKey = publicKey
@@ -55,12 +57,12 @@ class PublicKey {
     val publicKey: JavaSecPublicKey
 
     /**
-     * Verifies a signature using this PublicKey's public key
+     * Verifies a signature using this [PublicKey].
      *
-     * @param signedData: the data that was signed
-     * @param signature: the signature
+     * @param signedData The [ByteArray] that has been signed.
+     * @param signature The signature of [signedData].
      *
-     * @return Boolean: indicating the success of the verification
+     * @return A [Boolean] indicating whether or not verification was successful.
      */
     fun verifySignature(signedData: ByteArray, signature: ByteArray): Boolean {
         val signatureObj = Signature.getInstance("SHA256withRSA")
@@ -70,22 +72,28 @@ class PublicKey {
     }
 
     /**
-     * Encrypt the passed data using this KeyPair's RSA public key, using OEAP SHA-256 padding.
+     * Encrypts the given bytes using this [PublicKey], using OEAP SHA-256 padding.
      *
-     * @param clearData: the data to be encrypted
-     * @return ByteArray: the encrypted data
+     * @param clearData The bytes to be encrypted, as a [ByteArray].
+     *
+     * @return [clearData] encrypted with this [PublicKey].
      */
     fun encrypt(clearData: ByteArray): ByteArray {
         val encryptCipher = Cipher.getInstance("RSA/ECB/OAEPWithSHA-256AndMGF1Padding")
-        val oaepParams = OAEPParameterSpec("SHA-256", "MGF1", MGF1ParameterSpec("SHA-256"), PSource.PSpecified.DEFAULT)
+        val oaepParams = OAEPParameterSpec(
+            "SHA-256",
+            "MGF1",
+            MGF1ParameterSpec("SHA-256"),
+            PSource.PSpecified.DEFAULT
+        )
         encryptCipher.init(Cipher.ENCRYPT_MODE, this.publicKey, oaepParams)
         return encryptCipher.doFinal(clearData)
     }
 
     /**
-     * Encodes the RSA PublicKey to a PKCS#1 formatted byte representation
+     * Encodes this [PublicKey] to its PKCS#1-formatted byte representation.
      *
-     * @return a ByteArray containing the PKCS#1 representation of the PublicKey object
+     * @return The PKCS#1 byte representation of this [PublicKey], as a [ByteArray].
      */
     fun toPkcs1Bytes(): ByteArray {
         val pubKeyX509Bytes = this.publicKey.encoded
