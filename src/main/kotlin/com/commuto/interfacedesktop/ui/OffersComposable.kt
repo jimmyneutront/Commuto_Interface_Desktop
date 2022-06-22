@@ -13,6 +13,12 @@ import com.commuto.interfacedesktop.i18n.I18n
 import com.commuto.interfacedesktop.offer.Offer
 import com.commuto.interfacedesktop.offer.OfferService
 
+/**
+ * Displays the [OffersListComposable] for open offers and the focused [Offer], if any.
+ *
+ * @param viewModel The OffersViewModel that acts as a single source of truth for all offer-related
+ * data.
+ */
 @Composable
 fun OffersComposable(viewModel: OffersViewModel) {
 
@@ -29,6 +35,9 @@ fun OffersComposable(viewModel: OffersViewModel) {
     }
 }
 
+/**
+ * Displays a preview of [OffersComposable].
+ */
 @Preview
 @Composable
 fun PreviewOffersComposable() {
