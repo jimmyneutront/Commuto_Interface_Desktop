@@ -22,7 +22,15 @@ import java.nio.charset.Charset
 import java.security.MessageDigest
 import java.util.*
 
+/**
+ * Tests for [P2PService].
+ */
 class P2PServiceTest {
+
+    /**
+     * Runs [P2PService.listenLoop] in the current coroutine context. This doesn't actually test
+     * anything.
+     */
     @Test
     fun testP2PService() = runBlocking {
         val mxClient = MatrixClientServerApiClient(
@@ -42,6 +50,10 @@ class P2PServiceTest {
         p2pService.listenLoop()
     }
 
+    /**
+     * Tests [P2PService.listen] by ensuring it detects and handles public key announcements
+     * properly.
+     */
     @Test
     fun testListen() {
         val encoder = Base64.getEncoder()
@@ -111,6 +123,10 @@ class P2PServiceTest {
         }
     }
 
+    /**
+     * Tests [P2PService]'s error handling logic by ensuring that it handles unknown token errors
+     * properly.
+     */
     @Test
     fun testListenErrorHandling() {
         val mxClient = MatrixClientServerApiClient(
