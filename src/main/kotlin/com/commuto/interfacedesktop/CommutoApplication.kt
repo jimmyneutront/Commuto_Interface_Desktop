@@ -10,12 +10,22 @@ import com.commuto.interfacedesktop.ui.OffersViewModel
 import javax.inject.Inject
 import javax.inject.Singleton
 
+/**
+ * The main Commuto Interface application.
+ *
+ * @property blockchainService The app's [BlockchainService].
+ * @property offersViewModel The app's [OffersViewModel].
+ */
 @Singleton
 class CommutoApplication @Inject constructor(
     val blockchainService: BlockchainService,
     val offersViewModel: OffersViewModel
 ) {
+    /**
+     * Called at app startup. This begins background activities and displays the user interface.
+     */
     fun start() {
+        // Start listening to the blockchain
         blockchainService.listen()
         application {
             Window(
