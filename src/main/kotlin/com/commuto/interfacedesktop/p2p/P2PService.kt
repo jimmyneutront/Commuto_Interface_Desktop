@@ -24,27 +24,55 @@ import java.security.MessageDigest
 import java.util.*
 import javax.inject.Singleton
 
+/**
+ * The main Peer-to-Peer Service. It is responsible for listening to new messages in the Commuto
+ * Interface Network Matrix room, parsing the messages, and then passing relevant messages to other
+ * services as necessary.
+ *
+ * @constructor Creates a new [P2PService] with the specified [P2PExceptionNotifiable],
+ * [OfferMessageNotifiable] and [MatrixClientServerApiClient].
+ *
+ * @property exceptionHandler An object to which [P2PService] will pass errors when they occur.
+ * @property offerService An object to which [P2PService] will pass offer-related messages when they
+ * occur.
+ * @property mxClient A [MatrixClientServerApiClient] instance used to interact with a Matrix
+ * Homeserver.
+ * @property lastNonEmptyBatchToken The token at the end of the last batch of non-empty Matrix
+ * events that was parsed. (The value specified here is that from the beginning of the Commuto
+ * Interface Network testing room.) This should be updated every time a new batch of events is
+ * parsed.
+ * @property listenJob The coroutine [Job] in which [P2PService] listens for and parses new batches
+ * of Matrix events.
+ * @property runLoop Boolean that indicates whether [listenLoop] should continue to execute its
+ * loop.
+ */
 @Singleton
 class P2PService constructor(private val exceptionHandler: P2PExceptionNotifiable,
                              private val offerService: OfferMessageNotifiable,
                              private val mxClient: MatrixClientServerApiClient) {
-    /*
-     The token at the end of the last batch of non-empty messages (this token is that from the
-     beginning of the Commuto Interface network test room)
-      */
+
     private var lastNonEmptyBatchToken =
         "t1-2607497254_757284974_11441483_1402797642_1423439559_3319206_507472245_4060289024_0"
 
+    /**
+     * Used to update [lastNonEmptyBatchToken]. Eventually, this method will store [newToken] in
+     * persistent storage.
+     *
+     * @param newToken The batch token at the end of the most recently parsed batch of Matrix
+     * events, to be set as [lastNonEmptyBatchToken].
+     */
     private fun updateLastNonEmptyBatchToken(newToken: String) {
         lastNonEmptyBatchToken = newToken
     }
 
-    // The job in which P2PService listens for messages
     private var listenJob: Job = Job()
 
-    // Boolean that controls the listen loop
     private var runLoop = true
 
+    /**
+     * Launches a new coroutine [Job] in [GlobalScope], the global coroutine scope, runs
+     * [listenLoop] in this new [Job], and stores a reference to it in [listenJob].
+     */
     @OptIn(DelicateCoroutinesApi::class)
     fun listen() {
         listenJob = GlobalScope.launch {
@@ -53,11 +81,31 @@ class P2PService constructor(private val exceptionHandler: P2PExceptionNotifiabl
         }
     }
 
+    /**
+     * Sets [runLoop] to false to prevent the listen loop from being executed again and cancels
+     * [listenJob].
+     */
     fun stopListening() {
         runLoop = false
         listenJob.cancel()
     }
 
+    /**
+     * Executes the listening process in the current coroutine context as long as
+     * [runLoop] is true.
+     *
+     * Listening Process:
+     *
+     * First, we sync with the Matrix Homeserver. Then we attempt to get all new Matrix events from
+     * [lastNonEmptyBatchToken] to the present, with a limit of one trillion events. We then parse
+     * these new events and then update the last non-empty batch token with the nextBatch token from
+     * the sync response.
+     *
+     * If we encounter an [Exception], we pass it to [exceptionHandler]. Additionally, if the
+     * exception is a [ConnectException], indicating that we are having problems communicating with
+     * the homeserver, or if the exception is a [MatrixServerException], indicating that there is
+     * something wrong with our Matrix API requests, then we stop listening.
+     */
     suspend fun listenLoop() {
         while (true) {
             try {
@@ -78,6 +126,13 @@ class P2PService constructor(private val exceptionHandler: P2PExceptionNotifiabl
         }
     }
 
+    /**
+     * Parses a [List] of [Event.RoomEvent]s, filters out all non-text-message events, attempts to
+     * create message objects from the content bodies of text message events, if present, and then
+     * passes any offer-related message objects to [offerService].
+     *
+     * @param events A [List] of [Event.RoomEvent]s.
+     */
     private fun parseEvents(events: List<Event.RoomEvent<*>>) {
         val testMessageEvents = events.filterIsInstance<Event.MessageEvent<*>>().filter {
             it.content is RoomMessageEventContent.TextMessageEventContent
@@ -90,6 +145,17 @@ class P2PService constructor(private val exceptionHandler: P2PExceptionNotifiabl
         }
     }
 
+    /**
+     * Attempts to restore a [PublicKeyAnnouncement] from a give [String].
+     *
+     * @param messageString An optional [String] from which to try to restore a
+     * [PublicKeyAnnouncement]. If [messageString] is null, [parsePublicKeyAnnouncement] immediately
+     * returns null.
+     *
+     * @return An optional [PublicKeyAnnouncement] that will be null if [messageString] does not
+     * contain a valid public key announcement, and will be non-null if [messageString] does
+     * contain a valid public key announcement.
+     */
     private fun parsePublicKeyAnnouncement(messageString: String?): PublicKeyAnnouncement? {
         // Setup decoder
         val decoder = Base64.getDecoder()
