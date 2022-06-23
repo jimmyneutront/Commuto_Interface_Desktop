@@ -25,6 +25,7 @@ import java.util.*
  * Tests for [BlockchainService]
  */
 class BlockchainServiceTest {
+
     /**
      * Runs [BlockchainService.listenLoop] in the current coroutine context. This doesn't actually
      * test anything.
