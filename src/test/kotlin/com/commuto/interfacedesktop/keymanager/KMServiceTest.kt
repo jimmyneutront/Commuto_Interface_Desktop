@@ -1,7 +1,7 @@
 package com.commuto.interfacedesktop.keymanager
 
-import com.commuto.interfacedesktop.db.DatabaseDriverFactory
-import com.commuto.interfacedesktop.dbService.DBService
+import com.commuto.interfacedesktop.database.DatabaseDriverFactory
+import com.commuto.interfacedesktop.database.DatabaseService
 import com.commuto.interfacedesktop.keymanager.types.KeyPair
 import com.commuto.interfacedesktop.keymanager.types.PublicKey
 import java.util.*
@@ -11,12 +11,12 @@ import kotlin.test.BeforeTest
 internal class KMServiceTest {
 
     private var driver = DatabaseDriverFactory()
-    private var dbService = DBService(driver)
-    private val kmService = KMService(dbService)
+    private var databaseService = DatabaseService(driver)
+    private val kmService = KMService(databaseService)
 
     @BeforeTest
     fun testCreateTables() {
-        dbService.createTables()
+        databaseService.createTables()
     }
 
     @Test

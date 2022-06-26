@@ -1,7 +1,7 @@
 package com.commuto.interfacedesktop.keymanager
 
-import com.commuto.interfacedesktop.db.DatabaseDriverFactory
-import com.commuto.interfacedesktop.dbService.DBService
+import com.commuto.interfacedesktop.database.DatabaseDriverFactory
+import com.commuto.interfacedesktop.database.DatabaseService
 import com.commuto.interfacedesktop.keymanager.types.*
 import java.nio.charset.Charset
 import java.util.Arrays
@@ -15,8 +15,8 @@ import kotlin.test.Test
 class XPlatCryptoCompatibility {
 
     private var driver = DatabaseDriverFactory()
-    private var dbService = DBService(driver)
-    private val kmService = KMService(dbService)
+    private var databaseService = DatabaseService(driver)
+    private val kmService = KMService(databaseService)
 
     /**
      * Prints a key, encrypted data, and an initialization vector in B64 format

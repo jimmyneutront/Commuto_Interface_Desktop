@@ -1,6 +1,7 @@
-package com.commuto.interfacedesktop.db
+package com.commuto.interfacedesktop.database
 
-import com.commuto.interfacedesktop.db.CommutoInterfaceDB
+import com.commuto.interfacedesktop.db.KeyPair
+import com.commuto.interfacedesktop.db.PublicKey
 
 internal class Database(databaseDriverFactory: DatabaseDriverFactory) {
     private val database = CommutoInterfaceDB(databaseDriverFactory.createDriver())

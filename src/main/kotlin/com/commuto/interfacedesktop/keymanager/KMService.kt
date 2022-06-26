@@ -1,6 +1,6 @@
 package com.commuto.interfacedesktop.keymanager
 
-import com.commuto.interfacedesktop.dbService.DBService
+import com.commuto.interfacedesktop.database.DatabaseService
 import com.commuto.interfacedesktop.keymanager.types.KeyPair
 import com.commuto.interfacedesktop.keymanager.types.PublicKey
 import java.security.MessageDigest
@@ -12,15 +12,15 @@ import java.util.Base64
  * This is responsible for generating, persistently storing and retrieving key pairs, and for storing and retrieving
  * public keys.
  *
- * @property dbService The Database Service used to store and retrieve data
+ * @property databaseService The Database Service used to store and retrieve data
  */
-class KMService(var dbService: DBService) {
+class KMService(var databaseService: DatabaseService) {
 
     /**
      * Generates an 2048-bit RSA key pair and computes the key pair's interface ID, which is the SHA-256 hash of the
      * PKCS#1 byte array encoded representation of the public key.
      *
-     * @param storeResult Indicates whether the generated key pair should be stored persistently using [dbService].
+     * @param storeResult Indicates whether the generated key pair should be stored persistently using [databaseService].
      * This will usually be left as true, but testing code may set it as false.
      *
      * @return A [KeyPair], the private key of which is a 2048-bit RSA private key, and the interface ID of which is the
@@ -30,7 +30,7 @@ class KMService(var dbService: DBService) {
         val keyPair = KeyPair()
         val encoder = Base64.getEncoder()
         if (storeResult) {
-            dbService.storeKeyPair(encoder.encodeToString(keyPair.interfaceId),
+            databaseService.storeKeyPair(encoder.encodeToString(keyPair.interfaceId),
                 encoder.encodeToString(keyPair.pubKeyToPkcs1Bytes()),
                 encoder.encodeToString(keyPair.privKeyToPkcs1Bytes()))
         }
@@ -49,7 +49,7 @@ class KMService(var dbService: DBService) {
      */
     fun getKeyPair(interfaceId: ByteArray): KeyPair? {
         val encoder = Base64.getEncoder()
-        val dbKeyPair: com.commuto.interfacedesktop.db.KeyPair? = dbService
+        val dbKeyPair: com.commuto.interfacedesktop.db.KeyPair? = databaseService
             .getKeyPair(encoder.encodeToString(interfaceId))
         val decoder = Base64.getDecoder()
         if (dbKeyPair != null) {
@@ -61,7 +61,7 @@ class KMService(var dbService: DBService) {
 
     /**
      * Persistently stores a [PublicKey] in such a way that it can be retrieved again given its interface ID. This will
-     * generate a PKCS#1 byte representation of [pubKey], encode it as a Base64 [String] and store it using [dbService].
+     * generate a PKCS#1 byte representation of [pubKey], encode it as a Base64 [String] and store it using [databaseService].
      *
      * @param pubKey The [PublicKey] to be persistently stored.
      */
@@ -69,7 +69,7 @@ class KMService(var dbService: DBService) {
         val interfaceId: ByteArray = MessageDigest.getInstance("SHA-256")
             .digest(pubKey.toPkcs1Bytes())
         val encoder = Base64.getEncoder()
-        dbService.storePublicKey(encoder.encodeToString(interfaceId),
+        databaseService.storePublicKey(encoder.encodeToString(interfaceId),
             encoder.encodeToString(pubKey.toPkcs1Bytes()))
     }
 
@@ -85,7 +85,7 @@ class KMService(var dbService: DBService) {
      */
     fun getPublicKey(interfaceId: ByteArray): PublicKey? {
         val encoder = Base64.getEncoder()
-        val dbPubKey: com.commuto.interfacedesktop.db.PublicKey? = dbService
+        val dbPubKey: com.commuto.interfacedesktop.db.PublicKey? = databaseService
             .getPublicKey(encoder.encodeToString(interfaceId))
         val decoder = Base64.getDecoder()
         if (dbPubKey != null) {

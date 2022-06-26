@@ -1,4 +1,4 @@
-package com.commuto.interfacedesktop.db
+package com.commuto.interfacedesktop.database
 
 import com.squareup.sqldelight.db.SqlDriver
 import com.squareup.sqldelight.sqlite.driver.JdbcSqliteDriver

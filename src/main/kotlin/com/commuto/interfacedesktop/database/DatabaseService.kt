@@ -1,9 +1,18 @@
-package com.commuto.interfacedesktop.dbService
+package com.commuto.interfacedesktop.database
 
-import com.commuto.interfacedesktop.db.Database
-import com.commuto.interfacedesktop.db.DatabaseDriverFactory
 import com.commuto.interfacedesktop.db.KeyPair
 import com.commuto.interfacedesktop.db.PublicKey
+import kotlinx.coroutines.DelicateCoroutinesApi
+import kotlinx.coroutines.newSingleThreadContext
+
+// SQLie Exception result/error code for unique constraint is 2067
+
+// TODO: Refactor this as DatabaseService
+// TODO: Run all database read/write operations in a single queue
+// TODO: Handle unique constraint errors in write functions
+// TODO: Remove existence checks in functions
+// TODO: Update DatabaseService tests
+// TODO: Document Database and DatabaseDriverFactory
 
 /**
  * The Database Service Class.
@@ -13,10 +22,15 @@ import com.commuto.interfacedesktop.db.PublicKey
  *
  * @property databaseDriverFactory the DatabaseDriverFactory that DBService will use to interact with the database.
  * @property database The [Database] holding Commuto Interface data.
+ * @property databaseServiceContext The single-threaded CoroutineContext in which all database read and write operations
+ * are run, in order to prevent data races.
  */
-class DBService(val databaseDriverFactory: DatabaseDriverFactory) {
+class DatabaseService(val databaseDriverFactory: DatabaseDriverFactory) {
 
     private val database = Database(databaseDriverFactory)
+    // We want to run all database operations on a single thread to prevent data races.
+    @DelicateCoroutinesApi
+    private val databaseServiceContext = newSingleThreadContext("DatabaseServiceContext")
 
     //TODO: Localize error strings
     /**
@@ -49,6 +63,11 @@ class DBService(val databaseDriverFactory: DatabaseDriverFactory) {
             database.insertKeyPair(keyPair)
         }
     }
+    /*
+    fun storeKeyPair(interfaceId: String, publicKey: String, privateKey: String) {
+        val keyPair = KeyPair(interfaceId, publicKey, privateKey)
+        database.insertKeyPair(keyPair)
+    }*/
 
     /**
      * Retrieves the persistently stored key pair associated with the given interface ID, or returns null if no such key

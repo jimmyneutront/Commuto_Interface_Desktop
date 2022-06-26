@@ -89,6 +89,6 @@ compose.desktop {
 
 sqldelight {
     database("CommutoInterfaceDB") {
-        packageName = "com.commuto.interfacedesktop.db"
+        packageName = "com.commuto.interfacedesktop.database"
     }
 }

@@ -4,8 +4,8 @@ import com.commuto.interfacedesktop.contractwrapper.CommutoERC20
 import com.commuto.interfacedesktop.contractwrapper.CommutoSwap
 import com.commuto.interfacedesktop.contractwrapper.CommutoTransactionManager
 import com.commuto.interfacedesktop.contractwrapper.WorkingCommutoSwap
-import com.commuto.interfacedesktop.db.DatabaseDriverFactory
-import com.commuto.interfacedesktop.dbService.DBService
+import com.commuto.interfacedesktop.database.DatabaseDriverFactory
+import com.commuto.interfacedesktop.database.DatabaseService
 import com.commuto.interfacedesktop.keymanager.KMService
 import com.commuto.interfacedesktop.keymanager.types.*
 import io.ktor.http.*
@@ -159,9 +159,9 @@ internal class CommutoCoreInteraction {
 
         //Setup DBService and KMService
         val driver = DatabaseDriverFactory()
-        val dbService = DBService(driver)
-        dbService.createTables()
-        val kmService = KMService(dbService)
+        val databaseService = DatabaseService(driver)
+        databaseService.createTables()
+        val kmService = KMService(databaseService)
 
         //Create key pair and encoder
         val keyPair: KeyPair = kmService.generateKeyPair()
