@@ -7,8 +7,6 @@ import kotlinx.coroutines.newSingleThreadContext
 import kotlinx.coroutines.withContext
 import org.sqlite.SQLiteException
 
-// TODO: Document Database and DatabaseDriverFactory
-
 /**
  * The Database Service Class.
  *
