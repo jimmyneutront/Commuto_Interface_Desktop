@@ -31,11 +31,23 @@ repositories {
     maven("https://jetbrains.bintray.com/intellij-third-party-dependencies")
 }
 
+configurations {
+    // A configuration meant for consumers that need the implementation of this component
+    create("exposedRuntime") {
+        isCanBeResolved = true
+        isCanBeConsumed = true
+    }
+}
+
 dependencies {
     implementation(compose.desktop.currentOs)
     implementation("com.google.dagger:dagger:2.42")
     kapt("com.google.dagger:dagger-compiler:2.42")
     implementation("com.squareup.sqldelight:sqlite-driver:1.5.1")
+    implementation("org.xerial:sqlite-jdbc:3.34.0") {
+        because("SQLDelight depends on this, but we need it in the compile classpath so we can catch " +
+                "exceptions defined in it")
+    }
     implementation("org.bouncycastle:bcprov-jdk15on:1.69")
 
     // For using local web3j build

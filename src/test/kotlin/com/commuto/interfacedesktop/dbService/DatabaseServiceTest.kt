@@ -13,18 +13,6 @@ class DatabaseServiceTest {
     private var driver = DatabaseDriverFactory()
     private var databaseService = DatabaseService(driver)
 
-    /*
-    @Test
-    fun tempTest() {
-        try {
-            databaseService.storeKeyPair("interf_id", "pub_key", "priv_key")
-            databaseService.storeKeyPair("interf_id", "pub_key", "priv_key")
-        } catch (e: Exception) {
-            print(e)
-        }
-    }
-    */
-
     @BeforeTest
     fun testCreateTables() {
         databaseService.createTables()
@@ -47,25 +35,24 @@ class DatabaseServiceTest {
     }
 
     @Test
-    fun testDuplicateKeyPairProtection() = runBlocking {
+    fun testDuplicateKeyPairProtection(): Unit = runBlocking {
         databaseService.storeKeyPair("interf_id", "pub_key", "priv_key")
-        try {
-            databaseService.storeKeyPair("interf_id", "pub_key", "priv_key")
-        } catch (exception: IllegalStateException) {
-            assert(exception.message!!.contains("Database query for key pair with interface id interf_id " +
-                    "returned result"))
-        }
+        // This should do nothing and not throw
+        databaseService.storeKeyPair("interf_id", "another_pub_key", "another_priv_key")
+        // This should not throw, since only one such key pair should exist in the database
+        val keyPair = databaseService.getKeyPair("interf_id")
+        assertEquals(keyPair!!.publicKey, "pub_key")
+        assertEquals(keyPair.privateKey, "priv_key")
     }
 
     @Test
     fun testDuplicatePublicKeyProtection() = runBlocking {
         databaseService.storePublicKey("interf_id", "pub_key")
-        try {
-            databaseService.storePublicKey("interf_id", "pub_key")
-        } catch (exception: IllegalStateException) {
-            assert(exception.message!!.contains("Database query for public key with interface id interf_id " +
-                    "returned result"))
-        }
+        // This should do nothing and not throw
+        databaseService.storePublicKey("interf_id", "another_pub_key")
+        // This should not throw, since only one such key pair should exist in the database
+        val pubKey = databaseService.getPublicKey("interf_id")
+        assertEquals(pubKey!!.publicKey, "pub_key")
     }
 
 }

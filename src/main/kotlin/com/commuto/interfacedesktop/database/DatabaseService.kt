@@ -5,12 +5,8 @@ import com.commuto.interfacedesktop.db.PublicKey
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.newSingleThreadContext
 import kotlinx.coroutines.withContext
+import org.sqlite.SQLiteException
 
-// SQLie Exception result/error code for unique constraint is 2067
-
-// TODO: Handle unique constraint errors in write functions
-// TODO: Remove existence checks in functions
-// TODO: Update DatabaseService tests
 // TODO: Document Database and DatabaseDriverFactory
 
 /**
@@ -24,7 +20,7 @@ import kotlinx.coroutines.withContext
  * @property databaseServiceContext The single-threaded CoroutineContext in which all database read and write operations
  * are run, in order to prevent data races.
  */
-class DatabaseService(val databaseDriverFactory: DatabaseDriverFactory) {
+class DatabaseService(private val databaseDriverFactory: DatabaseDriverFactory) {
 
     private val database = Database(databaseDriverFactory)
     // We want to run all database operations on a single thread to prevent data races.
@@ -46,20 +42,30 @@ class DatabaseService(val databaseDriverFactory: DatabaseDriverFactory) {
     }
 
     /**
-     * Persistently stores a key pair associated with an interface id.
+     * Persistently stores a key pair associated with an interface id. If a key pair with the specified interface ID
+     * already exists in the database, this does nothing.
      *
      * @param interfaceId The interface ID of the key pair as a byte array encoded to a hexadecimal [String].
      * @param publicKey The public key of the key pair as a byte array encoded to a hexadecimal [String].
      * @param privateKey The private key of the key pair as a byte array encoded to a hexadecimal [String].
+     *
+     * @throws Exception if database insertion is unsuccessful for a reason OTHER than UNIQUE constraint failure.
      */
+    @OptIn(DelicateCoroutinesApi::class)
     suspend fun storeKeyPair(interfaceId: String, publicKey: String, privateKey: String) {
         val keyPair = KeyPair(interfaceId, publicKey, privateKey)
-        if (getKeyPair(interfaceId) != null) {
-            throw IllegalStateException("Database query for key pair with interface id " + interfaceId +
-                    " returned result")
-        }
-        withContext(databaseServiceContext) {
-            database.insertKeyPair(keyPair)
+        try {
+            withContext(databaseServiceContext) {
+                database.insertKeyPair(keyPair)
+            }
+        } catch (exception: SQLiteException) {
+            /*
+            The result code for a UNIQUE constraint failure; see here: https://www.sqlite.org/rescode.html
+            If a key pair with the specified interface ID already exists, we do nothing.
+             */
+            if (exception.resultCode.code != 2067) {
+                throw exception
+            }
         }
     }
     /*
@@ -80,20 +86,21 @@ class DatabaseService(val databaseDriverFactory: DatabaseDriverFactory) {
      * @throws IllegalStateException if multiple key pairs are found for a single interface ID, or if the interface ID
      * of the key pair returned from the database query does not match [interfaceId].
      */
+    @OptIn(DelicateCoroutinesApi::class)
     suspend fun getKeyPair(interfaceId: String): KeyPair? {
         val dbKeyPairs: List<KeyPair> = withContext(databaseServiceContext) {
             database.selectKeyPairByInterfaceId(interfaceId)
         }
-        if (dbKeyPairs.size > 1) {
-            throw IllegalStateException("Multiple key pairs found with given interface id " + interfaceId)
+        return if (dbKeyPairs.size > 1) {
+            throw IllegalStateException("Multiple key pairs found with given interface id $interfaceId")
         } else if (dbKeyPairs.size == 1) {
-            check(dbKeyPairs[0].interfaceId.equals(interfaceId)) {
+            check(dbKeyPairs[0].interfaceId == interfaceId) {
                 "Returned interface id " + dbKeyPairs[0].interfaceId + "did not match specified interface id " +
                         interfaceId
             }
-            return KeyPair(interfaceId, dbKeyPairs[0].publicKey, dbKeyPairs[0].privateKey)
+            KeyPair(interfaceId, dbKeyPairs[0].publicKey, dbKeyPairs[0].privateKey)
         } else {
-            return null
+            null
         }
     }
 
@@ -105,14 +112,21 @@ class DatabaseService(val databaseDriverFactory: DatabaseDriverFactory) {
      *
      * @throws IllegalStateException if a public key with the given interface ID is already found in the database.
      */
+    @OptIn(DelicateCoroutinesApi::class)
     suspend fun storePublicKey(interfaceId: String, publicKey: String) {
-        val publicKey = PublicKey(interfaceId, publicKey)
-        if (getPublicKey(interfaceId) != null) {
-            throw IllegalStateException("Database query for public key with interface id " + interfaceId +
-                    " returned result")
-        }
-        withContext(databaseServiceContext) {
-            database.insertPublicKey(publicKey)
+        val databasePublicKey = PublicKey(interfaceId, publicKey)
+        try {
+            withContext(databaseServiceContext) {
+                database.insertPublicKey(databasePublicKey)
+            }
+        } catch (exception: SQLiteException) {
+            /*
+            The result code for a UNIQUE constraint failure; see here: https://www.sqlite.org/rescode.html
+            If a public key with the specified interface ID already exists, we do nothing.
+             */
+            if (exception.resultCode.code != 2067) {
+                throw exception
+            }
         }
     }
 
@@ -128,20 +142,21 @@ class DatabaseService(val databaseDriverFactory: DatabaseDriverFactory) {
      * @throws IllegalStateException if multiple public keys are found for a given interface ID, or if the interface ID
      * of the public key returned from the database query does not match [interfaceId].
      */
+    @OptIn(DelicateCoroutinesApi::class)
     suspend fun getPublicKey(interfaceId: String): PublicKey? {
         val dbPublicKeys: List<PublicKey> = withContext(databaseServiceContext) {
             database.selectPublicKeyByInterfaceId(interfaceId)
         }
-        if (dbPublicKeys.size > 1) {
-            throw IllegalStateException("Multiple public keys found with given interface id " + interfaceId)
+        return if (dbPublicKeys.size > 1) {
+            throw IllegalStateException("Multiple public keys found with given interface id $interfaceId")
         } else if (dbPublicKeys.size == 1) {
-            check(dbPublicKeys[0].interfaceId.equals(interfaceId)) {
+            check(dbPublicKeys[0].interfaceId == interfaceId) {
                 "Returned interface id " + dbPublicKeys[0].interfaceId + "did not match specified interface id " +
                         interfaceId
             }
-            return PublicKey(interfaceId, dbPublicKeys[0].publicKey)
+            PublicKey(interfaceId, dbPublicKeys[0].publicKey)
         } else {
-            return null
+            null
         }
     }
 
