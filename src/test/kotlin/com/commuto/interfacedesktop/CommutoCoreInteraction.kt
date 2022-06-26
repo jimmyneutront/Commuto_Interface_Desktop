@@ -123,11 +123,11 @@ internal class CommutoCoreInteraction {
         val key_two = Credentials.create("5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a")
 
         //Establish connection to Hardhat node
-        val endpoint = "http://192.168.0.195:8545"
+        val endpoint = "http://192.168.1.12:8545"
         val web3 = Web3j.build(HttpService(endpoint))
 
         //Setup CommutoSwap contract interface
-        val commutoSwapContractAddress = "0x5FC8d32690cc91D4c39d9d3abcBD16989F875707"
+        val commutoSwapContractAddress = "0xA51c1fc2f0D1a1b8494Ed1FE312d7C3a78Ed91C0"
         class DumbGasProvider : ContractGasProvider {
             override fun getGasPrice(contractFunc: String?): BigInteger {
                 return BigInteger.valueOf(875000000)

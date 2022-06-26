@@ -4,11 +4,10 @@ import com.commuto.interfacedesktop.db.KeyPair
 import com.commuto.interfacedesktop.db.PublicKey
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.newSingleThreadContext
+import kotlinx.coroutines.withContext
 
 // SQLie Exception result/error code for unique constraint is 2067
 
-// TODO: Refactor this as DatabaseService
-// TODO: Run all database read/write operations in a single queue
 // TODO: Handle unique constraint errors in write functions
 // TODO: Remove existence checks in functions
 // TODO: Update DatabaseService tests
@@ -32,7 +31,6 @@ class DatabaseService(val databaseDriverFactory: DatabaseDriverFactory) {
     @DelicateCoroutinesApi
     private val databaseServiceContext = newSingleThreadContext("DatabaseServiceContext")
 
-    //TODO: Localize error strings
     /**
      * Creates all necessary database tables.
      */
@@ -54,12 +52,13 @@ class DatabaseService(val databaseDriverFactory: DatabaseDriverFactory) {
      * @param publicKey The public key of the key pair as a byte array encoded to a hexadecimal [String].
      * @param privateKey The private key of the key pair as a byte array encoded to a hexadecimal [String].
      */
-    fun storeKeyPair(interfaceId: String, publicKey: String, privateKey: String) {
+    suspend fun storeKeyPair(interfaceId: String, publicKey: String, privateKey: String) {
         val keyPair = KeyPair(interfaceId, publicKey, privateKey)
         if (getKeyPair(interfaceId) != null) {
             throw IllegalStateException("Database query for key pair with interface id " + interfaceId +
                     " returned result")
-        } else {
+        }
+        withContext(databaseServiceContext) {
             database.insertKeyPair(keyPair)
         }
     }
@@ -81,8 +80,10 @@ class DatabaseService(val databaseDriverFactory: DatabaseDriverFactory) {
      * @throws IllegalStateException if multiple key pairs are found for a single interface ID, or if the interface ID
      * of the key pair returned from the database query does not match [interfaceId].
      */
-    fun getKeyPair(interfaceId: String): KeyPair? {
-        val dbKeyPairs: List<KeyPair> = database.selectKeyPairByInterfaceId(interfaceId)
+    suspend fun getKeyPair(interfaceId: String): KeyPair? {
+        val dbKeyPairs: List<KeyPair> = withContext(databaseServiceContext) {
+            database.selectKeyPairByInterfaceId(interfaceId)
+        }
         if (dbKeyPairs.size > 1) {
             throw IllegalStateException("Multiple key pairs found with given interface id " + interfaceId)
         } else if (dbKeyPairs.size == 1) {
@@ -104,12 +105,13 @@ class DatabaseService(val databaseDriverFactory: DatabaseDriverFactory) {
      *
      * @throws IllegalStateException if a public key with the given interface ID is already found in the database.
      */
-    fun storePublicKey(interfaceId: String, publicKey: String) {
+    suspend fun storePublicKey(interfaceId: String, publicKey: String) {
         val publicKey = PublicKey(interfaceId, publicKey)
         if (getPublicKey(interfaceId) != null) {
             throw IllegalStateException("Database query for public key with interface id " + interfaceId +
                     " returned result")
-        } else {
+        }
+        withContext(databaseServiceContext) {
             database.insertPublicKey(publicKey)
         }
     }
@@ -126,8 +128,10 @@ class DatabaseService(val databaseDriverFactory: DatabaseDriverFactory) {
      * @throws IllegalStateException if multiple public keys are found for a given interface ID, or if the interface ID
      * of the public key returned from the database query does not match [interfaceId].
      */
-    fun getPublicKey(interfaceId: String): PublicKey? {
-        val dbPublicKeys: List<PublicKey> = database.selectPublicKeyByInterfaceId(interfaceId)
+    suspend fun getPublicKey(interfaceId: String): PublicKey? {
+        val dbPublicKeys: List<PublicKey> = withContext(databaseServiceContext) {
+            database.selectPublicKeyByInterfaceId(interfaceId)
+        }
         if (dbPublicKeys.size > 1) {
             throw IllegalStateException("Multiple public keys found with given interface id " + interfaceId)
         } else if (dbPublicKeys.size == 1) {

@@ -4,6 +4,7 @@ import com.commuto.interfacedesktop.database.DatabaseDriverFactory
 import com.commuto.interfacedesktop.database.DatabaseService
 import com.commuto.interfacedesktop.db.KeyPair
 import com.commuto.interfacedesktop.db.PublicKey
+import kotlinx.coroutines.runBlocking
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -30,7 +31,7 @@ class DatabaseServiceTest {
     }
 
     @Test
-    fun testStoreAndGetKeyPair() {
+    fun testStoreAndGetKeyPair() = runBlocking {
         databaseService.storeKeyPair("interf_id", "pub_key", "priv_key")
         val expectedKeyPair = KeyPair("interf_id", "pub_key", "priv_key")
         val keyPair: KeyPair? = databaseService.getKeyPair("interf_id")
@@ -38,7 +39,7 @@ class DatabaseServiceTest {
     }
 
     @Test
-    fun testStoreAndGetPublicKey() {
+    fun testStoreAndGetPublicKey() = runBlocking {
         databaseService.storePublicKey("interf_id", "pub_key")
         val expectedPublicKey = PublicKey("interf_id", "pub_key")
         val publicKey: PublicKey? = databaseService.getPublicKey("interf_id")
@@ -46,7 +47,7 @@ class DatabaseServiceTest {
     }
 
     @Test
-    fun testDuplicateKeyPairProtection() {
+    fun testDuplicateKeyPairProtection() = runBlocking {
         databaseService.storeKeyPair("interf_id", "pub_key", "priv_key")
         try {
             databaseService.storeKeyPair("interf_id", "pub_key", "priv_key")
@@ -57,7 +58,7 @@ class DatabaseServiceTest {
     }
 
     @Test
-    fun testDuplicatePublicKeyProtection() {
+    fun testDuplicatePublicKeyProtection() = runBlocking {
         databaseService.storePublicKey("interf_id", "pub_key")
         try {
             databaseService.storePublicKey("interf_id", "pub_key")

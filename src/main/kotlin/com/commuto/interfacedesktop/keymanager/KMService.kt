@@ -3,6 +3,7 @@ package com.commuto.interfacedesktop.keymanager
 import com.commuto.interfacedesktop.database.DatabaseService
 import com.commuto.interfacedesktop.keymanager.types.KeyPair
 import com.commuto.interfacedesktop.keymanager.types.PublicKey
+import kotlinx.coroutines.runBlocking
 import java.security.MessageDigest
 import java.util.Base64
 
@@ -30,9 +31,11 @@ class KMService(var databaseService: DatabaseService) {
         val keyPair = KeyPair()
         val encoder = Base64.getEncoder()
         if (storeResult) {
-            databaseService.storeKeyPair(encoder.encodeToString(keyPair.interfaceId),
-                encoder.encodeToString(keyPair.pubKeyToPkcs1Bytes()),
-                encoder.encodeToString(keyPair.privKeyToPkcs1Bytes()))
+            runBlocking {
+                databaseService.storeKeyPair(encoder.encodeToString(keyPair.interfaceId),
+                    encoder.encodeToString(keyPair.pubKeyToPkcs1Bytes()),
+                    encoder.encodeToString(keyPair.privKeyToPkcs1Bytes()))
+            }
         }
         return keyPair
     }
@@ -49,8 +52,10 @@ class KMService(var databaseService: DatabaseService) {
      */
     fun getKeyPair(interfaceId: ByteArray): KeyPair? {
         val encoder = Base64.getEncoder()
-        val dbKeyPair: com.commuto.interfacedesktop.db.KeyPair? = databaseService
-            .getKeyPair(encoder.encodeToString(interfaceId))
+        val dbKeyPair: com.commuto.interfacedesktop.db.KeyPair? = runBlocking {
+            databaseService
+                .getKeyPair(encoder.encodeToString(interfaceId))
+        }
         val decoder = Base64.getDecoder()
         if (dbKeyPair != null) {
             return KeyPair(decoder.decode(dbKeyPair.publicKey), decoder.decode(dbKeyPair.privateKey))
@@ -69,8 +74,10 @@ class KMService(var databaseService: DatabaseService) {
         val interfaceId: ByteArray = MessageDigest.getInstance("SHA-256")
             .digest(pubKey.toPkcs1Bytes())
         val encoder = Base64.getEncoder()
-        databaseService.storePublicKey(encoder.encodeToString(interfaceId),
-            encoder.encodeToString(pubKey.toPkcs1Bytes()))
+        runBlocking {
+            databaseService.storePublicKey(encoder.encodeToString(interfaceId),
+                encoder.encodeToString(pubKey.toPkcs1Bytes()))
+        }
     }
 
     /**
@@ -85,8 +92,9 @@ class KMService(var databaseService: DatabaseService) {
      */
     fun getPublicKey(interfaceId: ByteArray): PublicKey? {
         val encoder = Base64.getEncoder()
-        val dbPubKey: com.commuto.interfacedesktop.db.PublicKey? = databaseService
-            .getPublicKey(encoder.encodeToString(interfaceId))
+        val dbPubKey: com.commuto.interfacedesktop.db.PublicKey? = runBlocking {
+            databaseService.getPublicKey(encoder.encodeToString(interfaceId))
+        }
         val decoder = Base64.getDecoder()
         if (dbPubKey != null) {
             return PublicKey(decoder.decode(dbPubKey.publicKey))
