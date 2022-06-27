@@ -30,11 +30,11 @@ class OfferService @Inject constructor(): OfferNotifiable {
      * creates a new [Offer] using the data stored in event, and then adds this new [Offer] to
      * [offers].
      *
-     * @param offerOpenedEventResponse The [CommutoSwap.OfferOpenedEventResponse] of which
+     * @param event The [CommutoSwap.OfferOpenedEventResponse] of which
      * [OfferService] is being notified.
      */
-    override fun handleOfferOpenedEvent(offerOpenedEventResponse: CommutoSwap.OfferOpenedEventResponse) {
-        val offerIdByteBuffer = ByteBuffer.wrap(offerOpenedEventResponse.offerID)
+    override fun handleOfferOpenedEvent(event: CommutoSwap.OfferOpenedEventResponse) {
+        val offerIdByteBuffer = ByteBuffer.wrap(event.offerID)
         val mostSigBits = offerIdByteBuffer.long
         val leastSigBits = offerIdByteBuffer.long
         val offerId = UUID(mostSigBits, leastSigBits)
@@ -48,11 +48,11 @@ class OfferService @Inject constructor(): OfferNotifiable {
      * [CommutoSwap.OfferCanceledEventResponse] and removes the [Offer] with the specified ID from
      * [offers].
      *
-     * @param offerCanceledEventResponse The [CommutoSwap.OfferCanceledEventResponse] of which
+     * @param event The [CommutoSwap.OfferCanceledEventResponse] of which
      * [OfferService] is being notified.
      */
-    override fun handleOfferCanceledEvent(offerCanceledEventResponse: CommutoSwap.OfferCanceledEventResponse) {
-        val offerIdByteBuffer = ByteBuffer.wrap(offerCanceledEventResponse.offerID)
+    override fun handleOfferCanceledEvent(event: CommutoSwap.OfferCanceledEventResponse) {
+        val offerIdByteBuffer = ByteBuffer.wrap(event.offerID)
         val mostSigBits = offerIdByteBuffer.long
         val leastSigBits = offerIdByteBuffer.long
         val offerId = UUID(mostSigBits, leastSigBits)
@@ -66,11 +66,11 @@ class OfferService @Inject constructor(): OfferNotifiable {
      * [CommutoSwap.OfferTakenEventResponse] and removes the [Offer] with the specified ID from
      * [offers].
      *
-     * @param offerTakenEventResponse The [CommutoSwap.OfferTakenEventResponse] of which
+     * @param event The [CommutoSwap.OfferTakenEventResponse] of which
      * [OfferService] is being notified.
      */
-    override fun handleOfferTakenEvent(offerTakenEventResponse: CommutoSwap.OfferTakenEventResponse) {
-        val offerIdByteBuffer = ByteBuffer.wrap(offerTakenEventResponse.offerID)
+    override fun handleOfferTakenEvent(event: CommutoSwap.OfferTakenEventResponse) {
+        val offerIdByteBuffer = ByteBuffer.wrap(event.offerID)
         val mostSigBits = offerIdByteBuffer.long
         val leastSigBits = offerIdByteBuffer.long
         val offerId = UUID(mostSigBits, leastSigBits)

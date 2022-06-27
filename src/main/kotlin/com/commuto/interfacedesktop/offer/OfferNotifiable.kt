@@ -14,31 +14,31 @@ interface OfferNotifiable {
      * order to notify the class implementing this interface of a
      * [CommutoSwap.OfferOpenedEventResponse].
      *
-     * @param offerOpenedEventResponse The [CommutoSwap.OfferOpenedEventResponse] of which the class
+     * @param event The [CommutoSwap.OfferOpenedEventResponse] of which the class
      * implementing this interface is being notified and should handle in the implementation of this
      * method.
      */
-    fun handleOfferOpenedEvent(offerOpenedEventResponse: CommutoSwap.OfferOpenedEventResponse)
+    fun handleOfferOpenedEvent(event: CommutoSwap.OfferOpenedEventResponse)
 
     /**
      * The method called by [com.commuto.interfacedesktop.blockchain.BlockchainService] in
      * order to notify the class implementing this interface of a
      * [CommutoSwap.OfferCanceledEventResponse].
      *
-     * @param offerCanceledEventResponse The [CommutoSwap.OfferCanceledEventResponse] of which the
+     * @param event The [CommutoSwap.OfferCanceledEventResponse] of which the
      * class implementing this interface is being notified and should handle in the implementation
      * of this method.
      */
-    fun handleOfferCanceledEvent(offerCanceledEventResponse: CommutoSwap.OfferCanceledEventResponse)
+    fun handleOfferCanceledEvent(event: CommutoSwap.OfferCanceledEventResponse)
 
     /**
      * The method called by [com.commuto.interfacedesktop.blockchain.BlockchainService] in
      * order to notify the class implementing this interface of a
      * [CommutoSwap.OfferTakenEventResponse].
      *
-     * @param offerTakenEventResponse The [CommutoSwap.OfferTakenEventResponse] of which the class
+     * @param event The [CommutoSwap.OfferTakenEventResponse] of which the class
      * implementing this interface is being notified and should handle in the implementation of this
      * method.
      */
-    fun handleOfferTakenEvent(offerTakenEventResponse: CommutoSwap.OfferTakenEventResponse)
+    fun handleOfferTakenEvent(event: CommutoSwap.OfferTakenEventResponse)
 }
