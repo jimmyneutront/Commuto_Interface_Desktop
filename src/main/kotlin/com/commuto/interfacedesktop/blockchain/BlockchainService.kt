@@ -275,7 +275,7 @@ class BlockchainService (private val exceptionHandler: BlockchainExceptionNotifi
      * @param eventResponseLists A [MutableList] of [List]s of [BaseEventResponse]s, which are
      * relevant events about which other services must be notified.
      */
-    private fun handleEventResponses(
+    private suspend fun handleEventResponses(
         eventResponseLists: MutableList<List<BaseEventResponse>>
     ) {
         val eventResponses = eventResponseLists.flatten()

@@ -18,7 +18,7 @@ interface OfferNotifiable {
      * implementing this interface is being notified and should handle in the implementation of this
      * method.
      */
-    fun handleOfferOpenedEvent(event: CommutoSwap.OfferOpenedEventResponse)
+    suspend fun handleOfferOpenedEvent(event: CommutoSwap.OfferOpenedEventResponse)
 
     /**
      * The method called by [com.commuto.interfacedesktop.blockchain.BlockchainService] in
@@ -29,7 +29,7 @@ interface OfferNotifiable {
      * class implementing this interface is being notified and should handle in the implementation
      * of this method.
      */
-    fun handleOfferCanceledEvent(event: CommutoSwap.OfferCanceledEventResponse)
+    suspend fun handleOfferCanceledEvent(event: CommutoSwap.OfferCanceledEventResponse)
 
     /**
      * The method called by [com.commuto.interfacedesktop.blockchain.BlockchainService] in
@@ -40,5 +40,5 @@ interface OfferNotifiable {
      * implementing this interface is being notified and should handle in the implementation of this
      * method.
      */
-    fun handleOfferTakenEvent(event: CommutoSwap.OfferTakenEventResponse)
+    suspend fun handleOfferTakenEvent(event: CommutoSwap.OfferTakenEventResponse)
 }
