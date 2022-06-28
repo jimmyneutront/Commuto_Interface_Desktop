@@ -1,7 +1,7 @@
 package com.commuto.interfacedesktop.offer
 
-import androidx.compose.runtime.mutableStateListOf
 import com.commuto.interfacedesktop.CommutoSwap
+import com.commuto.interfacedesktop.ui.OffersViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -14,14 +14,28 @@ import javax.inject.Singleton
  * The main Offer Service. It is responsible for processing and organizing offer-related data that
  * it receives from [com.commuto.interfacedesktop.blockchain.BlockchainService] and
  * [com.commuto.interfacedesktop.p2p.P2PService] in order to maintain an accurate list of all
- * open [Offer]s in [com.commuto.interfacedesktop.ui.OffersViewModel].
+ * open [Offer]s in [OffersViewModel].
  *
- * @property offers A pointer to the list of all open offers stored in an
- * [com.commuto.interfacedesktop.ui.OffersViewModel] instance.
+ * @property offersTruthSource The [OffersViewModel] in which this is responsible for maintaining an accurate list of
+ * all open offers. If this is not yet initialized, event handling methods will throw the corresponding error.
  */
 @Singleton
 class OfferService @Inject constructor(): OfferNotifiable {
-    var offers = mutableStateListOf<Offer>() //Offer.manySampleOffers
+
+    private lateinit var offersTruthSource: OffersViewModel
+
+    /**
+     * Used to set the [offersTruthSource] property. This can only be called once.
+     *
+     * @param newTruthSource The new value of the [offersTruthSource] property, which cannot be null.
+     */
+    fun setOffersTruthSource(newTruthSource: OffersViewModel) {
+        check(!::offersTruthSource.isInitialized) {
+            "offersTruthSource is already initialized"
+        }
+        offersTruthSource = newTruthSource
+    }
+
     private val scope = CoroutineScope(Dispatchers.Default)
 
     /**
@@ -29,7 +43,7 @@ class OfferService @Inject constructor(): OfferNotifiable {
      * notify [OfferService] of an [CommutoSwap.OfferOpenedEventResponse]. Once notified,
      * [OfferService] gets the ID of the new offer from [CommutoSwap.OfferOpenedEventResponse],
      * creates a new [Offer] using the data stored in event, and then adds this new [Offer] to
-     * [offers].
+     * [offersTruthSource].
      *
      * @param event The [CommutoSwap.OfferOpenedEventResponse] of which
      * [OfferService] is being notified.
@@ -40,7 +54,9 @@ class OfferService @Inject constructor(): OfferNotifiable {
         val leastSigBits = offerIdByteBuffer.long
         val offerId = UUID(mostSigBits, leastSigBits)
         withContext(Dispatchers.Main) {
-            offers.add(Offer(id = offerId, direction = "Buy", price = "1.004", pair = "USD/USDT"))
+            offersTruthSource.offers.add(
+                Offer(id = offerId, direction = "Buy", price = "1.004", pair = "USD/USDT")
+            )
         }
     }
 
@@ -49,7 +65,7 @@ class OfferService @Inject constructor(): OfferNotifiable {
      * notify [OfferService] of an [CommutoSwap.OfferCanceledEventResponse]. Once notified,
      * [OfferService] gets the ID of the now-canceled offer from
      * [CommutoSwap.OfferCanceledEventResponse] and removes the [Offer] with the specified ID from
-     * [offers].
+     * [offersTruthSource].
      *
      * @param event The [CommutoSwap.OfferCanceledEventResponse] of which
      * [OfferService] is being notified.
@@ -60,7 +76,7 @@ class OfferService @Inject constructor(): OfferNotifiable {
         val leastSigBits = offerIdByteBuffer.long
         val offerId = UUID(mostSigBits, leastSigBits)
         withContext(Dispatchers.Main) {
-            offers.removeIf { it.id == offerId }
+            offersTruthSource.offers.removeIf { it.id == offerId }
         }
     }
 
@@ -69,7 +85,7 @@ class OfferService @Inject constructor(): OfferNotifiable {
      * notify [OfferService] of an [CommutoSwap.OfferTakenEventResponse]. Once notified,
      * [OfferService] gets the ID of the now-taken offer from
      * [CommutoSwap.OfferTakenEventResponse] and removes the [Offer] with the specified ID from
-     * [offers].
+     * [offersTruthSource].
      *
      * @param event The [CommutoSwap.OfferTakenEventResponse] of which
      * [OfferService] is being notified.
@@ -80,7 +96,7 @@ class OfferService @Inject constructor(): OfferNotifiable {
         val leastSigBits = offerIdByteBuffer.long
         val offerId = UUID(mostSigBits, leastSigBits)
         withContext(Dispatchers.Main) {
-            offers.removeIf { it.id == offerId }
+            offersTruthSource.offers.removeIf { it.id == offerId }
         }
     }
 }

@@ -3,6 +3,7 @@ package com.commuto.interfacedesktop.blockchain
 import com.commuto.interfacedesktop.CommutoSwap
 import com.commuto.interfacedesktop.offer.OfferNotifiable
 import com.commuto.interfacedesktop.offer.OfferService
+import com.commuto.interfacedesktop.ui.OffersViewModel
 import io.ktor.client.*
 import io.ktor.client.call.*
 import io.ktor.client.engine.okhttp.*
@@ -38,9 +39,11 @@ class BlockchainServiceTest {
                 throw exception
             }
         }
+        val offersService = OfferService()
+        OffersViewModel(offersService)
         val blockchainService = BlockchainService(
             TestBlockchainExceptionHandler(),
-            OfferService()
+            offersService
         )
         blockchainService.listenLoop()
     }
