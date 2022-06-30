@@ -1,7 +1,6 @@
 package com.commuto.interfacedesktop.database
 
-import com.commuto.interfacedesktop.db.KeyPair
-import com.commuto.interfacedesktop.db.PublicKey
+import com.commuto.interfacedesktop.db.*
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.newSingleThreadContext
 import kotlinx.coroutines.withContext
@@ -37,6 +36,163 @@ class DatabaseService(private val databaseDriverFactory: DatabaseDriverFactory) 
      */
     fun clearDatabase() {
         database.clearDatabase()
+    }
+
+    /**
+     * Persistently stores an [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer). If an Offer
+     * with the specified offer ID already exists in the database, this does nothing.
+     *
+     * @param offer The [Offer] to be stored in the database.
+     *
+     * @throws Exception if database insertion is unsuccessful for a reason OTHER than UNIQUE constraint failure.
+     */
+    @OptIn(DelicateCoroutinesApi::class)
+    suspend fun storeOffer(offer: Offer) {
+        try {
+            withContext(databaseServiceContext) {
+                database.insertOffer(offer)
+            }
+        } catch (exception: SQLiteException) {
+            /*
+            The result code for a UNIQUE constraint failure; see here: https://www.sqlite.org/rescode.html
+            If an Offer with the specified offer ID already exists, we do nothing.
+             */
+            if (exception.resultCode.code != 2067) {
+                throw exception
+            }
+        }
+    }
+
+    /**
+     * Retrieves the persistently stored [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer)
+     * with the given offer ID, or returns null if no such event is present.
+     *
+     * @param id The offer ID of the Offer to return, as a Base64-[String] of bytes.
+     *
+     * @throws IllegalStateException if multiple offers are found for a single offer ID, or if the offer ID of the offer
+     * returned from the database query does not match [id].
+     */
+    @OptIn(DelicateCoroutinesApi::class)
+    suspend fun getOffer(id: String): Offer? {
+        val dbOffers: List<Offer> = withContext(databaseServiceContext) {
+            database.selectOfferByOfferId(id)
+        }
+        return if (dbOffers.size > 1) {
+            throw IllegalStateException("Multiple offers found with given offer id $id")
+        } else if (dbOffers.size == 1) {
+            check(dbOffers[0].offerId == id) {
+                "Returned offer id $id did not match specified offer id $id"
+            }
+            dbOffers[0]
+        } else {
+            null
+        }
+    }
+
+    /**
+     * Persistently stores each settlement method in the supplied [List], associating each one with the supplied ID.
+     *
+     * @param id The ID of the offer or swap to be associated with the settlement methods.
+     * @param settlementMethods The settlement methods to be persistently stored.
+     *
+     * @throws Exception if database insertion is unsuccessful.
+     */
+    @OptIn(DelicateCoroutinesApi::class)
+    suspend fun storeSettlementMethods(id: String, settlementMethods: List<String>) {
+        withContext(databaseServiceContext) {
+            for (settlementMethod in settlementMethods) {
+                database.insertSettlementMethod(SettlementMethod(id, settlementMethod))
+            }
+        }
+    }
+
+    /**
+     * Retrieves the persistently stored settlement methods associated with the specified offer ID, or returns null if no
+     * such settlement methods are present.
+     *
+     * @param id: The ID of the offer for which settlement methods should be returned, as a Base64-[String] of bytes.
+     * @return A [List] of [String]s which are settlement methods associated with [id], or null if no such settlement
+     * methods are found.
+     *
+     * @throws Exception if database selection is unsuccessful.
+     */
+    @OptIn(DelicateCoroutinesApi::class)
+    suspend fun getSettlementMethods(id: String): List<String>? {
+        val dbSettlementMethods: List<SettlementMethod> = withContext(databaseServiceContext) {
+            database.selectSettlementMethodByOfferId(id)
+        }
+        return if (dbSettlementMethods.isNotEmpty()) {
+            dbSettlementMethods.map {
+                it.settlementMethod
+            }
+        } else {
+            null
+        }
+    }
+
+    /**
+     * Persistently stores an [OfferOpened](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offeropened)
+     * event. If an OfferOpened event with the specified offer ID already exists in the database, this does nothing.
+     *
+     * @param id The offer ID specified in the OfferOpened event, as a Base64 [String] of its bytes.
+     * @param interfaceId The interface ID specified in the OfferOpened event, as a Base64 [String] of bytes.
+     *
+     * @throws Exception if database insertion is unsuccessful for a reason OTHER than UNIQUE constraint failure.
+     */
+    @OptIn(DelicateCoroutinesApi::class)
+    open suspend fun storeOfferOpenedEvent(id: String, interfaceId: String) {
+        try {
+            withContext(databaseServiceContext) {
+                database.insertOfferOpenedEvent(OfferOpenedEvent(id, interfaceId))
+            }
+        } catch (exception: SQLiteException) {
+            /*
+            The result code for a UNIQUE constraint failure; see here: https://www.sqlite.org/rescode.html
+            If an OfferOpened event with the specified offer ID already exists, we do nothing.
+             */
+            if (exception.resultCode.code != 2067) {
+                throw exception
+            }
+        }
+    }
+
+    /**
+     * Removes every [OfferOpened](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offeropened) event with
+     * an offer ID equal to [id] from persistent storage.
+     *
+     * @param id The  offer ID of the OfferOpened events to be removed, as a Base64-[String] of bytes.
+     *
+     * @throws Exception if deletion is unsuccessful.
+     */
+    @OptIn(DelicateCoroutinesApi::class)
+    open suspend fun deleteOfferOpenedEvents(id: String) {
+        withContext(databaseServiceContext) {
+            database.deleteOfferOpenedEvent(id)
+        }
+    }
+
+    /**
+     * Retrieves the persistently stored
+     * [OfferOpened](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offeropened) event with the given
+     * offer ID, or returns null if no such event is present.
+     *
+     * @param id The offer ID of the OfferOpened event to return, as a Base64-[String] of bytes.
+     */
+    @OptIn(DelicateCoroutinesApi::class)
+    suspend fun getOfferOpenedEvent(id: String): OfferOpenedEvent? {
+        val dbOfferOpenedEvents: List<OfferOpenedEvent> = withContext(databaseServiceContext) {
+            database.selectOfferOpenedEventByOfferId(id)
+        }
+        return if (dbOfferOpenedEvents.size > 1) {
+            throw IllegalStateException("Multiple OfferOpened events found with given offer ID $id")
+        } else if (dbOfferOpenedEvents.size == 1) {
+            check(dbOfferOpenedEvents[0].offerId == id) {
+                "Returned offer ID " + dbOfferOpenedEvents[0].offerId + " did not match specified offer ID " + id
+            }
+            OfferOpenedEvent(dbOfferOpenedEvents[0].offerId, dbOfferOpenedEvents[0].interfaceId)
+        } else {
+            null
+        }
     }
 
     /**

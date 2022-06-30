@@ -1,3 +1,32 @@
+createOfferTable:
+CREATE TABLE Offer (
+offerId TEXT UNIQUE NOT NULL,
+isCreated INTEGER NOT NULL,
+isTaken INTEGER NOT NULL,
+maker TEXT NOT NULL,
+interfaceId TEXT NOT NULL,
+stablecoin TEXT NOT NULL,
+amountLowerBound TEXT NOT NULL,
+amountUpperBound TEXT NOT NULL,
+securityDepositAmount TEXT NOT NULL,
+serviceFeeRate TEXT NOT NULL,
+onChainDirection TEXT NOT NULL,
+onChainPrice TEXT NOT NULL,
+protocolVersion TEXT NOT NULL
+);
+
+createSettlementMethodTable:
+CREATE TABLE SettlementMethod (
+offerId TEXT NOT NULL,
+settlementMethod TEXT NOT NULL
+);
+
+createOfferOpenedEventTable:
+CREATE TABLE OfferOpenedEvent (
+offerId TEXT UNIQUE NOT NULL,
+interfaceId TEXT NOT NULL
+);
+
 createKeyPairTable:
 CREATE TABLE KeyPair (
 interfaceId TEXT UNIQUE NOT NULL,
@@ -11,6 +40,34 @@ interfaceId TEXT UNIQUE NOT NULL,
 publicKey TEXT NOT NULL
 );
 
+insertOffer:
+INSERT INTO Offer(
+    offerId,
+    isCreated,
+    isTaken,
+    maker,
+    interfaceId,
+    stablecoin,
+    amountLowerBound,
+    amountUpperBound,
+    securityDepositAmount,
+    serviceFeeRate,
+    onChainDirection,
+    onChainPrice,
+    protocolVersion
+)
+VALUES(?, ?, ?, ?, ?, ?, ?,
+?, ?, ?, ?, ?,
+?);
+
+insertSettlementMethod:
+INSERT INTO SettlementMethod(offerId, settlementMethod)
+VALUES(?, ?);
+
+insertOfferOpenedEvent:
+INSERT INTO OfferOpenedEvent(offerId, interfaceId)
+VALUES(?, ?);
+
 insertKeyPair:
 INSERT INTO KeyPair(interfaceId, publicKey, privateKey)
 VALUES(?, ?, ?);
@@ -19,11 +76,17 @@ insertPublicKey:
 INSERT INTO PublicKey(interfaceId, publicKey)
 VALUES(?, ?);
 
-removeAllKeyPairs:
-DELETE FROM KeyPair;
+selectOfferByOfferId:
+SELECT * FROM Offer
+WHERE offerId = ?;
 
-removeAllPublicKeys:
-DELETE FROM PublicKey;
+selectSettlementMethodByOfferId:
+SELECT * FROM SettlementMethod
+WHERE offerId = ?;
+
+selectOfferOpenedEventByOfferId:
+SELECT * FROM OfferOpenedEvent
+WHERE offerId = ?;
 
 selectKeyPairByInterfaceId:
 SELECT * FROM KeyPair
@@ -32,3 +95,22 @@ WHERE interfaceId = ?;
 selectPublicKeyByInterfaceId:
 SELECT * FROM PublicKey
 WHERE interfaceId = ?;
+
+deleteOfferOpenedEventByOfferId:
+DELETE FROM OfferOpenedEvent
+WHERE offerId = ?;
+
+removeAllOffers:
+DELETE FROM Offer;
+
+removeAllSettlementMethods:
+DELETE FROM SettlementMethod;
+
+removeAllOfferOpenedEvents:
+DELETE FROM OfferOpenedEvent;
+
+removeAllKeyPairs:
+DELETE FROM KeyPair;
+
+removeAllPublicKeys:
+DELETE FROM PublicKey;
