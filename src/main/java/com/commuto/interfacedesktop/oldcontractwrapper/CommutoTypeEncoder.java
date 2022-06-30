@@ -1,6 +1,5 @@
-package com.commuto.interfacedesktop.contractwrapper;
+package com.commuto.interfacedesktop.oldcontractwrapper;
 
-import org.web3j.abi.TypeEncoder;
 import org.web3j.abi.datatypes.*;
 import org.web3j.utils.Numeric;
 

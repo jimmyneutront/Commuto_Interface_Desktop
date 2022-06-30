@@ -9,6 +9,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.commuto.interfacedesktop.database.DatabaseDriverFactory
+import com.commuto.interfacedesktop.database.DatabaseService
 import com.commuto.interfacedesktop.i18n.I18n
 import com.commuto.interfacedesktop.offer.Offer
 import com.commuto.interfacedesktop.offer.OfferService
@@ -41,5 +43,5 @@ fun OffersComposable(viewModel: OffersViewModel) {
 @Preview
 @Composable
 fun PreviewOffersComposable() {
-    OffersComposable(OffersViewModel(OfferService()))
+    OffersComposable(OffersViewModel(OfferService(DatabaseService(DatabaseDriverFactory()))))
 }

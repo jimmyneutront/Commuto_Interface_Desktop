@@ -81,6 +81,8 @@ dependencies {
     testImplementation("io.ktor:ktor-client-content-negotiation:2.0.1")
     // Ktor JSON serialization plugin for interactions with TestingServer
     testImplementation("io.ktor:ktor-serialization-kotlinx-json:2.0.1")
+    // Kotlin Coroutines testing utilities
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test-jvm:1.6.2")
 }
 
 tasks.withType<KotlinCompile> {

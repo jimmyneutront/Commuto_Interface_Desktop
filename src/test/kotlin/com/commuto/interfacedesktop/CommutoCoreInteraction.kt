@@ -1,9 +1,9 @@
 package com.commuto.interfacedesktop
 
-import com.commuto.interfacedesktop.contractwrapper.CommutoERC20
-import com.commuto.interfacedesktop.contractwrapper.CommutoSwap
-import com.commuto.interfacedesktop.contractwrapper.CommutoTransactionManager
-import com.commuto.interfacedesktop.contractwrapper.WorkingCommutoSwap
+import com.commuto.interfacedesktop.oldcontractwrapper.CommutoERC20
+import com.commuto.interfacedesktop.oldcontractwrapper.CommutoSwap
+import com.commuto.interfacedesktop.oldcontractwrapper.CommutoTransactionManager
+import com.commuto.interfacedesktop.oldcontractwrapper.WorkingCommutoSwap
 import com.commuto.interfacedesktop.database.DatabaseDriverFactory
 import com.commuto.interfacedesktop.database.DatabaseService
 import com.commuto.interfacedesktop.keymanager.KMService

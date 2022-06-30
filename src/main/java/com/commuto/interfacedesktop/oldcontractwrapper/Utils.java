@@ -1,14 +1,10 @@
-package com.commuto.interfacedesktop.contractwrapper;
+package com.commuto.interfacedesktop.oldcontractwrapper;
 
 import org.web3j.abi.TypeReference;
 import org.web3j.abi.datatypes.*;
 
 import java.lang.reflect.ParameterizedType;
 
-/*
-Added to work around Web3j's inability to decode DynamicArrays properly. The code in this class is
-taken entirely from Web3j's Utils, and it is a temporary workaround.
- */
 public class Utils {
     static String getSimpleTypeName(Class<?> type) {
         String simpleName = type.getSimpleName().toLowerCase();

@@ -1,7 +1,8 @@
 package com.commuto.interfacedesktop.blockchain
 
-import com.commuto.interfacedesktop.CommutoSwap
+import com.commuto.interfacedesktop.contractwrapper.CommutoSwap
 import com.commuto.interfacedesktop.offer.OfferNotifiable
+import com.commuto.interfacedesktop.offer.OfferService
 import kotlinx.coroutines.*
 import kotlinx.coroutines.future.asDeferred
 import org.web3j.crypto.Credentials
@@ -12,6 +13,8 @@ import org.web3j.protocol.http.HttpService
 import org.web3j.tx.ChainIdLong
 import java.math.BigInteger
 import java.net.ConnectException
+import java.nio.ByteBuffer
+import java.util.*
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -56,6 +59,10 @@ class BlockchainService (private val exceptionHandler: BlockchainExceptionNotifi
                 Web3j.build(HttpService("http://192.168.1.13:8545")),
                 "0x687F36336FCAB8747be1D41366A416b41E7E1a96"
             )
+
+    init {
+        (offerService as? OfferService)?.setBlockchainService(this)
+    }
 
     private val creds: Credentials = Credentials.create(
         "0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a"
@@ -196,6 +203,20 @@ class BlockchainService (private val exceptionHandler: BlockchainExceptionNotifi
         return txHashes.map {
             web3.ethGetTransactionReceipt(it).sendAsync().asDeferred()
         }
+    }
+
+    /**
+     * A [Deferred] wrapper around the [CommutoSwap.getOffer] method.
+     *
+     * @param id The ID of the offer to return.
+     *
+     * @return A [Deferred] with a [CommutoSwap.Offer] result.
+     */
+    fun getOfferAsync(id: UUID): Deferred<CommutoSwap.Offer> {
+        val offerIdByteBuffer = ByteBuffer.wrap(ByteArray(16))
+        offerIdByteBuffer.putLong(id.mostSignificantBits)
+        offerIdByteBuffer.putLong(id.leastSignificantBits)
+        return commutoSwap.getOffer(offerIdByteBuffer.array()).sendAsync().asDeferred()
     }
 
     /**

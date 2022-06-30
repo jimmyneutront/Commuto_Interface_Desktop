@@ -11,13 +11,23 @@ import javax.inject.Singleton
  * [androidx.compose.runtime.Composable]s.
  *
  * @property offerService The [OfferService] responsible for adding and removing
- * [com.commuto.interfacedesktop.offer.Offer]s from the list of open offers as they are created, canceled and taken.
+ * [com.commuto.interfacedesktop.offer.Offer]s from the list of open offers as they are created, canceled and
+ * taken.
  * @property offers A mutable state list of [Offer]s that acts as a single source of truth for all offer-related data.
  */
 @Singleton
-class OffersViewModel @Inject constructor(val offerService: OfferService) {
+open class OffersViewModel @Inject constructor(val offerService: OfferService) {
     init {
         offerService.setOffersTruthSource(this)
     }
     var offers = mutableStateListOf<Offer>() //Offer.manySampleOffers
+
+    /**
+     * Adds a new [Offer] to [offers].
+     *
+     * @param offer The new [Offer] to be added to [offers].
+     */
+    open fun addOffer(offer: Offer) {
+        offers.add(offer)
+    }
 }

@@ -1,4 +1,4 @@
-package com.commuto.interfacedesktop.contractwrapper;
+package com.commuto.interfacedesktop.oldcontractwrapper;
 
 import kotlin.Pair;
 import org.web3j.abi.TypeReference;

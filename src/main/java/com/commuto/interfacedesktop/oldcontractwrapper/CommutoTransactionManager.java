@@ -1,4 +1,4 @@
-package com.commuto.interfacedesktop.contractwrapper;
+package com.commuto.interfacedesktop.oldcontractwrapper;
 
 import org.web3j.crypto.Credentials;
 import org.web3j.crypto.Hash;

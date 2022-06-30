@@ -1,6 +1,8 @@
 package com.commuto.interfacedesktop.blockchain
 
-import com.commuto.interfacedesktop.CommutoSwap
+import com.commuto.interfacedesktop.contractwrapper.CommutoSwap
+import com.commuto.interfacedesktop.database.DatabaseDriverFactory
+import com.commuto.interfacedesktop.database.DatabaseService
 import com.commuto.interfacedesktop.offer.OfferNotifiable
 import com.commuto.interfacedesktop.offer.OfferService
 import com.commuto.interfacedesktop.ui.OffersViewModel
@@ -39,7 +41,7 @@ class BlockchainServiceTest {
                 throw exception
             }
         }
-        val offersService = OfferService()
+        val offersService = OfferService(DatabaseService(DatabaseDriverFactory()))
         OffersViewModel(offersService)
         val blockchainService = BlockchainService(
             TestBlockchainExceptionHandler(),

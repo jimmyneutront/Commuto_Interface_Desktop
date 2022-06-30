@@ -1,6 +1,6 @@
 package com.commuto.interfacedesktop.offer
 
-import com.commuto.interfacedesktop.CommutoSwap
+import com.commuto.interfacedesktop.contractwrapper.CommutoSwap
 import javax.inject.Singleton
 
 /**

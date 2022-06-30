@@ -1,4 +1,4 @@
-package com.commuto.interfacedesktop.contractwrapper;
+package com.commuto.interfacedesktop.oldcontractwrapper;
 
 import org.web3j.abi.TypeDecoder;
 import org.web3j.abi.TypeReference;
@@ -13,7 +13,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.function.BiFunction;
 
-import static com.commuto.interfacedesktop.contractwrapper.Utils.getSimpleTypeName;
+import static com.commuto.interfacedesktop.oldcontractwrapper.Utils.getSimpleTypeName;
 import static org.web3j.abi.DefaultFunctionReturnDecoder.getDataOffset;
 import static org.web3j.abi.Utils.staticStructNestedPublicFieldsFlatList;
 
@@ -374,7 +374,7 @@ public class CommutoTypeDecoder extends TypeDecoder {
             BiFunction<List<T>, String, T> consumer) {
 
         try {
-            Class<T> cls = com.commuto.interfacedesktop.contractwrapper.Utils.getParameterizedTypeFromArray(typeReference);
+            Class<T> cls = com.commuto.interfacedesktop.oldcontractwrapper.Utils.getParameterizedTypeFromArray(typeReference);
             if (StructType.class.isAssignableFrom(cls)) {
                 List<T> elements = new ArrayList<>(length);
                 for (int i = 0, currOffset = offset;
@@ -398,7 +398,7 @@ public class CommutoTypeDecoder extends TypeDecoder {
                     elements.add(value);
                 }
 
-                String typeName = com.commuto.interfacedesktop.contractwrapper.Utils.getSimpleTypeName(cls);
+                String typeName = com.commuto.interfacedesktop.oldcontractwrapper.Utils.getSimpleTypeName(cls);
 
                 return consumer.apply(elements, typeName);
             } else if (Array.class.isAssignableFrom(cls)) {
@@ -423,7 +423,7 @@ public class CommutoTypeDecoder extends TypeDecoder {
                     elements.add(value);
                 }
 
-                String typeName = com.commuto.interfacedesktop.contractwrapper.Utils.getSimpleTypeName(cls);
+                String typeName = com.commuto.interfacedesktop.oldcontractwrapper.Utils.getSimpleTypeName(cls);
 
                 return consumer.apply(elements, typeName);
             }

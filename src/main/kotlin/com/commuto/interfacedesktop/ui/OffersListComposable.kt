@@ -13,6 +13,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.commuto.interfacedesktop.database.DatabaseDriverFactory
+import com.commuto.interfacedesktop.database.DatabaseService
 import com.commuto.interfacedesktop.i18n.I18n
 import com.commuto.interfacedesktop.offer.Offer
 import com.commuto.interfacedesktop.offer.OfferService
@@ -93,5 +95,9 @@ private fun OffersNoneFoundComposable() {
 @Preview
 @Composable
 fun PreviewOffersListComposable() {
-    OffersListComposable(Modifier.widthIn(0.dp, 400.dp), OffersViewModel(OfferService()), mutableStateOf(null))
+    OffersListComposable(
+        Modifier.widthIn(0.dp, 400.dp),
+        OffersViewModel(OfferService(DatabaseService(DatabaseDriverFactory()))),
+        mutableStateOf(null)
+    )
 }

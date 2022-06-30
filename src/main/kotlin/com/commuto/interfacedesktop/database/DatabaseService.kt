@@ -5,6 +5,7 @@ import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.newSingleThreadContext
 import kotlinx.coroutines.withContext
 import org.sqlite.SQLiteException
+import javax.inject.Inject
 
 /**
  * The Database Service Class.
@@ -17,7 +18,7 @@ import org.sqlite.SQLiteException
  * @property databaseServiceContext The single-threaded CoroutineContext in which all database read and write operations
  * are run, in order to prevent data races.
  */
-class DatabaseService(private val databaseDriverFactory: DatabaseDriverFactory) {
+open class DatabaseService @Inject constructor(private val databaseDriverFactory: DatabaseDriverFactory) {
 
     private val database = Database(databaseDriverFactory)
     // We want to run all database operations on a single thread to prevent data races.
