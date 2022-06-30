@@ -3,6 +3,7 @@ package com.commuto.interfacedesktop.ui
 import androidx.compose.runtime.mutableStateListOf
 import com.commuto.interfacedesktop.offer.Offer
 import com.commuto.interfacedesktop.offer.OfferService
+import com.commuto.interfacedesktop.offer.OfferTruthSource
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -16,18 +17,18 @@ import javax.inject.Singleton
  * @property offers A mutable state list of [Offer]s that acts as a single source of truth for all offer-related data.
  */
 @Singleton
-open class OffersViewModel @Inject constructor(val offerService: OfferService) {
+class OffersViewModel @Inject constructor(private val offerService: OfferService): OfferTruthSource {
     init {
-        offerService.setOffersTruthSource(this)
+        offerService.setOfferTruthSource(this)
     }
-    var offers = mutableStateListOf<Offer>() //Offer.manySampleOffers
+    override var offers = mutableStateListOf<Offer>() //Offer.manySampleOffers
 
     /**
      * Adds a new [Offer] to [offers].
      *
      * @param offer The new [Offer] to be added to [offers].
      */
-    open fun addOffer(offer: Offer) {
+    override fun addOffer(offer: Offer) {
         offers.add(offer)
     }
 }

@@ -20,7 +20,7 @@ import javax.inject.Singleton
  * [com.commuto.interfacedesktop.p2p.P2PService] in order to maintain an accurate list of all
  * open [Offer]s in [OffersViewModel].
  *
- * @property offersTruthSource The [OffersViewModel] in which this is responsible for maintaining an accurate list of
+ * @property offerTruthSource The [OffersViewModel] in which this is responsible for maintaining an accurate list of
  * all open offers. If this is not yet initialized, event handling methods will throw the corresponding error.
  * @property offerOpenedEventsRepository A repository containing [CommutoSwap.OfferOpenedEventResponse]s for offers that
  * are open and for which complete offer information has not yet been retrieved.
@@ -33,20 +33,20 @@ class OfferService (
 
     @Inject constructor(databaseService: DatabaseService): this(databaseService, BlockchainEventRepository())
 
-    private lateinit var offersTruthSource: OffersViewModel
+    private lateinit var offerTruthSource: OfferTruthSource
 
     private lateinit var blockchainService: BlockchainService
 
     /**
-     * Used to set the [offersTruthSource] property. This can only be called once.
+     * Used to set the [offerTruthSource] property. This can only be called once.
      *
-     * @param newTruthSource The new value of the [offersTruthSource] property, which cannot be null.
+     * @param newTruthSource The new value of the [offerTruthSource] property, which cannot be null.
      */
-    fun setOffersTruthSource(newTruthSource: OffersViewModel) {
-        check(!::offersTruthSource.isInitialized) {
+    fun setOfferTruthSource(newTruthSource: OfferTruthSource) {
+        check(!::offerTruthSource.isInitialized) {
             "offersTruthSource is already initialized"
         }
-        offersTruthSource = newTruthSource
+        offerTruthSource = newTruthSource
     }
 
     /**
@@ -68,7 +68,7 @@ class OfferService (
      * of an [CommutoSwap.OfferOpenedEventResponse]. Once notified, [OfferService] persistently stores [event], saves it
      * in [offerOpenedEventsRepository], gets all on-chain offer data by calling [blockchainService]'s
      * [BlockchainService.getOfferAsync] method, creates a new [Offer] with the results, persistently stores the new
-     * offer, removes [event] from persistent storage, and then adds the new [Offer] to [offersTruthSource] on the main
+     * offer, removes [event] from persistent storage, and then adds the new [Offer] to [offerTruthSource] on the main
      * coroutine dispatcher.
      *
      * @param event The [CommutoSwap.OfferOpenedEventResponse] of which [OfferService] is being notified.
@@ -131,7 +131,7 @@ class OfferService (
         databaseService.deleteOfferOpenedEvents(encoder.encodeToString(event.offerID))
         offerOpenedEventsRepository.remove(event)
         withContext(Dispatchers.Main) {
-            offersTruthSource.addOffer(offer)
+            offerTruthSource.addOffer(offer)
         }
     }
 
@@ -140,7 +140,7 @@ class OfferService (
      * notify [OfferService] of an [CommutoSwap.OfferCanceledEventResponse]. Once notified,
      * [OfferService] gets the ID of the now-canceled offer from
      * [CommutoSwap.OfferCanceledEventResponse] and removes the [Offer] with the specified ID from
-     * [offersTruthSource].
+     * [offerTruthSource].
      *
      * @param event The [CommutoSwap.OfferCanceledEventResponse] of which
      * [OfferService] is being notified.
@@ -151,7 +151,7 @@ class OfferService (
         val leastSigBits = offerIdByteBuffer.long
         val offerId = UUID(mostSigBits, leastSigBits)
         withContext(Dispatchers.Main) {
-            offersTruthSource.offers.removeIf { it.id == offerId }
+            offerTruthSource.offers.removeIf { it.id == offerId }
         }
     }
 
@@ -160,7 +160,7 @@ class OfferService (
      * notify [OfferService] of an [CommutoSwap.OfferTakenEventResponse]. Once notified,
      * [OfferService] gets the ID of the now-taken offer from
      * [CommutoSwap.OfferTakenEventResponse] and removes the [Offer] with the specified ID from
-     * [offersTruthSource].
+     * [offerTruthSource].
      *
      * @param event The [CommutoSwap.OfferTakenEventResponse] of which
      * [OfferService] is being notified.
@@ -171,7 +171,7 @@ class OfferService (
         val leastSigBits = offerIdByteBuffer.long
         val offerId = UUID(mostSigBits, leastSigBits)
         withContext(Dispatchers.Main) {
-            offersTruthSource.offers.removeIf { it.id == offerId }
+            offerTruthSource.offers.removeIf { it.id == offerId }
         }
     }
 }
