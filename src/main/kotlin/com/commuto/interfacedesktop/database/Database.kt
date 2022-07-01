@@ -19,6 +19,7 @@ internal class Database(databaseDriverFactory: DatabaseDriverFactory) {
         dbQuery.createOfferTable()
         dbQuery.createSettlementMethodTable()
         dbQuery.createOfferOpenedEventTable()
+        dbQuery.createOfferCanceledEventTable()
         dbQuery.createPublicKeyTable()
         dbQuery.createKeyPairTable()
     }
@@ -31,6 +32,7 @@ internal class Database(databaseDriverFactory: DatabaseDriverFactory) {
             dbQuery.removeAllOffers()
             dbQuery.removeAllSettlementMethods()
             dbQuery.removeAllOfferOpenedEvents()
+            dbQuery.removeAllOfferCanceledEvents()
             dbQuery.removeAllKeyPairs()
             dbQuery.removeAllPublicKeys()
         }
@@ -63,6 +65,18 @@ internal class Database(databaseDriverFactory: DatabaseDriverFactory) {
      */
     internal fun selectOfferOpenedEventByOfferId(id: String): List<OfferOpenedEvent> {
         return dbQuery.selectOfferOpenedEventByOfferId(id).executeAsList()
+    }
+
+    /**
+     * Returns [OfferCanceled](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offercanceled) events with
+     * the specified offer ID.
+     * @param id The offer ID of the OfferCanceled events to be returned.
+     * @return A [List] of [OfferCanceledEvent]s with offer IDs equal to [id].
+     */
+    internal fun selectOfferCanceledEventByOfferId(id: String): List<OfferCanceledEvent> {
+        return dbQuery.selectOfferCanceledEventByOfferId(id).executeAsList().map {
+            OfferCanceledEvent(it)
+        }
     }
 
     /**
@@ -128,6 +142,16 @@ internal class Database(databaseDriverFactory: DatabaseDriverFactory) {
     }
 
     /**
+     * Inserts a [OfferCanceledEvent] into the database.
+     * @param offerCanceledEvent The [OfferCanceledEvent] to be inserted in the database.
+     */
+    internal fun insertOfferCanceledEvent(offerCanceledEvent: OfferCanceledEvent) {
+        dbQuery.insertOfferCanceledEvent(
+            offerId = offerCanceledEvent.offerId
+        )
+    }
+
+    /**
      * Inserts a [KeyPair] into the database.
      * @param keyPair The [KeyPair] to be inserted in the database.
      */
@@ -151,11 +175,41 @@ internal class Database(databaseDriverFactory: DatabaseDriverFactory) {
     }
 
     /**
+     * Deletes all [Offer]s with the specified offer ID from the database.
+     * @param id The offer ID of the [Offer]s to be deleted.
+     */
+    internal fun deleteOffer(id: String) {
+        dbQuery.deleteOfferByOfferId(
+            offerId = id
+        )
+    }
+
+    /**
+     * Deletes all [SettlementMethod]s with the specified offer ID from the database.
+     * @param id The offer ID of the [SettlementMethod]s to be deleted.
+     */
+    internal fun deleteSettlementMethods(id: String) {
+        dbQuery.deleteSettlementMethodByOfferId(
+            offerId = id
+        )
+    }
+
+    /**
      * Deletes all [OfferOpenedEvent]s with the specified offer ID from the database.
      * @param id The offer ID of the [OfferOpenedEvent]s to be deleted.
      */
     internal fun deleteOfferOpenedEvent(id: String) {
         dbQuery.deleteOfferOpenedEventByOfferId(
+            offerId = id
+        )
+    }
+
+    /**
+     * Deletes all [OfferCanceledEvent]s with the specified offer ID from the database.
+     * @param id The offer ID of the [OfferCanceledEvent]s to be deleted.
+     */
+    internal fun deleteOfferCanceledEvent(id: String) {
+        dbQuery.deleteOfferCanceledEventByOfferId(
             offerId = id
         )
     }

@@ -1,9 +1,6 @@
 package com.commuto.interfacedesktop.database
 
-import com.commuto.interfacedesktop.db.KeyPair
-import com.commuto.interfacedesktop.db.Offer
-import com.commuto.interfacedesktop.db.OfferOpenedEvent
-import com.commuto.interfacedesktop.db.PublicKey
+import com.commuto.interfacedesktop.db.*
 import kotlinx.coroutines.runBlocking
 import kotlin.test.BeforeTest
 import kotlin.test.Test
@@ -19,7 +16,7 @@ class DatabaseServiceTest {
     }
 
     @Test
-    fun testStoreAndGetOffer() = runBlocking {
+    fun testStoreAndGetAndDeleteOffer() = runBlocking {
         val offerToStore = Offer(
             "a_uuid",
             1L,
@@ -51,13 +48,18 @@ class DatabaseServiceTest {
             "a_different_price",
             "some_other_version",
         )
+        // This should do nothing and not throw
         databaseService.storeOffer(anotherOfferToStore)
+        // This should not throw since only one such Offer should exist in the database
         val returnedOffer = databaseService.getOffer("a_uuid")
         assertEquals(returnedOffer, offerToStore)
+        databaseService.deleteOffers("a_uuid")
+        val returnedOfferAfterDeletion = databaseService.getOffer("a_uuid")
+        assertEquals(null, returnedOfferAfterDeletion)
     }
 
     @Test
-    fun testStoreAndGetSettlementMethods() = runBlocking {
+    fun testStoreAndGetAndDeleteSettlementMethods() = runBlocking {
         val offerId = "an_offer_id"
         val settlementMethods = listOf(
             "settlement_method_zero",
@@ -69,6 +71,9 @@ class DatabaseServiceTest {
         assertEquals(receivedSettlementMethods[0], "settlement_method_zero")
         assertEquals(receivedSettlementMethods[1], "settlement_method_one")
         assertEquals(receivedSettlementMethods[2], "settlement_method_two")
+        databaseService.deleteSettlementMethods(offerId)
+        val returnedSettlementMethodsAfterDeletion = databaseService.getSettlementMethods(offerId)
+        assertEquals(null, returnedSettlementMethodsAfterDeletion)
     }
 
     @Test
@@ -83,6 +88,20 @@ class DatabaseServiceTest {
         databaseService.deleteOfferOpenedEvents("offer_id")
         val offerOpenedEventAfterDeletion = databaseService.getOfferOpenedEvent("offer_id")
         assertEquals(offerOpenedEventAfterDeletion, null)
+    }
+
+    @Test
+    fun testStoreAndGetAndDeleteOfferCanceledEvent() = runBlocking {
+        databaseService.storeOfferCanceledEvent("offer_id")
+        // This should do nothing and not throw
+        databaseService.storeOfferCanceledEvent("offer_id")
+        val expectedOfferCanceledEvent = OfferCanceledEvent("offer_id")
+        // This should not throw since only one such OfferCanceled event should exist in the database
+        val offerCanceledEvent = databaseService.getOfferCanceledEvent("offer_id")
+        assertEquals(expectedOfferCanceledEvent, offerCanceledEvent)
+        databaseService.deleteOfferCanceledEvents("offer_id")
+        val offerCanceledEventAfterDeletion = databaseService.getOfferCanceledEvent("offer_id")
+        assertEquals(offerCanceledEventAfterDeletion, null)
     }
 
     @Test

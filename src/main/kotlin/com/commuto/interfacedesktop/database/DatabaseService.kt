@@ -65,6 +65,21 @@ open class DatabaseService @Inject constructor(private val databaseDriverFactory
     }
 
     /**
+     * Removes every [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer) with an offer ID equal
+     * to [id] from persistent storage.
+     *
+     * @param id The ID of the offers to be removed, as a Base64-[String] of bytes.
+     *
+     * @throws Exception If deletion is unsuccessful.
+     */
+    @OptIn(DelicateCoroutinesApi::class)
+    suspend fun deleteOffers(id: String) {
+        withContext(databaseServiceContext) {
+            database.deleteOffer(id)
+        }
+    }
+
+    /**
      * Retrieves the persistently stored [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer)
      * with the given offer ID, or returns null if no such event is present.
      *
@@ -104,6 +119,20 @@ open class DatabaseService @Inject constructor(private val databaseDriverFactory
             for (settlementMethod in settlementMethods) {
                 database.insertSettlementMethod(SettlementMethod(id, settlementMethod))
             }
+        }
+    }
+
+    /**
+     * Removes every persistently stored settlement method associated with an offer ID equal to [id].
+     *
+     * @param id The ID of the offer for which associated settlement methods should be removed.
+     *
+     * @throws Exception If deletion is unsuccessful.
+     */
+    @OptIn(DelicateCoroutinesApi::class)
+    suspend fun deleteSettlementMethods(id: String) {
+        withContext(databaseServiceContext) {
+            database.deleteSettlementMethods(id)
         }
     }
 
@@ -163,7 +192,7 @@ open class DatabaseService @Inject constructor(private val databaseDriverFactory
      *
      * @param id The  offer ID of the OfferOpened events to be removed, as a Base64-[String] of bytes.
      *
-     * @throws Exception if deletion is unsuccessful.
+     * @throws Exception If deletion is unsuccessful.
      */
     @OptIn(DelicateCoroutinesApi::class)
     open suspend fun deleteOfferOpenedEvents(id: String) {
@@ -178,6 +207,9 @@ open class DatabaseService @Inject constructor(private val databaseDriverFactory
      * offer ID, or returns null if no such event is present.
      *
      * @param id The offer ID of the OfferOpened event to return, as a Base64-[String] of bytes.
+     *
+     * @throws IllegalStateException if multiple OfferOpened are found for a single offer ID, or if the offer ID of the
+     * OfferOpened event returned from the database query does not match [id].
      */
     @OptIn(DelicateCoroutinesApi::class)
     suspend fun getOfferOpenedEvent(id: String): OfferOpenedEvent? {
@@ -191,6 +223,74 @@ open class DatabaseService @Inject constructor(private val databaseDriverFactory
                 "Returned offer ID " + dbOfferOpenedEvents[0].offerId + " did not match specified offer ID " + id
             }
             OfferOpenedEvent(dbOfferOpenedEvents[0].offerId, dbOfferOpenedEvents[0].interfaceId)
+        } else {
+            null
+        }
+    }
+
+    /**
+     * Persistently stores an
+     * [OfferCanceled](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offercanceled) event. If an
+     * OfferCanceled event with the specified offer ID already exists in the database, this does nothing.
+     *
+     * @param id The offer ID specified in the OfferCanceled event, as a Base64 [String] of its bytes.
+     *
+     * @throws Exception if database insertion is unsuccessful for a reason OTHER than UNIQUE constraint failure.
+     */
+    @OptIn(DelicateCoroutinesApi::class)
+    suspend fun storeOfferCanceledEvent(id: String) {
+        try {
+            withContext(databaseServiceContext) {
+                database.insertOfferCanceledEvent(OfferCanceledEvent(id))
+            }
+        } catch (exception: SQLiteException) {
+            /*
+            The result code for a UNIQUE constraint failure; see here: https://www.sqlite.org/rescode.html
+            If an OfferCanceled event with the specified offer ID already exists, we do nothing.
+             */
+            if (exception.resultCode.code != 2067) {
+                throw exception
+            }
+        }
+    }
+
+    /**
+     * Removes every [OfferCanceled](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offercanceled) event
+     * with an offer ID equal to [id] from persistent storage.
+     *
+     * @param id The  offer ID of the OfferCanceled events to be removed, as a Base64-[String] of bytes.
+     *
+     * @throws Exception If deletion is unsuccessful.
+     */
+    @OptIn(DelicateCoroutinesApi::class)
+    suspend fun deleteOfferCanceledEvents(id: String) {
+        withContext(databaseServiceContext) {
+            database.deleteOfferCanceledEvent(id)
+        }
+    }
+
+    /**
+     * Retrieves the persistently stored
+     * [OfferCanceled](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offercanceled) event with the given
+     * offer ID, or returns null if no such event is present.
+     *
+     * @param id The offer ID of the OfferCanceled event to return, as a Base64-[String] of bytes.
+     *
+     * @throws IllegalStateException if multiple OfferCanceled events are found for a single offer ID, or if the offer
+     * ID of the OfferCanceled event returned from the database query does not match [id].
+     */
+    @OptIn(DelicateCoroutinesApi::class)
+    suspend fun getOfferCanceledEvent(id: String): OfferCanceledEvent? {
+        val dbOfferCanceledEvents: List<OfferCanceledEvent> = withContext(databaseServiceContext) {
+            database.selectOfferCanceledEventByOfferId(id)
+        }
+        return if (dbOfferCanceledEvents.size > 1) {
+            throw IllegalStateException("Multiple OfferCanceled events found with given offer ID $id")
+        } else if (dbOfferCanceledEvents.size == 1) {
+            check(dbOfferCanceledEvents[0].offerId == id) {
+                "Returned offer ID " + dbOfferCanceledEvents[0].offerId + " did not match specified offer ID " + id
+            }
+            OfferCanceledEvent(dbOfferCanceledEvents[0].offerId)
         } else {
             null
         }

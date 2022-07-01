@@ -27,6 +27,11 @@ offerId TEXT UNIQUE NOT NULL,
 interfaceId TEXT NOT NULL
 );
 
+createOfferCanceledEventTable:
+CREATE TABLE OfferCanceledEvent (
+offerId TEXT UNIQUE NOT NULL
+);
+
 createKeyPairTable:
 CREATE TABLE KeyPair (
 interfaceId TEXT UNIQUE NOT NULL,
@@ -68,6 +73,10 @@ insertOfferOpenedEvent:
 INSERT INTO OfferOpenedEvent(offerId, interfaceId)
 VALUES(?, ?);
 
+insertOfferCanceledEvent:
+INSERT INTO OfferCanceledEvent(offerId)
+VALUES(?);
+
 insertKeyPair:
 INSERT INTO KeyPair(interfaceId, publicKey, privateKey)
 VALUES(?, ?, ?);
@@ -88,6 +97,10 @@ selectOfferOpenedEventByOfferId:
 SELECT * FROM OfferOpenedEvent
 WHERE offerId = ?;
 
+selectOfferCanceledEventByOfferId:
+SELECT * FROM OfferCanceledEvent
+WHERE offerId = ?;
+
 selectKeyPairByInterfaceId:
 SELECT * FROM KeyPair
 WHERE interfaceId = ?;
@@ -96,8 +109,20 @@ selectPublicKeyByInterfaceId:
 SELECT * FROM PublicKey
 WHERE interfaceId = ?;
 
+deleteOfferByOfferId:
+DELETE FROM Offer
+WHERE offerId = ?;
+
+deleteSettlementMethodByOfferId:
+DELETE FROM SettlementMethod
+WHERE offerId = ?;
+
 deleteOfferOpenedEventByOfferId:
 DELETE FROM OfferOpenedEvent
+WHERE offerId = ?;
+
+deleteOfferCanceledEventByOfferId:
+DELETE FROM OfferCanceledEvent
 WHERE offerId = ?;
 
 removeAllOffers:
@@ -108,6 +133,9 @@ DELETE FROM SettlementMethod;
 
 removeAllOfferOpenedEvents:
 DELETE FROM OfferOpenedEvent;
+
+removeAllOfferCanceledEvents:
+DELETE FROM OfferCanceledEvent;
 
 removeAllKeyPairs:
 DELETE FROM KeyPair;
