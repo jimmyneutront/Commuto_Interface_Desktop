@@ -77,34 +77,6 @@ class DatabaseServiceTest {
     }
 
     @Test
-    fun testStoreAndGetAndDeleteOfferOpenedEvent() = runBlocking {
-        databaseService.storeOfferOpenedEvent("offer_id", "interf_id")
-        // This should do nothing and not throw
-        databaseService.storeOfferOpenedEvent("offer_id", "interf_id")
-        val expectedOfferOpenedEvent = OfferOpenedEvent("offer_id", "interf_id")
-        // This should not throw since only one such OfferOpened event should exist in the database
-        val offerOpenedEvent = databaseService.getOfferOpenedEvent("offer_id")
-        assertEquals(expectedOfferOpenedEvent, offerOpenedEvent)
-        databaseService.deleteOfferOpenedEvents("offer_id")
-        val offerOpenedEventAfterDeletion = databaseService.getOfferOpenedEvent("offer_id")
-        assertEquals(offerOpenedEventAfterDeletion, null)
-    }
-
-    @Test
-    fun testStoreAndGetAndDeleteOfferCanceledEvent() = runBlocking {
-        databaseService.storeOfferCanceledEvent("offer_id")
-        // This should do nothing and not throw
-        databaseService.storeOfferCanceledEvent("offer_id")
-        val expectedOfferCanceledEvent = OfferCanceledEvent("offer_id")
-        // This should not throw since only one such OfferCanceled event should exist in the database
-        val offerCanceledEvent = databaseService.getOfferCanceledEvent("offer_id")
-        assertEquals(expectedOfferCanceledEvent, offerCanceledEvent)
-        databaseService.deleteOfferCanceledEvents("offer_id")
-        val offerCanceledEventAfterDeletion = databaseService.getOfferCanceledEvent("offer_id")
-        assertEquals(offerCanceledEventAfterDeletion, null)
-    }
-
-    @Test
     fun testStoreAndGetKeyPair() = runBlocking {
         databaseService.storeKeyPair("interf_id", "pub_key", "priv_key")
         val expectedKeyPair = KeyPair("interf_id", "pub_key", "priv_key")

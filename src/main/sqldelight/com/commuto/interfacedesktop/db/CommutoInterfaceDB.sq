@@ -21,17 +21,6 @@ offerId TEXT NOT NULL,
 settlementMethod TEXT NOT NULL
 );
 
-createOfferOpenedEventTable:
-CREATE TABLE OfferOpenedEvent (
-offerId TEXT UNIQUE NOT NULL,
-interfaceId TEXT NOT NULL
-);
-
-createOfferCanceledEventTable:
-CREATE TABLE OfferCanceledEvent (
-offerId TEXT UNIQUE NOT NULL
-);
-
 createKeyPairTable:
 CREATE TABLE KeyPair (
 interfaceId TEXT UNIQUE NOT NULL,
@@ -69,14 +58,6 @@ insertSettlementMethod:
 INSERT INTO SettlementMethod(offerId, settlementMethod)
 VALUES(?, ?);
 
-insertOfferOpenedEvent:
-INSERT INTO OfferOpenedEvent(offerId, interfaceId)
-VALUES(?, ?);
-
-insertOfferCanceledEvent:
-INSERT INTO OfferCanceledEvent(offerId)
-VALUES(?);
-
 insertKeyPair:
 INSERT INTO KeyPair(interfaceId, publicKey, privateKey)
 VALUES(?, ?, ?);
@@ -91,14 +72,6 @@ WHERE offerId = ?;
 
 selectSettlementMethodByOfferId:
 SELECT * FROM SettlementMethod
-WHERE offerId = ?;
-
-selectOfferOpenedEventByOfferId:
-SELECT * FROM OfferOpenedEvent
-WHERE offerId = ?;
-
-selectOfferCanceledEventByOfferId:
-SELECT * FROM OfferCanceledEvent
 WHERE offerId = ?;
 
 selectKeyPairByInterfaceId:
@@ -117,25 +90,11 @@ deleteSettlementMethodByOfferId:
 DELETE FROM SettlementMethod
 WHERE offerId = ?;
 
-deleteOfferOpenedEventByOfferId:
-DELETE FROM OfferOpenedEvent
-WHERE offerId = ?;
-
-deleteOfferCanceledEventByOfferId:
-DELETE FROM OfferCanceledEvent
-WHERE offerId = ?;
-
 removeAllOffers:
 DELETE FROM Offer;
 
 removeAllSettlementMethods:
 DELETE FROM SettlementMethod;
-
-removeAllOfferOpenedEvents:
-DELETE FROM OfferOpenedEvent;
-
-removeAllOfferCanceledEvents:
-DELETE FROM OfferCanceledEvent;
 
 removeAllKeyPairs:
 DELETE FROM KeyPair;

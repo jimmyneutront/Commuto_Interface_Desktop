@@ -7,8 +7,6 @@ import com.commuto.interfacedesktop.blockchain.BlockchainExceptionNotifiable
 import com.commuto.interfacedesktop.blockchain.BlockchainService
 import com.commuto.interfacedesktop.database.DatabaseDriverFactory
 import com.commuto.interfacedesktop.database.DatabaseService
-import com.commuto.interfacedesktop.db.OfferCanceledEvent
-import com.commuto.interfacedesktop.db.OfferOpenedEvent
 import io.ktor.client.*
 import io.ktor.client.call.*
 import io.ktor.client.engine.okhttp.*
@@ -78,23 +76,7 @@ class OfferServiceTests {
 
         val w3 = Web3j.build(HttpService(System.getenv("BLOCKCHAIN_NODE")))
 
-        class TestDatabaseService: DatabaseService(DatabaseDriverFactory()) {
-            var storedDatabaseOfferOpenedEvent: OfferOpenedEvent? = null
-            var wasDeleteOfferOpenedEventCalledCorrectly = false
-
-            override suspend fun storeOfferOpenedEvent(id: String, interfaceId: String) {
-                storedDatabaseOfferOpenedEvent = OfferOpenedEvent(id, interfaceId)
-                super.storeOfferOpenedEvent(id, interfaceId)
-            }
-
-            override suspend fun deleteOfferOpenedEvents(id: String) {
-                if (id == storedDatabaseOfferOpenedEvent!!.offerId) {
-                    wasDeleteOfferOpenedEventCalledCorrectly = true
-                }
-                super.deleteOfferOpenedEvents(id)
-            }
-        }
-        val databaseService = TestDatabaseService()
+        val databaseService = DatabaseService(DatabaseDriverFactory())
         databaseService.createTables()
 
         class TestBlockchainEventRepository: BlockchainEventRepository<CommutoSwap.OfferOpenedEventResponse>() {
@@ -164,9 +146,6 @@ class OfferServiceTests {
                 assert(
                     Arrays.equals(offerOpenedEventRepository.removedEventResponse!!.offerID,
                     expectedOfferIdByteArray))
-                assert(databaseService.storedDatabaseOfferOpenedEvent!!.offerId == encoder
-                    .encodeToString(expectedOfferIdByteArray))
-                assert(databaseService.wasDeleteOfferOpenedEventCalledCorrectly)
                 val offerInDatabase = databaseService.getOffer(encoder.encodeToString(expectedOfferIdByteArray))
                 assert(offerInDatabase!!.isCreated == 1L)
                 assert(offerInDatabase.isTaken == 0L)
@@ -217,23 +196,7 @@ class OfferServiceTests {
 
         val w3 = Web3j.build(HttpService(System.getenv("BLOCKCHAIN_NODE")))
 
-        class TestDatabaseService: DatabaseService(DatabaseDriverFactory()) {
-            var storedDatabaseOfferCanceledEvent: OfferCanceledEvent? = null
-            var wasDeleteOfferCanceledEventCalledCorrectly = false
-
-            override suspend fun storeOfferCanceledEvent(id: String) {
-                storedDatabaseOfferCanceledEvent = OfferCanceledEvent(id)
-                super.storeOfferCanceledEvent(id)
-            }
-
-            override suspend fun deleteOfferCanceledEvents(id: String) {
-                if (id == storedDatabaseOfferCanceledEvent!!.offerId) {
-                    wasDeleteOfferCanceledEventCalledCorrectly = true
-                }
-                super.deleteOfferCanceledEvents(id)
-            }
-        }
-        val databaseService = TestDatabaseService()
+        val databaseService = DatabaseService(DatabaseDriverFactory())
         databaseService.createTables()
 
         class TestBlockchainEventRepository: BlockchainEventRepository<CommutoSwap.OfferCanceledEventResponse>() {
@@ -304,9 +267,6 @@ class OfferServiceTests {
                     expectedOfferIdByteArray))
                 assert(Arrays.equals(offerCanceledEventRepository.removedEventResponse!!.offerID,
                     expectedOfferIdByteArray))
-                assertEquals(databaseService.storedDatabaseOfferCanceledEvent!!.offerId,
-                    encoder.encodeToString(expectedOfferIdByteArray))
-                assert(databaseService.wasDeleteOfferCanceledEventCalledCorrectly)
                 val offerInDatabase = databaseService.getOffer(encoder.encodeToString(expectedOfferIdByteArray))
                 assertEquals(offerInDatabase, null)
             }

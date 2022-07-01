@@ -72,11 +72,11 @@ class OfferService (
 
     /**
      * The method called by [com.commuto.interfacedesktop.blockchain.BlockchainService] to notify [OfferService]
-     * of an [CommutoSwap.OfferOpenedEventResponse]. Once notified, [OfferService] persistently stores [event], saves it
-     * in [offerOpenedEventRepository], gets all on-chain offer data by calling [blockchainService]'s
-     * [BlockchainService.getOfferAsync] method, creates a new [Offer] with the results, persistently stores the new
-     * offer, removes [event] from persistent storage, and then adds the new [Offer] to [offerTruthSource] on the main
-     * coroutine dispatcher.
+     * of an [CommutoSwap.OfferOpenedEventResponse]. Once notified, [OfferService] saves [event] in
+     * [offerOpenedEventRepository], gets all on-chain offer data by calling [blockchainService]'s
+     * [BlockchainService.getOfferAsync] method, creates a new [Offer] and list of settlement methods with the results,
+     * persistently stores the new offer and its settlement methods, removes [event] from [offerOpenedEventRepository],
+     * and then adds the new [Offer] to [offerTruthSource] on the main coroutine dispatcher.
      *
      * @param event The [CommutoSwap.OfferOpenedEventResponse] of which [OfferService] is being notified.
      */
@@ -88,10 +88,6 @@ class OfferService (
         val leastSigBits = offerIdByteBuffer.long
         val offerId = UUID(mostSigBits, leastSigBits)
         val encoder = Base64.getEncoder()
-        databaseService.storeOfferOpenedEvent(
-            id = encoder.encodeToString(event.offerID),
-            interfaceId = encoder.encodeToString(event.interfaceId)
-        )
         offerOpenedEventRepository.append(event)
         val onChainOffer = blockchainService.getOfferAsync(offerId).await()
         val offer = Offer(
@@ -135,7 +131,6 @@ class OfferService (
             encoder.encodeToString(it)
         }
         databaseService.storeSettlementMethods(offerForDatabase.offerId, settlementMethodStrings)
-        databaseService.deleteOfferOpenedEvents(encoder.encodeToString(event.offerID))
         offerOpenedEventRepository.remove(event)
         withContext(Dispatchers.Main) {
             offerTruthSource.addOffer(offer)
@@ -143,11 +138,11 @@ class OfferService (
     }
 
     /**
-     * The method called by [com.commuto.interfacedesktop.blockchain.BlockchainService] to
-     * notify [OfferService] of an [CommutoSwap.OfferCanceledEventResponse]. Once notified,
-     * [OfferService] gets the ID of the now-canceled offer from
-     * [CommutoSwap.OfferCanceledEventResponse] and removes the [Offer] with the specified ID from
-     * [offerTruthSource].
+     * The method called by [com.commuto.interfacedesktop.blockchain.BlockchainService] to notify [OfferService]
+     * of an [CommutoSwap.OfferCanceledEventResponse]. Once notified, [OfferService] saves [event] in
+     * [offerCanceledEventRepository], removes the corresponding [Offer] and its settlement methods from persistent
+     * storage, removes [event] from [offerCanceledEventRepository], and then removes the corresponding [Offer] from
+     * [offerTruthSource] on the main coroutine dispatcher.
      *
      * @param event The [CommutoSwap.OfferCanceledEventResponse] of which
      * [OfferService] is being notified.
@@ -158,13 +153,9 @@ class OfferService (
         val leastSigBits = offerIdByteBuffer.long
         val offerId = UUID(mostSigBits, leastSigBits)
         val offerIdString = Base64.getEncoder().encodeToString(event.offerID)
-        databaseService.storeOfferCanceledEvent(
-            id = offerIdString
-        )
         offerCanceledEventRepository.append(event)
         databaseService.deleteOffers(offerIdString)
         databaseService.deleteSettlementMethods(offerIdString)
-        databaseService.deleteOfferCanceledEvents(offerIdString)
         offerCanceledEventRepository.remove(event)
         withContext(Dispatchers.Main) {
             offerTruthSource.removeOffer(offerId)
