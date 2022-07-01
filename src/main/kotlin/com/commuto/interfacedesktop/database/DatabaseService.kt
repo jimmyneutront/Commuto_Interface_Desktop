@@ -238,7 +238,7 @@ open class DatabaseService @Inject constructor(private val databaseDriverFactory
      * @throws Exception if database insertion is unsuccessful for a reason OTHER than UNIQUE constraint failure.
      */
     @OptIn(DelicateCoroutinesApi::class)
-    suspend fun storeOfferCanceledEvent(id: String) {
+    open suspend fun storeOfferCanceledEvent(id: String) {
         try {
             withContext(databaseServiceContext) {
                 database.insertOfferCanceledEvent(OfferCanceledEvent(id))
@@ -263,7 +263,7 @@ open class DatabaseService @Inject constructor(private val databaseDriverFactory
      * @throws Exception If deletion is unsuccessful.
      */
     @OptIn(DelicateCoroutinesApi::class)
-    suspend fun deleteOfferCanceledEvents(id: String) {
+    open suspend fun deleteOfferCanceledEvents(id: String) {
         withContext(databaseServiceContext) {
             database.deleteOfferCanceledEvent(id)
         }
