@@ -97,7 +97,12 @@ class OfferServiceTests {
         }
         val offerOpenedEventRepository = TestBlockchainEventRepository()
 
-        val offerService = OfferService(databaseService, offerOpenedEventRepository, BlockchainEventRepository())
+        val offerService = OfferService(
+            databaseService,
+            offerOpenedEventRepository,
+            BlockchainEventRepository(),
+            BlockchainEventRepository()
+        )
 
         class TestOfferTruthSource: OfferTruthSource {
             init {
@@ -217,7 +222,12 @@ class OfferServiceTests {
         }
         val offerCanceledEventRepository = TestBlockchainEventRepository()
 
-        val offerService = OfferService(databaseService, BlockchainEventRepository(), offerCanceledEventRepository)
+        val offerService = OfferService(
+            databaseService,
+            BlockchainEventRepository(),
+            offerCanceledEventRepository,
+            BlockchainEventRepository()
+        )
 
         class TestOfferTruthSource: OfferTruthSource {
             init {
@@ -266,6 +276,122 @@ class OfferServiceTests {
                 assert(Arrays.equals(offerCanceledEventRepository.appendedEventResponse!!.offerID,
                     expectedOfferIdByteArray))
                 assert(Arrays.equals(offerCanceledEventRepository.removedEventResponse!!.offerID,
+                    expectedOfferIdByteArray))
+                val offerInDatabase = databaseService.getOffer(encoder.encodeToString(expectedOfferIdByteArray))
+                assertEquals(offerInDatabase, null)
+            }
+        }
+    }
+
+    /**
+     * Ensures that [OfferService] handles
+     * [OfferTaken](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offertaken) events properly.
+     */
+    @Test
+    fun testHandleOfferTakenEvent() {
+        @Serializable
+        data class TestingServerResponse(val commutoSwapAddress: String, val offerId: String)
+
+        val testingServiceUrl = "http://localhost:8546/test_offerservice_handleOfferTakenEvent"
+        val testingServerClient = HttpClient(OkHttp) {
+            install(ContentNegotiation) {
+                json()
+            }
+            install(HttpTimeout) {
+                socketTimeoutMillis = 90_000
+                requestTimeoutMillis = 90_000
+            }
+        }
+        val testingServerResponse: TestingServerResponse = runBlocking {
+            testingServerClient.get(testingServiceUrl) {
+                url {
+                    parameters.append("events", "offer-opened-taken")
+                }
+            }.body()
+        }
+        val expectedOfferId = UUID.fromString(testingServerResponse.offerId)
+        val expectedOfferIdByteBuffer = ByteBuffer.wrap(ByteArray(16))
+        expectedOfferIdByteBuffer.putLong(expectedOfferId.mostSignificantBits)
+        expectedOfferIdByteBuffer.putLong(expectedOfferId.leastSignificantBits)
+        val expectedOfferIdByteArray = expectedOfferIdByteBuffer.array()
+
+        val w3 = Web3j.build(HttpService(System.getenv("BLOCKCHAIN_NODE")))
+
+        val databaseService = DatabaseService(DatabaseDriverFactory())
+        databaseService.createTables()
+
+        class TestBlockchainEventRepository: BlockchainEventRepository<CommutoSwap.OfferTakenEventResponse>() {
+
+            var appendedEventResponse: CommutoSwap.OfferTakenEventResponse? = null
+            var removedEventResponse: CommutoSwap.OfferTakenEventResponse? = null
+
+            override fun append(element: CommutoSwap.OfferTakenEventResponse) {
+                appendedEventResponse = element
+                super.append(element)
+            }
+
+            override fun remove(elementToRemove: CommutoSwap.OfferTakenEventResponse) {
+                removedEventResponse = elementToRemove
+                super.remove(elementToRemove)
+            }
+
+        }
+        val offerTakenEventRepository = TestBlockchainEventRepository()
+
+        val offerService = OfferService(
+            databaseService,
+            BlockchainEventRepository(),
+            BlockchainEventRepository(),
+            offerTakenEventRepository
+        )
+
+        class TestOfferTruthSource: OfferTruthSource {
+            init {
+                offerService.setOfferTruthSource(this)
+            }
+            val offersChannel = Channel<Offer>()
+            override var offers = mutableStateListOf<Offer>()
+
+            override fun addOffer(offer: Offer) {
+                offers.add(offer)
+            }
+
+            override fun removeOffer(id: UUID) {
+                val offerToSend = offers.first {
+                    it.id == id
+                }
+                offers.removeIf { it.id == id }
+                runBlocking {
+                    offersChannel.send(offerToSend)
+                }
+            }
+        }
+        val offerTruthSource = TestOfferTruthSource()
+
+        class TestBlockchainExceptionHandler: BlockchainExceptionNotifiable {
+            var gotError = false
+            override fun handleBlockchainException(exception: Exception) {
+                gotError = true
+            }
+        }
+        val exceptionHandler = TestBlockchainExceptionHandler()
+
+        val blockchainService = BlockchainService(
+            exceptionHandler,
+            offerService,
+            w3,
+            testingServerResponse.commutoSwapAddress
+        )
+        blockchainService.listen()
+        val encoder = Base64.getEncoder()
+        runBlocking {
+            withTimeout(60_000) {
+                offerTruthSource.offersChannel.receive()
+                assertFalse(exceptionHandler.gotError)
+                assert(offerTruthSource.offers.isEmpty())
+                assert(Arrays.equals(offerTakenEventRepository.appendedEventResponse!!.offerID,
+                    expectedOfferIdByteArray))
+                assert(Arrays.equals(offerTakenEventRepository.removedEventResponse!!.offerID,
                     expectedOfferIdByteArray))
                 val offerInDatabase = databaseService.getOffer(encoder.encodeToString(expectedOfferIdByteArray))
                 assertEquals(offerInDatabase, null)
