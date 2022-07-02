@@ -41,7 +41,7 @@ import org.web3j.tx.gas.ContractGasProvider;
  * <p>Auto generated code.
  * <p><strong>Do not modify!</strong>
  * <p>Please use the <a href="https://docs.web3j.io/command_line.html">web3j command line tools</a>,
- * or the org.web3j.codegen.SolidityFunctionWrapperGenerator in the 
+ * or the org.web3j.codegen.SolidityFunctionWrapperGenerator in the
  * <a href="https://github.com/web3j/web3j/tree/master/codegen">codegen module</a> to update.
  *
  * <p>Generated with web3j version 1.4.1.
@@ -140,79 +140,79 @@ public class CommutoSwap extends Contract {
 
     public static final String FUNC_TAKEOFFER = "takeOffer";
 
-    public static final Event BUYERCLOSED_EVENT = new Event("BuyerClosed", 
+    public static final Event BUYERCLOSED_EVENT = new Event("BuyerClosed",
             Arrays.<TypeReference<?>>asList(new TypeReference<Bytes16>() {}));
     ;
 
-    public static final Event DISPUTEESCALATED_EVENT = new Event("DisputeEscalated", 
+    public static final Event DISPUTEESCALATED_EVENT = new Event("DisputeEscalated",
             Arrays.<TypeReference<?>>asList(new TypeReference<Bytes16>() {}, new TypeReference<Address>() {}, new TypeReference<Uint8>() {}));
     ;
 
-    public static final Event DISPUTERAISED_EVENT = new Event("DisputeRaised", 
+    public static final Event DISPUTERAISED_EVENT = new Event("DisputeRaised",
             Arrays.<TypeReference<?>>asList(new TypeReference<Bytes16>() {}, new TypeReference<Address>() {}, new TypeReference<Address>() {}, new TypeReference<Address>() {}));
     ;
 
-    public static final Event DISPUTERESOLUTIONTIMELOCKCHANGED_EVENT = new Event("DisputeResolutionTimelockChanged", 
+    public static final Event DISPUTERESOLUTIONTIMELOCKCHANGED_EVENT = new Event("DisputeResolutionTimelockChanged",
             Arrays.<TypeReference<?>>asList(new TypeReference<Address>() {}, new TypeReference<Address>() {}));
     ;
 
-    public static final Event DISPUTEDSWAPCLOSED_EVENT = new Event("DisputedSwapClosed", 
+    public static final Event DISPUTEDSWAPCLOSED_EVENT = new Event("DisputedSwapClosed",
             Arrays.<TypeReference<?>>asList(new TypeReference<Bytes16>() {}, new TypeReference<Address>() {}));
     ;
 
-    public static final Event ESCALATEDSWAPCLOSED_EVENT = new Event("EscalatedSwapClosed", 
+    public static final Event ESCALATEDSWAPCLOSED_EVENT = new Event("EscalatedSwapClosed",
             Arrays.<TypeReference<?>>asList(new TypeReference<Bytes16>() {}, new TypeReference<Uint256>() {}, new TypeReference<Uint256>() {}, new TypeReference<Uint256>() {}));
     ;
 
-    public static final Event MINIMUMDISPUTEPERIODCHANGED_EVENT = new Event("MinimumDisputePeriodChanged", 
+    public static final Event MINIMUMDISPUTEPERIODCHANGED_EVENT = new Event("MinimumDisputePeriodChanged",
             Arrays.<TypeReference<?>>asList(new TypeReference<Uint256>() {}));
     ;
 
-    public static final Event OFFERCANCELED_EVENT = new Event("OfferCanceled", 
+    public static final Event OFFERCANCELED_EVENT = new Event("OfferCanceled",
             Arrays.<TypeReference<?>>asList(new TypeReference<Bytes16>() {}));
     ;
 
-    public static final Event OFFEROPENED_EVENT = new Event("OfferOpened", 
+    public static final Event OFFEREDITED_EVENT = new Event("OfferEdited",
+            Arrays.<TypeReference<?>>asList(new TypeReference<Bytes16>() {}));
+    ;
+
+    public static final Event OFFEROPENED_EVENT = new Event("OfferOpened",
             Arrays.<TypeReference<?>>asList(new TypeReference<Bytes16>() {}, new TypeReference<DynamicBytes>() {}));
     ;
 
-    public static final Event OFFERTAKEN_EVENT = new Event("OfferTaken", 
+    public static final Event OFFERTAKEN_EVENT = new Event("OfferTaken",
             Arrays.<TypeReference<?>>asList(new TypeReference<Bytes16>() {}, new TypeReference<DynamicBytes>() {}));
     ;
 
-    public static final Event PAYMENTRECEIVED_EVENT = new Event("PaymentReceived", 
+    public static final Event PAYMENTRECEIVED_EVENT = new Event("PaymentReceived",
             Arrays.<TypeReference<?>>asList(new TypeReference<Bytes16>() {}));
     ;
 
-    public static final Event PAYMENTSENT_EVENT = new Event("PaymentSent", 
+    public static final Event PAYMENTSENT_EVENT = new Event("PaymentSent",
             Arrays.<TypeReference<?>>asList(new TypeReference<Bytes16>() {}));
     ;
 
-    public static final Event PRICECHANGED_EVENT = new Event("PriceChanged", 
-            Arrays.<TypeReference<?>>asList(new TypeReference<Bytes16>() {}));
-    ;
-
-    public static final Event PRIMARYTIMELOCKCHANGED_EVENT = new Event("PrimaryTimelockChanged", 
+    public static final Event PRIMARYTIMELOCKCHANGED_EVENT = new Event("PrimaryTimelockChanged",
             Arrays.<TypeReference<?>>asList(new TypeReference<Address>() {}, new TypeReference<Address>() {}));
     ;
 
-    public static final Event REACTIONSUBMITTED_EVENT = new Event("ReactionSubmitted", 
+    public static final Event REACTIONSUBMITTED_EVENT = new Event("ReactionSubmitted",
             Arrays.<TypeReference<?>>asList(new TypeReference<Bytes16>() {}, new TypeReference<Address>() {}, new TypeReference<Uint8>() {}));
     ;
 
-    public static final Event RESOLUTIONPROPOSED_EVENT = new Event("ResolutionProposed", 
+    public static final Event RESOLUTIONPROPOSED_EVENT = new Event("ResolutionProposed",
             Arrays.<TypeReference<?>>asList(new TypeReference<Bytes16>() {}, new TypeReference<Address>() {}));
     ;
 
-    public static final Event SELLERCLOSED_EVENT = new Event("SellerClosed", 
+    public static final Event SELLERCLOSED_EVENT = new Event("SellerClosed",
             Arrays.<TypeReference<?>>asList(new TypeReference<Bytes16>() {}));
     ;
 
-    public static final Event SERVICEFEERATECHANGED_EVENT = new Event("ServiceFeeRateChanged", 
+    public static final Event SERVICEFEERATECHANGED_EVENT = new Event("ServiceFeeRateChanged",
             Arrays.<TypeReference<?>>asList(new TypeReference<Uint256>() {}));
     ;
 
-    public static final Event SWAPFILLED_EVENT = new Event("SwapFilled", 
+    public static final Event SWAPFILLED_EVENT = new Event("SwapFilled",
             Arrays.<TypeReference<?>>asList(new TypeReference<Bytes16>() {}));
     ;
 
@@ -520,6 +520,37 @@ public class CommutoSwap extends Contract {
         return offerCanceledEventFlowable(filter);
     }
 
+    public List<OfferEditedEventResponse> getOfferEditedEvents(TransactionReceipt transactionReceipt) {
+        List<Contract.EventValuesWithLog> valueList = extractEventParametersWithLog(OFFEREDITED_EVENT, transactionReceipt);
+        ArrayList<OfferEditedEventResponse> responses = new ArrayList<OfferEditedEventResponse>(valueList.size());
+        for (Contract.EventValuesWithLog eventValues : valueList) {
+            OfferEditedEventResponse typedResponse = new OfferEditedEventResponse();
+            typedResponse.log = eventValues.getLog();
+            typedResponse.offerID = (byte[]) eventValues.getNonIndexedValues().get(0).getValue();
+            responses.add(typedResponse);
+        }
+        return responses;
+    }
+
+    public Flowable<OfferEditedEventResponse> offerEditedEventFlowable(EthFilter filter) {
+        return web3j.ethLogFlowable(filter).map(new Function<Log, OfferEditedEventResponse>() {
+            @Override
+            public OfferEditedEventResponse apply(Log log) {
+                Contract.EventValuesWithLog eventValues = extractEventParametersWithLog(OFFEREDITED_EVENT, log);
+                OfferEditedEventResponse typedResponse = new OfferEditedEventResponse();
+                typedResponse.log = log;
+                typedResponse.offerID = (byte[]) eventValues.getNonIndexedValues().get(0).getValue();
+                return typedResponse;
+            }
+        });
+    }
+
+    public Flowable<OfferEditedEventResponse> offerEditedEventFlowable(DefaultBlockParameter startBlock, DefaultBlockParameter endBlock) {
+        EthFilter filter = new EthFilter(startBlock, endBlock, getContractAddress());
+        filter.addSingleTopic(EventEncoder.encode(OFFEREDITED_EVENT));
+        return offerEditedEventFlowable(filter);
+    }
+
     public List<OfferOpenedEventResponse> getOfferOpenedEvents(TransactionReceipt transactionReceipt) {
         List<Contract.EventValuesWithLog> valueList = extractEventParametersWithLog(OFFEROPENED_EVENT, transactionReceipt);
         ArrayList<OfferOpenedEventResponse> responses = new ArrayList<OfferOpenedEventResponse>(valueList.size());
@@ -646,37 +677,6 @@ public class CommutoSwap extends Contract {
         EthFilter filter = new EthFilter(startBlock, endBlock, getContractAddress());
         filter.addSingleTopic(EventEncoder.encode(PAYMENTSENT_EVENT));
         return paymentSentEventFlowable(filter);
-    }
-
-    public List<PriceChangedEventResponse> getPriceChangedEvents(TransactionReceipt transactionReceipt) {
-        List<Contract.EventValuesWithLog> valueList = extractEventParametersWithLog(PRICECHANGED_EVENT, transactionReceipt);
-        ArrayList<PriceChangedEventResponse> responses = new ArrayList<PriceChangedEventResponse>(valueList.size());
-        for (Contract.EventValuesWithLog eventValues : valueList) {
-            PriceChangedEventResponse typedResponse = new PriceChangedEventResponse();
-            typedResponse.log = eventValues.getLog();
-            typedResponse.offerID = (byte[]) eventValues.getNonIndexedValues().get(0).getValue();
-            responses.add(typedResponse);
-        }
-        return responses;
-    }
-
-    public Flowable<PriceChangedEventResponse> priceChangedEventFlowable(EthFilter filter) {
-        return web3j.ethLogFlowable(filter).map(new Function<Log, PriceChangedEventResponse>() {
-            @Override
-            public PriceChangedEventResponse apply(Log log) {
-                Contract.EventValuesWithLog eventValues = extractEventParametersWithLog(PRICECHANGED_EVENT, log);
-                PriceChangedEventResponse typedResponse = new PriceChangedEventResponse();
-                typedResponse.log = log;
-                typedResponse.offerID = (byte[]) eventValues.getNonIndexedValues().get(0).getValue();
-                return typedResponse;
-            }
-        });
-    }
-
-    public Flowable<PriceChangedEventResponse> priceChangedEventFlowable(DefaultBlockParameter startBlock, DefaultBlockParameter endBlock) {
-        EthFilter filter = new EthFilter(startBlock, endBlock, getContractAddress());
-        filter.addSingleTopic(EventEncoder.encode(PRICECHANGED_EVENT));
-        return priceChangedEventFlowable(filter);
     }
 
     public List<PrimaryTimelockChangedEventResponse> getPrimaryTimelockChangedEvents(TransactionReceipt transactionReceipt) {
@@ -875,170 +875,170 @@ public class CommutoSwap extends Contract {
 
     public RemoteFunctionCall<TransactionReceipt> cancelOffer(byte[] offerID) {
         final org.web3j.abi.datatypes.Function function = new org.web3j.abi.datatypes.Function(
-                FUNC_CANCELOFFER, 
-                Arrays.<Type>asList(new org.web3j.abi.datatypes.generated.Bytes16(offerID)), 
+                FUNC_CANCELOFFER,
+                Arrays.<Type>asList(new org.web3j.abi.datatypes.generated.Bytes16(offerID)),
                 Collections.<TypeReference<?>>emptyList());
         return executeRemoteCallTransaction(function);
     }
 
     public RemoteFunctionCall<TransactionReceipt> changeDisputeResolutionTimelock(String newDisputeResolutionTimelock) {
         final org.web3j.abi.datatypes.Function function = new org.web3j.abi.datatypes.Function(
-                FUNC_CHANGEDISPUTERESOLUTIONTIMELOCK, 
-                Arrays.<Type>asList(new org.web3j.abi.datatypes.Address(160, newDisputeResolutionTimelock)), 
+                FUNC_CHANGEDISPUTERESOLUTIONTIMELOCK,
+                Arrays.<Type>asList(new org.web3j.abi.datatypes.Address(160, newDisputeResolutionTimelock)),
                 Collections.<TypeReference<?>>emptyList());
         return executeRemoteCallTransaction(function);
     }
 
     public RemoteFunctionCall<TransactionReceipt> changePrimaryTimelock(String newPrimaryTimelock) {
         final org.web3j.abi.datatypes.Function function = new org.web3j.abi.datatypes.Function(
-                FUNC_CHANGEPRIMARYTIMELOCK, 
-                Arrays.<Type>asList(new org.web3j.abi.datatypes.Address(160, newPrimaryTimelock)), 
+                FUNC_CHANGEPRIMARYTIMELOCK,
+                Arrays.<Type>asList(new org.web3j.abi.datatypes.Address(160, newPrimaryTimelock)),
                 Collections.<TypeReference<?>>emptyList());
         return executeRemoteCallTransaction(function);
     }
 
     public RemoteFunctionCall<TransactionReceipt> closeDisputedSwap(byte[] swapID) {
         final org.web3j.abi.datatypes.Function function = new org.web3j.abi.datatypes.Function(
-                FUNC_CLOSEDISPUTEDSWAP, 
-                Arrays.<Type>asList(new org.web3j.abi.datatypes.generated.Bytes16(swapID)), 
+                FUNC_CLOSEDISPUTEDSWAP,
+                Arrays.<Type>asList(new org.web3j.abi.datatypes.generated.Bytes16(swapID)),
                 Collections.<TypeReference<?>>emptyList());
         return executeRemoteCallTransaction(function);
     }
 
     public RemoteFunctionCall<TransactionReceipt> closeEscalatedSwap(byte[] swapID, BigInteger makerPayout, BigInteger takerPayout, BigInteger confiscationPayout) {
         final org.web3j.abi.datatypes.Function function = new org.web3j.abi.datatypes.Function(
-                FUNC_CLOSEESCALATEDSWAP, 
-                Arrays.<Type>asList(new org.web3j.abi.datatypes.generated.Bytes16(swapID), 
-                new org.web3j.abi.datatypes.generated.Uint256(makerPayout), 
-                new org.web3j.abi.datatypes.generated.Uint256(takerPayout), 
-                new org.web3j.abi.datatypes.generated.Uint256(confiscationPayout)), 
+                FUNC_CLOSEESCALATEDSWAP,
+                Arrays.<Type>asList(new org.web3j.abi.datatypes.generated.Bytes16(swapID),
+                        new org.web3j.abi.datatypes.generated.Uint256(makerPayout),
+                        new org.web3j.abi.datatypes.generated.Uint256(takerPayout),
+                        new org.web3j.abi.datatypes.generated.Uint256(confiscationPayout)),
                 Collections.<TypeReference<?>>emptyList());
         return executeRemoteCallTransaction(function);
     }
 
     public RemoteFunctionCall<TransactionReceipt> closeSwap(byte[] swapID) {
         final org.web3j.abi.datatypes.Function function = new org.web3j.abi.datatypes.Function(
-                FUNC_CLOSESWAP, 
-                Arrays.<Type>asList(new org.web3j.abi.datatypes.generated.Bytes16(swapID)), 
+                FUNC_CLOSESWAP,
+                Arrays.<Type>asList(new org.web3j.abi.datatypes.generated.Bytes16(swapID)),
                 Collections.<TypeReference<?>>emptyList());
         return executeRemoteCallTransaction(function);
     }
 
     public RemoteFunctionCall<String> commutoSwapCloser() {
-        final org.web3j.abi.datatypes.Function function = new org.web3j.abi.datatypes.Function(FUNC_COMMUTOSWAPCLOSER, 
-                Arrays.<Type>asList(), 
+        final org.web3j.abi.datatypes.Function function = new org.web3j.abi.datatypes.Function(FUNC_COMMUTOSWAPCLOSER,
+                Arrays.<Type>asList(),
                 Arrays.<TypeReference<?>>asList(new TypeReference<Address>() {}));
         return executeRemoteCallSingleValueReturn(function, String.class);
     }
 
     public RemoteFunctionCall<String> commutoSwapDisputeEscalator() {
-        final org.web3j.abi.datatypes.Function function = new org.web3j.abi.datatypes.Function(FUNC_COMMUTOSWAPDISPUTEESCALATOR, 
-                Arrays.<Type>asList(), 
+        final org.web3j.abi.datatypes.Function function = new org.web3j.abi.datatypes.Function(FUNC_COMMUTOSWAPDISPUTEESCALATOR,
+                Arrays.<Type>asList(),
                 Arrays.<TypeReference<?>>asList(new TypeReference<Address>() {}));
         return executeRemoteCallSingleValueReturn(function, String.class);
     }
 
     public RemoteFunctionCall<String> commutoSwapDisputeRaiser() {
-        final org.web3j.abi.datatypes.Function function = new org.web3j.abi.datatypes.Function(FUNC_COMMUTOSWAPDISPUTERAISER, 
-                Arrays.<Type>asList(), 
+        final org.web3j.abi.datatypes.Function function = new org.web3j.abi.datatypes.Function(FUNC_COMMUTOSWAPDISPUTERAISER,
+                Arrays.<Type>asList(),
                 Arrays.<TypeReference<?>>asList(new TypeReference<Address>() {}));
         return executeRemoteCallSingleValueReturn(function, String.class);
     }
 
     public RemoteFunctionCall<String> commutoSwapFiller() {
-        final org.web3j.abi.datatypes.Function function = new org.web3j.abi.datatypes.Function(FUNC_COMMUTOSWAPFILLER, 
-                Arrays.<Type>asList(), 
+        final org.web3j.abi.datatypes.Function function = new org.web3j.abi.datatypes.Function(FUNC_COMMUTOSWAPFILLER,
+                Arrays.<Type>asList(),
                 Arrays.<TypeReference<?>>asList(new TypeReference<Address>() {}));
         return executeRemoteCallSingleValueReturn(function, String.class);
     }
 
     public RemoteFunctionCall<String> commutoSwapOfferCanceler() {
-        final org.web3j.abi.datatypes.Function function = new org.web3j.abi.datatypes.Function(FUNC_COMMUTOSWAPOFFERCANCELER, 
-                Arrays.<Type>asList(), 
+        final org.web3j.abi.datatypes.Function function = new org.web3j.abi.datatypes.Function(FUNC_COMMUTOSWAPOFFERCANCELER,
+                Arrays.<Type>asList(),
                 Arrays.<TypeReference<?>>asList(new TypeReference<Address>() {}));
         return executeRemoteCallSingleValueReturn(function, String.class);
     }
 
     public RemoteFunctionCall<String> commutoSwapOfferEditor() {
-        final org.web3j.abi.datatypes.Function function = new org.web3j.abi.datatypes.Function(FUNC_COMMUTOSWAPOFFEREDITOR, 
-                Arrays.<Type>asList(), 
+        final org.web3j.abi.datatypes.Function function = new org.web3j.abi.datatypes.Function(FUNC_COMMUTOSWAPOFFEREDITOR,
+                Arrays.<Type>asList(),
                 Arrays.<TypeReference<?>>asList(new TypeReference<Address>() {}));
         return executeRemoteCallSingleValueReturn(function, String.class);
     }
 
     public RemoteFunctionCall<String> commutoSwapOfferOpener() {
-        final org.web3j.abi.datatypes.Function function = new org.web3j.abi.datatypes.Function(FUNC_COMMUTOSWAPOFFEROPENER, 
-                Arrays.<Type>asList(), 
+        final org.web3j.abi.datatypes.Function function = new org.web3j.abi.datatypes.Function(FUNC_COMMUTOSWAPOFFEROPENER,
+                Arrays.<Type>asList(),
                 Arrays.<TypeReference<?>>asList(new TypeReference<Address>() {}));
         return executeRemoteCallSingleValueReturn(function, String.class);
     }
 
     public RemoteFunctionCall<String> commutoSwapOfferTaker() {
-        final org.web3j.abi.datatypes.Function function = new org.web3j.abi.datatypes.Function(FUNC_COMMUTOSWAPOFFERTAKER, 
-                Arrays.<Type>asList(), 
+        final org.web3j.abi.datatypes.Function function = new org.web3j.abi.datatypes.Function(FUNC_COMMUTOSWAPOFFERTAKER,
+                Arrays.<Type>asList(),
                 Arrays.<TypeReference<?>>asList(new TypeReference<Address>() {}));
         return executeRemoteCallSingleValueReturn(function, String.class);
     }
 
     public RemoteFunctionCall<String> commutoSwapPaymentReporter() {
-        final org.web3j.abi.datatypes.Function function = new org.web3j.abi.datatypes.Function(FUNC_COMMUTOSWAPPAYMENTREPORTER, 
-                Arrays.<Type>asList(), 
+        final org.web3j.abi.datatypes.Function function = new org.web3j.abi.datatypes.Function(FUNC_COMMUTOSWAPPAYMENTREPORTER,
+                Arrays.<Type>asList(),
                 Arrays.<TypeReference<?>>asList(new TypeReference<Address>() {}));
         return executeRemoteCallSingleValueReturn(function, String.class);
     }
 
     public RemoteFunctionCall<String> commutoSwapResolutionProposalReactor() {
-        final org.web3j.abi.datatypes.Function function = new org.web3j.abi.datatypes.Function(FUNC_COMMUTOSWAPRESOLUTIONPROPOSALREACTOR, 
-                Arrays.<Type>asList(), 
+        final org.web3j.abi.datatypes.Function function = new org.web3j.abi.datatypes.Function(FUNC_COMMUTOSWAPRESOLUTIONPROPOSALREACTOR,
+                Arrays.<Type>asList(),
                 Arrays.<TypeReference<?>>asList(new TypeReference<Address>() {}));
         return executeRemoteCallSingleValueReturn(function, String.class);
     }
 
     public RemoteFunctionCall<String> commutoSwapResolutionProposer() {
-        final org.web3j.abi.datatypes.Function function = new org.web3j.abi.datatypes.Function(FUNC_COMMUTOSWAPRESOLUTIONPROPOSER, 
-                Arrays.<Type>asList(), 
+        final org.web3j.abi.datatypes.Function function = new org.web3j.abi.datatypes.Function(FUNC_COMMUTOSWAPRESOLUTIONPROPOSER,
+                Arrays.<Type>asList(),
                 Arrays.<TypeReference<?>>asList(new TypeReference<Address>() {}));
         return executeRemoteCallSingleValueReturn(function, String.class);
     }
 
     public RemoteFunctionCall<String> disputeResolutionTimelock() {
-        final org.web3j.abi.datatypes.Function function = new org.web3j.abi.datatypes.Function(FUNC_DISPUTERESOLUTIONTIMELOCK, 
-                Arrays.<Type>asList(), 
+        final org.web3j.abi.datatypes.Function function = new org.web3j.abi.datatypes.Function(FUNC_DISPUTERESOLUTIONTIMELOCK,
+                Arrays.<Type>asList(),
                 Arrays.<TypeReference<?>>asList(new TypeReference<Address>() {}));
         return executeRemoteCallSingleValueReturn(function, String.class);
     }
 
     public RemoteFunctionCall<TransactionReceipt> editOffer(byte[] offerID, Offer editedOffer, Boolean editPrice, Boolean editSettlementMethods) {
         final org.web3j.abi.datatypes.Function function = new org.web3j.abi.datatypes.Function(
-                FUNC_EDITOFFER, 
-                Arrays.<Type>asList(new org.web3j.abi.datatypes.generated.Bytes16(offerID), 
-                editedOffer, 
-                new org.web3j.abi.datatypes.Bool(editPrice), 
-                new org.web3j.abi.datatypes.Bool(editSettlementMethods)), 
+                FUNC_EDITOFFER,
+                Arrays.<Type>asList(new org.web3j.abi.datatypes.generated.Bytes16(offerID),
+                        editedOffer,
+                        new org.web3j.abi.datatypes.Bool(editPrice),
+                        new org.web3j.abi.datatypes.Bool(editSettlementMethods)),
                 Collections.<TypeReference<?>>emptyList());
         return executeRemoteCallTransaction(function);
     }
 
     public RemoteFunctionCall<TransactionReceipt> escalateDispute(byte[] swapID, BigInteger reason) {
         final org.web3j.abi.datatypes.Function function = new org.web3j.abi.datatypes.Function(
-                FUNC_ESCALATEDISPUTE, 
-                Arrays.<Type>asList(new org.web3j.abi.datatypes.generated.Bytes16(swapID), 
-                new org.web3j.abi.datatypes.generated.Uint8(reason)), 
+                FUNC_ESCALATEDISPUTE,
+                Arrays.<Type>asList(new org.web3j.abi.datatypes.generated.Bytes16(swapID),
+                        new org.web3j.abi.datatypes.generated.Uint8(reason)),
                 Collections.<TypeReference<?>>emptyList());
         return executeRemoteCallTransaction(function);
     }
 
     public RemoteFunctionCall<TransactionReceipt> fillSwap(byte[] swapID) {
         final org.web3j.abi.datatypes.Function function = new org.web3j.abi.datatypes.Function(
-                FUNC_FILLSWAP, 
-                Arrays.<Type>asList(new org.web3j.abi.datatypes.generated.Bytes16(swapID)), 
+                FUNC_FILLSWAP,
+                Arrays.<Type>asList(new org.web3j.abi.datatypes.generated.Bytes16(swapID)),
                 Collections.<TypeReference<?>>emptyList());
         return executeRemoteCallTransaction(function);
     }
 
     public RemoteFunctionCall<List> getActiveDisputeAgents() {
-        final org.web3j.abi.datatypes.Function function = new org.web3j.abi.datatypes.Function(FUNC_GETACTIVEDISPUTEAGENTS, 
-                Arrays.<Type>asList(), 
+        final org.web3j.abi.datatypes.Function function = new org.web3j.abi.datatypes.Function(FUNC_GETACTIVEDISPUTEAGENTS,
+                Arrays.<Type>asList(),
                 Arrays.<TypeReference<?>>asList(new TypeReference<DynamicArray<Address>>() {}));
         return new RemoteFunctionCall<List>(function,
                 new Callable<List>() {
@@ -1052,22 +1052,22 @@ public class CommutoSwap extends Contract {
     }
 
     public RemoteFunctionCall<Dispute> getDispute(byte[] swapID) {
-        final org.web3j.abi.datatypes.Function function = new org.web3j.abi.datatypes.Function(FUNC_GETDISPUTE, 
-                Arrays.<Type>asList(new org.web3j.abi.datatypes.generated.Bytes16(swapID)), 
+        final org.web3j.abi.datatypes.Function function = new org.web3j.abi.datatypes.Function(FUNC_GETDISPUTE,
+                Arrays.<Type>asList(new org.web3j.abi.datatypes.generated.Bytes16(swapID)),
                 Arrays.<TypeReference<?>>asList(new TypeReference<Dispute>() {}));
         return executeRemoteCallSingleValueReturn(function, Dispute.class);
     }
 
     public RemoteFunctionCall<BigInteger> getMinimumDisputePeriod() {
-        final org.web3j.abi.datatypes.Function function = new org.web3j.abi.datatypes.Function(FUNC_GETMINIMUMDISPUTEPERIOD, 
-                Arrays.<Type>asList(), 
+        final org.web3j.abi.datatypes.Function function = new org.web3j.abi.datatypes.Function(FUNC_GETMINIMUMDISPUTEPERIOD,
+                Arrays.<Type>asList(),
                 Arrays.<TypeReference<?>>asList(new TypeReference<Uint256>() {}));
         return executeRemoteCallSingleValueReturn(function, BigInteger.class);
     }
 
     public RemoteFunctionCall<Offer> getOffer(byte[] offerID) {
-        final org.web3j.abi.datatypes.Function function = new org.web3j.abi.datatypes.Function(FUNC_GETOFFER, 
-                Arrays.<Type>asList(new org.web3j.abi.datatypes.generated.Bytes16(offerID)), 
+        final org.web3j.abi.datatypes.Function function = new org.web3j.abi.datatypes.Function(FUNC_GETOFFER,
+                Arrays.<Type>asList(new org.web3j.abi.datatypes.generated.Bytes16(offerID)),
                 Arrays.<TypeReference<?>>asList(new TypeReference<Offer>() {}));
         /*
         Normally, this would return the result of
@@ -1135,15 +1135,15 @@ public class CommutoSwap extends Contract {
     }
 
     public RemoteFunctionCall<BigInteger> getServiceFeeRate() {
-        final org.web3j.abi.datatypes.Function function = new org.web3j.abi.datatypes.Function(FUNC_GETSERVICEFEERATE, 
-                Arrays.<Type>asList(), 
+        final org.web3j.abi.datatypes.Function function = new org.web3j.abi.datatypes.Function(FUNC_GETSERVICEFEERATE,
+                Arrays.<Type>asList(),
                 Arrays.<TypeReference<?>>asList(new TypeReference<Uint256>() {}));
         return executeRemoteCallSingleValueReturn(function, BigInteger.class);
     }
 
     public RemoteFunctionCall<List> getSupportedSettlementMethods() {
-        final org.web3j.abi.datatypes.Function function = new org.web3j.abi.datatypes.Function(FUNC_GETSUPPORTEDSETTLEMENTMETHODS, 
-                Arrays.<Type>asList(), 
+        final org.web3j.abi.datatypes.Function function = new org.web3j.abi.datatypes.Function(FUNC_GETSUPPORTEDSETTLEMENTMETHODS,
+                Arrays.<Type>asList(),
                 Arrays.<TypeReference<?>>asList(new TypeReference<DynamicArray<DynamicBytes>>() {}));
         return new RemoteFunctionCall<List>(function,
                 new Callable<List>() {
@@ -1157,8 +1157,8 @@ public class CommutoSwap extends Contract {
     }
 
     public RemoteFunctionCall<List> getSupportedStablecoins() {
-        final org.web3j.abi.datatypes.Function function = new org.web3j.abi.datatypes.Function(FUNC_GETSUPPORTEDSTABLECOINS, 
-                Arrays.<Type>asList(), 
+        final org.web3j.abi.datatypes.Function function = new org.web3j.abi.datatypes.Function(FUNC_GETSUPPORTEDSTABLECOINS,
+                Arrays.<Type>asList(),
                 Arrays.<TypeReference<?>>asList(new TypeReference<DynamicArray<Address>>() {}));
         return new RemoteFunctionCall<List>(function,
                 new Callable<List>() {
@@ -1172,144 +1172,144 @@ public class CommutoSwap extends Contract {
     }
 
     public RemoteFunctionCall<Swap> getSwap(byte[] swapID) {
-        final org.web3j.abi.datatypes.Function function = new org.web3j.abi.datatypes.Function(FUNC_GETSWAP, 
-                Arrays.<Type>asList(new org.web3j.abi.datatypes.generated.Bytes16(swapID)), 
+        final org.web3j.abi.datatypes.Function function = new org.web3j.abi.datatypes.Function(FUNC_GETSWAP,
+                Arrays.<Type>asList(new org.web3j.abi.datatypes.generated.Bytes16(swapID)),
                 Arrays.<TypeReference<?>>asList(new TypeReference<Swap>() {}));
         return executeRemoteCallSingleValueReturn(function, Swap.class);
     }
 
     public RemoteFunctionCall<BigInteger> minimumDisputePeriod() {
-        final org.web3j.abi.datatypes.Function function = new org.web3j.abi.datatypes.Function(FUNC_MINIMUMDISPUTEPERIOD, 
-                Arrays.<Type>asList(), 
+        final org.web3j.abi.datatypes.Function function = new org.web3j.abi.datatypes.Function(FUNC_MINIMUMDISPUTEPERIOD,
+                Arrays.<Type>asList(),
                 Arrays.<TypeReference<?>>asList(new TypeReference<Uint256>() {}));
         return executeRemoteCallSingleValueReturn(function, BigInteger.class);
     }
 
     public RemoteFunctionCall<TransactionReceipt> openOffer(byte[] offerID, Offer newOffer) {
         final org.web3j.abi.datatypes.Function function = new org.web3j.abi.datatypes.Function(
-                FUNC_OPENOFFER, 
-                Arrays.<Type>asList(new org.web3j.abi.datatypes.generated.Bytes16(offerID), 
-                newOffer), 
+                FUNC_OPENOFFER,
+                Arrays.<Type>asList(new org.web3j.abi.datatypes.generated.Bytes16(offerID),
+                        newOffer),
                 Collections.<TypeReference<?>>emptyList());
         return executeRemoteCallTransaction(function);
     }
 
     public RemoteFunctionCall<String> primaryTimelock() {
-        final org.web3j.abi.datatypes.Function function = new org.web3j.abi.datatypes.Function(FUNC_PRIMARYTIMELOCK, 
-                Arrays.<Type>asList(), 
+        final org.web3j.abi.datatypes.Function function = new org.web3j.abi.datatypes.Function(FUNC_PRIMARYTIMELOCK,
+                Arrays.<Type>asList(),
                 Arrays.<TypeReference<?>>asList(new TypeReference<Address>() {}));
         return executeRemoteCallSingleValueReturn(function, String.class);
     }
 
     public RemoteFunctionCall<TransactionReceipt> proposeResolution(byte[] swapID, BigInteger makerPayout, BigInteger takerPayout, BigInteger confiscationPayout) {
         final org.web3j.abi.datatypes.Function function = new org.web3j.abi.datatypes.Function(
-                FUNC_PROPOSERESOLUTION, 
-                Arrays.<Type>asList(new org.web3j.abi.datatypes.generated.Bytes16(swapID), 
-                new org.web3j.abi.datatypes.generated.Uint256(makerPayout), 
-                new org.web3j.abi.datatypes.generated.Uint256(takerPayout), 
-                new org.web3j.abi.datatypes.generated.Uint256(confiscationPayout)), 
+                FUNC_PROPOSERESOLUTION,
+                Arrays.<Type>asList(new org.web3j.abi.datatypes.generated.Bytes16(swapID),
+                        new org.web3j.abi.datatypes.generated.Uint256(makerPayout),
+                        new org.web3j.abi.datatypes.generated.Uint256(takerPayout),
+                        new org.web3j.abi.datatypes.generated.Uint256(confiscationPayout)),
                 Collections.<TypeReference<?>>emptyList());
         return executeRemoteCallTransaction(function);
     }
 
     public RemoteFunctionCall<BigInteger> protocolVersion() {
-        final org.web3j.abi.datatypes.Function function = new org.web3j.abi.datatypes.Function(FUNC_PROTOCOLVERSION, 
-                Arrays.<Type>asList(), 
+        final org.web3j.abi.datatypes.Function function = new org.web3j.abi.datatypes.Function(FUNC_PROTOCOLVERSION,
+                Arrays.<Type>asList(),
                 Arrays.<TypeReference<?>>asList(new TypeReference<Uint256>() {}));
         return executeRemoteCallSingleValueReturn(function, BigInteger.class);
     }
 
     public RemoteFunctionCall<TransactionReceipt> raiseDispute(byte[] swapID, String disputeAgent0, String disputeAgent1, String disputeAgent2) {
         final org.web3j.abi.datatypes.Function function = new org.web3j.abi.datatypes.Function(
-                FUNC_RAISEDISPUTE, 
-                Arrays.<Type>asList(new org.web3j.abi.datatypes.generated.Bytes16(swapID), 
-                new org.web3j.abi.datatypes.Address(160, disputeAgent0), 
-                new org.web3j.abi.datatypes.Address(160, disputeAgent1), 
-                new org.web3j.abi.datatypes.Address(160, disputeAgent2)), 
+                FUNC_RAISEDISPUTE,
+                Arrays.<Type>asList(new org.web3j.abi.datatypes.generated.Bytes16(swapID),
+                        new org.web3j.abi.datatypes.Address(160, disputeAgent0),
+                        new org.web3j.abi.datatypes.Address(160, disputeAgent1),
+                        new org.web3j.abi.datatypes.Address(160, disputeAgent2)),
                 Collections.<TypeReference<?>>emptyList());
         return executeRemoteCallTransaction(function);
     }
 
     public RemoteFunctionCall<TransactionReceipt> reactToResolutionProposal(byte[] swapID, BigInteger reaction) {
         final org.web3j.abi.datatypes.Function function = new org.web3j.abi.datatypes.Function(
-                FUNC_REACTTORESOLUTIONPROPOSAL, 
-                Arrays.<Type>asList(new org.web3j.abi.datatypes.generated.Bytes16(swapID), 
-                new org.web3j.abi.datatypes.generated.Uint8(reaction)), 
+                FUNC_REACTTORESOLUTIONPROPOSAL,
+                Arrays.<Type>asList(new org.web3j.abi.datatypes.generated.Bytes16(swapID),
+                        new org.web3j.abi.datatypes.generated.Uint8(reaction)),
                 Collections.<TypeReference<?>>emptyList());
         return executeRemoteCallTransaction(function);
     }
 
     public RemoteFunctionCall<TransactionReceipt> reportPaymentReceived(byte[] swapID) {
         final org.web3j.abi.datatypes.Function function = new org.web3j.abi.datatypes.Function(
-                FUNC_REPORTPAYMENTRECEIVED, 
-                Arrays.<Type>asList(new org.web3j.abi.datatypes.generated.Bytes16(swapID)), 
+                FUNC_REPORTPAYMENTRECEIVED,
+                Arrays.<Type>asList(new org.web3j.abi.datatypes.generated.Bytes16(swapID)),
                 Collections.<TypeReference<?>>emptyList());
         return executeRemoteCallTransaction(function);
     }
 
     public RemoteFunctionCall<TransactionReceipt> reportPaymentSent(byte[] swapID) {
         final org.web3j.abi.datatypes.Function function = new org.web3j.abi.datatypes.Function(
-                FUNC_REPORTPAYMENTSENT, 
-                Arrays.<Type>asList(new org.web3j.abi.datatypes.generated.Bytes16(swapID)), 
+                FUNC_REPORTPAYMENTSENT,
+                Arrays.<Type>asList(new org.web3j.abi.datatypes.generated.Bytes16(swapID)),
                 Collections.<TypeReference<?>>emptyList());
         return executeRemoteCallTransaction(function);
     }
 
     public RemoteFunctionCall<BigInteger> serviceFeeRate() {
-        final org.web3j.abi.datatypes.Function function = new org.web3j.abi.datatypes.Function(FUNC_SERVICEFEERATE, 
-                Arrays.<Type>asList(), 
+        final org.web3j.abi.datatypes.Function function = new org.web3j.abi.datatypes.Function(FUNC_SERVICEFEERATE,
+                Arrays.<Type>asList(),
                 Arrays.<TypeReference<?>>asList(new TypeReference<Uint256>() {}));
         return executeRemoteCallSingleValueReturn(function, BigInteger.class);
     }
 
     public RemoteFunctionCall<TransactionReceipt> setDisputeAgentActive(String disputeAgentAddress, Boolean setActive) {
         final org.web3j.abi.datatypes.Function function = new org.web3j.abi.datatypes.Function(
-                FUNC_SETDISPUTEAGENTACTIVE, 
-                Arrays.<Type>asList(new org.web3j.abi.datatypes.Address(160, disputeAgentAddress), 
-                new org.web3j.abi.datatypes.Bool(setActive)), 
+                FUNC_SETDISPUTEAGENTACTIVE,
+                Arrays.<Type>asList(new org.web3j.abi.datatypes.Address(160, disputeAgentAddress),
+                        new org.web3j.abi.datatypes.Bool(setActive)),
                 Collections.<TypeReference<?>>emptyList());
         return executeRemoteCallTransaction(function);
     }
 
     public RemoteFunctionCall<TransactionReceipt> setMinimumDisputePeriod(BigInteger newMinimumDisputePeriod) {
         final org.web3j.abi.datatypes.Function function = new org.web3j.abi.datatypes.Function(
-                FUNC_SETMINIMUMDISPUTEPERIOD, 
-                Arrays.<Type>asList(new org.web3j.abi.datatypes.generated.Uint256(newMinimumDisputePeriod)), 
+                FUNC_SETMINIMUMDISPUTEPERIOD,
+                Arrays.<Type>asList(new org.web3j.abi.datatypes.generated.Uint256(newMinimumDisputePeriod)),
                 Collections.<TypeReference<?>>emptyList());
         return executeRemoteCallTransaction(function);
     }
 
     public RemoteFunctionCall<TransactionReceipt> setServiceFeeRate(BigInteger newServiceFeeRate) {
         final org.web3j.abi.datatypes.Function function = new org.web3j.abi.datatypes.Function(
-                FUNC_SETSERVICEFEERATE, 
-                Arrays.<Type>asList(new org.web3j.abi.datatypes.generated.Uint256(newServiceFeeRate)), 
+                FUNC_SETSERVICEFEERATE,
+                Arrays.<Type>asList(new org.web3j.abi.datatypes.generated.Uint256(newServiceFeeRate)),
                 Collections.<TypeReference<?>>emptyList());
         return executeRemoteCallTransaction(function);
     }
 
     public RemoteFunctionCall<TransactionReceipt> setSettlementMethodSupport(byte[] settlementMethod, Boolean support) {
         final org.web3j.abi.datatypes.Function function = new org.web3j.abi.datatypes.Function(
-                FUNC_SETSETTLEMENTMETHODSUPPORT, 
-                Arrays.<Type>asList(new org.web3j.abi.datatypes.DynamicBytes(settlementMethod), 
-                new org.web3j.abi.datatypes.Bool(support)), 
+                FUNC_SETSETTLEMENTMETHODSUPPORT,
+                Arrays.<Type>asList(new org.web3j.abi.datatypes.DynamicBytes(settlementMethod),
+                        new org.web3j.abi.datatypes.Bool(support)),
                 Collections.<TypeReference<?>>emptyList());
         return executeRemoteCallTransaction(function);
     }
 
     public RemoteFunctionCall<TransactionReceipt> setStablecoinSupport(String stablecoin, Boolean support) {
         final org.web3j.abi.datatypes.Function function = new org.web3j.abi.datatypes.Function(
-                FUNC_SETSTABLECOINSUPPORT, 
-                Arrays.<Type>asList(new org.web3j.abi.datatypes.Address(160, stablecoin), 
-                new org.web3j.abi.datatypes.Bool(support)), 
+                FUNC_SETSTABLECOINSUPPORT,
+                Arrays.<Type>asList(new org.web3j.abi.datatypes.Address(160, stablecoin),
+                        new org.web3j.abi.datatypes.Bool(support)),
                 Collections.<TypeReference<?>>emptyList());
         return executeRemoteCallTransaction(function);
     }
 
     public RemoteFunctionCall<TransactionReceipt> takeOffer(byte[] offerID, Swap newSwap) {
         final org.web3j.abi.datatypes.Function function = new org.web3j.abi.datatypes.Function(
-                FUNC_TAKEOFFER, 
-                Arrays.<Type>asList(new org.web3j.abi.datatypes.generated.Bytes16(offerID), 
-                newSwap), 
+                FUNC_TAKEOFFER,
+                Arrays.<Type>asList(new org.web3j.abi.datatypes.generated.Bytes16(offerID),
+                        newSwap),
                 Collections.<TypeReference<?>>emptyList());
         return executeRemoteCallTransaction(function);
     }
@@ -1650,6 +1650,10 @@ public class CommutoSwap extends Contract {
         public byte[] offerID;
     }
 
+    public static class OfferEditedEventResponse extends BaseEventResponse {
+        public byte[] offerID;
+    }
+
     public static class OfferOpenedEventResponse extends BaseEventResponse {
         public byte[] offerID;
 
@@ -1668,10 +1672,6 @@ public class CommutoSwap extends Contract {
 
     public static class PaymentSentEventResponse extends BaseEventResponse {
         public byte[] swapID;
-    }
-
-    public static class PriceChangedEventResponse extends BaseEventResponse {
-        public byte[] offerID;
     }
 
     public static class PrimaryTimelockChangedEventResponse extends BaseEventResponse {

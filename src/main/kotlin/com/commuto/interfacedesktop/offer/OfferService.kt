@@ -142,6 +142,8 @@ class OfferService (
         }
     }
 
+    override suspend fun handleOfferEditedEvent(event: CommutoSwap.OfferEditedEventResponse) {}
+
     /**
      * The method called by [BlockchainService] to notify [OfferService] of an [CommutoSwap.OfferCanceledEventResponse].
      * Once notified, [OfferService] saves [event] in [offerCanceledEventRepository], removes the corresponding [Offer]

@@ -67,8 +67,8 @@ class BlockchainServiceTest {
                 json()
             }
             install(HttpTimeout) {
-                requestTimeoutMillis = 90_000
                 socketTimeoutMillis = 90_000
+                requestTimeoutMillis = 90_000
             }
         }
         val testingServerResponse: TestingServerResponse = runBlocking {
@@ -83,7 +83,7 @@ class BlockchainServiceTest {
         offerIdByteBuffer.putLong(expectedOfferId.mostSignificantBits)
         offerIdByteBuffer.putLong(expectedOfferId.leastSignificantBits)
 
-        val w3 = Web3j.build(HttpService("http://192.168.1.13:8545"))
+        val w3 = Web3j.build(HttpService(System.getenv("BLOCKCHAIN_NODE")))
 
         class TestBlockchainExceptionHandler : BlockchainExceptionNotifiable {
             @Throws
@@ -96,26 +96,21 @@ class BlockchainServiceTest {
         class TestOfferService : OfferNotifiable {
             val offerOpenedEventChannel = Channel<CommutoSwap.OfferOpenedEventResponse>()
             val offerTakenEventChannel = Channel<CommutoSwap.OfferTakenEventResponse>()
-            override suspend fun handleOfferOpenedEvent(
-                event:
-                CommutoSwap.OfferOpenedEventResponse
-            ) {
+            override suspend fun handleOfferOpenedEvent(event: CommutoSwap.OfferOpenedEventResponse) {
                 offerOpenedEventChannel.send(event)
             }
-            override suspend fun handleOfferCanceledEvent(
-                event:
-                CommutoSwap.OfferCanceledEventResponse) {
+            override suspend fun handleOfferEditedEvent(event: CommutoSwap.OfferEditedEventResponse) {
                 throw IllegalStateException("Should not be called")
             }
-            override suspend fun handleOfferTakenEvent(
-                event:
-                CommutoSwap.OfferTakenEventResponse
-            ) {
+            override suspend fun handleOfferCanceledEvent(event: CommutoSwap.OfferCanceledEventResponse) {
+                throw IllegalStateException("Should not be called")
+            }
+            override suspend fun handleOfferTakenEvent(event: CommutoSwap.OfferTakenEventResponse) {
                 offerTakenEventChannel.send(event)
             }
         }
-
         val offerService = TestOfferService()
+
         val blockchainService = BlockchainService(
             blockchainExceptionHandler,
             offerService,
@@ -124,7 +119,7 @@ class BlockchainServiceTest {
         )
         blockchainService.listen()
         runBlocking {
-            withTimeout(90_000) {
+            withTimeout(30_000) {
                 val receivedOfferOpenedEvent = offerService.offerOpenedEventChannel.receive()
                 assert(Arrays.equals(receivedOfferOpenedEvent.offerID, offerIdByteBuffer.array()))
                 val receivedOfferTakenEvent = offerService.offerTakenEventChannel.receive()
@@ -166,7 +161,7 @@ class BlockchainServiceTest {
         offerIdByteBuffer.putLong(expectedOfferId.mostSignificantBits)
         offerIdByteBuffer.putLong(expectedOfferId.leastSignificantBits)
 
-        val w3 = Web3j.build(HttpService("http://192.168.1.13:8545"))
+        val w3 = Web3j.build(HttpService(System.getenv("BLOCKCHAIN_NODE")))
 
         class TestBlockchainExceptionHandler : BlockchainExceptionNotifiable {
             @Throws
@@ -179,19 +174,16 @@ class BlockchainServiceTest {
         class TestOfferService : OfferNotifiable {
             val offerOpenedEventChannel = Channel<CommutoSwap.OfferOpenedEventResponse>()
             val offerCanceledEventChannel = Channel<CommutoSwap.OfferCanceledEventResponse>()
-            override suspend fun handleOfferOpenedEvent(
-                event:
-                CommutoSwap.OfferOpenedEventResponse) {
+            override suspend fun handleOfferOpenedEvent(event: CommutoSwap.OfferOpenedEventResponse) {
                 offerOpenedEventChannel.send(event)
             }
-            override suspend fun handleOfferCanceledEvent(
-                event:
-                CommutoSwap.OfferCanceledEventResponse) {
+            override suspend fun handleOfferEditedEvent(event: CommutoSwap.OfferEditedEventResponse) {
+                throw IllegalStateException("Should not be called")
+            }
+            override suspend fun handleOfferCanceledEvent(event: CommutoSwap.OfferCanceledEventResponse) {
                 offerCanceledEventChannel.send(event)
             }
-            override suspend fun handleOfferTakenEvent(
-                event:
-                CommutoSwap.OfferTakenEventResponse) {
+            override suspend fun handleOfferTakenEvent(event: CommutoSwap.OfferTakenEventResponse) {
                 throw IllegalStateException("Should not be called")
             }
         }
@@ -215,6 +207,84 @@ class BlockchainServiceTest {
     }
 
     /**
+     * Tests [BlockchainService] by ensuring it detects and handles
+     * [OfferOpened](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offeropened) and
+     * [OfferEdited](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offeredited) events
+     * for a specific offer properly.
+     */
+    @Test
+    fun testListenOfferOpenedEdited() {
+        @Serializable
+        data class TestingServerResponse(val commutoSwapAddress: String, val offerId: String)
+
+        val testingServiceUrl = "http://localhost:8546/test_blockchainservice_listen"
+        val testingServerClient = HttpClient(OkHttp) {
+            install(ContentNegotiation) {
+                json()
+            }
+            install(HttpTimeout) {
+                socketTimeoutMillis = 90_000
+                requestTimeoutMillis = 90_000
+            }
+        }
+        val testingServerResponse: TestingServerResponse = runBlocking {
+            testingServerClient.get(testingServiceUrl) {
+                url {
+                    parameters.append("events", "offer-opened-edited")
+                }
+            }.body()
+        }
+        val expectedOfferId = UUID.fromString(testingServerResponse.offerId)
+        val offerIdByteBuffer = ByteBuffer.wrap(ByteArray(16))
+        offerIdByteBuffer.putLong(expectedOfferId.mostSignificantBits)
+        offerIdByteBuffer.putLong(expectedOfferId.leastSignificantBits)
+
+        val w3 = Web3j.build(HttpService(System.getenv("BLOCKCHAIN_NODE")))
+
+        class TestBlockchainExceptionHandler : BlockchainExceptionNotifiable {
+            @Throws
+            override fun handleBlockchainException(exception: Exception) {
+                throw exception
+            }
+        }
+        val blockchainExceptionHandler = TestBlockchainExceptionHandler()
+
+        class TestOfferService : OfferNotifiable {
+            val offerOpenedEventChannel = Channel<CommutoSwap.OfferOpenedEventResponse>()
+            val offerEditedEventChannel = Channel<CommutoSwap.OfferEditedEventResponse>()
+            override suspend fun handleOfferOpenedEvent(event: CommutoSwap.OfferOpenedEventResponse) {
+                offerOpenedEventChannel.send(event)
+            }
+            override suspend fun handleOfferEditedEvent(event: CommutoSwap.OfferEditedEventResponse) {
+                offerEditedEventChannel.send(event)
+            }
+            override suspend fun handleOfferCanceledEvent(event: CommutoSwap.OfferCanceledEventResponse) {
+                throw IllegalStateException("Should not be called")
+            }
+            override suspend fun handleOfferTakenEvent(event: CommutoSwap.OfferTakenEventResponse) {
+                throw IllegalStateException("Should not be called")
+            }
+        }
+        val offerService = TestOfferService()
+
+        val blockchainService = BlockchainService(
+            blockchainExceptionHandler,
+            offerService,
+            w3,
+            testingServerResponse.commutoSwapAddress
+        )
+        blockchainService.listen()
+        runBlocking {
+            withTimeout(30_000) {
+                val receivedOfferOpenedEvent = offerService.offerOpenedEventChannel.receive()
+                assert(Arrays.equals(receivedOfferOpenedEvent.offerID, offerIdByteBuffer.array()))
+                val receivedOfferEditedEvent = offerService.offerEditedEventChannel.receive()
+                assert(Arrays.equals(receivedOfferEditedEvent.offerID, offerIdByteBuffer.array()))
+            }
+        }
+    }
+
+    /**
      * Tests [BlockchainService]'s [Exception] handling logic by ensuring that it handles empty node
      * response exceptions properly.
      */
@@ -232,22 +302,16 @@ class BlockchainServiceTest {
         val blockchainExceptionHandler = TestBlockchainExceptionHandler()
 
         class TestOfferService : OfferNotifiable {
-            override suspend fun handleOfferOpenedEvent(
-                event:
-                CommutoSwap.OfferOpenedEventResponse
-            ) {
+            override suspend fun handleOfferOpenedEvent(event: CommutoSwap.OfferOpenedEventResponse) {
                 throw IllegalStateException("Should not be called")
             }
-            override suspend fun handleOfferCanceledEvent(
-                event:
-                CommutoSwap.OfferCanceledEventResponse
-            ) {
+            override suspend fun handleOfferEditedEvent(event: CommutoSwap.OfferEditedEventResponse) {
                 throw IllegalStateException("Should not be called")
             }
-            override suspend fun handleOfferTakenEvent(
-                event:
-                CommutoSwap.OfferTakenEventResponse
-            ) {
+            override suspend fun handleOfferCanceledEvent(event: CommutoSwap.OfferCanceledEventResponse) {
+                throw IllegalStateException("Should not be called")
+            }
+            override suspend fun handleOfferTakenEvent(event: CommutoSwap.OfferTakenEventResponse) {
                 throw IllegalStateException("Should not be called")
             }
         }

@@ -283,6 +283,7 @@ class BlockchainService (private val exceptionHandler: BlockchainExceptionNotifi
         val eventResponses: MutableList<List<BaseEventResponse>> = mutableListOf()
         if (receipt.to.equals(commutoSwap.contractAddress, ignoreCase = true)) {
             eventResponses.add(commutoSwap.getOfferOpenedEvents(receipt))
+            eventResponses.add(commutoSwap.getOfferEditedEvents(receipt))
             eventResponses.add(commutoSwap.getOfferCanceledEvents(receipt))
             eventResponses.add(commutoSwap.getOfferTakenEvents(receipt))
         }
@@ -303,7 +304,9 @@ class BlockchainService (private val exceptionHandler: BlockchainExceptionNotifi
         for (eventResponse in eventResponses) {
             if (eventResponse is CommutoSwap.OfferOpenedEventResponse) {
                 offerService.handleOfferOpenedEvent(eventResponse)
-            } else if (eventResponse is CommutoSwap.OfferCanceledEventResponse) {
+            } else if (eventResponse is CommutoSwap.OfferEditedEventResponse) {
+                offerService.handleOfferEditedEvent(eventResponse)
+            }else if (eventResponse is CommutoSwap.OfferCanceledEventResponse) {
                 offerService.handleOfferCanceledEvent(eventResponse)
             } else if (eventResponse is CommutoSwap.OfferTakenEventResponse) {
                 offerService.handleOfferTakenEvent(eventResponse)
