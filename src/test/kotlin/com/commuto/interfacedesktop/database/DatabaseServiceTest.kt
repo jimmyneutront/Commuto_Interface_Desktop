@@ -59,6 +59,29 @@ class DatabaseServiceTest {
     }
 
     @Test
+    fun testUpdateOfferPrice() = runBlocking {
+        val offerToUpdate = Offer(
+            "a_uuid",
+            1L,
+            0L,
+            "maker_address",
+            "interface_id",
+            "stablecoin_address",
+            "lower_bound_amount",
+            "upper_bound_amount",
+            "security_deposit_amount",
+            "service_fee_rate",
+            "direction",
+            "a_price",
+            "some_version",
+        )
+        databaseService.storeOffer(offerToUpdate)
+        databaseService.updateOfferPrice("a_uuid", "an_updated_price")
+        val returnedOffer = databaseService.getOffer("a_uuid")
+        assertEquals(returnedOffer!!.onChainPrice, "an_updated_price")
+    }
+
+    @Test
     fun testStoreAndGetAndDeleteSettlementMethods() = runBlocking {
         val offerId = "an_offer_id"
         val settlementMethods = listOf(
@@ -68,9 +91,21 @@ class DatabaseServiceTest {
         )
         databaseService.storeSettlementMethods(offerId, settlementMethods)
         val receivedSettlementMethods = databaseService.getSettlementMethods(offerId)!!
+        assertEquals(receivedSettlementMethods.size, 3)
         assertEquals(receivedSettlementMethods[0], "settlement_method_zero")
         assertEquals(receivedSettlementMethods[1], "settlement_method_one")
         assertEquals(receivedSettlementMethods[2], "settlement_method_two")
+        val newSettlementMethods = listOf(
+            "settlement_method_three",
+            "settlement_method_four",
+            "settlement_method_five",
+        )
+        databaseService.storeSettlementMethods(offerId, newSettlementMethods)
+        val newReturnedSettlementMethods = databaseService.getSettlementMethods(offerId)!!
+        assertEquals(newReturnedSettlementMethods.size, 3)
+        assertEquals(newReturnedSettlementMethods[0], "settlement_method_three")
+        assertEquals(newReturnedSettlementMethods[1], "settlement_method_four")
+        assertEquals(newReturnedSettlementMethods[2], "settlement_method_five")
         databaseService.deleteSettlementMethods(offerId)
         val returnedSettlementMethodsAfterDeletion = databaseService.getSettlementMethods(offerId)
         assertEquals(null, returnedSettlementMethodsAfterDeletion)

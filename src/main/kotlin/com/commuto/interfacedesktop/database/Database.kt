@@ -128,6 +128,18 @@ internal class Database(databaseDriverFactory: DatabaseDriverFactory) {
     }
 
     /**
+     * Updates the price of an [Offer] in the database.
+     * @param id The id of the [Offer] with the price to be updated.
+     * @param price The new price of the [Offer].
+     */
+    internal fun updateOfferPrice(id: String, price: String) {
+        dbQuery.updateOfferPriceByOfferId(
+            onChainPrice = price,
+            offerId = id
+        )
+    }
+
+    /**
      * Deletes all [Offer]s with the specified offer ID from the database.
      * @param id The offer ID of the [Offer]s to be deleted.
      */

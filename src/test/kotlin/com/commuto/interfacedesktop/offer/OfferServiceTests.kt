@@ -101,6 +101,7 @@ class OfferServiceTests {
             databaseService,
             offerOpenedEventRepository,
             BlockchainEventRepository(),
+            BlockchainEventRepository(),
             BlockchainEventRepository()
         )
 
@@ -225,6 +226,7 @@ class OfferServiceTests {
         val offerService = OfferService(
             databaseService,
             BlockchainEventRepository(),
+            BlockchainEventRepository(),
             offerCanceledEventRepository,
             BlockchainEventRepository()
         )
@@ -342,6 +344,7 @@ class OfferServiceTests {
             databaseService,
             BlockchainEventRepository(),
             BlockchainEventRepository(),
+            BlockchainEventRepository(),
             offerTakenEventRepository
         )
 
@@ -395,6 +398,140 @@ class OfferServiceTests {
                     expectedOfferIdByteArray))
                 val offerInDatabase = databaseService.getOffer(encoder.encodeToString(expectedOfferIdByteArray))
                 assertEquals(offerInDatabase, null)
+            }
+        }
+    }
+
+    /**
+     * Ensures that [OfferService] handles
+     * [OfferEdited](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offeredited) events properly.
+     */
+    @Test
+    fun handleOfferEditedEvent() {
+        @Serializable
+        data class TestingServerResponse(val commutoSwapAddress: String, val offerId: String)
+
+        val testingServiceUrl = "http://localhost:8546/test_offerservice_handleOfferEditedEvent"
+        val testingServerClient = HttpClient(OkHttp) {
+            install(ContentNegotiation) {
+                json()
+            }
+            install(HttpTimeout) {
+                socketTimeoutMillis = 90_000
+                requestTimeoutMillis = 90_000
+            }
+        }
+        val testingServerResponse: TestingServerResponse = runBlocking {
+            testingServerClient.get(testingServiceUrl) {
+                url {
+                    parameters.append("events", "offer-opened-edited")
+                }
+            }.body()
+        }
+        val expectedOfferId = UUID.fromString(testingServerResponse.offerId)
+        val expectedOfferIdByteBuffer = ByteBuffer.wrap(ByteArray(16))
+        expectedOfferIdByteBuffer.putLong(expectedOfferId.mostSignificantBits)
+        expectedOfferIdByteBuffer.putLong(expectedOfferId.leastSignificantBits)
+        val expectedOfferIdByteArray = expectedOfferIdByteBuffer.array()
+
+        val w3 = Web3j.build(HttpService(System.getenv("BLOCKCHAIN_NODE")))
+
+        val databaseService = DatabaseService(DatabaseDriverFactory())
+        databaseService.createTables()
+
+        class TestBlockchainEventRepository: BlockchainEventRepository<CommutoSwap.OfferEditedEventResponse>() {
+
+            var appendedEventResponse: CommutoSwap.OfferEditedEventResponse? = null
+            var removedEventResponse: CommutoSwap.OfferEditedEventResponse? = null
+
+            override fun append(element: CommutoSwap.OfferEditedEventResponse) {
+                appendedEventResponse = element
+                super.append(element)
+            }
+
+            override fun remove(elementToRemove: CommutoSwap.OfferEditedEventResponse) {
+                removedEventResponse = elementToRemove
+                super.remove(elementToRemove)
+            }
+
+        }
+        val offerEditedEventRepository = TestBlockchainEventRepository()
+
+        val offerService = OfferService(
+            databaseService,
+            BlockchainEventRepository(),
+            offerEditedEventRepository,
+            BlockchainEventRepository(),
+            BlockchainEventRepository(),
+        )
+
+        class TestOfferTruthSource: OfferTruthSource {
+            init {
+                offerService.setOfferTruthSource(this)
+            }
+            val offersChannel = Channel<Offer>()
+            var offersAddedCounter = 0
+            override var offers = mutableStateListOf<Offer>()
+            override fun addOffer(offer: Offer) {
+                offersAddedCounter++
+                offers.add(offer)
+                if (offersAddedCounter == 2) {
+                    // We only want to send the offer with the updated price, not the first one.
+                    runBlocking {
+                        offersChannel.send(offer)
+                    }
+                }
+            }
+
+            override fun removeOffer(id: UUID) {
+                offers.removeIf { it.id == id }
+            }
+        }
+        val offerTruthSource = TestOfferTruthSource()
+
+        class TestBlockchainExceptionHandler: BlockchainExceptionNotifiable {
+            var gotError = false
+            override fun handleBlockchainException(exception: Exception) {
+                gotError = true
+            }
+        }
+        val exceptionHandler = TestBlockchainExceptionHandler()
+
+        val blockchainService = BlockchainService(
+            exceptionHandler,
+            offerService,
+            w3,
+            testingServerResponse.commutoSwapAddress
+        )
+        blockchainService.listen()
+        val encoder = Base64.getEncoder()
+        runBlocking {
+            withTimeout(60_000) {
+                offerTruthSource.offersChannel.receive()
+                assertFalse(exceptionHandler.gotError)
+                assert(offerTruthSource.offers.size == 1)
+                assert(offerTruthSource.offers[0].id == expectedOfferId)
+                assert(Arrays.equals(offerEditedEventRepository.appendedEventResponse!!.offerID,
+                    expectedOfferIdByteArray))
+                assert(Arrays.equals(offerEditedEventRepository.removedEventResponse!!.offerID,
+                    expectedOfferIdByteArray))
+                val offerInDatabase = databaseService.getOffer(encoder.encodeToString(expectedOfferIdByteArray))
+                assert(offerInDatabase!!.isCreated == 1L)
+                assert(offerInDatabase.isTaken == 0L)
+                assertEquals(offerInDatabase.interfaceId, encoder.encodeToString("maker interface Id here"
+                    .encodeToByteArray()))
+                assertEquals(offerInDatabase.amountLowerBound, "10000")
+                assertEquals(offerInDatabase.amountUpperBound, "10000")
+                assertEquals(offerInDatabase.securityDepositAmount, "1000")
+                assertEquals(offerInDatabase.serviceFeeRate, "100")
+                assertEquals(offerInDatabase.onChainDirection, "1")
+                assertEquals(offerInDatabase.onChainPrice, encoder
+                    .encodeToString("an edited price here".encodeToByteArray()))
+                assertEquals(offerInDatabase.protocolVersion, "1")
+                val settlementMethodsInDatabase = databaseService.getSettlementMethods(encoder
+                    .encodeToString(expectedOfferIdByteArray))
+                assertEquals(settlementMethodsInDatabase!!.size, 1)
+                assertEquals(settlementMethodsInDatabase[0], encoder.encodeToString("EUR-SEPA".encodeToByteArray()))
             }
         }
     }

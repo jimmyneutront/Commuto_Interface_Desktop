@@ -65,6 +65,22 @@ open class DatabaseService @Inject constructor(private val databaseDriverFactory
     }
 
     /**
+     * Updates the price of a persistently stored
+     * [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer).
+     *
+     * @param id The ID of the offer with the price to be updated.
+     * @param price The new price of the offer.
+     *
+     * @throws Exception if database updating is unsuccessful.
+     */
+    @OptIn(DelicateCoroutinesApi::class)
+    suspend fun updateOfferPrice(id: String, price: String) {
+        withContext(databaseServiceContext) {
+            database.updateOfferPrice(id, price)
+        }
+    }
+
+    /**
      * Removes every [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer) with an offer ID equal
      * to [id] from persistent storage.
      *
@@ -106,7 +122,8 @@ open class DatabaseService @Inject constructor(private val databaseDriverFactory
     }
 
     /**
-     * Persistently stores each settlement method in the supplied [List], associating each one with the supplied ID.
+     * Deletes all persistently stored settlement methods associated with the specified ID, and then persistently stores
+     * each settlement method in the supplied [List], associating each one with the supplied ID.
      *
      * @param id The ID of the offer or swap to be associated with the settlement methods.
      * @param settlementMethods The settlement methods to be persistently stored.
@@ -116,6 +133,7 @@ open class DatabaseService @Inject constructor(private val databaseDriverFactory
     @OptIn(DelicateCoroutinesApi::class)
     suspend fun storeSettlementMethods(id: String, settlementMethods: List<String>) {
         withContext(databaseServiceContext) {
+            database.deleteSettlementMethods(id)
             for (settlementMethod in settlementMethods) {
                 database.insertSettlementMethod(SettlementMethod(id, settlementMethod))
             }
