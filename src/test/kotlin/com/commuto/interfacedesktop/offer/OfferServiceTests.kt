@@ -162,8 +162,12 @@ class OfferServiceTests {
                 assertEquals(offerInDatabase.securityDepositAmount, "1000")
                 assertEquals(offerInDatabase.serviceFeeRate, "100")
                 assertEquals(offerInDatabase.onChainDirection, "1")
-                assertEquals(offerInDatabase.onChainPrice, encoder.encodeToString("a price here".encodeToByteArray()))
                 assertEquals(offerInDatabase.protocolVersion, "1")
+                val settlementMethodsInDatabase = databaseService.getSettlementMethods(encoder
+                    .encodeToString(expectedOfferIdByteArray))
+                assertEquals(settlementMethodsInDatabase!!.size, 1)
+                assertEquals(settlementMethodsInDatabase[0], encoder.encodeToString("USD-SWIFT|a price here"
+                    .encodeToByteArray()))
             }
         }
     }
@@ -525,13 +529,12 @@ class OfferServiceTests {
                 assertEquals(offerInDatabase.securityDepositAmount, "1000")
                 assertEquals(offerInDatabase.serviceFeeRate, "100")
                 assertEquals(offerInDatabase.onChainDirection, "1")
-                assertEquals(offerInDatabase.onChainPrice, encoder
-                    .encodeToString("an edited price here".encodeToByteArray()))
                 assertEquals(offerInDatabase.protocolVersion, "1")
                 val settlementMethodsInDatabase = databaseService.getSettlementMethods(encoder
                     .encodeToString(expectedOfferIdByteArray))
                 assertEquals(settlementMethodsInDatabase!!.size, 1)
-                assertEquals(settlementMethodsInDatabase[0], encoder.encodeToString("EUR-SEPA".encodeToByteArray()))
+                assertEquals(settlementMethodsInDatabase[0], encoder.encodeToString("EUR-SEPA|an edited price here"
+                    .encodeToByteArray()))
             }
         }
     }

@@ -65,22 +65,6 @@ open class DatabaseService @Inject constructor(private val databaseDriverFactory
     }
 
     /**
-     * Updates the price of a persistently stored
-     * [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer).
-     *
-     * @param id The ID of the offer with the price to be updated.
-     * @param price The new price of the offer.
-     *
-     * @throws Exception if database updating is unsuccessful.
-     */
-    @OptIn(DelicateCoroutinesApi::class)
-    suspend fun updateOfferPrice(id: String, price: String) {
-        withContext(databaseServiceContext) {
-            database.updateOfferPrice(id, price)
-        }
-    }
-
-    /**
      * Removes every [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer) with an offer ID equal
      * to [id] from persistent storage.
      *

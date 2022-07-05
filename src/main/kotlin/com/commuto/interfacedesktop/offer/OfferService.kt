@@ -113,7 +113,6 @@ class OfferService (
             securityDepositAmount = onChainOffer.securityDepositAmount,
             serviceFeeRate = onChainOffer.serviceFeeRate,
             onChainDirection = onChainOffer.direction,
-            onChainPrice = onChainOffer.price,
             settlementMethods = onChainOffer.settlementMethods,
             protocolVersion = onChainOffer.protocolVersion
         )
@@ -131,7 +130,6 @@ class OfferService (
             securityDepositAmount = offer.securityDepositAmount.toString(),
             serviceFeeRate = offer.serviceFeeRate.toString(),
             onChainDirection = offer.onChainDirection.toString(),
-            onChainPrice = encoder.encodeToString(offer.onChainPrice),
             protocolVersion = offer.protocolVersion.toString()
         )
         databaseService.storeOffer(offerForDatabase)
@@ -149,10 +147,9 @@ class OfferService (
      * The method called by [BlockchainService] to notify [OfferService]
      * of an [CommutoSwap.OfferEditedEventResponse]. Once notified, [OfferService] saves [event] in
      * [offerEditedEventRepository], gets updated on-chain offer data by calling [blockchainService]'s
-     * [BlockchainService.getOfferAsync] method, creates an updated [Offer] and with the results, updates the price and
-     * settlement methods of the corresponding persistently stored offer, removes [event] from
-     * [offerEditedEventRepository], and then adds the updated [Offer] to [offerTruthSource] on the main coroutine
-     * dispatcher.
+     * [BlockchainService.getOfferAsync] method, creates an updated [Offer] and with the results, updates the settlement
+     * methods of the corresponding persistently stored offer, removes [event] from [offerEditedEventRepository], and
+     * then adds the updated [Offer] to [offerTruthSource] on the main coroutine dispatcher.
      *
      * @param event The [CommutoSwap.OfferEditedEventResponse] of which [OfferService] is being notified.
      */
@@ -179,12 +176,10 @@ class OfferService (
             securityDepositAmount = onChainOffer.securityDepositAmount,
             serviceFeeRate = onChainOffer.serviceFeeRate,
             onChainDirection = onChainOffer.direction,
-            onChainPrice = onChainOffer.price,
             settlementMethods = onChainOffer.settlementMethods,
             protocolVersion = onChainOffer.protocolVersion
         )
         val offerIdString = encoder.encodeToString(offerIdByteBuffer.array())
-        databaseService.updateOfferPrice(offerIdString, encoder.encodeToString(offer.onChainPrice))
         val settlementMethodStrings = offer.settlementMethods.map {
             encoder.encodeToString(it)
         }

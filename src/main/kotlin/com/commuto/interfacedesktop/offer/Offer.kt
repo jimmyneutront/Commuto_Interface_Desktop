@@ -32,9 +32,7 @@ import java.util.UUID
  * @param serviceFeeRate Corresponds to an on-chain
  * [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer)'s serviceFeeRate property.
  * @param onChainDirection Corresponds to an on-chain
- * [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer)'s onChainDirection property.
- * @param onChainPrice Corresponds to an on-chain
- * [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer)'s onChainPrice property.
+ * [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer)'s direction property.
  * @param settlementMethods Corresponds to an on-chain
  * [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer)'s settlementMethods property.
  * @param protocolVersion Corresponds to an on-chain
@@ -55,7 +53,6 @@ data class Offer(
     val securityDepositAmount: BigInteger,
     val serviceFeeRate: BigInteger,
     val onChainDirection: BigInteger,
-    val onChainPrice: ByteArray,
     val settlementMethods: List<ByteArray>,
     val protocolVersion: BigInteger
 ) {
@@ -79,7 +76,6 @@ data class Offer(
                 securityDepositAmount = BigInteger.ZERO,
                 serviceFeeRate = BigInteger.ZERO,
                 onChainDirection = BigInteger.ZERO,
-                onChainPrice = ByteArray(0),
                 settlementMethods = listOf(ByteArray(0)),
                 protocolVersion = BigInteger.ZERO
             ),
@@ -98,7 +94,6 @@ data class Offer(
                 securityDepositAmount = BigInteger.ZERO,
                 serviceFeeRate = BigInteger.ZERO,
                 onChainDirection = BigInteger.ZERO,
-                onChainPrice = ByteArray(0),
                 settlementMethods = listOf(ByteArray(0)),
                 protocolVersion = BigInteger.ZERO
             ),
@@ -117,7 +112,6 @@ data class Offer(
                 securityDepositAmount = BigInteger.ZERO,
                 serviceFeeRate = BigInteger.ZERO,
                 onChainDirection = BigInteger.ZERO,
-                onChainPrice = ByteArray(0),
                 settlementMethods = listOf(ByteArray(0)),
                 protocolVersion = BigInteger.ZERO
             ),
@@ -144,7 +138,6 @@ data class Offer(
         if (securityDepositAmount != other.securityDepositAmount) return false
         if (serviceFeeRate != other.serviceFeeRate) return false
         if (onChainDirection != other.onChainDirection) return false
-        if (!onChainPrice.contentEquals(other.onChainPrice)) return false
         if (settlementMethods != other.settlementMethods) return false
         if (protocolVersion != other.protocolVersion) return false
 
@@ -166,7 +159,6 @@ data class Offer(
         result = 31 * result + securityDepositAmount.hashCode()
         result = 31 * result + serviceFeeRate.hashCode()
         result = 31 * result + onChainDirection.hashCode()
-        result = 31 * result + onChainPrice.contentHashCode()
         result = 31 * result + settlementMethods.hashCode()
         result = 31 * result + protocolVersion.hashCode()
         return result

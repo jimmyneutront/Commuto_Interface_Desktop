@@ -29,7 +29,6 @@ class DatabaseServiceTest {
             "security_deposit_amount",
             "service_fee_rate",
             "direction",
-            "a_price",
             "some_version",
         )
         databaseService.storeOffer(offerToStore)
@@ -45,7 +44,6 @@ class DatabaseServiceTest {
             "another_security_deposit_amount",
             "another_service_fee_rate",
             "opposite_direction",
-            "a_different_price",
             "some_other_version",
         )
         // This should do nothing and not throw
@@ -56,29 +54,6 @@ class DatabaseServiceTest {
         databaseService.deleteOffers("a_uuid")
         val returnedOfferAfterDeletion = databaseService.getOffer("a_uuid")
         assertEquals(null, returnedOfferAfterDeletion)
-    }
-
-    @Test
-    fun testUpdateOfferPrice() = runBlocking {
-        val offerToUpdate = Offer(
-            "a_uuid",
-            1L,
-            0L,
-            "maker_address",
-            "interface_id",
-            "stablecoin_address",
-            "lower_bound_amount",
-            "upper_bound_amount",
-            "security_deposit_amount",
-            "service_fee_rate",
-            "direction",
-            "a_price",
-            "some_version",
-        )
-        databaseService.storeOffer(offerToUpdate)
-        databaseService.updateOfferPrice("a_uuid", "an_updated_price")
-        val returnedOffer = databaseService.getOffer("a_uuid")
-        assertEquals(returnedOffer!!.onChainPrice, "an_updated_price")
     }
 
     @Test

@@ -88,7 +88,6 @@ internal class Database(databaseDriverFactory: DatabaseDriverFactory) {
             securityDepositAmount = offer.securityDepositAmount,
             serviceFeeRate = offer.serviceFeeRate,
             onChainDirection = offer.onChainDirection,
-            onChainPrice = offer.onChainPrice,
             protocolVersion = offer.protocolVersion
         )
     }
@@ -124,18 +123,6 @@ internal class Database(databaseDriverFactory: DatabaseDriverFactory) {
         dbQuery.insertPublicKey(
             interfaceId = publicKey.interfaceId,
             publicKey = publicKey.publicKey,
-        )
-    }
-
-    /**
-     * Updates the price of an [Offer] in the database.
-     * @param id The id of the [Offer] with the price to be updated.
-     * @param price The new price of the [Offer].
-     */
-    internal fun updateOfferPrice(id: String, price: String) {
-        dbQuery.updateOfferPriceByOfferId(
-            onChainPrice = price,
-            offerId = id
         )
     }
 

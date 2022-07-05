@@ -11,7 +11,6 @@ amountUpperBound TEXT NOT NULL,
 securityDepositAmount TEXT NOT NULL,
 serviceFeeRate TEXT NOT NULL,
 onChainDirection TEXT NOT NULL,
-onChainPrice TEXT NOT NULL,
 protocolVersion TEXT NOT NULL
 );
 
@@ -47,12 +46,10 @@ INSERT INTO Offer(
     securityDepositAmount,
     serviceFeeRate,
     onChainDirection,
-    onChainPrice,
     protocolVersion
 )
 VALUES(?, ?, ?, ?, ?, ?, ?,
-?, ?, ?, ?, ?,
-?);
+?, ?, ?, ?, ?);
 
 insertSettlementMethod:
 INSERT INTO SettlementMethod(offerId, settlementMethod)
@@ -65,10 +62,6 @@ VALUES(?, ?, ?);
 insertPublicKey:
 INSERT INTO PublicKey(interfaceId, publicKey)
 VALUES(?, ?);
-
-updateOfferPriceByOfferId:
-UPDATE Offer SET onChainPrice = ?
-WHERE offerId = ?;
 
 selectOfferByOfferId:
 SELECT * FROM Offer
