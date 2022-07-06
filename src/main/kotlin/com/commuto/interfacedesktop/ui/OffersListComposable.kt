@@ -13,25 +13,24 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.commuto.interfacedesktop.database.DatabaseDriverFactory
-import com.commuto.interfacedesktop.database.DatabaseService
 import com.commuto.interfacedesktop.i18n.I18n
 import com.commuto.interfacedesktop.offer.Offer
-import com.commuto.interfacedesktop.offer.OfferService
+import com.commuto.interfacedesktop.offer.OfferTruthSource
+import com.commuto.interfacedesktop.offer.PreviewableOfferTruthSource
 
 /**
- * Displays a [OffersNoneFoundComposable] if there are no open offers in [viewModel], or, if there
- * are open offers in [viewModel], displays a list containing an [OfferCardComposable]-labeled
- * [Button] for each open offer in [viewModel] that navigates to "OfferDetailComposable/ + offer id
+ * Displays a [OffersNoneFoundComposable] if there are no open offers in [offerTruthSource], or, if there
+ * are open offers in [offerTruthSource], displays a list containing an [OfferCardComposable]-labeled
+ * [Button] for each open offer in [offerTruthSource] that navigates to "OfferDetailComposable/ + offer id
  * as a [String]" when pressed.
  *
- * @param viewModel The OffersViewModel that acts as a single source of truth for all offer-related
- * data.
+ * @param offerTruthSource An object implementing [OfferTruthSource] that acts as a single source of truth for all
+ * offer-related data.
  * @param focusedOffer The currently focused [Offer], the information of which will be displayed next to the list of
  * open [Offer]s.
  */
 @Composable
-fun OffersListComposable(modifier: Modifier, viewModel: OffersViewModel, focusedOffer: MutableState<Offer?>) {
+fun OffersListComposable(modifier: Modifier, offerTruthSource: OfferTruthSource, focusedOffer: MutableState<Offer?>) {
     Column(modifier = modifier) {
         Text(
             text = I18n.get("Offers"),
@@ -40,11 +39,11 @@ fun OffersListComposable(modifier: Modifier, viewModel: OffersViewModel, focused
             modifier = Modifier.padding(horizontal = 10.dp)
         )
         OffersDividerComposable()
-        if (viewModel.offers.size == 0) {
+        if (offerTruthSource.offers.size == 0) {
             OffersNoneFoundComposable()
         } else {
             LazyColumn {
-                items(viewModel.offers) { offer ->
+                items(offerTruthSource.offers) { offer ->
                     Button(
                         colors = ButtonDefaults.buttonColors(backgroundColor = Color.Transparent),
                         contentPadding = PaddingValues(10.dp),
@@ -97,7 +96,7 @@ private fun OffersNoneFoundComposable() {
 fun PreviewOffersListComposable() {
     OffersListComposable(
         Modifier.widthIn(0.dp, 400.dp),
-        OffersViewModel(OfferService(DatabaseService(DatabaseDriverFactory()))),
+        PreviewableOfferTruthSource(),
         mutableStateOf(null)
     )
 }

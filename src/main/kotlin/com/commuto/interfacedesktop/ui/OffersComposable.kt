@@ -9,26 +9,25 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.commuto.interfacedesktop.database.DatabaseDriverFactory
-import com.commuto.interfacedesktop.database.DatabaseService
 import com.commuto.interfacedesktop.i18n.I18n
 import com.commuto.interfacedesktop.offer.Offer
-import com.commuto.interfacedesktop.offer.OfferService
+import com.commuto.interfacedesktop.offer.OfferTruthSource
+import com.commuto.interfacedesktop.offer.PreviewableOfferTruthSource
 
 /**
  * Displays the [OffersListComposable] for open offers and the focused [Offer], if any.
  *
- * @param viewModel The OffersViewModel that acts as a single source of truth for all offer-related
- * data.
+ * @param offerTruthSource An object implementing [OfferTruthSource] that acts as a single source of truth for all
+ * offer-related data.
  */
 @Composable
-fun OffersComposable(viewModel: OffersViewModel) {
+fun OffersComposable(offerTruthSource: OfferTruthSource) {
 
     // The offer to show in the offer detail composable
     val focusedOffer = remember { mutableStateOf<Offer?>(null) }
 
     Row {
-        OffersListComposable(Modifier.widthIn(200.dp, 400.dp), viewModel, focusedOffer)
+        OffersListComposable(Modifier.widthIn(200.dp, 400.dp), offerTruthSource, focusedOffer)
         if (focusedOffer.value != null) {
             Text(text = "id: " + focusedOffer.value!!.id.toString())
         } else {
@@ -43,5 +42,5 @@ fun OffersComposable(viewModel: OffersViewModel) {
 @Preview
 @Composable
 fun PreviewOffersComposable() {
-    OffersComposable(OffersViewModel(OfferService(DatabaseService(DatabaseDriverFactory()))))
+    OffersComposable(PreviewableOfferTruthSource())
 }
