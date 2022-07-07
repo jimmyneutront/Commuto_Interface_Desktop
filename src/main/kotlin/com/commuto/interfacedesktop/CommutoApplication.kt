@@ -31,7 +31,7 @@ class CommutoApplication @Inject constructor(
             Window(
                 onCloseRequest = ::exitApplication,
                 title = "Compose for Desktop",
-                state = rememberWindowState(width = 500.dp, height = 300.dp)
+                state = rememberWindowState(width = 700.dp, height = 600.dp)
             ) {
                 OffersComposable(offersViewModel)
             }

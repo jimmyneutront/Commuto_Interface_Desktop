@@ -22,7 +22,7 @@ class OffersViewModel @Inject constructor(private val offerService: OfferService
     init {
         offerService.setOfferTruthSource(this)
     }
-    override var offers = mutableStateListOf<Offer>() //Offer.manySampleOffers
+    override var offers = mutableStateListOf<Offer>()/*.also { it.addAll(Offer.sampleOffers) }*/
 
     /**
      * Adds a new [Offer] to [offers].
