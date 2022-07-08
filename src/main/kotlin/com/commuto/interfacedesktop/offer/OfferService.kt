@@ -99,12 +99,9 @@ class OfferService (
         offerOpenedEventRepository.append(event)
         val onChainOffer = blockchainService.getOfferAsync(offerId).await()
         val offer = Offer(
-            id = offerId,
-            direction = "Buy",
-            price = "1.004",
-            pair = "USD/USDT",
             isCreated = onChainOffer.isCreated,
             isTaken = onChainOffer.isTaken,
+            id = offerId,
             maker = onChainOffer.maker,
             interfaceId = onChainOffer.interfaceId,
             stablecoin = onChainOffer.stablecoin,
@@ -162,12 +159,9 @@ class OfferService (
         offerEditedEventRepository.append(event)
         val onChainOffer = blockchainService.getOfferAsync(offerId).await()
         val offer = Offer(
-            id = offerId,
-            direction = "Buy",
-            price = "1.004",
-            pair = "USD/USDT",
             isCreated = onChainOffer.isCreated,
             isTaken = onChainOffer.isTaken,
+            id = offerId,
             maker = onChainOffer.maker,
             interfaceId = onChainOffer.interfaceId,
             stablecoin = onChainOffer.stablecoin,

@@ -26,18 +26,18 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.commuto.interfacedesktop.offer.Offer
+import com.commuto.interfacedesktop.offer.OfferDirection
+import com.commuto.interfacedesktop.offer.OfferTruthSource
+import com.commuto.interfacedesktop.offer.PreviewableOfferTruthSource
+import java.util.*
 
 /**
  * Displays details about a particular [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer).
- * @param offer: The [Offer] about which this [OfferComposable] is displaying information.
+ * @param offerTruthSource The OffersViewModel that acts as a single source of truth for all offer-related data.
+ * @param id: The ID of the offer about which this [OfferComposable] is displaying information.
  */
 @Composable
-fun OfferComposable(offer: Offer?) {
-
-    /**
-     * The direction of this offer in human readable format.
-     */
-    val directionString = "Buy"
+fun OfferComposable(offerTruthSource: OfferTruthSource, id: UUID?) {
 
     /**
      * The human readable stablecoin symbol for which the offer has been made.
@@ -63,7 +63,21 @@ fun OfferComposable(offer: Offer?) {
         SettlementMethod("BSD", "SANDDOLLAR", "1.00"),
     )
 
-    if (offer == null) {
+    /**
+     * The offer about which this [Composable] displays information.
+     */
+    val offer = offerTruthSource.offers.firstOrNull { it.id == id }
+
+    if (id == null) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceEvenly
+        ) {
+            Text(
+                text = "This Offer has an invalid ID.",
+            )
+        }
+    } else if (offer == null) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceEvenly
@@ -92,13 +106,13 @@ fun OfferComposable(offer: Offer?) {
                 DisclosureComposable(
                     header = {
                         Text(
-                            text = buildDirectionString(directionString, stablecoin),
+                            text = buildDirectionString(offer.direction, stablecoin),
                             style = MaterialTheme.typography.h5,
                             fontWeight = FontWeight.Bold
                         )
                     },
                     content = {
-                        Text(buildDirectionDescriptionString(directionString, stablecoin))
+                        Text(buildDirectionDescriptionString(offer.direction.string, stablecoin))
                     }
                 )
                 OfferAmountComposable(minimumAmount, maximumAmount)
@@ -135,16 +149,19 @@ fun OfferComposable(offer: Offer?) {
 /**
  * Creates the text for the label of the direction-related [DisclosureComposable].
  *
- * @param directionString The offer's direction in human readable format.
+ * @param direction The offer's direction.
  * @param stablecoin The human readable stablecoin symbol for which the offer has been made.
  */
-fun buildDirectionString(directionString: String, stablecoin: String): String {
-    val directionJoiner: String = if (directionString.lowercase() == "buy") {
-        "with"
-    } else {
-        "for"
+fun buildDirectionString(direction: OfferDirection, stablecoin: String): String {
+    val directionJoiner: String = when (direction) {
+        OfferDirection.BUY -> {
+            "with"
+        }
+        OfferDirection.SELL -> {
+            "for"
+        }
     }
-    return "$directionString $stablecoin $directionJoiner fiat"
+    return "${direction.string} $stablecoin $directionJoiner fiat"
 }
 
 /**
@@ -324,12 +341,21 @@ fun DisclosureComposable(header: @Composable () -> Unit, content: @Composable ()
 }
 
 /**
- * Displays a preview of [OfferComposable] with id equal to a new UUID.
+ * Displays a preview of [OfferComposable] with id equal that of a sample offer.
  */
 @Preview
 @Composable
-fun PreviewOfferComposableWithUUID() {
-    OfferComposable(Offer.sampleOffers[0])
+fun PreviewOfferComposableWithSampleUUID() {
+    OfferComposable(PreviewableOfferTruthSource(), Offer.sampleOffers[0].id)
+}
+
+/**
+ * Displays a preview of [OfferComposable] with id equal to a new random UUID.
+ */
+@Preview
+@Composable
+fun PreviewOfferComposableWithRandomUUID() {
+    OfferComposable(PreviewableOfferTruthSource(), UUID.randomUUID())
 }
 
 /**
@@ -338,5 +364,5 @@ fun PreviewOfferComposableWithUUID() {
 @Preview
 @Composable
 fun PreviewOfferComposableWithNull() {
-    OfferComposable(null)
+    OfferComposable(PreviewableOfferTruthSource(),null)
 }

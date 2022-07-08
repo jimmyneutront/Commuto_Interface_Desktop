@@ -32,7 +32,7 @@ fun OffersComposable(offerTruthSource: OfferTruthSource) {
     Row {
         OffersListComposable(Modifier.widthIn(100.dp, 300.dp), offerTruthSource, focusedOffer)
         if (focusedOffer.value != null) {
-            OfferComposable(focusedOffer.value)
+            OfferComposable(offerTruthSource, focusedOffer.value!!.id)
         } else {
             Row(
                 modifier = Modifier.fillMaxSize(),

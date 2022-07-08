@@ -82,7 +82,6 @@ private fun OffersNoneFoundComposable() {
     ) {
         Text(
             text = I18n.get("NoOffersFound"),
-            style = MaterialTheme.typography.body1,
             modifier = Modifier.padding(horizontal = 10.dp)
         )
     }

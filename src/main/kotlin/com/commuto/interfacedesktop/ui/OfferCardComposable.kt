@@ -22,13 +22,13 @@ fun OfferCardComposable(offer: Offer) {
         Row {
             Column {
                 Text(
-                    text = offer.direction,
+                    text = offer.direction.string,
                     style = MaterialTheme.typography.h5,
                     fontWeight = FontWeight.Bold
                 )
                 Spacer(modifier = Modifier.height(5.dp))
                 Text(
-                    text = offer.price + " " + offer.pair,
+                    text = "Price Pair",
                     style = MaterialTheme.typography.h5
                 )
             }
