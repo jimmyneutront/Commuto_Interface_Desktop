@@ -136,9 +136,16 @@ fun OfferComposable(offerTruthSource: OfferTruthSource, id: UUID?) {
                         )
                     },
                     content = {
-                        Text(
-                            text = "ID: ${offer.id}"
-                        )
+                        Column(
+                            horizontalAlignment = Alignment.Start
+                        ) {
+                            Text(
+                                text = "Offer ID: $id"
+                            )
+                            Text(
+                                text = "Chain ID: ${offer.chainID}"
+                            )
+                        }
                     }
                 )
             }
