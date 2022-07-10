@@ -1,14 +1,12 @@
 package com.commuto.interfacedesktop.blockchain
 
-import org.web3j.protocol.core.methods.response.BaseEventResponse
-
 /**
  * A wrapper around a [MutableList] of blockchain events.
  * @property events The [List] of events that this class wraps.
  */
-open class BlockchainEventRepository<EventType: BaseEventResponse> {
+open class BlockchainEventRepository<EventType> {
 
-    private val events: MutableList<EventType> = mutableListOf<EventType>()
+    private val events: MutableList<EventType> = mutableListOf()
 
     /**
      * Appends a new [EventType] to the [MutableList] that this class wraps.

@@ -11,12 +11,14 @@ amountUpperBound TEXT NOT NULL,
 securityDepositAmount TEXT NOT NULL,
 serviceFeeRate TEXT NOT NULL,
 onChainDirection TEXT NOT NULL,
-protocolVersion TEXT NOT NULL
+protocolVersion TEXT NOT NULL,
+chainID TEXT NOT NULL
 );
 
 createSettlementMethodTable:
 CREATE TABLE SettlementMethod (
 offerId TEXT NOT NULL,
+chainID TEXT NOT NULL,
 settlementMethod TEXT NOT NULL
 );
 
@@ -46,14 +48,16 @@ INSERT INTO Offer(
     securityDepositAmount,
     serviceFeeRate,
     onChainDirection,
-    protocolVersion
+    protocolVersion,
+    chainID
 )
 VALUES(?, ?, ?, ?, ?, ?, ?,
-?, ?, ?, ?, ?);
+?, ?, ?, ?, ?,
+?);
 
 insertSettlementMethod:
-INSERT INTO SettlementMethod(offerId, settlementMethod)
-VALUES(?, ?);
+INSERT INTO SettlementMethod(offerId, chainID, settlementMethod)
+VALUES(?, ?, ?);
 
 insertKeyPair:
 INSERT INTO KeyPair(interfaceId, publicKey, privateKey)
@@ -67,9 +71,9 @@ selectOfferByOfferId:
 SELECT * FROM Offer
 WHERE offerId = ?;
 
-selectSettlementMethodByOfferId:
+selectSettlementMethodByOfferIdAndChainID:
 SELECT * FROM SettlementMethod
-WHERE offerId = ?;
+WHERE offerId = ? AND chainID = ?;
 
 selectKeyPairByInterfaceId:
 SELECT * FROM KeyPair
@@ -79,13 +83,13 @@ selectPublicKeyByInterfaceId:
 SELECT * FROM PublicKey
 WHERE interfaceId = ?;
 
-deleteOfferByOfferId:
+deleteOfferByOfferIdAndChainID:
 DELETE FROM Offer
-WHERE offerId = ?;
+WHERE offerId = ? AND chainID = ?;
 
-deleteSettlementMethodByOfferId:
+deleteSettlementMethodByOfferIdAndChainID:
 DELETE FROM SettlementMethod
-WHERE offerId = ?;
+WHERE offerId = ? AND chainID == ?;
 
 removeAllOffers:
 DELETE FROM Offer;

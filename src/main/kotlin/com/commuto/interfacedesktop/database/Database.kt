@@ -45,12 +45,13 @@ internal class Database(databaseDriverFactory: DatabaseDriverFactory) {
     }
 
     /**
-     * Returns [SettlementMethod]s with the specified offer ID.
-     * @param id The offer ID associated with the settlement methods to be returned.
+     * Returns [SettlementMethod]s with the specified offer ID and blockchain ID.
+     * @param offerID The offer ID associated with the settlement methods to be returned.
+     * @param chainID The blockchain ID associated with the settlement methods to be returned.
      * @return A [List] of [SettlementMethod]s
      */
-    internal fun selectSettlementMethodByOfferId(id: String): List<SettlementMethod> {
-        return dbQuery.selectSettlementMethodByOfferId(id).executeAsList()
+    internal fun selectSettlementMethodByOfferIdAndChainID(offerID: String, chainID: String): List<SettlementMethod> {
+        return dbQuery.selectSettlementMethodByOfferIdAndChainID(offerID, chainID).executeAsList()
     }
 
     /**
@@ -88,7 +89,8 @@ internal class Database(databaseDriverFactory: DatabaseDriverFactory) {
             securityDepositAmount = offer.securityDepositAmount,
             serviceFeeRate = offer.serviceFeeRate,
             onChainDirection = offer.onChainDirection,
-            protocolVersion = offer.protocolVersion
+            protocolVersion = offer.protocolVersion,
+            chainID = offer.chainID
         )
     }
 
@@ -99,7 +101,8 @@ internal class Database(databaseDriverFactory: DatabaseDriverFactory) {
     internal fun insertSettlementMethod(settlementMethod: SettlementMethod) {
         dbQuery.insertSettlementMethod(
             offerId = settlementMethod.offerId,
-            settlementMethod = settlementMethod.settlementMethod
+            chainID = settlementMethod.chainID,
+            settlementMethod = settlementMethod.settlementMethod,
         )
     }
 
@@ -127,22 +130,26 @@ internal class Database(databaseDriverFactory: DatabaseDriverFactory) {
     }
 
     /**
-     * Deletes all [Offer]s with the specified offer ID from the database.
-     * @param id The offer ID of the [Offer]s to be deleted.
+     * Deletes all [Offer]s with the specified offer ID and chain ID from the database.
+     * @param offerID The offer ID of the [Offer]s to be deleted.
+     * @param chainID The blockchain ID of the [Offer]s to be deleted.
      */
-    internal fun deleteOffer(id: String) {
-        dbQuery.deleteOfferByOfferId(
-            offerId = id
+    internal fun deleteOffer(offerID: String, chainID: String) {
+        dbQuery.deleteOfferByOfferIdAndChainID(
+            offerId = offerID,
+            chainID = chainID
         )
     }
 
     /**
-     * Deletes all [SettlementMethod]s with the specified offer ID from the database.
-     * @param id The offer ID of the [SettlementMethod]s to be deleted.
+     * Deletes all [SettlementMethod]s with the specified offer ID and specified blockchain ID from the database.
+     * @param offerID The offer ID of the [SettlementMethod]s to be deleted.
+     * @param chainID The blockchain ID of the [SettlementMethod]s to be deleted.
      */
-    internal fun deleteSettlementMethods(id: String) {
-        dbQuery.deleteSettlementMethodByOfferId(
-            offerId = id
+    internal fun deleteSettlementMethods(offerID: String, chainID: String) {
+        dbQuery.deleteSettlementMethodByOfferIdAndChainID(
+            offerId = offerID,
+            chainID = chainID
         )
     }
 

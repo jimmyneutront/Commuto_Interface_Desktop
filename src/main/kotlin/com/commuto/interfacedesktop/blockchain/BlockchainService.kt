@@ -1,10 +1,16 @@
 package com.commuto.interfacedesktop.blockchain
 
+import com.commuto.interfacedesktop.blockchain.events.commutoswap.OfferCanceledEvent
+import com.commuto.interfacedesktop.blockchain.events.commutoswap.OfferEditedEvent
+import com.commuto.interfacedesktop.blockchain.events.commutoswap.OfferOpenedEvent
+import com.commuto.interfacedesktop.blockchain.events.commutoswap.OfferTakenEvent
+import com.commuto.interfacedesktop.blockchain.structs.OfferStruct
 import com.commuto.interfacedesktop.contractwrapper.CommutoSwap
 import com.commuto.interfacedesktop.offer.OfferNotifiable
 import com.commuto.interfacedesktop.offer.OfferService
 import kotlinx.coroutines.*
 import kotlinx.coroutines.future.asDeferred
+import kotlinx.coroutines.future.await
 import org.web3j.crypto.Credentials
 import org.web3j.protocol.Web3j
 import org.web3j.protocol.core.DefaultBlockParameter
@@ -206,17 +212,20 @@ class BlockchainService (private val exceptionHandler: BlockchainExceptionNotifi
     }
 
     /**
-     * A [Deferred] wrapper around the [CommutoSwap.getOffer] method.
+     * Uses the [CommutoSwap.getOffer] method and the [Web3j.ethChainId] to get the current chain ID and all on-chain
+     * data about the offer with the specified ID, and creates and returns an [OfferStruct] with the results.
      *
      * @param id The ID of the offer to return.
      *
-     * @return A [Deferred] with a [CommutoSwap.Offer] result.
+     * @return An [OfferStruct] containing all on-chain data of the offer with the specified ID.
      */
-    fun getOfferAsync(id: UUID): Deferred<CommutoSwap.Offer> {
+    suspend fun getOffer(id: UUID): OfferStruct {
         val offerIdByteBuffer = ByteBuffer.wrap(ByteArray(16))
         offerIdByteBuffer.putLong(id.mostSignificantBits)
         offerIdByteBuffer.putLong(id.leastSignificantBits)
-        return commutoSwap.getOffer(offerIdByteBuffer.array()).sendAsync().asDeferred()
+        val offer = commutoSwap.getOffer(offerIdByteBuffer.array()).sendAsync().asDeferred()
+        val chainID = web3.ethChainId().sendAsync().asDeferred()
+        return OfferStruct(offer.await(), chainID.await().chainId)
     }
 
     /**
@@ -229,6 +238,7 @@ class BlockchainService (private val exceptionHandler: BlockchainExceptionNotifi
      * @param block The [EthBlock.Block] to be parsed.
      */
     private suspend fun parseBlock(block: EthBlock.Block) {
+        val chainID = web3.ethChainId().sendAsync().await().chainId
         val txHashes: List<String> = block.transactions.mapNotNull {
             when (it) {
                 is EthBlock.TransactionHash -> {
@@ -247,7 +257,7 @@ class BlockchainService (private val exceptionHandler: BlockchainExceptionNotifi
         for (deferredReceiptOptional in deferredTxReceiptOptionals) {
             eventResponses.add(parseDeferredReceiptOptional(deferredReceiptOptional))
         }
-        handleEventResponses(eventResponses)
+        handleEventResponses(eventResponses, chainID)
     }
 
     /**
@@ -292,24 +302,30 @@ class BlockchainService (private val exceptionHandler: BlockchainExceptionNotifi
 
     /**
      * Flattens and then iterates through [eventResponseLists] in search of relevant
-     * [BaseEventResponse]s, and passes then to the proper service.
+     * [BaseEventResponse]s, and creates event objects and passes them to the proper service.
      *
      * @param eventResponseLists A [MutableList] of [List]s of [BaseEventResponse]s, which are
      * relevant events about which other services must be notified.
      */
     private suspend fun handleEventResponses(
-        eventResponseLists: MutableList<List<BaseEventResponse>>
+        eventResponseLists: MutableList<List<BaseEventResponse>>,
+        chainID: BigInteger
     ) {
         val eventResponses = eventResponseLists.flatten()
         for (eventResponse in eventResponses) {
-            if (eventResponse is CommutoSwap.OfferOpenedEventResponse) {
-                offerService.handleOfferOpenedEvent(eventResponse)
-            } else if (eventResponse is CommutoSwap.OfferEditedEventResponse) {
-                offerService.handleOfferEditedEvent(eventResponse)
-            }else if (eventResponse is CommutoSwap.OfferCanceledEventResponse) {
-                offerService.handleOfferCanceledEvent(eventResponse)
-            } else if (eventResponse is CommutoSwap.OfferTakenEventResponse) {
-                offerService.handleOfferTakenEvent(eventResponse)
+            when (eventResponse) {
+                is CommutoSwap.OfferOpenedEventResponse -> {
+                    offerService.handleOfferOpenedEvent(OfferOpenedEvent.fromEventResponse(eventResponse, chainID))
+                }
+                is CommutoSwap.OfferEditedEventResponse -> {
+                    offerService.handleOfferEditedEvent(OfferEditedEvent.fromEventResponse(eventResponse, chainID))
+                }
+                is CommutoSwap.OfferCanceledEventResponse -> {
+                    offerService.handleOfferCanceledEvent(OfferCanceledEvent.fromEventResponse(eventResponse, chainID))
+                }
+                is CommutoSwap.OfferTakenEventResponse -> {
+                    offerService.handleOfferTakenEvent(OfferTakenEvent.fromEventResponse(eventResponse, chainID))
+                }
             }
         }
     }

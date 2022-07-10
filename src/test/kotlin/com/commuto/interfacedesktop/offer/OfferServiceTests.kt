@@ -1,10 +1,13 @@
 package com.commuto.interfacedesktop.offer
 
 import androidx.compose.runtime.mutableStateListOf
-import com.commuto.interfacedesktop.contractwrapper.CommutoSwap
 import com.commuto.interfacedesktop.blockchain.BlockchainEventRepository
 import com.commuto.interfacedesktop.blockchain.BlockchainExceptionNotifiable
 import com.commuto.interfacedesktop.blockchain.BlockchainService
+import com.commuto.interfacedesktop.blockchain.events.commutoswap.OfferCanceledEvent
+import com.commuto.interfacedesktop.blockchain.events.commutoswap.OfferEditedEvent
+import com.commuto.interfacedesktop.blockchain.events.commutoswap.OfferOpenedEvent
+import com.commuto.interfacedesktop.blockchain.events.commutoswap.OfferTakenEvent
 import com.commuto.interfacedesktop.database.DatabaseDriverFactory
 import com.commuto.interfacedesktop.database.DatabaseService
 import io.ktor.client.*
@@ -79,18 +82,18 @@ class OfferServiceTests {
         val databaseService = DatabaseService(DatabaseDriverFactory())
         databaseService.createTables()
 
-        class TestBlockchainEventRepository: BlockchainEventRepository<CommutoSwap.OfferOpenedEventResponse>() {
+        class TestBlockchainEventRepository: BlockchainEventRepository<OfferOpenedEvent>() {
 
-            var appendedEventResponse: CommutoSwap.OfferOpenedEventResponse? = null
-            var removedEventResponse: CommutoSwap.OfferOpenedEventResponse? = null
+            var appendedEvent: OfferOpenedEvent? = null
+            var removedEvent: OfferOpenedEvent? = null
 
-            override fun append(element: CommutoSwap.OfferOpenedEventResponse) {
-                appendedEventResponse = element
+            override fun append(element: OfferOpenedEvent) {
+                appendedEvent = element
                 super.append(element)
             }
 
-            override fun remove(elementToRemove: CommutoSwap.OfferOpenedEventResponse) {
-                removedEventResponse = elementToRemove
+            override fun remove(elementToRemove: OfferOpenedEvent) {
+                removedEvent = elementToRemove
                 super.remove(elementToRemove)
             }
 
@@ -146,12 +149,8 @@ class OfferServiceTests {
                 assertFalse(exceptionHandler.gotError)
                 assert(offerTruthSource.offers.size == 1)
                 assert(offerTruthSource.offers[0].id == expectedOfferId)
-                assert(
-                    Arrays.equals(offerOpenedEventRepository.appendedEventResponse!!.offerID,
-                    expectedOfferIdByteArray))
-                assert(
-                    Arrays.equals(offerOpenedEventRepository.removedEventResponse!!.offerID,
-                    expectedOfferIdByteArray))
+                assertEquals(offerOpenedEventRepository.appendedEvent!!.offerID, expectedOfferId)
+                assertEquals(offerOpenedEventRepository.removedEvent!!.offerID, expectedOfferId)
                 val offerInDatabase = databaseService.getOffer(encoder.encodeToString(expectedOfferIdByteArray))
                 assert(offerInDatabase!!.isCreated == 1L)
                 assert(offerInDatabase.isTaken == 0L)
@@ -164,7 +163,7 @@ class OfferServiceTests {
                 assertEquals(offerInDatabase.onChainDirection, "1")
                 assertEquals(offerInDatabase.protocolVersion, "1")
                 val settlementMethodsInDatabase = databaseService.getSettlementMethods(encoder
-                    .encodeToString(expectedOfferIdByteArray))
+                    .encodeToString(expectedOfferIdByteArray), offerInDatabase.chainID)
                 assertEquals(settlementMethodsInDatabase!!.size, 1)
                 assertEquals(settlementMethodsInDatabase[0], encoder.encodeToString("USD-SWIFT|a price here"
                     .encodeToByteArray()))
@@ -209,18 +208,18 @@ class OfferServiceTests {
         val databaseService = DatabaseService(DatabaseDriverFactory())
         databaseService.createTables()
 
-        class TestBlockchainEventRepository: BlockchainEventRepository<CommutoSwap.OfferCanceledEventResponse>() {
+        class TestBlockchainEventRepository: BlockchainEventRepository<OfferCanceledEvent>() {
 
-            var appendedEventResponse: CommutoSwap.OfferCanceledEventResponse? = null
-            var removedEventResponse: CommutoSwap.OfferCanceledEventResponse? = null
+            var appendedEvent: OfferCanceledEvent? = null
+            var removedEvent: OfferCanceledEvent? = null
 
-            override fun append(element: CommutoSwap.OfferCanceledEventResponse) {
-                appendedEventResponse = element
+            override fun append(element: OfferCanceledEvent) {
+                appendedEvent = element
                 super.append(element)
             }
 
-            override fun remove(elementToRemove: CommutoSwap.OfferCanceledEventResponse) {
-                removedEventResponse = elementToRemove
+            override fun remove(elementToRemove: OfferCanceledEvent) {
+                removedEvent = elementToRemove
                 super.remove(elementToRemove)
             }
 
@@ -279,10 +278,8 @@ class OfferServiceTests {
                 offerTruthSource.offersChannel.receive()
                 assertFalse(exceptionHandler.gotError)
                 assert(offerTruthSource.offers.isEmpty())
-                assert(Arrays.equals(offerCanceledEventRepository.appendedEventResponse!!.offerID,
-                    expectedOfferIdByteArray))
-                assert(Arrays.equals(offerCanceledEventRepository.removedEventResponse!!.offerID,
-                    expectedOfferIdByteArray))
+                assertEquals(offerCanceledEventRepository.appendedEvent!!.offerID, expectedOfferId)
+                assertEquals(offerCanceledEventRepository.removedEvent!!.offerID, expectedOfferId)
                 val offerInDatabase = databaseService.getOffer(encoder.encodeToString(expectedOfferIdByteArray))
                 assertEquals(offerInDatabase, null)
             }
@@ -326,18 +323,18 @@ class OfferServiceTests {
         val databaseService = DatabaseService(DatabaseDriverFactory())
         databaseService.createTables()
 
-        class TestBlockchainEventRepository: BlockchainEventRepository<CommutoSwap.OfferTakenEventResponse>() {
+        class TestBlockchainEventRepository: BlockchainEventRepository<OfferTakenEvent>() {
 
-            var appendedEventResponse: CommutoSwap.OfferTakenEventResponse? = null
-            var removedEventResponse: CommutoSwap.OfferTakenEventResponse? = null
+            var appendedEvent: OfferTakenEvent? = null
+            var removedEvent: OfferTakenEvent? = null
 
-            override fun append(element: CommutoSwap.OfferTakenEventResponse) {
-                appendedEventResponse = element
+            override fun append(element: OfferTakenEvent) {
+                appendedEvent = element
                 super.append(element)
             }
 
-            override fun remove(elementToRemove: CommutoSwap.OfferTakenEventResponse) {
-                removedEventResponse = elementToRemove
+            override fun remove(elementToRemove: OfferTakenEvent) {
+                removedEvent = elementToRemove
                 super.remove(elementToRemove)
             }
 
@@ -396,10 +393,8 @@ class OfferServiceTests {
                 offerTruthSource.offersChannel.receive()
                 assertFalse(exceptionHandler.gotError)
                 assert(offerTruthSource.offers.isEmpty())
-                assert(Arrays.equals(offerTakenEventRepository.appendedEventResponse!!.offerID,
-                    expectedOfferIdByteArray))
-                assert(Arrays.equals(offerTakenEventRepository.removedEventResponse!!.offerID,
-                    expectedOfferIdByteArray))
+                assertEquals(offerTakenEventRepository.appendedEvent!!.offerID, expectedOfferId)
+                assertEquals(offerTakenEventRepository.removedEvent!!.offerID, expectedOfferId)
                 val offerInDatabase = databaseService.getOffer(encoder.encodeToString(expectedOfferIdByteArray))
                 assertEquals(offerInDatabase, null)
             }
@@ -443,18 +438,18 @@ class OfferServiceTests {
         val databaseService = DatabaseService(DatabaseDriverFactory())
         databaseService.createTables()
 
-        class TestBlockchainEventRepository: BlockchainEventRepository<CommutoSwap.OfferEditedEventResponse>() {
+        class TestBlockchainEventRepository: BlockchainEventRepository<OfferEditedEvent>() {
 
-            var appendedEventResponse: CommutoSwap.OfferEditedEventResponse? = null
-            var removedEventResponse: CommutoSwap.OfferEditedEventResponse? = null
+            var appendedEvent: OfferEditedEvent? = null
+            var removedEvent: OfferEditedEvent? = null
 
-            override fun append(element: CommutoSwap.OfferEditedEventResponse) {
-                appendedEventResponse = element
+            override fun append(element: OfferEditedEvent) {
+                appendedEvent = element
                 super.append(element)
             }
 
-            override fun remove(elementToRemove: CommutoSwap.OfferEditedEventResponse) {
-                removedEventResponse = elementToRemove
+            override fun remove(elementToRemove: OfferEditedEvent) {
+                removedEvent = elementToRemove
                 super.remove(elementToRemove)
             }
 
@@ -515,10 +510,8 @@ class OfferServiceTests {
                 assertFalse(exceptionHandler.gotError)
                 assert(offerTruthSource.offers.size == 1)
                 assert(offerTruthSource.offers[0].id == expectedOfferId)
-                assert(Arrays.equals(offerEditedEventRepository.appendedEventResponse!!.offerID,
-                    expectedOfferIdByteArray))
-                assert(Arrays.equals(offerEditedEventRepository.removedEventResponse!!.offerID,
-                    expectedOfferIdByteArray))
+                assertEquals(offerEditedEventRepository.appendedEvent!!.offerID, expectedOfferId)
+                assertEquals(offerEditedEventRepository.removedEvent!!.offerID, expectedOfferId)
                 val offerInDatabase = databaseService.getOffer(encoder.encodeToString(expectedOfferIdByteArray))
                 assert(offerInDatabase!!.isCreated == 1L)
                 assert(offerInDatabase.isTaken == 0L)
@@ -531,7 +524,7 @@ class OfferServiceTests {
                 assertEquals(offerInDatabase.onChainDirection, "1")
                 assertEquals(offerInDatabase.protocolVersion, "1")
                 val settlementMethodsInDatabase = databaseService.getSettlementMethods(encoder
-                    .encodeToString(expectedOfferIdByteArray))
+                    .encodeToString(expectedOfferIdByteArray), offerInDatabase.chainID)
                 assertEquals(settlementMethodsInDatabase!!.size, 1)
                 assertEquals(settlementMethodsInDatabase[0], encoder.encodeToString("EUR-SEPA|an edited price here"
                     .encodeToByteArray()))

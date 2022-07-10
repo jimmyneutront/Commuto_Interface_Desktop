@@ -1,55 +1,50 @@
 package com.commuto.interfacedesktop.offer
 
-import com.commuto.interfacedesktop.contractwrapper.CommutoSwap
+import com.commuto.interfacedesktop.blockchain.events.commutoswap.OfferCanceledEvent
+import com.commuto.interfacedesktop.blockchain.events.commutoswap.OfferEditedEvent
+import com.commuto.interfacedesktop.blockchain.events.commutoswap.OfferOpenedEvent
+import com.commuto.interfacedesktop.blockchain.events.commutoswap.OfferTakenEvent
 import javax.inject.Singleton
 
 /**
- * An interface that a class must implement in order to be notified of offer-related blockchain
- * events by [com.commuto.interfacedesktop.blockchain.BlockchainService].
+ * An interface that a class must implement in order to be notified of offer-related blockchain events by
+ * [com.commuto.interfacedesktop.blockchain.BlockchainService].
  */
 @Singleton
 interface OfferNotifiable {
     /**
-     * The method called by [com.commuto.interfacedesktop.blockchain.BlockchainService] in
-     * order to notify the class implementing this interface of a
-     * [CommutoSwap.OfferOpenedEventResponse].
+     * The method called by [com.commuto.interfacedesktop.blockchain.BlockchainService] in order to notify the class
+     * implementing this interface of a [OfferOpenedEvent].
      *
-     * @param event The [CommutoSwap.OfferOpenedEventResponse] of which the class
-     * implementing this interface is being notified and should handle in the implementation of this
-     * method.
+     * @param event The [OfferOpenedEvent] of which the class implementing this interface is being notified and should
+     * handle in the implementation of this method.
      */
-    suspend fun handleOfferOpenedEvent(event: CommutoSwap.OfferOpenedEventResponse)
+    suspend fun handleOfferOpenedEvent(event: OfferOpenedEvent)
 
     /**
-     * The method called by [com.commuto.interfacedesktop.blockchain.BlockchainService] in
-     * order to notify the class implementing this interface of a
-     * [CommutoSwap.OfferEditedEventResponse].
+     * The method called by [com.commuto.interfacedesktop.blockchain.BlockchainService] in order to notify the class
+     * implementing this interface of a [OfferEditedEvent].
      *
-     * @param event The [CommutoSwap.OfferEditedEventResponse] of which the class
-     * implementing this interface is being notified and should handle in the implementation of this
-     * method.
+     * @param event The [OfferEditedEvent] of which the class implementing this interface is being notified and should
+     * handle in the implementation of this method.
      */
-    suspend fun handleOfferEditedEvent(event: CommutoSwap.OfferEditedEventResponse)
+    suspend fun handleOfferEditedEvent(event: OfferEditedEvent)
 
     /**
-     * The method called by [com.commuto.interfacedesktop.blockchain.BlockchainService] in
-     * order to notify the class implementing this interface of a
-     * [CommutoSwap.OfferCanceledEventResponse].
+     * The method called by [com.commuto.interfacedesktop.blockchain.BlockchainService] in order to notify the class
+     * implementing this interface of a [OfferCanceledEvent].
      *
-     * @param event The [CommutoSwap.OfferCanceledEventResponse] of which the
-     * class implementing this interface is being notified and should handle in the implementation
-     * of this method.
+     * @param event The [OfferCanceledEvent] of which the class implementing this interface is being notified and should
+     * handle in the implementation of this method.
      */
-    suspend fun handleOfferCanceledEvent(event: CommutoSwap.OfferCanceledEventResponse)
+    suspend fun handleOfferCanceledEvent(event: OfferCanceledEvent)
 
     /**
-     * The method called by [com.commuto.interfacedesktop.blockchain.BlockchainService] in
-     * order to notify the class implementing this interface of a
-     * [CommutoSwap.OfferTakenEventResponse].
+     * The method called by [com.commuto.interfacedesktop.blockchain.BlockchainService] in order to notify the class
+     * implementing this interface of a [OfferTakenEvent].
      *
-     * @param event The [CommutoSwap.OfferTakenEventResponse] of which the class
-     * implementing this interface is being notified and should handle in the implementation of this
-     * method.
+     * @param event The [OfferTakenEvent] of which the class implementing this interface is being notified and should
+     * handle in the implementation of this method.
      */
-    suspend fun handleOfferTakenEvent(event: CommutoSwap.OfferTakenEventResponse)
+    suspend fun handleOfferTakenEvent(event: OfferTakenEvent)
 }

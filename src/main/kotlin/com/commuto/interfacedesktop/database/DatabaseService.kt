@@ -66,16 +66,17 @@ open class DatabaseService @Inject constructor(private val databaseDriverFactory
 
     /**
      * Removes every [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer) with an offer ID equal
-     * to [id] from persistent storage.
+     * to [offerID] and a chain ID equal to [chainID] from persistent storage.
      *
-     * @param id The ID of the offers to be removed, as a Base64-[String] of bytes.
+     * @param offerID The offer ID of the offers to be removed, as a Base64-[String] of bytes.
+     * @param chainID The blockchain chain ID of the offers to be removed, as a [String].
      *
      * @throws Exception If deletion is unsuccessful.
      */
     @OptIn(DelicateCoroutinesApi::class)
-    suspend fun deleteOffers(id: String) {
+    suspend fun deleteOffers(offerID: String, chainID: String) {
         withContext(databaseServiceContext) {
-            database.deleteOffer(id)
+            database.deleteOffer(offerID, chainID)
         }
     }
 
@@ -109,49 +110,56 @@ open class DatabaseService @Inject constructor(private val databaseDriverFactory
      * Deletes all persistently stored settlement methods associated with the specified ID, and then persistently stores
      * each settlement method in the supplied [List], associating each one with the supplied ID.
      *
-     * @param id The ID of the offer or swap to be associated with the settlement methods.
+     * @param offerID The ID of the offer or swap to be associated with the settlement methods.
      * @param settlementMethods The settlement methods to be persistently stored.
      *
      * @throws Exception if database insertion is unsuccessful.
      */
     @OptIn(DelicateCoroutinesApi::class)
-    suspend fun storeSettlementMethods(id: String, settlementMethods: List<String>) {
+    suspend fun storeSettlementMethods(offerID: String, chainID: String, settlementMethods: List<String>) {
         withContext(databaseServiceContext) {
-            database.deleteSettlementMethods(id)
+            database.deleteSettlementMethods(offerID, chainID)
             for (settlementMethod in settlementMethods) {
-                database.insertSettlementMethod(SettlementMethod(id, settlementMethod))
+                database.insertSettlementMethod(SettlementMethod(offerID, chainID, settlementMethod))
             }
         }
     }
 
     /**
-     * Removes every persistently stored settlement method associated with an offer ID equal to [id].
+     * Removes every persistently stored settlement method associated with an offer ID equal to [offerID] and a
+     * blockchain ID equalt to [chainID].
      *
-     * @param id The ID of the offer for which associated settlement methods should be removed.
+     * @param offerID The ID of the offer for which associated settlement methods should be removed, as a
+     * Base64-[String] of bytes.
+     * @param chainID The ID of the blockchain on which the [Offer] or `Swap` corresponding to these settlement methods
+     * exists, as a [String].
      *
      * @throws Exception If deletion is unsuccessful.
      */
     @OptIn(DelicateCoroutinesApi::class)
-    suspend fun deleteSettlementMethods(id: String) {
+    suspend fun deleteSettlementMethods(offerID: String, chainID: String) {
         withContext(databaseServiceContext) {
-            database.deleteSettlementMethods(id)
+            database.deleteSettlementMethods(offerID, chainID)
         }
     }
 
     /**
-     * Retrieves the persistently stored settlement methods associated with the specified offer ID, or returns null if no
-     * such settlement methods are present.
+     * Retrieves the persistently stored settlement methods associated with the specified offer ID and chain ID, or
+     * returns null if no such settlement methods are present.
      *
-     * @param id: The ID of the offer for which settlement methods should be returned, as a Base64-[String] of bytes.
-     * @return A [List] of [String]s which are settlement methods associated with [id], or null if no such settlement
-     * methods are found.
+     * @param offerID The ID of the offer for which settlement methods should be returned, as a Base64-[String] of bytes.
+     * @param chainID The ID of the blockchain on which the [Offer] or Swap corresponding to these settlement methods
+     * exists, as a [String].
+     *
+     * @return A [List] of [String]s which are settlement methods associated with [offerID] and [chainID], or null if no
+     * such settlement methods are found.
      *
      * @throws Exception if database selection is unsuccessful.
      */
     @OptIn(DelicateCoroutinesApi::class)
-    suspend fun getSettlementMethods(id: String): List<String>? {
+    suspend fun getSettlementMethods(offerID: String, chainID: String): List<String>? {
         val dbSettlementMethods: List<SettlementMethod> = withContext(databaseServiceContext) {
-            database.selectSettlementMethodByOfferId(id)
+            database.selectSettlementMethodByOfferIdAndChainID(offerID, chainID)
         }
         return if (dbSettlementMethods.isNotEmpty()) {
             dbSettlementMethods.map {
