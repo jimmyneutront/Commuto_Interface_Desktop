@@ -19,19 +19,21 @@ import javax.inject.Singleton
 
 /**
  * The main Offer Service. It is responsible for processing and organizing offer-related data that it receives from
- * [BlockchainService] and [com.commuto.interfacedesktop.p2p.P2PService] in order to maintain an accurate list of all
- * open [Offer]s in [OffersViewModel].
+ * [com.commuto.interfacedesktop.blockchain.BlockchainService] and [com.commuto.interfacedesktop.p2p.P2PService] in
+ * order to maintain an accurate list of all open [Offer]s in [OffersViewModel].
  *
- * @property offerTruthSource The [OfferTruthSource] in which this is responsible for maintaining an accurate list of
- * all open offers. If this is not yet initialized, event handling methods will throw the corresponding error.
+ * @property databaseService The [DatabaseService] used for  persistent storage.
  * @property offerOpenedEventRepository A repository containing [OfferOpenedEvent]s for offers that are open and for
  * which complete offer information has not yet been retrieved.
- * @property offerEditedEventRepository A repository containing [OfferEditedEvent]s for offers that are open and for
- * which stored price and payment method information is currently inaccurate.
+ * @property offerEditedEventRepository A repository containing [OfferEditedEvent]s for offers that are open and have
+ * been edited by their makers, meaning price and payment method information stored in this interface's persistent
+ * storage is currently inaccurate.
  * @property offerCanceledEventRepository A repository containing [OfferCanceledEvent]s for offers that have been
  * canceled but haven't yet been removed from persistent storage or [offerTruthSource].
  * @property offerTakenEventRepository A repository containing [OfferTakenEvent]s for offers that have been taken but
  * haven't yet been removed from persistent storage or [offerTruthSource].
+ * @property offerTruthSource The [OfferTruthSource] in which this is responsible for maintaining an accurate list of
+ * all open offers. If this is not yet initialized, event handling methods will throw the corresponding error.
  */
 @Singleton
 class OfferService (
