@@ -29,30 +29,24 @@ import com.commuto.interfacedesktop.offer.Offer
 import com.commuto.interfacedesktop.offer.OfferDirection
 import com.commuto.interfacedesktop.offer.OfferTruthSource
 import com.commuto.interfacedesktop.offer.PreviewableOfferTruthSource
+import java.math.BigInteger
 import java.util.*
 
 /**
  * Displays details about a particular [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer).
  * @param offerTruthSource The OffersViewModel that acts as a single source of truth for all offer-related data.
  * @param id: The ID of the offer about which this [OfferComposable] is displaying information.
+ * @param stablecoinInfoRepo The [StablecoinInformationRepository] that this [Composable] uses to get stablecoin name
+ * and currency code information. Defaults to [StablecoinInformationRepository.ethereumMainnetStablecoinInfoRepo] if no
+ * other value is passed.
  */
 @Composable
-fun OfferComposable(offerTruthSource: OfferTruthSource, id: UUID?) {
-
-    /**
-     * The human readable stablecoin symbol for which the offer has been made.
-     */
-    val stablecoin = "STBL"
-
-    /**
-     * The Offer's minimum amount.
-     */
-    val minimumAmount = "10,000"
-
-    /**
-     * The Offer's maximum amount
-     */
-    val maximumAmount = "20,000"
+fun OfferComposable(
+    offerTruthSource: OfferTruthSource,
+    id: UUID?,
+    stablecoinInfoRepo: StablecoinInformationRepository =
+        StablecoinInformationRepository.ethereumMainnetStablecoinInfoRepo
+) {
 
     /**
      * The list of [SettlementMethod]s that the maker is willing to accept.
@@ -87,6 +81,7 @@ fun OfferComposable(offerTruthSource: OfferTruthSource, id: UUID?) {
             )
         }
     } else {
+        val stablecoinInformation = stablecoinInfoRepo.getStablecoinInformation(offer.chainID, offer.stablecoin)
         Column(
             modifier = Modifier
                 .verticalScroll(rememberScrollState())
@@ -106,22 +101,22 @@ fun OfferComposable(offerTruthSource: OfferTruthSource, id: UUID?) {
                 DisclosureComposable(
                     header = {
                         Text(
-                            text = buildDirectionString(offer.direction, stablecoin),
+                            text = buildDirectionString(offer.direction, stablecoinInformation),
                             style = MaterialTheme.typography.h5,
                             fontWeight = FontWeight.Bold
                         )
                     },
                     content = {
-                        Text(buildDirectionDescriptionString(offer.direction.string, stablecoin))
+                        Text(buildDirectionDescriptionString(offer.direction.string, stablecoinInformation))
                     }
                 )
-                OfferAmountComposable(minimumAmount, maximumAmount)
+                OfferAmountComposable(stablecoinInformation, offer.amountLowerBound, offer.amountUpperBound)
             }
             Row(
                 modifier = Modifier.offset(x = 9.dp)
             ) {
                 Column {
-                    SettlementMethodsListComposable(stablecoin, settlementMethods)
+                    SettlementMethodsListComposable(stablecoinInformation, settlementMethods)
                 }
             }
             Column(
@@ -157,9 +152,10 @@ fun OfferComposable(offerTruthSource: OfferTruthSource, id: UUID?) {
  * Creates the text for the label of the direction-related [DisclosureComposable].
  *
  * @param direction The offer's direction.
- * @param stablecoin The human readable stablecoin symbol for which the offer has been made.
+ * @param stablecoinInformation A [StablecoinInformation?] for this offer's stablecoin.
  */
-fun buildDirectionString(direction: OfferDirection, stablecoin: String): String {
+fun buildDirectionString(direction: OfferDirection, stablecoinInformation: StablecoinInformation?): String {
+    val stablecoinCode = stablecoinInformation?.currencyCode ?: "Unknown Stablecoin"
     val directionJoiner: String = when (direction) {
         OfferDirection.BUY -> {
             "with"
@@ -168,47 +164,55 @@ fun buildDirectionString(direction: OfferDirection, stablecoin: String): String 
             "for"
         }
     }
-    return "${direction.string} $stablecoin $directionJoiner fiat"
+    return "${direction.string} $stablecoinCode $directionJoiner fiat"
 }
 
 /**
  * Creates the text for the content of the direction-related [DisclosureComposable]
  *
  * @param directionString The offer's direction in human readable format.
- * @param stablecoin The human readable stablecoin symbol for which the offer has been made.
+ * @param stablecoinInformation A [StablecoinInformation?] for this offer's stablecoin.
  */
-fun buildDirectionDescriptionString(directionString: String, stablecoin: String): String {
+fun buildDirectionDescriptionString(directionString: String, stablecoinInformation: StablecoinInformation?): String {
+    val stablecoinName = stablecoinInformation?.name ?: "Unknown Stablecoin"
     return "This is a $directionString offer: the maker of this offer wants to ${directionString.lowercase()} " +
-            "$stablecoin in exchange for fiat."
+            "$stablecoinName in exchange for fiat."
 }
 
 /**
  * Displays the minimum and maximum amount stablecoin that the maker of an
  * [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer)  is willing to exchange.
  *
- * @param min The Offer's minimum amount as a human readable string.
- * @param max The Offer's maximum amount as a human readable string.
+ * @param stablecoinInformation A [StablecoinInformation?] for this offer's stablecoin.
+ * @param min The Offer's minimum amount.
+ * @param max The Offer's maximum amount.
  */
 @Composable
-fun OfferAmountComposable(min: String, max: String) {
+fun OfferAmountComposable(stablecoinInformation: StablecoinInformation?, min: BigInteger, max: BigInteger) {
+    val headerString = if (stablecoinInformation != null) "Amount: " else "Amount (in token base units):"
+    val currencyCode = stablecoinInformation?.currencyCode ?: "Unknown Stablecoin"
+    val minimumString = if (stablecoinInformation != null) min.divide(BigInteger.TEN.pow(stablecoinInformation.decimal))
+        .toString() else min.toString()
+    val maximumString = if (stablecoinInformation != null) max.divide(BigInteger.TEN.pow(stablecoinInformation.decimal))
+        .toString() else min.toString()
     Text(
-        text = "Amount:",
+        text = headerString,
         style = MaterialTheme.typography.h6
     )
     if (min == max) {
         Text(
-            text = "$min STBL",
+            text = "$minimumString $currencyCode",
             style =  MaterialTheme.typography.h5,
             fontWeight = FontWeight.Bold
         )
     } else {
         Text(
-            text = "Minimum: $min STBL",
+            text = "Minimum: $minimumString $currencyCode",
             style =  MaterialTheme.typography.h5,
             fontWeight = FontWeight.Bold
         )
         Text(
-            text = "Maximum: $max STBL",
+            text = "Maximum: $maximumString $currencyCode",
             style =  MaterialTheme.typography.h5,
             fontWeight = FontWeight.Bold
         )
@@ -230,12 +234,15 @@ data class SettlementMethod(val currency: String, val method: String, val price:
 /**
  * Displays a horizontally scrolling list of [SettlementMethodComposable]s.
  *
- * @param stablecoin The human readable symbol of the stablecoin for which the offer related to these settlement methods
- * has been made.
+ * @param stablecoinInformation A [StablecoinInformation?] for this offer's stablecoin.
  * @param settlementMethods The settlement methods to be displayed.
  */
 @Composable
-fun SettlementMethodsListComposable(stablecoin: String, settlementMethods: List<SettlementMethod>) {
+fun SettlementMethodsListComposable(
+    stablecoinInformation: StablecoinInformation?,
+    settlementMethods: List<SettlementMethod>
+) {
+    val stablecoinCode = stablecoinInformation?.currencyCode ?: "Unknown Stablecoin"
     Text(
         text = "Settlement methods:",
         style = MaterialTheme.typography.h6
@@ -245,7 +252,7 @@ fun SettlementMethodsListComposable(stablecoin: String, settlementMethods: List<
     ) {
         settlementMethods.forEach {
             item {
-                SettlementMethodComposable(stablecoin = stablecoin, settlementMethod = it)
+                SettlementMethodComposable(stablecoin = stablecoinCode, settlementMethod = it)
                 Spacer(modifier = Modifier.width(9.dp))
             }
         }
@@ -348,12 +355,21 @@ fun DisclosureComposable(header: @Composable () -> Unit, content: @Composable ()
 }
 
 /**
- * Displays a preview of [OfferComposable] with id equal that of a sample offer.
+ * Displays a preview of [OfferComposable] with id equal that of a sample offer for a known stablecoin: Dai.
  */
 @Preview
 @Composable
-fun PreviewOfferComposableWithSampleUUID() {
+fun PreviewOfferComposableWithDaiOffer() {
     OfferComposable(PreviewableOfferTruthSource(), Offer.sampleOffers[0].id)
+}
+
+/**
+ * Displays a preview of [OfferComposable] with id equal that of a sample offer for an unknown stablecoin.
+ */
+@Preview
+@Composable
+fun PreviewOfferComposableWithUnknownStablecoinOffer() {
+    OfferComposable(PreviewableOfferTruthSource(), Offer.sampleOffers[3].id)
 }
 
 /**
