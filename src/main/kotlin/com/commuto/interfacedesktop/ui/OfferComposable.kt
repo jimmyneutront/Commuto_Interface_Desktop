@@ -125,6 +125,21 @@ fun OfferComposable(
                 DisclosureComposable(
                     header = {
                         Text(
+                            text = "Service Fee Rate: ${offer.serviceFeeRate.toDouble() / 100.0}%",
+                            style = MaterialTheme.typography.h5,
+                            fontWeight = FontWeight.Bold
+                        )
+                    },
+                    content = {
+                        Text(
+                            "To take this offer, you must pay a fee equal to ${offer.serviceFeeRate.toDouble()
+                                    / 100.0} percent of the amount to be exchanged."
+                        )
+                    }
+                )
+                DisclosureComposable(
+                    header = {
+                        Text(
                             text = "Advanced Details",
                             style = MaterialTheme.typography.h5,
                             fontWeight = FontWeight.Bold
