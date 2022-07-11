@@ -31,6 +31,7 @@ import com.commuto.interfacedesktop.offer.PreviewableOfferTruthSource
  */
 @Composable
 fun OffersListComposable(modifier: Modifier, offerTruthSource: OfferTruthSource, focusedOffer: MutableState<Offer?>) {
+    val stablecoinInformationRepository = StablecoinInformationRepository.ethereumMainnetStablecoinInfoRepo
     Column(modifier = modifier) {
         Text(
             text = I18n.get("Offers"),
@@ -51,7 +52,12 @@ fun OffersListComposable(modifier: Modifier, offerTruthSource: OfferTruthSource,
                             focusedOffer.value = offer
                         }
                     ) {
-                        OfferCardComposable(offer)
+                        OfferCardComposable(
+                            offerDirection = offer.direction.string,
+                            stablecoinCode = stablecoinInformationRepository
+                                .getStablecoinInformation(offer.chainID, offer.stablecoin)?.currencyCode
+                                ?: "Unknown Stablecoin"
+                        )
                     }
                     OffersDividerComposable()
                 }

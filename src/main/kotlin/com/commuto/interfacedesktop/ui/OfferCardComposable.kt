@@ -14,21 +14,22 @@ import com.commuto.interfacedesktop.offer.Offer
  * Displays a card with basic information about an offer, to be shown in the main list of open
  * offers.
  *
- * @param offer The [Offer] for which this card displays basic information.
+ * @param offerDirection The direction of the offer that this card represents, as a [String].
+ * @param stablecoinCode The currency code of the offer's stablecoin.
  */
 @Composable
-fun OfferCardComposable(offer: Offer) {
+fun OfferCardComposable(offerDirection: String, stablecoinCode: String) {
     Box {
         Row {
             Column {
                 Text(
-                    text = offer.direction.string,
+                    text = offerDirection,
                     style = MaterialTheme.typography.h5,
                     fontWeight = FontWeight.Bold
                 )
                 Spacer(modifier = Modifier.height(5.dp))
                 Text(
-                    text = "Price Pair",
+                    text = stablecoinCode,
                     style = MaterialTheme.typography.h5
                 )
             }
@@ -44,6 +45,7 @@ fun OfferCardComposable(offer: Offer) {
 @Composable
 fun PreviewOfferCardComposable() {
     OfferCardComposable(
-        offer = Offer.sampleOffers[0],
+        offerDirection = "Buy",
+        stablecoinCode = "DAI"
     )
 }
