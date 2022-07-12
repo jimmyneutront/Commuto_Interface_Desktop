@@ -84,7 +84,7 @@ data class Offer(
                 stablecoin = "0x6B175474E89094C44Da98b954EedeAC495271d0F", // DAI on Ethereum Mainnet
                 amountLowerBound = BigInteger.valueOf(10_000) * BigInteger.TEN.pow(18),
                 amountUpperBound = BigInteger.valueOf(20_000) * BigInteger.TEN.pow(18),
-                securityDepositAmount = BigInteger.ZERO,
+                securityDepositAmount = BigInteger.valueOf(1_000) * BigInteger.TEN.pow(18),
                 serviceFeeRate = BigInteger.valueOf(100),
                 onChainDirection = BigInteger.ZERO,
                 settlementMethods = listOf(ByteArray(0)),
@@ -100,7 +100,7 @@ data class Offer(
                 stablecoin = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48", // USDC on Ethereum Mainnet
                 amountLowerBound = BigInteger.valueOf(10_000) * BigInteger.TEN.pow(6),
                 amountUpperBound = BigInteger.valueOf(20_000) * BigInteger.TEN.pow(6),
-                securityDepositAmount = BigInteger.ZERO,
+                securityDepositAmount = BigInteger.valueOf(1_000) * BigInteger.TEN.pow(6),
                 serviceFeeRate = BigInteger.valueOf(10),
                 onChainDirection = BigInteger.ONE,
                 settlementMethods = listOf(ByteArray(0)),
@@ -116,7 +116,7 @@ data class Offer(
                 stablecoin = "0x4Fabb145d64652a948d72533023f6E7A623C7C53", // BUSD on Ethereum Mainnet
                 amountLowerBound = BigInteger.valueOf(10_000) * BigInteger.TEN.pow(18),
                 amountUpperBound = BigInteger.valueOf(10_000) * BigInteger.TEN.pow(18),
-                securityDepositAmount = BigInteger.ZERO,
+                securityDepositAmount = BigInteger.valueOf(1_000) * BigInteger.TEN.pow(18),
                 serviceFeeRate = BigInteger.valueOf(1),
                 onChainDirection = BigInteger.ONE,
                 settlementMethods = listOf(ByteArray(0)),
@@ -135,7 +135,7 @@ data class Offer(
                 stablecoin = "0x1F98431c8aD98523631AE4a59f267346ea31F984",
                 amountLowerBound = BigInteger.valueOf(10_000) * BigInteger.TEN.pow(18),
                 amountUpperBound = BigInteger.valueOf(10_000) * BigInteger.TEN.pow(18),
-                securityDepositAmount = BigInteger.ZERO,
+                securityDepositAmount = BigInteger.valueOf(1_000) * BigInteger.TEN.pow(18),
                 serviceFeeRate = BigInteger.valueOf(100),
                 onChainDirection = BigInteger.ONE,
                 settlementMethods = listOf(ByteArray(0)),

@@ -110,7 +110,12 @@ fun OfferComposable(
                         Text(buildDirectionDescriptionString(offer.direction.string, stablecoinInformation))
                     }
                 )
-                OfferAmountComposable(stablecoinInformation, offer.amountLowerBound, offer.amountUpperBound)
+                OfferAmountComposable(
+                    stablecoinInformation,
+                    offer.amountLowerBound,
+                    offer.amountUpperBound,
+                    offer.securityDepositAmount,
+                )
             }
             Row(
                 modifier = Modifier.offset(x = 9.dp)
@@ -201,15 +206,23 @@ fun buildDirectionDescriptionString(directionString: String, stablecoinInformati
  * @param stablecoinInformation A [StablecoinInformation?] for this offer's stablecoin.
  * @param min The Offer's minimum amount.
  * @param max The Offer's maximum amount.
+ * @param securityDeposit The Offer's security deposit amount.
  */
 @Composable
-fun OfferAmountComposable(stablecoinInformation: StablecoinInformation?, min: BigInteger, max: BigInteger) {
+fun OfferAmountComposable(
+    stablecoinInformation: StablecoinInformation?,
+    min: BigInteger,
+    max: BigInteger,
+    securityDeposit: BigInteger
+) {
     val headerString = if (stablecoinInformation != null) "Amount: " else "Amount (in token base units):"
     val currencyCode = stablecoinInformation?.currencyCode ?: "Unknown Stablecoin"
     val minimumString = if (stablecoinInformation != null) min.divide(BigInteger.TEN.pow(stablecoinInformation.decimal))
         .toString() else min.toString()
     val maximumString = if (stablecoinInformation != null) max.divide(BigInteger.TEN.pow(stablecoinInformation.decimal))
         .toString() else min.toString()
+    val securityDepositString = if (stablecoinInformation != null) securityDeposit.divide(BigInteger.TEN
+        .pow(stablecoinInformation.decimal)).toString() else securityDeposit.toString()
     Text(
         text = headerString,
         style = MaterialTheme.typography.h6
@@ -232,6 +245,10 @@ fun OfferAmountComposable(stablecoinInformation: StablecoinInformation?, min: Bi
             fontWeight = FontWeight.Bold
         )
     }
+    Text(
+        text = "Security Deposit: $securityDepositString $currencyCode",
+        style = MaterialTheme.typography.h5,
+    )
 }
 
 /**
