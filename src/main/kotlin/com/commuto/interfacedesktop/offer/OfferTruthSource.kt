@@ -1,15 +1,15 @@
 package com.commuto.interfacedesktop.offer
 
-import androidx.compose.runtime.snapshots.SnapshotStateList
+import androidx.compose.runtime.snapshots.SnapshotStateMap
 import java.util.*
 
 /**
  * An interface that a class must implement in order to act as a single source of truth for offer-related data.
- * @property offers A [SnapshotStateList] of [Offer]s that should act as a single source of truth for all offer-related
- * data.
+ * @property offers A [SnapshotStateMap] mapping [UUID]s to [Offer]s that should act as a single source of truth for all
+ * offer-related data.
  */
 interface OfferTruthSource {
-    var offers: SnapshotStateList<Offer>
+    var offers: SnapshotStateMap<UUID, Offer>
 
     /**
      * Should add a new [Offer] to [offers].

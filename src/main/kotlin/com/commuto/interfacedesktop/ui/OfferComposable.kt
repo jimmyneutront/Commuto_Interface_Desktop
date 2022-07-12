@@ -60,7 +60,7 @@ fun OfferComposable(
     /**
      * The offer about which this [Composable] displays information.
      */
-    val offer = offerTruthSource.offers.firstOrNull { it.id == id }
+    val offer = offerTruthSource.offers[id]
 
     if (id == null) {
         Row(

@@ -1,6 +1,6 @@
 package com.commuto.interfacedesktop.offer
 
-import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateMapOf
 import com.commuto.interfacedesktop.blockchain.BlockchainEventRepository
 import com.commuto.interfacedesktop.blockchain.BlockchainExceptionNotifiable
 import com.commuto.interfacedesktop.blockchain.BlockchainService
@@ -113,9 +113,9 @@ class OfferServiceTests {
                 offerService.setOfferTruthSource(this)
             }
             val offersChannel = Channel<Offer>()
-            override var offers = mutableStateListOf<Offer>()
+            override var offers = mutableStateMapOf<UUID, Offer>()
             override fun addOffer(offer: Offer) {
-                offers.add(offer)
+                offers[offer.id] = offer
                 runBlocking {
                     offersChannel.send(offer)
                 }
@@ -126,6 +126,7 @@ class OfferServiceTests {
             }
         }
         val offerTruthSource = TestOfferTruthSource()
+
 
         class TestBlockchainExceptionHandler: BlockchainExceptionNotifiable {
             var gotError = false
@@ -148,7 +149,7 @@ class OfferServiceTests {
                 offerTruthSource.offersChannel.receive()
                 assertFalse(exceptionHandler.gotError)
                 assert(offerTruthSource.offers.size == 1)
-                assert(offerTruthSource.offers[0].id == expectedOfferId)
+                assertEquals(offerTruthSource.offers[expectedOfferId]!!.id, expectedOfferId)
                 assertEquals(offerOpenedEventRepository.appendedEvent!!.offerID, expectedOfferId)
                 assertEquals(offerOpenedEventRepository.removedEvent!!.offerID, expectedOfferId)
                 val offerInDatabase = databaseService.getOffer(encoder.encodeToString(expectedOfferIdByteArray))
@@ -239,17 +240,15 @@ class OfferServiceTests {
                 offerService.setOfferTruthSource(this)
             }
             val offersChannel = Channel<Offer>()
-            override var offers = mutableStateListOf<Offer>()
+            override var offers = mutableStateMapOf<UUID, Offer>()
 
             override fun addOffer(offer: Offer) {
-                offers.add(offer)
+                offers[offer.id] = offer
             }
 
             override fun removeOffer(id: UUID) {
-                val offerToSend = offers.first {
-                    it.id == id
-                }
-                offers.removeIf { it.id == id }
+                val offerToSend = offers[id]!!
+                offers.remove(id)
                 runBlocking {
                     offersChannel.send(offerToSend)
                 }
@@ -354,17 +353,15 @@ class OfferServiceTests {
                 offerService.setOfferTruthSource(this)
             }
             val offersChannel = Channel<Offer>()
-            override var offers = mutableStateListOf<Offer>()
+            override var offers = mutableStateMapOf<UUID, Offer>()
 
             override fun addOffer(offer: Offer) {
-                offers.add(offer)
+                offers[offer.id] = offer
             }
 
             override fun removeOffer(id: UUID) {
-                val offerToSend = offers.first {
-                    it.id == id
-                }
-                offers.removeIf { it.id == id }
+                val offerToSend = offers[id]!!
+                offers.remove(id)
                 runBlocking {
                     offersChannel.send(offerToSend)
                 }
@@ -470,10 +467,10 @@ class OfferServiceTests {
             }
             val offersChannel = Channel<Offer>()
             var offersAddedCounter = 0
-            override var offers = mutableStateListOf<Offer>()
+            override var offers = mutableStateMapOf<UUID, Offer>()
             override fun addOffer(offer: Offer) {
                 offersAddedCounter++
-                offers.add(offer)
+                offers[offer.id] = offer
                 if (offersAddedCounter == 2) {
                     // We only want to send the offer with the updated price, not the first one.
                     runBlocking {
@@ -483,7 +480,7 @@ class OfferServiceTests {
             }
 
             override fun removeOffer(id: UUID) {
-                offers.removeIf { it.id == id }
+                offers.remove(id)
             }
         }
         val offerTruthSource = TestOfferTruthSource()
@@ -509,7 +506,7 @@ class OfferServiceTests {
                 offerTruthSource.offersChannel.receive()
                 assertFalse(exceptionHandler.gotError)
                 assert(offerTruthSource.offers.size == 1)
-                assert(offerTruthSource.offers[0].id == expectedOfferId)
+                assertEquals(offerTruthSource.offers[expectedOfferId]!!.id, expectedOfferId)
                 assertEquals(offerEditedEventRepository.appendedEvent!!.offerID, expectedOfferId)
                 assertEquals(offerEditedEventRepository.removedEvent!!.offerID, expectedOfferId)
                 val offerInDatabase = databaseService.getOffer(encoder.encodeToString(expectedOfferIdByteArray))

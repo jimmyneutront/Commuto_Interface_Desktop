@@ -1,6 +1,6 @@
 package com.commuto.interfacedesktop.ui
 
-import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateMapOf
 import com.commuto.interfacedesktop.offer.Offer
 import com.commuto.interfacedesktop.offer.OfferService
 import com.commuto.interfacedesktop.offer.OfferTruthSource
@@ -15,14 +15,21 @@ import javax.inject.Singleton
  * @property offerService The [OfferService] responsible for adding and removing
  * [com.commuto.interfacedesktop.offer.Offer]s from the list of open offers as they are created, canceled and
  * taken.
- * @property offers A mutable state list of [Offer]s that acts as a single source of truth for all offer-related data.
+ * @property offers A mutable state map of [UUID]s to [Offer]s that acts as a single source of truth for all
+ * offer-related data.
  */
 @Singleton
 class OffersViewModel @Inject constructor(private val offerService: OfferService): OfferTruthSource {
+
     init {
         offerService.setOfferTruthSource(this)
     }
-    override var offers = mutableStateListOf<Offer>()/*.also { it.addAll(Offer.sampleOffers) }*/
+
+    override var offers = mutableStateMapOf<UUID, Offer>().also { map ->
+        Offer.sampleOffers.map {
+            map[it.id] = it
+        }
+    }
 
     /**
      * Adds a new [Offer] to [offers].
@@ -30,15 +37,15 @@ class OffersViewModel @Inject constructor(private val offerService: OfferService
      * @param offer The new [Offer] to be added to [offers].
      */
     override fun addOffer(offer: Offer) {
-        offers.add(offer)
+        offers[offer.id] = offer
     }
 
     /**
-     * Removes all [Offer]s with an ID equal to [id] from [offers]. There should only be one such [Offer].
+     * Removes the [Offer] with an ID equal to [id] from [offers].
      *
      * @param id The ID of the [Offer] to remove.
      */
     override fun removeOffer(id: UUID) {
-        offers.removeIf { it.id == id }
+        offers.remove(id)
     }
 }

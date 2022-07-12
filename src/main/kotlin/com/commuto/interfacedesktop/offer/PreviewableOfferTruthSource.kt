@@ -1,15 +1,21 @@
 package com.commuto.interfacedesktop.offer
 
-import androidx.compose.runtime.snapshots.SnapshotStateList
+import androidx.compose.runtime.snapshots.SnapshotStateMap
 import java.util.*
 
 /**
  * An [OfferTruthSource] implementation used for previewing user interfaces.
  *
- * @property offers A mutable state list of [Offer]s that acts as a single source of truth for all offer-related data.
+ * @property offers A [SnapshotStateMap] mapping [UUID]s to [Offer]s, which acts as a single source of truth for all
+ * offer-related data.
  */
 class PreviewableOfferTruthSource: OfferTruthSource {
-    override var offers = SnapshotStateList<Offer>().also { it.addAll(Offer.sampleOffers) }
+    override var offers = SnapshotStateMap<UUID, Offer>().also {
+        val map = it
+        Offer.sampleOffers.map {
+            map[it.id] = it
+        }
+    }
 
     /**
      * Does nothing, since this class is only used for previewing user interfaces.

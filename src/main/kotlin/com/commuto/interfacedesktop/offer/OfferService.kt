@@ -231,8 +231,9 @@ class OfferService (
         databaseService.deleteSettlementMethods(offerIdString, event.chainID.toString())
         offerCanceledEventRepository.remove(event)
         withContext(Dispatchers.Main) {
-            // TODO: This is a security vulnerability at the moment, will be fixed when we use a map in offerTruthSource
-            offerTruthSource.removeOffer(event.offerID)
+            if (offerTruthSource.offers[event.offerID]?.chainID == event.chainID) {
+                offerTruthSource.removeOffer(event.offerID)
+            }
         }
     }
 
@@ -257,8 +258,9 @@ class OfferService (
         databaseService.deleteSettlementMethods(offerIdString, event.chainID.toString())
         offerTakenEventRepository.remove(event)
         withContext(Dispatchers.Main) {
-            // TODO: This is a security vulnerability at the moment, will be fixed when we use a map in offerTruthSource
-            offerTruthSource.removeOffer(event.offerID)
+            if (offerTruthSource.offers[event.offerID]?.chainID == event.chainID) {
+                offerTruthSource.removeOffer(event.offerID)
+            }
         }
     }
 }
