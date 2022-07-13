@@ -62,7 +62,7 @@ class BlockchainService (private val exceptionHandler: BlockchainExceptionNotifi
     @Inject constructor(errorHandler: BlockchainExceptionNotifiable, offerService: OfferNotifiable) :
             this(errorHandler,
                 offerService,
-                Web3j.build(HttpService("http://192.168.1.13:8545")),
+                Web3j.build(HttpService(System.getenv("BLOCKCHAIN_NODE"))),
                 "0x687F36336FCAB8747be1D41366A416b41E7E1a96"
             )
 
@@ -217,15 +217,16 @@ class BlockchainService (private val exceptionHandler: BlockchainExceptionNotifi
      *
      * @param id The ID of the offer to return.
      *
-     * @return An [OfferStruct] containing all on-chain data of the offer with the specified ID.
+     * @return An [OfferStruct] containing all on-chain data of the offer with the specified ID, or null if no such
+     * offer exists.
      */
-    suspend fun getOffer(id: UUID): OfferStruct {
+    suspend fun getOffer(id: UUID): OfferStruct? {
         val offerIdByteBuffer = ByteBuffer.wrap(ByteArray(16))
         offerIdByteBuffer.putLong(id.mostSignificantBits)
         offerIdByteBuffer.putLong(id.leastSignificantBits)
         val offer = commutoSwap.getOffer(offerIdByteBuffer.array()).sendAsync().asDeferred()
         val chainID = web3.ethChainId().sendAsync().asDeferred()
-        return OfferStruct(offer.await(), chainID.await().chainId)
+        return OfferStruct.createFromGetOfferResponse(offer.await(), chainID.await().chainId)
     }
 
     /**

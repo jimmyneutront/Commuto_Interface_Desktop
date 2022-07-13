@@ -41,7 +41,7 @@ data class OfferStruct(
      * @param offer The [CommutoSwap.Offer] from which the returned [OfferStruct] will be created.
      * @param chainID The ID of the blockchain on which this offer exists.
      */
-    constructor(offer: CommutoSwap.Offer, chainID: BigInteger): this(
+    private constructor(offer: CommutoSwap.Offer, chainID: BigInteger): this(
         offer.isCreated,
         offer.isTaken,
         offer.maker,
@@ -96,4 +96,25 @@ data class OfferStruct(
         result = 31 * result + chainID.hashCode()
         return result
     }
+
+    companion object {
+        /**
+         * Creates an [OfferStruct] from a [CommutoSwap.Offer] and the specified [chainID] if
+         * [CommutoSwap.Offer.isCreated] is true, or returns null if false.
+         *
+         * @param offer The [CommutoSwap.Offer] from which the returned [OfferStruct] will be created.
+         * @param chainID The ID of the blockchain on which this offer exists.
+         *
+         * @return An [OfferStruct] derived from [offer] and [chainID] if [CommutoSwap.Offer.isCreated] is true, or null
+         * if false.
+         */
+        fun createFromGetOfferResponse(offer: CommutoSwap.Offer, chainID: BigInteger): OfferStruct? {
+            return if (!offer.isCreated) {
+                null
+            } else {
+                OfferStruct(offer, chainID)
+            }
+        }
+    }
+
 }

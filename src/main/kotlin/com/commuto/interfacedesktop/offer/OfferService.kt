@@ -93,8 +93,9 @@ class OfferService (
      *
      * @param event The [OfferOpenedEvent] of which [OfferService] is being notified.
      *
-     * @throws [IllegalStateException] if the chain ID of [event] doesn't match the chain ID of the offer obtained
-     * from [BlockchainService.getOffer] when called with [OfferOpenedEvent.offerID].
+     * @throws [IllegalStateException] if no offer is found with the ID specified in [event], or if the chain ID of [event]
+     * doesn't match the chain ID of the offer obtained from [BlockchainService.getOffer] when called with
+     * [OfferOpenedEvent.offerID].
      */
     @Throws(IllegalStateException::class)
     override suspend fun handleOfferOpenedEvent(
@@ -103,10 +104,12 @@ class OfferService (
         val encoder = Base64.getEncoder()
         offerOpenedEventRepository.append(event)
         val offerStruct = blockchainService.getOffer(event.offerID)
+            ?: throw IllegalStateException("No on-chain offer was found with ID specified in OfferOpenedEvent in " +
+                    "handleOfferOpenedEvent call. OfferOpenedEvent.id: ${event.offerID}")
         if (event.chainID != offerStruct.chainID) {
             throw IllegalStateException("Chain ID of OfferOpenedEvent did not match chain ID of OfferStruct in " +
                     "handleOfferOpenedEvent call. OfferOpenedEvent.chainID: ${event.chainID}, " +
-                    "OfferStruct.chainID: ${offerStruct.chainID}")
+                    "OfferStruct.chainID: ${offerStruct.chainID}, OfferOpenedEvent.offerID: ${event.offerID}")
         }
         val offer = Offer(
             isCreated = offerStruct.isCreated,
@@ -166,15 +169,21 @@ class OfferService (
      * to [offerTruthSource] on the main coroutine dispatcher.
      *
      * @param event The [OfferEditedEvent] of which [OfferService] is being notified.
+     *
+     * @throws [IllegalStateException] if no offer is found with the ID specified in [event], or if the chain ID of [event]
+     * doesn't match the chain ID of the offer obtained from [BlockchainService.getOffer] when called with
+     * [OfferEditedEvent.offerID].
      */
     override suspend fun handleOfferEditedEvent(event: OfferEditedEvent) {
         val encoder = Base64.getEncoder()
         offerEditedEventRepository.append(event)
         val offerStruct = blockchainService.getOffer(event.offerID)
+            ?: throw IllegalStateException("No on-chain offer was found with ID specified in OfferEditedEvent in " +
+                    "handleOfferEditedEvent call. OfferEditedEvent.id: ${event.offerID}")
         if (event.chainID != offerStruct.chainID) {
             throw IllegalStateException("Chain ID of OfferEditedEvent did not match chain ID of OfferStruct in " +
                     "handleOfferEditedEvent call. OfferEditedEvent.chainID: ${event.chainID}, " +
-                    "OfferStruct.chainID: ${offerStruct.chainID}")
+                    "OfferStruct.chainID: ${offerStruct.chainID} OfferEditedEvent.offerID: ${event.offerID}")
         }
         val offer = Offer(
             isCreated = offerStruct.isCreated,
