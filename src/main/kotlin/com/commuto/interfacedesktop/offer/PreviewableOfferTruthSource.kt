@@ -10,8 +10,7 @@ import java.util.*
  * offer-related data.
  */
 class PreviewableOfferTruthSource: OfferTruthSource {
-    override var offers = SnapshotStateMap<UUID, Offer>().also {
-        val map = it
+    override var offers = SnapshotStateMap<UUID, Offer>().also { map ->
         Offer.sampleOffers.map {
             map[it.id] = it
         }

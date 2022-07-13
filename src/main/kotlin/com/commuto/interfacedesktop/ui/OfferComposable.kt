@@ -19,16 +19,14 @@ import androidx.compose.material.Text
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.runtime.*
+import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.commuto.interfacedesktop.offer.Offer
-import com.commuto.interfacedesktop.offer.OfferDirection
-import com.commuto.interfacedesktop.offer.OfferTruthSource
-import com.commuto.interfacedesktop.offer.PreviewableOfferTruthSource
+import com.commuto.interfacedesktop.offer.*
 import java.math.BigInteger
 import java.util.*
 
@@ -47,15 +45,6 @@ fun OfferComposable(
     stablecoinInfoRepo: StablecoinInformationRepository =
         StablecoinInformationRepository.ethereumMainnetStablecoinInfoRepo
 ) {
-
-    /**
-     * The list of [SettlementMethod]s that the maker is willing to accept.
-     */
-    val settlementMethods = listOf(
-        SettlementMethod("EUR", "SEPA", "0.94"),
-        SettlementMethod("USD", "SWIFT", "1.00"),
-        SettlementMethod("BSD", "SANDDOLLAR", "1.00"),
-    )
 
     /**
      * The offer about which this [Composable] displays information.
@@ -82,6 +71,7 @@ fun OfferComposable(
         }
     } else {
         val stablecoinInformation = stablecoinInfoRepo.getStablecoinInformation(offer.chainID, offer.stablecoin)
+        val settlementMethods = remember { offer.settlementMethods }
         Column(
             modifier = Modifier
                 .verticalScroll(rememberScrollState())
@@ -252,18 +242,6 @@ fun OfferAmountComposable(
 }
 
 /**
- * A settlement method specified by the maker of an
- * [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer) by which they are willing to
- * send/receive payment.
- *
- * @property currency The human readable symbol of the currency that the maker is willing to send/receive.
- * @property method The method my which the currency specified in [currency] should be sent.
- * @property price The amount of currency specified in [currency] that the maker is willing to exchange for one
- * stablecoin unit.
- */
-data class SettlementMethod(val currency: String, val method: String, val price: String)
-
-/**
  * Displays a horizontally scrolling list of [SettlementMethodComposable]s.
  *
  * @param stablecoinInformation A [StablecoinInformation?] for this offer's stablecoin.
@@ -272,22 +250,29 @@ data class SettlementMethod(val currency: String, val method: String, val price:
 @Composable
 fun SettlementMethodsListComposable(
     stablecoinInformation: StablecoinInformation?,
-    settlementMethods: List<SettlementMethod>
+    settlementMethods: SnapshotStateList<SettlementMethod>
 ) {
     val stablecoinCode = stablecoinInformation?.currencyCode ?: "Unknown Stablecoin"
     Text(
         text = "Settlement methods:",
         style = MaterialTheme.typography.h6
     )
-    LazyRow(
-        modifier = Modifier.padding(PaddingValues(vertical = 6.dp))
-    ) {
-        settlementMethods.forEach {
-            item {
-                SettlementMethodComposable(stablecoin = stablecoinCode, settlementMethod = it)
-                Spacer(modifier = Modifier.width(9.dp))
+    if (settlementMethods.size > 0) {
+        LazyRow(
+            modifier = Modifier.padding(PaddingValues(vertical = 6.dp))
+        ) {
+            settlementMethods.forEach {
+                item {
+                    SettlementMethodComposable(stablecoin = stablecoinCode, settlementMethod = it)
+                    Spacer(modifier = Modifier.width(9.dp))
+                }
             }
         }
+    } else {
+        Text(
+            text = "No settlement methods found",
+            style = MaterialTheme.typography.body1
+        )
     }
 }
 

@@ -1,5 +1,9 @@
 package com.commuto.interfacedesktop.offer
 
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.snapshots.SnapshotStateList
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.json.Json
 import java.math.BigInteger
 import java.util.UUID
 
@@ -27,7 +31,7 @@ import java.util.UUID
  * [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer)'s serviceFeeRate property.
  * @param onChainDirection Corresponds to an on-chain
  * [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer)'s direction property.
- * @param settlementMethods Corresponds to an on-chain
+ * @param onChainSettlementMethods Corresponds to an on-chain
  * [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer)'s settlementMethods property.
  * @param protocolVersion Corresponds to an on-chain
  * [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer)'s protocolVersion property.
@@ -35,6 +39,8 @@ import java.util.UUID
  *
  * @property direction The direction of the offer, indicating whether the maker is offering to buy stablecoin or sell
  * stablecoin.
+ * @property settlementMethods A [SnapshotStateList] of [SettlementMethod]s derived from parsing
+ * [onChainSettlementMethods].
  */
 data class Offer(
     val isCreated: Boolean,
@@ -48,12 +54,13 @@ data class Offer(
     val securityDepositAmount: BigInteger,
     val serviceFeeRate: BigInteger,
     val onChainDirection: BigInteger,
-    var settlementMethods: List<ByteArray>,
+    var onChainSettlementMethods: List<ByteArray>,
     val protocolVersion: BigInteger,
     val chainID: BigInteger,
 ) {
 
     val direction: OfferDirection
+    var settlementMethods: SnapshotStateList<SettlementMethod>
 
     init {
         when (this.onChainDirection) {
@@ -67,6 +74,13 @@ data class Offer(
                 throw IllegalStateException("Unexpected onChainDirection encountered while creating Offer")
             }
         }
+        val settlementMethods = mutableStateListOf<SettlementMethod>()
+        onChainSettlementMethods.forEach {
+            try {
+                settlementMethods.add(Json.decodeFromString(it.decodeToString()))
+            } catch(_: Exception) { }
+        }
+        this.settlementMethods = settlementMethods
     }
 
 
@@ -87,7 +101,15 @@ data class Offer(
                 securityDepositAmount = BigInteger.valueOf(1_000) * BigInteger.TEN.pow(18),
                 serviceFeeRate = BigInteger.valueOf(100),
                 onChainDirection = BigInteger.ZERO,
-                settlementMethods = listOf(ByteArray(0)),
+                onChainSettlementMethods = listOf(
+                    """
+                    {
+                        "f": "EUR",
+                        "p": "0.94",
+                        "m": "SEPA"
+                    }
+                    """.trimIndent().encodeToByteArray()
+                ),
                 protocolVersion = BigInteger.ZERO,
                 chainID = BigInteger.ONE, // Ethereum Mainnet blockchain ID
             ),
@@ -103,7 +125,15 @@ data class Offer(
                 securityDepositAmount = BigInteger.valueOf(1_000) * BigInteger.TEN.pow(6),
                 serviceFeeRate = BigInteger.valueOf(10),
                 onChainDirection = BigInteger.ONE,
-                settlementMethods = listOf(ByteArray(0)),
+                onChainSettlementMethods = listOf(
+                    """
+                    {
+                        "f": "USD",
+                        "p": "1.00",
+                        "m": "SWIFT"
+                    }
+                    """.trimIndent().encodeToByteArray()
+                ),
                 protocolVersion = BigInteger.ZERO,
                 chainID = BigInteger.ONE, // Ethereum Mainnet blockchain ID
             ),
@@ -119,7 +149,7 @@ data class Offer(
                 securityDepositAmount = BigInteger.valueOf(1_000) * BigInteger.TEN.pow(18),
                 serviceFeeRate = BigInteger.valueOf(1),
                 onChainDirection = BigInteger.ONE,
-                settlementMethods = listOf(ByteArray(0)),
+                onChainSettlementMethods = listOf("not valid JSON".encodeToByteArray()),
                 protocolVersion = BigInteger.ZERO,
                 chainID = BigInteger.ONE, // Ethereum Mainnet blockchain ID
             ),
@@ -138,7 +168,7 @@ data class Offer(
                 securityDepositAmount = BigInteger.valueOf(1_000) * BigInteger.TEN.pow(18),
                 serviceFeeRate = BigInteger.valueOf(100),
                 onChainDirection = BigInteger.ONE,
-                settlementMethods = listOf(ByteArray(0)),
+                onChainSettlementMethods = listOf("not valid JSON".encodeToByteArray()),
                 protocolVersion = BigInteger.ZERO,
                 chainID = BigInteger.ONE, // Ethereum Mainnet blockchain ID
             ),
@@ -162,10 +192,11 @@ data class Offer(
         if (securityDepositAmount != other.securityDepositAmount) return false
         if (serviceFeeRate != other.serviceFeeRate) return false
         if (onChainDirection != other.onChainDirection) return false
-        if (settlementMethods != other.settlementMethods) return false
+        if (onChainSettlementMethods != other.onChainSettlementMethods) return false
         if (protocolVersion != other.protocolVersion) return false
         if (chainID != other.chainID) return false
         if (direction != other.direction) return false
+        if (settlementMethods != other.settlementMethods) return false
 
         return true
     }
@@ -182,10 +213,11 @@ data class Offer(
         result = 31 * result + securityDepositAmount.hashCode()
         result = 31 * result + serviceFeeRate.hashCode()
         result = 31 * result + onChainDirection.hashCode()
-        result = 31 * result + settlementMethods.hashCode()
+        result = 31 * result + onChainSettlementMethods.hashCode()
         result = 31 * result + protocolVersion.hashCode()
         result = 31 * result + chainID.hashCode()
         result = 31 * result + direction.hashCode()
+        result = 31 * result + settlementMethods.hashCode()
         return result
     }
 
