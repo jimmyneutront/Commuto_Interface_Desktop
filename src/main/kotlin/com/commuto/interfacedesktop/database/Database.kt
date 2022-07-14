@@ -90,7 +90,8 @@ internal class Database(databaseDriverFactory: DatabaseDriverFactory) {
             serviceFeeRate = offer.serviceFeeRate,
             onChainDirection = offer.onChainDirection,
             protocolVersion = offer.protocolVersion,
-            chainID = offer.chainID
+            chainID = offer.chainID,
+            havePublicKey = offer.havePublicKey
         )
     }
 

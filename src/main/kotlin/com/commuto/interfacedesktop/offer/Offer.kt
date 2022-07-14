@@ -41,6 +41,8 @@ import java.util.UUID
  * stablecoin.
  * @property settlementMethods A [SnapshotStateList] of [SettlementMethod]s derived from parsing
  * [onChainSettlementMethods].
+ * @property havePublicKey Indicates whether this interface has a copy of the public key specified by the [interfaceId]
+ * property.
  */
 data class Offer(
     val isCreated: Boolean,
@@ -57,6 +59,7 @@ data class Offer(
     var onChainSettlementMethods: List<ByteArray>,
     val protocolVersion: BigInteger,
     val chainID: BigInteger,
+    var havePublicKey: Boolean
 ) {
 
     val direction: OfferDirection
@@ -112,6 +115,7 @@ data class Offer(
                 ),
                 protocolVersion = BigInteger.ZERO,
                 chainID = BigInteger.ONE, // Ethereum Mainnet blockchain ID
+                false
             ),
             Offer(
                 isCreated = true,
@@ -136,6 +140,7 @@ data class Offer(
                 ),
                 protocolVersion = BigInteger.ZERO,
                 chainID = BigInteger.ONE, // Ethereum Mainnet blockchain ID
+                false
             ),
             Offer(
                 isCreated = true,
@@ -152,6 +157,7 @@ data class Offer(
                 onChainSettlementMethods = listOf("not valid JSON".encodeToByteArray()),
                 protocolVersion = BigInteger.ZERO,
                 chainID = BigInteger.ONE, // Ethereum Mainnet blockchain ID
+                false
             ),
             Offer(
                 isCreated = true,
@@ -171,6 +177,7 @@ data class Offer(
                 onChainSettlementMethods = listOf("not valid JSON".encodeToByteArray()),
                 protocolVersion = BigInteger.ZERO,
                 chainID = BigInteger.ONE, // Ethereum Mainnet blockchain ID
+                false
             ),
         )
     }
@@ -195,6 +202,7 @@ data class Offer(
         if (onChainSettlementMethods != other.onChainSettlementMethods) return false
         if (protocolVersion != other.protocolVersion) return false
         if (chainID != other.chainID) return false
+        if (havePublicKey != other.havePublicKey) return false
         if (direction != other.direction) return false
         if (settlementMethods != other.settlementMethods) return false
 
@@ -216,6 +224,7 @@ data class Offer(
         result = 31 * result + onChainSettlementMethods.hashCode()
         result = 31 * result + protocolVersion.hashCode()
         result = 31 * result + chainID.hashCode()
+        result = 31 * result + havePublicKey.hashCode()
         result = 31 * result + direction.hashCode()
         result = 31 * result + settlementMethods.hashCode()
         return result

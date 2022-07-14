@@ -12,7 +12,8 @@ securityDepositAmount TEXT NOT NULL,
 serviceFeeRate TEXT NOT NULL,
 onChainDirection TEXT NOT NULL,
 protocolVersion TEXT NOT NULL,
-chainID TEXT NOT NULL
+chainID TEXT NOT NULL,
+havePublicKey INTEGER NOT NULL
 );
 
 createSettlementMethodTable:
@@ -49,11 +50,12 @@ INSERT INTO Offer(
     serviceFeeRate,
     onChainDirection,
     protocolVersion,
-    chainID
+    chainID,
+    havePublicKey
 )
 VALUES(?, ?, ?, ?, ?, ?, ?,
 ?, ?, ?, ?, ?,
-?);
+?, ?);
 
 insertSettlementMethod:
 INSERT INTO SettlementMethod(offerId, chainID, settlementMethod)
