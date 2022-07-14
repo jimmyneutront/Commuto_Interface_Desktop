@@ -6,8 +6,8 @@ import com.commuto.interfacedesktop.oldcontractwrapper.CommutoTransactionManager
 import com.commuto.interfacedesktop.oldcontractwrapper.WorkingCommutoSwap
 import com.commuto.interfacedesktop.database.DatabaseDriverFactory
 import com.commuto.interfacedesktop.database.DatabaseService
-import com.commuto.interfacedesktop.keymanager.KMService
-import com.commuto.interfacedesktop.keymanager.types.*
+import com.commuto.interfacedesktop.key.KeyManagerService
+import com.commuto.interfacedesktop.key.keys.*
 import io.ktor.http.*
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.runBlocking
@@ -161,10 +161,10 @@ internal class CommutoCoreInteraction {
         val driver = DatabaseDriverFactory()
         val databaseService = DatabaseService(driver)
         databaseService.createTables()
-        val kmService = KMService(databaseService)
+        val keyManagerService = KeyManagerService(databaseService)
 
         //Create key pair and encoder
-        val keyPair: KeyPair = kmService.generateKeyPair()
+        val keyPair: KeyPair = keyManagerService.generateKeyPair()
         val encoder = Base64.getEncoder()
 
         //Setup mxSession
@@ -305,7 +305,7 @@ internal class CommutoCoreInteraction {
                     clazz = RoomMessageEventContent.TextMessageEventContent::class) {
                     println("Parsing message:")
                     println(it.content.body)
-                    val takerInfoOptional = parseTakerInfoMessage(it.content.body, keyPair, kmService)
+                    val takerInfoOptional = parseTakerInfoMessage(it.content.body, keyPair, keyManagerService)
                     if (takerInfoOptional != null) {
                         takerInfoCF.complete(takerInfoOptional)
                     }
@@ -318,7 +318,7 @@ internal class CommutoCoreInteraction {
             //Prepare maker info message
             val makerInfoMessageKey = newSymmetricKey()
             val symmetricallyEncryptedPayload = makerInfoMessageKey.encrypt(ownPaymentDetails)
-            val takerPublicKey = kmService.getPublicKey(takerInterfaceId!!)
+            val takerPublicKey = keyManagerService.getPublicKey(takerInterfaceId!!)
             val encryptedKey = takerPublicKey!!.encrypt(makerInfoMessageKey.keyBytes)
             val encryptedIv = takerPublicKey!!.encrypt(symmetricallyEncryptedPayload.initializationVector)
             payloadDataHash = MessageDigest.getInstance("SHA-256").digest(symmetricallyEncryptedPayload.encryptedData)
@@ -762,7 +762,7 @@ internal class CommutoCoreInteraction {
 
     }
 
-    fun parseTakerInfoMessage(message: String, keyPair: KeyPair, kmService: KMService) : TakerInfo? {
+    fun parseTakerInfoMessage(message: String, keyPair: KeyPair, keyManagerService: KeyManagerService) : TakerInfo? {
         val decoder = Base64.getDecoder()
         //Decode the message from JSON
         val decodedMessage = try {
@@ -798,7 +798,7 @@ internal class CommutoCoreInteraction {
         }
         val takerKeyBytes = decoder.decode(decodedPayload.pubKey)
         val takerKey = PublicKey(takerKeyBytes)
-        kmService.storePublicKey(takerKey)
+        keyManagerService.storePublicKey(takerKey)
         val signature = decoder.decode(decodedMessage.signature)
         if (!takerKey.verifySignature(encryptedPayload.encryptedData, signature)) {
             return null

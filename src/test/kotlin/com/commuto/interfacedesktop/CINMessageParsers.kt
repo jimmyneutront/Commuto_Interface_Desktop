@@ -1,6 +1,6 @@
 package com.commuto.interfacedesktop
 
-import com.commuto.interfacedesktop.keymanager.types.*
+import com.commuto.interfacedesktop.key.keys.*
 import com.commuto.interfacedesktop.p2p.serializable.messages.SerializablePublicKeyAnnouncementMessage
 import com.commuto.interfacedesktop.p2p.serializable.payloads.SerializablePublicKeyAnnouncementPayload
 import kotlinx.serialization.decodeFromString

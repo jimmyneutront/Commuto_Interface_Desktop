@@ -1,6 +1,6 @@
 package com.commuto.interfacedesktop.p2p.messages
 
-import com.commuto.interfacedesktop.keymanager.types.PublicKey
+import com.commuto.interfacedesktop.key.keys.PublicKey
 import java.util.*
 
 /**

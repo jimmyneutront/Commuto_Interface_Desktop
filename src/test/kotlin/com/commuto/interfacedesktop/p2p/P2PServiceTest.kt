@@ -1,7 +1,7 @@
 package com.commuto.interfacedesktop.p2p
 
-import com.commuto.interfacedesktop.keymanager.types.KeyPair
-import com.commuto.interfacedesktop.keymanager.types.PublicKey
+import com.commuto.interfacedesktop.key.keys.KeyPair
+import com.commuto.interfacedesktop.key.keys.PublicKey
 import com.commuto.interfacedesktop.p2p.messages.PublicKeyAnnouncement
 import com.commuto.interfacedesktop.p2p.serializable.messages.SerializablePublicKeyAnnouncementMessage
 import com.commuto.interfacedesktop.p2p.serializable.payloads.SerializablePublicKeyAnnouncementPayload

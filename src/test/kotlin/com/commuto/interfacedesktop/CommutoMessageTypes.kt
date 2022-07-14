@@ -1,7 +1,7 @@
 package com.commuto.interfacedesktop
 
-import com.commuto.interfacedesktop.keymanager.types.PublicKey
-import com.commuto.interfacedesktop.keymanager.types.SymmetricKey
+import com.commuto.interfacedesktop.key.keys.PublicKey
+import com.commuto.interfacedesktop.key.keys.SymmetricKey
 import kotlinx.serialization.Serializable
 
 @Serializable

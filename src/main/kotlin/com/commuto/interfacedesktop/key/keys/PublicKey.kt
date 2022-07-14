@@ -1,4 +1,4 @@
-package com.commuto.interfacedesktop.keymanager.types
+package com.commuto.interfacedesktop.key.keys
 
 import org.bouncycastle.asn1.ASN1Primitive
 import org.bouncycastle.asn1.DERNull

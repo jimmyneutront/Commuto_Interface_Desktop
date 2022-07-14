@@ -1,10 +1,7 @@
-package com.commuto.interfacedesktop.keymanager
+package com.commuto.interfacedesktop.key
 
-import com.commuto.interfacedesktop.database.DatabaseDriverFactory
-import com.commuto.interfacedesktop.database.DatabaseService
-import com.commuto.interfacedesktop.keymanager.types.*
+import com.commuto.interfacedesktop.key.keys.*
 import java.nio.charset.Charset
-import java.util.Arrays
 import java.util.Base64
 import kotlin.test.Test
 
@@ -13,10 +10,6 @@ import kotlin.test.Test
  * B64 String format saved on other platforms.
  */
 class XPlatCryptoCompatibility {
-
-    private var driver = DatabaseDriverFactory()
-    private var databaseService = DatabaseService(driver)
-    private val kmService = KMService(databaseService)
 
     /**
      * Prints a key, encrypted data, and an initialization vector in B64 format
@@ -45,7 +38,7 @@ class XPlatCryptoCompatibility {
         val initializationVector = decoder.decode(initializationVectorB64)
         val key = SymmetricKey(keyData)
         val symmEncryptedData = SymmetricallyEncryptedData(encryptedData, initializationVector)
-        assert(Arrays.equals("test".toByteArray(), key.decrypt(symmEncryptedData)))
+        assert("test".toByteArray().contentEquals(key.decrypt(symmEncryptedData)))
     }
 
     /**
@@ -90,7 +83,7 @@ class XPlatCryptoCompatibility {
         println("Private Key B64:")
         println(encoder.encodeToString(keyPair.privKeyToPkcs1Bytes()))
         val originalMessage = "test"
-        println("Original Message:\n" + originalMessage)
+        println("Original Message:\n$originalMessage")
         println("Encrypted Message:")
         println(encoder.encodeToString(keyPair.encrypt(originalMessage
             .toByteArray(Charset.forName("UTF-16")))))
@@ -111,7 +104,7 @@ class XPlatCryptoCompatibility {
         val encryptedMessageBytes = decoder.decode(encryptedMessageB64)
         val decryptedMessageBytes = keyPair.decrypt(encryptedMessageBytes)
         val decryptedMessage = String(decryptedMessageBytes, Charset.forName("UTF-16"))
-        assert(originalMessage.equals(decryptedMessage))
+        assert(originalMessage == decryptedMessage)
     }
 
     /**

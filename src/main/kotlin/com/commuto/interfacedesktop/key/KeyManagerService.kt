@@ -1,11 +1,13 @@
-package com.commuto.interfacedesktop.keymanager
+package com.commuto.interfacedesktop.key
 
 import com.commuto.interfacedesktop.database.DatabaseService
-import com.commuto.interfacedesktop.keymanager.types.KeyPair
-import com.commuto.interfacedesktop.keymanager.types.PublicKey
+import com.commuto.interfacedesktop.key.keys.KeyPair
+import com.commuto.interfacedesktop.key.keys.PublicKey
 import kotlinx.coroutines.runBlocking
 import java.security.MessageDigest
 import java.util.Base64
+import javax.inject.Inject
+import javax.inject.Singleton
 
 /**
  * The Key Manager Service Class.
@@ -15,14 +17,15 @@ import java.util.Base64
  *
  * @property databaseService The Database Service used to store and retrieve data
  */
-class KMService(var databaseService: DatabaseService) {
+@Singleton
+class KeyManagerService @Inject constructor(private var databaseService: DatabaseService) {
 
     /**
      * Generates an 2048-bit RSA key pair and computes the key pair's interface ID, which is the SHA-256 hash of the
      * PKCS#1 byte array encoded representation of the public key.
      *
-     * @param storeResult Indicates whether the generated key pair should be stored persistently using [databaseService].
-     * This will usually be left as true, but testing code may set it as false.
+     * @param storeResult Indicates whether the generated key pair should be stored persistently using
+     * [databaseService]. This will usually be left as true, but testing code may set it as false.
      *
      * @return A [KeyPair], the private key of which is a 2048-bit RSA private key, and the interface ID of which is the
      * SHA-256 hash of the PKCS#1 encoded byte representation of the [KeyPair]'s public key.
@@ -57,16 +60,17 @@ class KMService(var databaseService: DatabaseService) {
                 .getKeyPair(encoder.encodeToString(interfaceId))
         }
         val decoder = Base64.getDecoder()
-        if (dbKeyPair != null) {
-            return KeyPair(decoder.decode(dbKeyPair.publicKey), decoder.decode(dbKeyPair.privateKey))
+        return if (dbKeyPair != null) {
+            KeyPair(decoder.decode(dbKeyPair.publicKey), decoder.decode(dbKeyPair.privateKey))
         } else {
-            return null
+            null
         }
     }
 
     /**
      * Persistently stores a [PublicKey] in such a way that it can be retrieved again given its interface ID. This will
-     * generate a PKCS#1 byte representation of [pubKey], encode it as a Base64 [String] and store it using [databaseService].
+     * generate a PKCS#1 byte representation of [pubKey], encode it as a Base64 [String] and store it using
+     * [databaseService].
      *
      * @param pubKey The [PublicKey] to be persistently stored.
      */
@@ -96,10 +100,10 @@ class KMService(var databaseService: DatabaseService) {
             databaseService.getPublicKey(encoder.encodeToString(interfaceId))
         }
         val decoder = Base64.getDecoder()
-        if (dbPubKey != null) {
-            return PublicKey(decoder.decode(dbPubKey.publicKey))
+        return if (dbPubKey != null) {
+            PublicKey(decoder.decode(dbPubKey.publicKey))
         } else {
-            return null
+            null
         }
     }
 
