@@ -61,6 +61,30 @@ class DatabaseServiceTest {
         assertEquals(null, returnedOfferAfterDeletion)
     }
 
+    @org.junit.Test
+    fun testUpdateOfferHavePublicKey() = runBlocking {
+        val offerToStore = Offer(
+            "a_uuid",
+            1L,
+            0L,
+            "maker_address",
+            "interface_id",
+            "stablecoin_address",
+            "lower_bound_amount",
+            "upper_bound_amount",
+            "security_deposit_amount",
+            "service_fee_rate",
+            "direction",
+            "some_version",
+            "a_chain_id",
+            0L
+        )
+        databaseService.storeOffer(offerToStore)
+        databaseService.updateOfferHavePublicKey("a_uuid", "a_chain_id", true)
+        val returnedOffer = databaseService.getOffer("a_uuid")
+        Assert.assertEquals(returnedOffer!!.havePublicKey, 1L)
+    }
+
     @Test
     fun testStoreAndGetAndDeleteSettlementMethods() = runBlocking {
         val offerId = "an_offer_id"

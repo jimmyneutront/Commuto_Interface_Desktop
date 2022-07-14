@@ -131,6 +131,20 @@ internal class Database(databaseDriverFactory: DatabaseDriverFactory) {
     }
 
     /**
+     * Updates the [Offer.havePublicKey] property of the [Offer] with the specified [offerID] and [chainID].
+     * @param offerID The ID of the [Offer] to be updated.
+     * @param chainID The ID of the blockchain on which [Offer] to be updated exists.
+     * @param havePublicKey The new value of the [Offer.havePublicKey] property.
+     */
+    internal fun updateOfferHavePublicKey(offerID: String, chainID: String, havePublicKey: Long) {
+        dbQuery.updateOfferHavePublicKeyByOfferIDAndChainID(
+            havePublicKey = havePublicKey,
+            offerId = offerID,
+            chainID = chainID
+        )
+    }
+
+    /**
      * Deletes all [Offer]s with the specified offer ID and chain ID from the database.
      * @param offerID The offer ID of the [Offer]s to be deleted.
      * @param chainID The blockchain ID of the [Offer]s to be deleted.

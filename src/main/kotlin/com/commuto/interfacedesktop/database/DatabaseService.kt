@@ -65,11 +65,28 @@ open class DatabaseService @Inject constructor(private val databaseDriverFactory
     }
 
     /**
+     * Updates the [Offer.havePublicKey] property of a persistently stored
+     * [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer) with the specified [offerID] and
+     * [chainID].
+     *
+     * @param offerID The ID of the offer to be updated, as a Base64-[String] of bytes.
+     * @param chainID The blockchain ID of the offer to be updated, as a [String].
+     * @param havePublicKey The new value of the offer's [Offer.havePublicKey] property.
+     */
+    @OptIn(DelicateCoroutinesApi::class)
+    open suspend fun updateOfferHavePublicKey(offerID: String, chainID: String, havePublicKey: Boolean) {
+        val havePublicKeyLong = if (havePublicKey) 1L else 0L
+        withContext(databaseServiceContext) {
+            database.updateOfferHavePublicKey(offerID, chainID, havePublicKeyLong)
+        }
+    }
+
+    /**
      * Removes every [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer) with an offer ID equal
      * to [offerID] and a chain ID equal to [chainID] from persistent storage.
      *
      * @param offerID The offer ID of the offers to be removed, as a Base64-[String] of bytes.
-     * @param chainID The blockchain chain ID of the offers to be removed, as a [String].
+     * @param chainID The blockchain ID of the offers to be removed, as a [String].
      *
      * @throws Exception If deletion is unsuccessful.
      */

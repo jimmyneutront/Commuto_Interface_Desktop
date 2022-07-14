@@ -69,6 +69,11 @@ insertPublicKey:
 INSERT INTO PublicKey(interfaceId, publicKey)
 VALUES(?, ?);
 
+updateOfferHavePublicKeyByOfferIDAndChainID:
+UPDATE Offer
+SET havePublicKey = ?
+WHERE offerId = ? AND chainID = ?;
+
 selectOfferByOfferId:
 SELECT * FROM Offer
 WHERE offerId = ?;
