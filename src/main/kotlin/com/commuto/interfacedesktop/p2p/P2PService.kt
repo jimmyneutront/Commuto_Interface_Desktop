@@ -135,7 +135,7 @@ class P2PService constructor(private val exceptionHandler: P2PExceptionNotifiabl
      *
      * @param events A [List] of [Event.RoomEvent]s.
      */
-    private fun parseEvents(events: List<Event.RoomEvent<*>>) {
+    private suspend fun parseEvents(events: List<Event.RoomEvent<*>>) {
         val testMessageEvents = events.filterIsInstance<Event.MessageEvent<*>>().filter {
             it.content is RoomMessageEventContent.TextMessageEventContent
         }

@@ -10,6 +10,9 @@ import com.commuto.interfacedesktop.blockchain.events.commutoswap.OfferOpenedEve
 import com.commuto.interfacedesktop.blockchain.events.commutoswap.OfferTakenEvent
 import com.commuto.interfacedesktop.database.DatabaseDriverFactory
 import com.commuto.interfacedesktop.database.DatabaseService
+import com.commuto.interfacedesktop.key.KeyManagerService
+import com.commuto.interfacedesktop.key.keys.PublicKey
+import com.commuto.interfacedesktop.p2p.messages.PublicKeyAnnouncement
 import io.ktor.client.*
 import io.ktor.client.call.*
 import io.ktor.client.engine.okhttp.*
@@ -17,13 +20,10 @@ import io.ktor.client.plugins.*
 import io.ktor.client.plugins.contentnegotiation.*
 import io.ktor.client.request.*
 import io.ktor.serialization.kotlinx.json.*
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.*
 import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.setMain
-import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.Serializable
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -31,6 +31,7 @@ import org.junit.Before
 import org.junit.Test
 import org.web3j.protocol.Web3j
 import org.web3j.protocol.http.HttpService
+import java.math.BigInteger
 import java.nio.ByteBuffer
 import java.util.*
 
@@ -81,6 +82,7 @@ class OfferServiceTests {
 
         val databaseService = DatabaseService(DatabaseDriverFactory())
         databaseService.createTables()
+        val keyManagerService = KeyManagerService(databaseService)
 
         class TestBlockchainEventRepository: BlockchainEventRepository<OfferOpenedEvent>() {
 
@@ -102,6 +104,7 @@ class OfferServiceTests {
 
         val offerService = OfferService(
             databaseService,
+            keyManagerService,
             offerOpenedEventRepository,
             BlockchainEventRepository(),
             BlockchainEventRepository(),
@@ -208,6 +211,7 @@ class OfferServiceTests {
 
         val databaseService = DatabaseService(DatabaseDriverFactory())
         databaseService.createTables()
+        val keyManagerService = KeyManagerService(databaseService)
 
         class TestBlockchainEventRepository: BlockchainEventRepository<OfferCanceledEvent>() {
 
@@ -229,6 +233,7 @@ class OfferServiceTests {
 
         val offerService = OfferService(
             databaseService,
+            keyManagerService,
             BlockchainEventRepository(),
             BlockchainEventRepository(),
             offerCanceledEventRepository,
@@ -321,6 +326,7 @@ class OfferServiceTests {
 
         val databaseService = DatabaseService(DatabaseDriverFactory())
         databaseService.createTables()
+        val keyManagerService = KeyManagerService(databaseService)
 
         class TestBlockchainEventRepository: BlockchainEventRepository<OfferTakenEvent>() {
 
@@ -342,6 +348,7 @@ class OfferServiceTests {
 
         val offerService = OfferService(
             databaseService,
+            keyManagerService,
             BlockchainEventRepository(),
             BlockchainEventRepository(),
             BlockchainEventRepository(),
@@ -434,6 +441,7 @@ class OfferServiceTests {
 
         val databaseService = DatabaseService(DatabaseDriverFactory())
         databaseService.createTables()
+        val keyManagerService = KeyManagerService(databaseService)
 
         class TestBlockchainEventRepository: BlockchainEventRepository<OfferEditedEvent>() {
 
@@ -455,6 +463,7 @@ class OfferServiceTests {
 
         val offerService = OfferService(
             databaseService,
+            keyManagerService,
             BlockchainEventRepository(),
             offerEditedEventRepository,
             BlockchainEventRepository(),
@@ -528,4 +537,101 @@ class OfferServiceTests {
             }
         }
     }
+
+    /**
+     * Ensures that [OfferService] handles
+     * [Public Key Announcements](https://github.com/jimmyneutront/commuto-whitepaper/blob/main/commuto-interface-specification.txt)
+     * properly.
+     */
+    @Test
+    fun testHandlePublicKeyAnnouncement() {
+
+        class TestDatabaseService: DatabaseService(DatabaseDriverFactory()) {
+            val updatedOfferIDChannel = Channel<String>()
+            override suspend fun updateOfferHavePublicKey(offerID: String, chainID: String, havePublicKey: Boolean) {
+                super.updateOfferHavePublicKey(offerID, chainID, havePublicKey)
+                updatedOfferIDChannel.send(offerID)
+            }
+        }
+
+        val databaseService = TestDatabaseService()
+        databaseService.createTables()
+        val keyManagerService =  KeyManagerService(databaseService)
+
+        val offerService = OfferService(databaseService, keyManagerService)
+
+        val offerTruthSource = PreviewableOfferTruthSource()
+        offerService.setOfferTruthSource(offerTruthSource)
+
+        val keyPair = runBlocking {
+            keyManagerService.generateKeyPair(false)
+        }
+        val publicKey = PublicKey(keyPair.keyPair.public)
+
+        val offerID = UUID.randomUUID()
+        val offerIDByteBuffer = ByteBuffer.wrap(ByteArray(16))
+        offerIDByteBuffer.putLong(offerID.mostSignificantBits)
+        offerIDByteBuffer.putLong(offerID.leastSignificantBits)
+        val offerIDByteArray = offerIDByteBuffer.array()
+        val offer = Offer(
+            isCreated = true,
+            isTaken = false,
+            id = offerID,
+            maker = "0x0000000000000000000000000000000000000000",
+            interfaceId = publicKey.interfaceId,
+            stablecoin = "0x0000000000000000000000000000000000000000",
+            amountLowerBound = BigInteger.ZERO,
+            amountUpperBound = BigInteger.ONE,
+            securityDepositAmount = BigInteger.ZERO,
+            serviceFeeRate = BigInteger.ZERO,
+            onChainDirection = BigInteger.ZERO,
+            onChainSettlementMethods = listOf(),
+            protocolVersion = BigInteger.ZERO,
+            chainID = BigInteger.ZERO,
+            havePublicKey = false
+        )
+        offerTruthSource.offers[offerID] = offer
+        val isCreated = if (offer.isCreated) 1L else 0L
+        val isTaken = if (offer.isTaken) 1L else 0L
+        val havePublicKey = if (offer.havePublicKey) 1L else 0L
+        val encoder = Base64.getEncoder()
+        val offerForDatabase = com.commuto.interfacedesktop.db.Offer(
+            isCreated = isCreated,
+            isTaken = isTaken,
+            offerId = encoder.encodeToString(offerIDByteArray),
+            maker = offer.maker,
+            interfaceId = encoder.encodeToString(offer.interfaceId),
+            stablecoin = offer.stablecoin,
+            amountLowerBound = offer.amountLowerBound.toString(),
+            amountUpperBound = offer.amountUpperBound.toString(),
+            securityDepositAmount = offer.securityDepositAmount.toString(),
+            serviceFeeRate = offer.serviceFeeRate.toString(),
+            onChainDirection = offer.onChainDirection.toString(),
+            protocolVersion = offer.protocolVersion.toString(),
+            chainID = offer.chainID.toString(),
+            havePublicKey = havePublicKey,
+        )
+        runBlocking {
+            databaseService.storeOffer(offerForDatabase)
+        }
+
+        val publicKeyAnnouncement = PublicKeyAnnouncement(offerID, publicKey)
+
+        runBlocking {
+            launch {
+                offerService.handlePublicKeyAnnouncement(publicKeyAnnouncement)
+            }
+            launch {
+                withTimeout(20_000) {
+                    databaseService.updatedOfferIDChannel.receive()
+                    assert(offerTruthSource.offers[offerID]!!.havePublicKey)
+                    val offerInDatabase = databaseService.getOffer(encoder.encodeToString(offerIDByteArray))
+                    assertEquals(offerInDatabase!!.havePublicKey, 1L)
+                    val keyInDatabase = keyManagerService.getPublicKey(publicKey.interfaceId)
+                    assertEquals(publicKey.publicKey, keyInDatabase!!.publicKey)
+                }
+            }
+        }
+    }
+
 }

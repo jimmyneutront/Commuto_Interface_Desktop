@@ -14,5 +14,5 @@ interface OfferMessageNotifiable {
      * @param message The new [PublicKeyAnnouncement] of which the class implementing this interface
      * is being notified and should handle in the implementation of this method.
      */
-    fun handlePublicKeyAnnouncement(message: PublicKeyAnnouncement)
+    suspend fun handlePublicKeyAnnouncement(message: PublicKeyAnnouncement)
 }
