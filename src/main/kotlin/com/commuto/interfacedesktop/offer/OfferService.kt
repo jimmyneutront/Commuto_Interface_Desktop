@@ -92,14 +92,15 @@ class OfferService (
      * The method called by [BlockchainService] to notify [OfferService] of an [OfferOpenedEvent]. Once notified,
      * [OfferService] saves [event] in offerOpenedEventRepository], gets all on-chain offer data by calling
      * [blockchainService]'s [BlockchainService.getOffer] method, verifies that the chain ID of the event and the offer
-     * data match, creates a new [Offer] and list of settlement methods with the results, persistently stores the new
-     * offer and its settlement methods, removes [event] from [offerOpenedEventRepository], and then adds the new
+     * data match, creates a new [Offer] and list of settlement methods with the results, checks if [keyManagerService]
+     * has the maker's public key and updates the [Offer.havePublicKey] property accordingly, persistently stores the
+     * new offer and its settlement methods, removes [event] from [offerOpenedEventRepository], and then adds the new
      * [Offer] to [offerTruthSource] on the main coroutine dispatcher.
      *
      * @param event The [OfferOpenedEvent] of which [OfferService] is being notified.
      *
-     * @throws [IllegalStateException] if no offer is found with the ID specified in [event], or if the chain ID of [event]
-     * doesn't match the chain ID of the offer obtained from [BlockchainService.getOffer] when called with
+     * @throws [IllegalStateException] if no offer is found with the ID specified in [event], or if the chain ID of
+     * [event] doesn't match the chain ID of the offer obtained from [BlockchainService.getOffer] when called with
      * [OfferOpenedEvent.offerID].
      */
     @Throws(IllegalStateException::class)
@@ -116,6 +117,7 @@ class OfferService (
                     "handleOfferOpenedEvent call. OfferOpenedEvent.chainID: ${event.chainID}, " +
                     "OfferStruct.chainID: ${offerStruct.chainID}, OfferOpenedEvent.offerID: ${event.offerID}")
         }
+        val havePublicKey = (keyManagerService.getPublicKey(offerStruct.interfaceID) != null)
         val offer = Offer(
             isCreated = offerStruct.isCreated,
             isTaken = offerStruct.isTaken,
@@ -131,11 +133,11 @@ class OfferService (
             onChainSettlementMethods = offerStruct.settlementMethods,
             protocolVersion = offerStruct.protocolVersion,
             chainID = offerStruct.chainID,
-            havePublicKey = false,
+            havePublicKey = havePublicKey,
         )
         val isCreated = if (offerStruct.isCreated) 1L else 0L
         val isTaken = if (offerStruct.isTaken) 1L else 0L
-        val havePublicKey = if (offer.havePublicKey) 1L else 0L
+        val havePublicKeyLong = if (offer.havePublicKey) 1L else 0L
         val offerIDByteBuffer = ByteBuffer.wrap(ByteArray(16))
         offerIDByteBuffer.putLong(offer.id.mostSignificantBits)
         offerIDByteBuffer.putLong(offer.id.leastSignificantBits)
@@ -154,7 +156,7 @@ class OfferService (
             onChainDirection = offer.onChainDirection.toString(),
             protocolVersion = offer.protocolVersion.toString(),
             chainID = offer.chainID.toString(),
-            havePublicKey = havePublicKey
+            havePublicKey = havePublicKeyLong,
         )
         databaseService.storeOffer(offerForDatabase)
         val settlementMethodStrings = offer.onChainSettlementMethods.map {
@@ -172,9 +174,10 @@ class OfferService (
      * The method called by [BlockchainService] to notify [OfferService] of a [OfferEditedEvent]. Once notified,
      * [OfferService] saves [event] in [offerEditedEventRepository], gets updated on-chain offer data by calling
      * [blockchainService]'s [BlockchainService.getOffer] method, verifies that the chain ID of the event and the offer
-     * data match, creates an updated [Offer] and with the results, updates the settlement methods of the corresponding
-     * persistently stored offer, removes [event] from [offerEditedEventRepository], and then adds the updated [Offer]
-     * to [offerTruthSource] on the main coroutine dispatcher.
+     * data match, creates an updated [Offer] and with the results, checks if [keyManagerService] has the maker's public
+     * key and updates the [Offer.havePublicKey] property accordingly, updates the settlement methods of the
+     * corresponding persistently stored offer, removes [event] from [offerEditedEventRepository], and then adds the
+     * updated [Offer] to [offerTruthSource] on the main coroutine dispatcher.
      *
      * @param event The [OfferEditedEvent] of which [OfferService] is being notified.
      *
@@ -193,6 +196,7 @@ class OfferService (
                     "handleOfferEditedEvent call. OfferEditedEvent.chainID: ${event.chainID}, " +
                     "OfferStruct.chainID: ${offerStruct.chainID} OfferEditedEvent.offerID: ${event.offerID}")
         }
+        val havePublicKey = (keyManagerService.getPublicKey(offerStruct.interfaceID) != null)
         val offer = Offer(
             isCreated = offerStruct.isCreated,
             isTaken = offerStruct.isTaken,
@@ -208,17 +212,19 @@ class OfferService (
             onChainSettlementMethods = offerStruct.settlementMethods,
             protocolVersion = offerStruct.protocolVersion,
             chainID = offerStruct.chainID,
-            havePublicKey = false,
+            havePublicKey = havePublicKey
         )
         val offerIDByteBuffer = ByteBuffer.wrap(ByteArray(16))
         offerIDByteBuffer.putLong(offer.id.mostSignificantBits)
         offerIDByteBuffer.putLong(offer.id.leastSignificantBits)
         val offerIDByteArray = offerIDByteBuffer.array()
         val offerIdString = encoder.encodeToString(offerIDByteArray)
+        val chainIDString = offer.chainID.toString()
         val settlementMethodStrings = offer.onChainSettlementMethods.map {
             encoder.encodeToString(it)
         }
-        databaseService.storeSettlementMethods(offerIdString, offer.chainID.toString(), settlementMethodStrings)
+        databaseService.storeSettlementMethods(offerIdString, chainIDString, settlementMethodStrings)
+        databaseService.updateOfferHavePublicKey(offerIdString, chainIDString, havePublicKey)
         offerEditedEventRepository.remove(event)
         withContext(Dispatchers.Main) {
             offerTruthSource.removeOffer(offer.id)
