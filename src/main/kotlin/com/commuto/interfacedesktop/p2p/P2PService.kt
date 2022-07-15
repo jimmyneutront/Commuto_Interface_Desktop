@@ -17,6 +17,7 @@ import net.folivo.trixnity.core.MatrixServerException
 import net.folivo.trixnity.core.model.RoomId
 import net.folivo.trixnity.core.model.events.Event
 import net.folivo.trixnity.core.model.events.m.room.RoomMessageEventContent
+import org.slf4j.LoggerFactory
 import java.net.ConnectException
 import java.nio.ByteBuffer
 import java.nio.charset.Charset
@@ -51,6 +52,8 @@ class P2PService constructor(private val exceptionHandler: P2PExceptionNotifiabl
                              private val offerService: OfferMessageNotifiable,
                              private val mxClient: MatrixClientServerApiClient) {
 
+    private val logger = LoggerFactory.getLogger(javaClass)
+
     private var lastNonEmptyBatchToken =
         "t1-2607497254_757284974_11441483_1402797642_1423439559_3319206_507472245_4060289024_0"
 
@@ -75,10 +78,12 @@ class P2PService constructor(private val exceptionHandler: P2PExceptionNotifiabl
      */
     @OptIn(DelicateCoroutinesApi::class)
     fun listen() {
+        logger.info("Starting listen loop in global coroutine scope")
         listenJob = GlobalScope.launch {
             runLoop = true
             listenLoop()
         }
+        logger.info("Started listen loop in global coroutine scope")
     }
 
     /**
@@ -86,8 +91,10 @@ class P2PService constructor(private val exceptionHandler: P2PExceptionNotifiabl
      * [listenJob].
      */
     fun stopListening() {
+        logger.info("Stopping listen loop and canceling listen job")
         runLoop = false
         listenJob.cancel()
+        logger.info("Stopped listen loop and canceled listen job")
     }
 
     /**
@@ -109,19 +116,28 @@ class P2PService constructor(private val exceptionHandler: P2PExceptionNotifiabl
     suspend fun listenLoop() {
         while (true) {
             try {
-                val syncResponse = mxClient.sync.sync(timeout = 60_000)
-                parseEvents(mxClient.rooms.getEvents(
+                logger.info("Beginning iteration of listen loop")
+                val syncResponse = mxClient.sync.sync(timeout = 60_000).getOrThrow()
+                logger.info("Synced with Matrix homeserver, got nextBatchToken: ${syncResponse.nextBatch}")
+                val eventsToParse = mxClient.rooms.getEvents(
                     roomId = RoomId(full = "!WEuJJHaRpDvkbSveLu:matrix.org"),
                     from = lastNonEmptyBatchToken,
                     dir = GetEvents.Direction.FORWARDS,
                     limit = 1_000_000_000_000L
-                ).getOrThrow().chunk!!)
-                updateLastNonEmptyBatchToken(syncResponse.getOrThrow().nextBatch)
+                ).getOrThrow().chunk!!
+                logger.info("Got new messages from Matrix homeserver from lastNonEmptyBatchToken: " +
+                        lastNonEmptyBatchToken)
+                parseEvents(eventsToParse)
+                logger.info("Finished parsing new events from chunk of size ${eventsToParse.size}")
+                updateLastNonEmptyBatchToken(syncResponse.nextBatch)
+                logger.info("Updated lastNonEmptyBatchToken with new token: ${syncResponse.nextBatch}")
             } catch (e: Exception) {
+                logger.error("Got an exception during listen loop, calling exception handler", e)
                 exceptionHandler.handleP2PException(e)
                 if (e is ConnectException ||
                     (e as? MatrixServerException)?.errorResponse is ErrorResponse.UnknownToken ||
                     (e as? MatrixServerException)?.errorResponse is ErrorResponse.MissingToken) {
+                    logger.error("Stopping listen loop for exception", e)
                     stopListening()
                 }
             }
@@ -136,12 +152,15 @@ class P2PService constructor(private val exceptionHandler: P2PExceptionNotifiabl
      * @param events A [List] of [Event.RoomEvent]s.
      */
     private suspend fun parseEvents(events: List<Event.RoomEvent<*>>) {
-        val testMessageEvents = events.filterIsInstance<Event.MessageEvent<*>>().filter {
+        val textMessageEvents = events.filterIsInstance<Event.MessageEvent<*>>().filter {
             it.content is RoomMessageEventContent.TextMessageEventContent
         }
-        for (event in testMessageEvents) {
+        logger.info("parseEvents: parsing ${textMessageEvents.size} text message events")
+        for (event in textMessageEvents) {
             parsePublicKeyAnnouncement((event.content as RoomMessageEventContent.
             TextMessageEventContent).body)?.let {
+                logger.info("parseEvents: got Public Key Announcement message in event with Matrix event ID: " +
+                        event.id.full)
                 offerService.handlePublicKeyAnnouncement(it)
             }
         }

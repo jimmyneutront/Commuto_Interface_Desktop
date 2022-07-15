@@ -40,14 +40,18 @@ configurations {
 }
 
 dependencies {
+    // Compose for Desktop
     implementation(compose.desktop.currentOs)
+    // Dagger for dependency injection
     implementation("com.google.dagger:dagger:2.42")
     kapt("com.google.dagger:dagger-compiler:2.42")
+    // SQLDelight for database operations
     implementation("com.squareup.sqldelight:sqlite-driver:1.5.1")
     implementation("org.xerial:sqlite-jdbc:3.34.0") {
         because("SQLDelight depends on this, but we need it in the compile classpath so we can catch " +
                 "exceptions defined in it")
     }
+    // BouncyCastle for cryptography
     implementation("org.bouncycastle:bcprov-jdk15on:1.69")
 
     // For using local web3j build
@@ -65,6 +69,7 @@ dependencies {
     implementation("com.squareup.okhttp3:logging-interceptor:4.9.0")
     */
 
+    // Web3J for blockchain-related operations
     //TODO: Update these to a version with no vulnerabilities
     implementation("org.web3j:codegen:4.8.7")
     implementation("org.web3j:contracts:4.8.7")
@@ -77,6 +82,10 @@ dependencies {
     implementation("io.ktor:ktor-client-okhttp:2.0.1")
     // Serialization Library
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.3.3")
+    // Log4j 2 for logging
+    implementation("org.apache.logging.log4j:log4j-api:2.18.0")
+    implementation("org.apache.logging.log4j:log4j-core:2.18.0")
+    implementation("org.apache.logging.log4j:log4j-slf4j-impl:2.18.0")
     // Ktor Content negotiation plugin for interactions with TestingServer
     testImplementation("io.ktor:ktor-client-content-negotiation:2.0.1")
     // Ktor JSON serialization plugin for interactions with TestingServer

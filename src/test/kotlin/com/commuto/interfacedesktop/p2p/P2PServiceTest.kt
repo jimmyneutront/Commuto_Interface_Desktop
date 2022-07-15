@@ -5,6 +5,8 @@ import com.commuto.interfacedesktop.key.keys.PublicKey
 import com.commuto.interfacedesktop.p2p.messages.PublicKeyAnnouncement
 import com.commuto.interfacedesktop.p2p.serializable.messages.SerializablePublicKeyAnnouncementMessage
 import com.commuto.interfacedesktop.p2p.serializable.payloads.SerializablePublicKeyAnnouncementPayload
+import io.ktor.client.*
+import io.ktor.client.plugins.*
 import io.ktor.http.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.runBlocking
@@ -66,8 +68,17 @@ class P2PServiceTest {
             .putLong(offerId.leastSignificantBits).array()
         val offerIdString = encoder.encodeToString(offerIdBytes)
 
+        val httpClientFactory = { configBlock: (HttpClientConfig<*>.() -> Unit), ->
+            HttpClient(configBlock).config {
+                install(HttpTimeout) {
+                    socketTimeoutMillis = 60_000
+                }
+            }
+        }
+
         val mxClient = MatrixClientServerApiClient(
             baseUrl = Url("https://matrix.org"),
+            httpClientFactory = httpClientFactory
         ).apply { accessToken.value = System.getenv("MXKY") }
 
         class TestP2PExceptionHandler : P2PExceptionNotifiable {
@@ -117,7 +128,7 @@ class P2PServiceTest {
                 eventContent = RoomMessageEventContent
                     .TextMessageEventContent(publicKeyAnnouncementString)
             ).getOrThrow()
-            withTimeout(30_000) {
+            withTimeout(40_000) {
                 offerService.publicKeyAnnouncementChannel.receive()
             }
         }
