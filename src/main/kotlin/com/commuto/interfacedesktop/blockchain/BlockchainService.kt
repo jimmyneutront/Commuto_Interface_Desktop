@@ -11,6 +11,7 @@ import com.commuto.interfacedesktop.offer.OfferService
 import kotlinx.coroutines.*
 import kotlinx.coroutines.future.asDeferred
 import kotlinx.coroutines.future.await
+import org.slf4j.LoggerFactory
 import org.web3j.crypto.Credentials
 import org.web3j.protocol.Web3j
 import org.web3j.protocol.core.DefaultBlockParameter
@@ -33,6 +34,7 @@ import javax.inject.Singleton
  * [BlockchainExceptionNotifiable], [OfferNotifiable], [Web3j] instance and CommutoSwap contract
  * address.
  *
+ * @property logger The [org.slf4j.Logger] that this class uses for logging.
  * @property exceptionHandler An object to which [BlockchainService] will pass exceptions when they
  * occur.
  * @property offerService: An object to which [BlockchainService] will pass offer-related events
@@ -69,6 +71,8 @@ class BlockchainService (private val exceptionHandler: BlockchainExceptionNotifi
     init {
         (offerService as? OfferService)?.setBlockchainService(this)
     }
+
+    private val logger = LoggerFactory.getLogger(javaClass)
 
     private val creds: Credentials = Credentials.create(
         "0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a"
@@ -113,10 +117,12 @@ class BlockchainService (private val exceptionHandler: BlockchainExceptionNotifi
      */
     @OptIn(DelicateCoroutinesApi::class)
     fun listen() {
+        logger.info("Starting listen loop in global coroutine scope")
         listenJob = GlobalScope.launch {
             runLoop = true
             listenLoop()
         }
+        logger.info("Starting listen loop in global coroutine scope")
     }
 
     /**
@@ -124,8 +130,10 @@ class BlockchainService (private val exceptionHandler: BlockchainExceptionNotifi
      * [listenJob].
      */
     fun stopListening() {
+        logger.info("Stopping listen loop and canceling listen job")
         runLoop = false
         listenJob.cancel()
+        logger.info("Stopped listen loop and canceled listen job")
     }
 
     /**
@@ -151,21 +159,31 @@ class BlockchainService (private val exceptionHandler: BlockchainExceptionNotifi
     suspend fun listenLoop() {
         while (runLoop) {
             try {
+                logger.info("Beginning iteration of listen loop, last parsed block number: $lastParsedBlockNum")
                 newestBlockNum = getNewestBlockNumberAsync().await().blockNumber
                 if (newestBlockNum > lastParsedBlockNum) {
+                    logger.info("Newest block number $newestBlockNum > last parsed block number $lastParsedBlockNum")
                     val block = getBlockAsync(lastParsedBlockNum + BigInteger.ONE).await()
                         .block
+                    logger.info("Got block ${block.number}")
                     parseBlock(block)
-
+                    logger.info("Parsed block ${block.number}")
                     setLastParsedBlockNumber(block.number)
+                    logger.info("Updated last parsed block number as ${block.number}")
+                } else {
+                    logger.info("Newest block number $newestBlockNum <= last parsed block number " +
+                            "$lastParsedBlockNum, delaying for $listenInterval ms")
+                    delay(listenInterval)
                 }
-                delay(listenInterval)
             } catch (e: Exception) {
+                logger.error("Got an exception during listen loop, calling exception handler", e)
                 exceptionHandler.handleBlockchainException(e)
                 if (e is ConnectException) {
+                    logger.error("Caught ConnectionException, stopping listening loop", e)
                     stopListening()
                 }
             }
+            logger.info("Completed iteration of listen loop")
         }
     }
 
@@ -313,18 +331,23 @@ class BlockchainService (private val exceptionHandler: BlockchainExceptionNotifi
         chainID: BigInteger
     ) {
         val eventResponses = eventResponseLists.flatten()
+        logger.info("handleEventResponses: handling ${eventResponses.size} events")
         for (eventResponse in eventResponses) {
             when (eventResponse) {
                 is CommutoSwap.OfferOpenedEventResponse -> {
+                    logger.info("handleEventResponses: handling OfferOpenedEvent")
                     offerService.handleOfferOpenedEvent(OfferOpenedEvent.fromEventResponse(eventResponse, chainID))
                 }
                 is CommutoSwap.OfferEditedEventResponse -> {
+                    logger.info("handleEventResponses: handling OfferEditedEvent")
                     offerService.handleOfferEditedEvent(OfferEditedEvent.fromEventResponse(eventResponse, chainID))
                 }
                 is CommutoSwap.OfferCanceledEventResponse -> {
+                    logger.info("handleEventResponses: handling OfferCanceledEvent")
                     offerService.handleOfferCanceledEvent(OfferCanceledEvent.fromEventResponse(eventResponse, chainID))
                 }
                 is CommutoSwap.OfferTakenEventResponse -> {
+                    logger.info("handleEventResponses: handling OfferTakenEvent")
                     offerService.handleOfferTakenEvent(OfferTakenEvent.fromEventResponse(eventResponse, chainID))
                 }
             }

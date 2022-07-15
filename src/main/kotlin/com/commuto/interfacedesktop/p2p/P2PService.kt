@@ -33,6 +33,7 @@ import javax.inject.Singleton
  * @constructor Creates a new [P2PService] with the specified [P2PExceptionNotifiable],
  * [OfferMessageNotifiable] and [MatrixClientServerApiClient].
  *
+ * @property logger The [org.slf4j.Logger] that this class uses for logging.
  * @property exceptionHandler An object to which [P2PService] will pass errors when they occur.
  * @property offerService An object to which [P2PService] will pass offer-related messages when they
  * occur.
