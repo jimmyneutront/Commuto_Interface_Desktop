@@ -27,6 +27,7 @@ import kotlinx.coroutines.test.setMain
 import kotlinx.serialization.Serializable
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Before
 import org.junit.Test
 import org.web3j.protocol.Web3j
@@ -175,7 +176,6 @@ class OfferServiceTests {
         }
     }
 
-    // TODO: Fix this test
     /**
      * Ensures that [OfferService] handles
      * [OfferCanceled](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offercanceled) events properly.
@@ -198,7 +198,7 @@ class OfferServiceTests {
         val testingServerResponse: TestingServerResponse = runBlocking {
             testingServerClient.get(testingServiceUrl) {
                 url {
-                    parameters.append("events", "offer-opened-canceled")
+                    parameters.append("events", "offer-opened")
                 }
             }.body()
         }
@@ -238,7 +238,7 @@ class OfferServiceTests {
             BlockchainEventRepository(),
             BlockchainEventRepository(),
             offerCanceledEventRepository,
-            BlockchainEventRepository()
+            BlockchainEventRepository(),
         )
 
         class TestOfferTruthSource: OfferTruthSource {
@@ -250,6 +250,9 @@ class OfferServiceTests {
 
             override fun addOffer(offer: Offer) {
                 offers[offer.id] = offer
+                runBlocking {
+                    offersChannel.send(offer)
+                }
             }
 
             override fun removeOffer(id: UUID) {
@@ -277,9 +280,26 @@ class OfferServiceTests {
             testingServerResponse.commutoSwapAddress
         )
         blockchainService.listen()
-        val encoder = Base64.getEncoder()
+
         runBlocking {
             withTimeout(60_000) {
+                val addedOffer = offerTruthSource.offersChannel.receive()
+                assertNotNull(offerTruthSource.offers[addedOffer.id])
+            }
+        }
+
+        runBlocking {
+            testingServerClient.get(testingServiceUrl) {
+                url {
+                    parameters.append("events", "offer-canceled")
+                    parameters.append("commutoSwapAddress", testingServerResponse.commutoSwapAddress)
+                }
+            }
+        }
+
+        runBlocking {
+            withTimeout(20_000) {
+                val encoder = Base64.getEncoder()
                 offerTruthSource.offersChannel.receive()
                 assertFalse(exceptionHandler.gotError)
                 assert(offerTruthSource.offers.isEmpty())
