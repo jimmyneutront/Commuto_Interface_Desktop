@@ -4,6 +4,7 @@ import com.commuto.interfacedesktop.database.DatabaseDriverFactory
 import com.commuto.interfacedesktop.database.DatabaseService
 import com.commuto.interfacedesktop.key.keys.KeyPair
 import com.commuto.interfacedesktop.key.keys.PublicKey
+import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
 import kotlin.test.BeforeTest
 
@@ -19,7 +20,7 @@ internal class KeyManagerServiceTest {
     }
 
     @Test
-    fun testGenerateAndRetrieveKeyPair() {
+    fun testGenerateAndRetrieveKeyPair() = runBlocking {
         val keyPair: KeyPair = keyManagerService.generateKeyPair()
         val retrievedKeyPair: KeyPair? = keyManagerService.getKeyPair(keyPair.interfaceId)
         assert(keyPair.interfaceId.contentEquals(retrievedKeyPair!!.interfaceId))
@@ -28,7 +29,7 @@ internal class KeyManagerServiceTest {
     }
 
     @Test
-    fun testStoreAndRetrievePubKey() {
+    fun testStoreAndRetrievePubKey() = runBlocking {
         val keyPair: KeyPair = keyManagerService.generateKeyPair(storeResult = false)
         val publicKey = PublicKey(keyPair.keyPair.public)
         keyManagerService.storePublicKey(publicKey)

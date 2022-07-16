@@ -798,7 +798,9 @@ internal class CommutoCoreInteraction {
         }
         val takerKeyBytes = decoder.decode(decodedPayload.pubKey)
         val takerKey = PublicKey(takerKeyBytes)
-        keyManagerService.storePublicKey(takerKey)
+        runBlocking {
+            keyManagerService.storePublicKey(takerKey)
+        }
         val signature = decoder.decode(decodedMessage.signature)
         if (!takerKey.verifySignature(encryptedPayload.encryptedData, signature)) {
             return null

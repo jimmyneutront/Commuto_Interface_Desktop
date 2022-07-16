@@ -3,7 +3,7 @@ package com.commuto.interfacedesktop.key
 import com.commuto.interfacedesktop.database.DatabaseService
 import com.commuto.interfacedesktop.key.keys.KeyPair
 import com.commuto.interfacedesktop.key.keys.PublicKey
-import kotlinx.coroutines.runBlocking
+import org.slf4j.LoggerFactory
 import java.security.MessageDigest
 import java.util.Base64
 import javax.inject.Inject
@@ -16,9 +16,12 @@ import javax.inject.Singleton
  * public keys.
  *
  * @property databaseService The Database Service used to store and retrieve data
+ * @property logger The [org.slf4j.Logger] that this class uses for logging.
  */
 @Singleton
 class KeyManagerService @Inject constructor(private var databaseService: DatabaseService) {
+
+    private val logger = LoggerFactory.getLogger(javaClass)
 
     /**
      * Generates an 2048-bit RSA key pair and computes the key pair's interface ID, which is the SHA-256 hash of the
@@ -30,16 +33,19 @@ class KeyManagerService @Inject constructor(private var databaseService: Databas
      * @return A [KeyPair], the private key of which is a 2048-bit RSA private key, and the interface ID of which is the
      * SHA-256 hash of the PKCS#1 encoded byte representation of the [KeyPair]'s public key.
      */
-    fun generateKeyPair(storeResult: Boolean = true): KeyPair {
+    suspend fun generateKeyPair(storeResult: Boolean = true): KeyPair {
         val keyPair = KeyPair()
         val encoder = Base64.getEncoder()
+        val interfaceIDString = encoder.encodeToString(keyPair.interfaceId)
         if (storeResult) {
-            runBlocking {
-                databaseService.storeKeyPair(encoder.encodeToString(keyPair.interfaceId),
-                    encoder.encodeToString(keyPair.pubKeyToPkcs1Bytes()),
-                    encoder.encodeToString(keyPair.privKeyToPkcs1Bytes()))
-            }
+            databaseService.storeKeyPair(
+                interfaceIDString,
+                encoder.encodeToString(keyPair.pubKeyToPkcs1Bytes()),
+                encoder.encodeToString(keyPair.privKeyToPkcs1Bytes())
+            )
+            logger.info("generateKeyPair: stored new key pair with interface id $interfaceIDString")
         }
+        logger.info("generateKeyPair: returning new key pair $interfaceIDString")
         return keyPair
     }
 
@@ -53,16 +59,16 @@ class KeyManagerService @Inject constructor(private var databaseService: Databas
      * @return A [KeyPair], the private key of which is a 2048-bit RSA key pair such that the SHA-256 hash of the PKCS#1
      * encoded byte representation of its public key is equal to [interfaceId], or null if no such [KeyPair] is found.
      */
-    fun getKeyPair(interfaceId: ByteArray): KeyPair? {
+    suspend fun getKeyPair(interfaceId: ByteArray): KeyPair? {
         val encoder = Base64.getEncoder()
-        val dbKeyPair: com.commuto.interfacedesktop.db.KeyPair? = runBlocking {
-            databaseService
-                .getKeyPair(encoder.encodeToString(interfaceId))
-        }
+        val interfaceIDString = encoder.encodeToString(interfaceId)
+        val dbKeyPair: com.commuto.interfacedesktop.db.KeyPair? = databaseService.getKeyPair(interfaceIDString)
         val decoder = Base64.getDecoder()
         return if (dbKeyPair != null) {
+            logger.info("getKeyPair: trying to return key pair ${dbKeyPair.interfaceId}")
             KeyPair(decoder.decode(dbKeyPair.publicKey), decoder.decode(dbKeyPair.privateKey))
         } else {
+            logger.info("getKeyPair: key pair $interfaceIDString not found")
             null
         }
     }
@@ -74,14 +80,16 @@ class KeyManagerService @Inject constructor(private var databaseService: Databas
      *
      * @param pubKey The [PublicKey] to be persistently stored.
      */
-    fun storePublicKey(pubKey: PublicKey) {
+    suspend fun storePublicKey(pubKey: PublicKey) {
         val interfaceId: ByteArray = MessageDigest.getInstance("SHA-256")
             .digest(pubKey.toPkcs1Bytes())
         val encoder = Base64.getEncoder()
-        runBlocking {
-            databaseService.storePublicKey(encoder.encodeToString(interfaceId),
-                encoder.encodeToString(pubKey.toPkcs1Bytes()))
-        }
+        val interfaceIDString = encoder.encodeToString(interfaceId)
+        databaseService.storePublicKey(
+            interfaceIDString,
+            encoder.encodeToString(pubKey.toPkcs1Bytes())
+        )
+        logger.info("storePublicKey: stored public key $interfaceIDString")
     }
 
     /**
@@ -94,15 +102,16 @@ class KeyManagerService @Inject constructor(private var databaseService: Databas
      * @return A [PublicKey], the SHA-256 hash of the PKCS#1 encoded byte representation of which is equal to
      * [interfaceId], or null if no such [PublicKey] is found.
      */
-    fun getPublicKey(interfaceId: ByteArray): PublicKey? {
+    suspend fun getPublicKey(interfaceId: ByteArray): PublicKey? {
         val encoder = Base64.getEncoder()
-        val dbPubKey: com.commuto.interfacedesktop.db.PublicKey? = runBlocking {
-            databaseService.getPublicKey(encoder.encodeToString(interfaceId))
-        }
+        val interfaceIDString = encoder.encodeToString(interfaceId)
+        val dbPubKey: com.commuto.interfacedesktop.db.PublicKey? = databaseService.getPublicKey(interfaceIDString)
         val decoder = Base64.getDecoder()
         return if (dbPubKey != null) {
+            logger.info("getPublicKey: trying to return public key ${dbPubKey.interfaceId}")
             PublicKey(decoder.decode(dbPubKey.publicKey))
         } else {
+            logger.info("getPublicKey: public key $interfaceIDString not found")
             null
         }
     }
