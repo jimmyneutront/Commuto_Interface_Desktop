@@ -15,6 +15,7 @@ import com.commuto.interfacedesktop.ui.OffersViewModel
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import org.slf4j.LoggerFactory
 import java.nio.ByteBuffer
 import java.util.*
 import javax.inject.Inject
@@ -27,6 +28,7 @@ import javax.inject.Singleton
  *
  * @property databaseService The [DatabaseService] used for  persistent storage.
  * @property keyManagerService The [KeyManagerService] that the [OfferService] will use for managing keys.
+ * @property logger The [org.slf4j.Logger] that this class uses for logging.
  * @property offerOpenedEventRepository A repository containing [OfferOpenedEvent]s for offers that are open and for
  * which complete offer information has not yet been retrieved.
  * @property offerEditedEventRepository A repository containing [OfferEditedEvent]s for offers that are open and have
@@ -61,6 +63,8 @@ class OfferService (
     private lateinit var offerTruthSource: OfferTruthSource
 
     private lateinit var blockchainService: BlockchainService
+
+    private val logger = LoggerFactory.getLogger(javaClass)
 
     /**
      * Used to set the [offerTruthSource] property. This can only be called once.
@@ -107,17 +111,20 @@ class OfferService (
     override suspend fun handleOfferOpenedEvent(
         event: OfferOpenedEvent
     ) {
+        logger.info("handleOfferOpenedEvent: handling event for offer ${event.offerID}")
         val encoder = Base64.getEncoder()
         offerOpenedEventRepository.append(event)
         val offerStruct = blockchainService.getOffer(event.offerID)
             ?: throw IllegalStateException("No on-chain offer was found with ID specified in OfferOpenedEvent in " +
                     "handleOfferOpenedEvent call. OfferOpenedEvent.id: ${event.offerID}")
+        logger.info("handleOfferOpenedEvent: got offer ${event.offerID}")
         if (event.chainID != offerStruct.chainID) {
             throw IllegalStateException("Chain ID of OfferOpenedEvent did not match chain ID of OfferStruct in " +
                     "handleOfferOpenedEvent call. OfferOpenedEvent.chainID: ${event.chainID}, " +
                     "OfferStruct.chainID: ${offerStruct.chainID}, OfferOpenedEvent.offerID: ${event.offerID}")
         }
         val havePublicKey = (keyManagerService.getPublicKey(offerStruct.interfaceID) != null)
+        logger.info("handleOfferOpenedEvent: havePublicKey for offer ${event.offerID}: $havePublicKey")
         val offer = Offer(
             isCreated = offerStruct.isCreated,
             isTaken = offerStruct.isTaken,
@@ -159,15 +166,19 @@ class OfferService (
             havePublicKey = havePublicKeyLong,
         )
         databaseService.storeOffer(offerForDatabase)
+        logger.info("handleOfferOpenedEvent: persistently stored offer ${offer.id}")
         val settlementMethodStrings = offer.onChainSettlementMethods.map {
             encoder.encodeToString(it)
         }
         databaseService.storeSettlementMethods(offerForDatabase.offerId, offerForDatabase.chainID,
             settlementMethodStrings)
+        logger.info("handleOfferOpenedEvent: persistently stored ${settlementMethodStrings.size} settlement " +
+                "methods for offer ${offer.id}")
         offerOpenedEventRepository.remove(event)
         withContext(Dispatchers.Main) {
             offerTruthSource.addOffer(offer)
         }
+        logger.info("handleOfferOpenedEvent: added offer ${offer.id} to offerTruthSource")
     }
 
     /**
@@ -186,17 +197,20 @@ class OfferService (
      * [OfferEditedEvent.offerID].
      */
     override suspend fun handleOfferEditedEvent(event: OfferEditedEvent) {
+        logger.info("handleOfferEditedEvent: handling event for offer ${event.offerID}")
         val encoder = Base64.getEncoder()
         offerEditedEventRepository.append(event)
         val offerStruct = blockchainService.getOffer(event.offerID)
             ?: throw IllegalStateException("No on-chain offer was found with ID specified in OfferEditedEvent in " +
                     "handleOfferEditedEvent call. OfferEditedEvent.id: ${event.offerID}")
+        logger.info("handleOfferEditedEvent: got offer ${event.offerID}")
         if (event.chainID != offerStruct.chainID) {
             throw IllegalStateException("Chain ID of OfferEditedEvent did not match chain ID of OfferStruct in " +
                     "handleOfferEditedEvent call. OfferEditedEvent.chainID: ${event.chainID}, " +
                     "OfferStruct.chainID: ${offerStruct.chainID} OfferEditedEvent.offerID: ${event.offerID}")
         }
         val havePublicKey = (keyManagerService.getPublicKey(offerStruct.interfaceID) != null)
+        logger.info("handleOfferOpenedEvent: havePublicKey for offer ${event.offerID}: $havePublicKey")
         val offer = Offer(
             isCreated = offerStruct.isCreated,
             isTaken = offerStruct.isTaken,
@@ -224,12 +238,16 @@ class OfferService (
             encoder.encodeToString(it)
         }
         databaseService.storeSettlementMethods(offerIdString, chainIDString, settlementMethodStrings)
+        logger.info("handleOfferEditedEvent: persistently stored ${settlementMethodStrings.size} updated " +
+                "settlement methods for offer ${offer.id}")
         databaseService.updateOfferHavePublicKey(offerIdString, chainIDString, havePublicKey)
+        logger.info("handleOfferEditedEvent: persistently updated havePublicKey for offer ${offer.id}")
         offerEditedEventRepository.remove(event)
         withContext(Dispatchers.Main) {
             offerTruthSource.removeOffer(offer.id)
             offerTruthSource.addOffer(offer)
         }
+        logger.info("handleOfferEditedEvent: added updated offer ${offer.id} to offerTruthSource")
     }
 
     /**
@@ -245,6 +263,7 @@ class OfferService (
     override suspend fun handleOfferCanceledEvent(
         event: OfferCanceledEvent
     ) {
+        logger.info("handleOfferCanceledEvent: handling event for offer ${event.offerID}")
         val offerIDByteBuffer = ByteBuffer.wrap(ByteArray(16))
         offerIDByteBuffer.putLong(event.offerID.mostSignificantBits)
         offerIDByteBuffer.putLong(event.offerID.leastSignificantBits)
@@ -252,13 +271,17 @@ class OfferService (
         val offerIdString = Base64.getEncoder().encodeToString(offerIDByteArray)
         offerCanceledEventRepository.append(event)
         databaseService.deleteOffers(offerIdString, event.chainID.toString())
+        logger.info("handleOfferCanceledEvent: deleted offer ${event.offerID} from persistent storage")
         databaseService.deleteSettlementMethods(offerIdString, event.chainID.toString())
+        logger.info("handleOfferCanceledEvent: deleted settlement methods for offer ${event.offerID} from " +
+                "persistent storage")
         offerCanceledEventRepository.remove(event)
         withContext(Dispatchers.Main) {
             if (offerTruthSource.offers[event.offerID]?.chainID == event.chainID) {
                 offerTruthSource.removeOffer(event.offerID)
             }
         }
+        logger.info("handleOfferCanceledEvent: removed offer ${event.offerID} from offerTruthSource if present")
     }
 
     /**
@@ -272,6 +295,7 @@ class OfferService (
      * @param event The [OfferTakenEvent] of which [OfferService] is being notified.
      */
     override suspend fun handleOfferTakenEvent(event: OfferTakenEvent) {
+        logger.info("handleOfferTakenEvent: handling event for offer ${event.offerID}")
         val offerIDByteBuffer = ByteBuffer.wrap(ByteArray(16))
         offerIDByteBuffer.putLong(event.offerID.mostSignificantBits)
         offerIDByteBuffer.putLong(event.offerID.leastSignificantBits)
@@ -279,13 +303,17 @@ class OfferService (
         val offerIdString = Base64.getEncoder().encodeToString(offerIDByteArray)
         offerTakenEventRepository.append(event)
         databaseService.deleteOffers(offerIdString, event.chainID.toString())
+        logger.info("handleOfferTakenEvent: deleted offer ${event.offerID} from persistent storage")
         databaseService.deleteSettlementMethods(offerIdString, event.chainID.toString())
+        logger.info("handleOfferTakenEvent: deleted settlement methods for offer ${event.offerID} from " +
+                "persistent storage")
         offerTakenEventRepository.remove(event)
         withContext(Dispatchers.Main) {
             if (offerTruthSource.offers[event.offerID]?.chainID == event.chainID) {
                 offerTruthSource.removeOffer(event.offerID)
             }
         }
+        logger.info("handleOfferTakenEvent: removed offer ${event.offerID} from offerTruthSource if present")
     }
 
     /**
@@ -296,20 +324,29 @@ class OfferService (
      * true, to indicate that we have the public key necessary to take the offer and communicate with its maker.
      */
     override suspend fun handlePublicKeyAnnouncement(message: PublicKeyAnnouncement) {
+        logger.info("handlePublicKeyAnnouncement: handling announcement for offer ${message.id}")
+        val encoder = Base64.getEncoder()
         if (keyManagerService.getPublicKey(message.publicKey.interfaceId) == null) {
             keyManagerService.storePublicKey(message.publicKey)
+            logger.info("handlePublicKeyAnnouncement: persistently stored new public key with interface ID " +
+                    "${encoder.encodeToString(message.publicKey.interfaceId)} for offer ${message.id}")
+        } else {
+            logger.info("handlePublicKeyAnnouncement: already had public key in announcement in persistent " +
+                    "storage. Interface ID: ${encoder.encodeToString(message.publicKey.interfaceId)}")
         }
         val offer = withContext(Dispatchers.Main) {
             offerTruthSource.offers[message.id]
         }
         if (offer == null) {
-            // TODO: log that we got a public key announcement for a nonexistent offer here
+            logger.info("handlePublicKeyAnnouncement: got announcement for offer not in offerTruthSource: " +
+                    "${message.id}")
             return
         }
         if (offer.interfaceId.contentEquals(message.publicKey.interfaceId)) {
             withContext(Dispatchers.Main) {
                 offerTruthSource.offers[message.id]?.havePublicKey = true
             }
+            logger.info("handlePublicKeyAnnouncement: set havePublicKey to true for offer ${offer.id}")
             val offerIDByteBuffer = ByteBuffer.wrap(ByteArray(16))
             offerIDByteBuffer.putLong(message.id.mostSignificantBits)
             offerIDByteBuffer.putLong(message.id.leastSignificantBits)
@@ -317,8 +354,13 @@ class OfferService (
             val offerIDString = Base64.getEncoder().encodeToString(offerIDByteArray)
             val chainIDString = offer.chainID.toString()
             databaseService.updateOfferHavePublicKey(offerIDString, chainIDString, true)
+            logger.info("handlePublicKeyAnnouncement: persistently set havePublicKey to true for offer " +
+                    "${offer.id}")
         } else {
-            // TODO: log that we got a public key announcement for a nonexistent offer here
+            logger.info("handlePublicKeyAnnouncement: interface ID of public key did not match that of offer " +
+                    "${offer.id} specified in announcement. Offer interface ID: ${encoder.encodeToString(offer
+                        .interfaceId)}, announcement interface id: ${encoder.encodeToString(message.publicKey
+                        .interfaceId)}")
             return
         }
     }

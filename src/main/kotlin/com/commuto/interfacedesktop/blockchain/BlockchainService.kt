@@ -34,13 +34,13 @@ import javax.inject.Singleton
  * [BlockchainExceptionNotifiable], [OfferNotifiable], [Web3j] instance and CommutoSwap contract
  * address.
  *
- * @property logger The [org.slf4j.Logger] that this class uses for logging.
  * @property exceptionHandler An object to which [BlockchainService] will pass exceptions when they
  * occur.
  * @property offerService: An object to which [BlockchainService] will pass offer-related events
  * when they occur.
  * @property web3 The [Web3j] instance that [BlockchainService] uses to interact with the
  * EVM-compatible blockchain.
+ * @property logger The [org.slf4j.Logger] that this class uses for logging.
  * @property creds Blockchain credentials used for signing transactions.
  * @property lastParsedBlockNum The block number of the most recently parsed block.
  * @property newestBlockNum The block number of the most recently confirmed block.
