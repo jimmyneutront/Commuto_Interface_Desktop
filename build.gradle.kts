@@ -46,13 +46,13 @@ dependencies {
     implementation("com.google.dagger:dagger:2.42")
     kapt("com.google.dagger:dagger-compiler:2.42")
     // SQLDelight for database operations
-    implementation("com.squareup.sqldelight:sqlite-driver:1.5.1")
-    implementation("org.xerial:sqlite-jdbc:3.34.0") {
+    implementation("com.squareup.sqldelight:sqlite-driver:1.5.3")
+    implementation("org.xerial:sqlite-jdbc:3.36.0.3") {
         because("SQLDelight depends on this, but we need it in the compile classpath so we can catch " +
                 "exceptions defined in it")
     }
     // BouncyCastle for cryptography
-    implementation("org.bouncycastle:bcprov-jdk15on:1.69")
+    implementation("org.bouncycastle:bcprov-jdk15on:1.70")
 
     // For using local web3j build
     /*
@@ -79,7 +79,7 @@ dependencies {
     // Trixnity Matrix SDK
     implementation(trixnity("clientserverapi-client"))
     // Ktor engine for Trixnity
-    implementation("io.ktor:ktor-client-okhttp:2.0.1")
+    implementation("io.ktor:ktor-client-okhttp:2.0.2")
     // Serialization Library
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.3.3")
     // Log4j 2 for logging
@@ -87,9 +87,9 @@ dependencies {
     implementation("org.apache.logging.log4j:log4j-core:2.18.0")
     implementation("org.apache.logging.log4j:log4j-slf4j-impl:2.18.0")
     // Ktor Content negotiation plugin for interactions with TestingServer
-    testImplementation("io.ktor:ktor-client-content-negotiation:2.0.1")
+    testImplementation("io.ktor:ktor-client-content-negotiation:2.0.2")
     // Ktor JSON serialization plugin for interactions with TestingServer
-    testImplementation("io.ktor:ktor-serialization-kotlinx-json:2.0.1")
+    testImplementation("io.ktor:ktor-serialization-kotlinx-json:2.0.2")
     // Kotlin Coroutines testing utilities
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test-jvm:1.6.2")
 }
