@@ -115,9 +115,11 @@ class OfferService (
         val encoder = Base64.getEncoder()
         offerOpenedEventRepository.append(event)
         val offerStruct = blockchainService.getOffer(event.offerID)
-            ?: throw IllegalStateException("No on-chain offer was found with ID specified in OfferOpenedEvent in " +
-                    "handleOfferOpenedEvent call. OfferOpenedEvent.id: ${event.offerID}")
-        logger.info("handleOfferOpenedEvent: got offer ${event.offerID}")
+        if (offerStruct == null) {
+            logger.info("handleOfferOpenedEvent: no on-chain offer was found with ID specified in OfferOpenedEvent " +
+                    "in handleOfferOpenedEvent call. OfferOpenedEvent.id: ${event.offerID}")
+            return
+        }
         if (event.chainID != offerStruct.chainID) {
             throw IllegalStateException("Chain ID of OfferOpenedEvent did not match chain ID of OfferStruct in " +
                     "handleOfferOpenedEvent call. OfferOpenedEvent.chainID: ${event.chainID}, " +
@@ -201,8 +203,11 @@ class OfferService (
         val encoder = Base64.getEncoder()
         offerEditedEventRepository.append(event)
         val offerStruct = blockchainService.getOffer(event.offerID)
-            ?: throw IllegalStateException("No on-chain offer was found with ID specified in OfferEditedEvent in " +
-                    "handleOfferEditedEvent call. OfferEditedEvent.id: ${event.offerID}")
+        if (offerStruct == null) {
+            logger.info("No on-chain offer was found with ID specified in OfferEditedEvent in handleOfferEditedEvent " +
+                    "call. OfferEditedEvent.id: ${event.offerID}")
+            return
+        }
         logger.info("handleOfferEditedEvent: got offer ${event.offerID}")
         if (event.chainID != offerStruct.chainID) {
             throw IllegalStateException("Chain ID of OfferEditedEvent did not match chain ID of OfferStruct in " +
