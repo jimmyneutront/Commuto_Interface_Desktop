@@ -17,5 +17,29 @@ import kotlinx.serialization.Serializable
 data class SettlementMethod(
     @SerialName("f") val currency: String,
     @SerialName("p") val method: String,
-    @SerialName("m") val price: String,
-)
+    @SerialName("m") var price: String,
+) {
+    companion object {
+        /**
+         * A [List] of sample [SettlementMethod]s with empty price strings. Used for previewing offer-related Composable
+         * functions.
+         */
+        val sampleSettlementMethodsEmptyPrices = listOf(
+            SettlementMethod(
+                currency = "EUR",
+                price = "",
+                method = "SEPA"
+            ),
+            SettlementMethod(
+                currency = "USD",
+                price = "",
+                method = "SWIFT"
+            ),
+            SettlementMethod(
+                currency = "BSD",
+                price = "",
+                method = "SANDDOLLAR"
+            ),
+        )
+    }
+}

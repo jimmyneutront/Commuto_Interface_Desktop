@@ -12,7 +12,7 @@ import java.math.BigInteger
  * containing information about all the supported stablecoin contracts on the blockchain with the specified ID.
  */
 class StablecoinInformationRepository(
-    private val stablecoinInformation: Map<BigInteger, Map<String, StablecoinInformation>>
+    val stablecoinInformation: Map<BigInteger, Map<String, StablecoinInformation>>
 ) {
 
     /**
