@@ -78,12 +78,18 @@ fun OffersListComposable(
                 for (entry in offers) {
                     item {
                         Button(
-                            colors = ButtonDefaults.buttonColors(backgroundColor = Color.Transparent),
-                            contentPadding = PaddingValues(10.dp),
                             onClick = {
                                 focusedOffer.value = entry.value
                                 focusedOfferComposable.value = FocusedOfferComposable.OfferComposable
-                            }
+                            },
+                            border = BorderStroke(1.dp, Color.Black),
+                            colors = ButtonDefaults.buttonColors(
+                                backgroundColor = Color.Transparent
+                            ),
+                            modifier = Modifier
+                                .padding(PaddingValues(top = 5.dp, start = 5.dp)),
+                            contentPadding = PaddingValues(10.dp),
+                            elevation = null,
                         ) {
                             OfferCardComposable(
                                 offerDirection = entry.value.direction.string,
@@ -92,7 +98,6 @@ fun OffersListComposable(
                                     ?: "Unknown Stablecoin"
                             )
                         }
-                        OffersDividerComposable()
                     }
                 }
             }
