@@ -103,7 +103,10 @@ fun CreateOfferComposable(
     val selectedSettlementMethods = remember { mutableStateListOf<SettlementMethod>() }
 
     Column(
-        modifier = Modifier.verticalScroll(rememberScrollState())
+        modifier = Modifier
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 10.dp)
+            .padding(PaddingValues(bottom = 10.dp))
     ) {
         Text(
             text = "Create Offer",

@@ -16,6 +16,7 @@ import com.commuto.interfacedesktop.i18n.I18n
 import com.commuto.interfacedesktop.offer.Offer
 import com.commuto.interfacedesktop.offer.OfferTruthSource
 import com.commuto.interfacedesktop.offer.PreviewableOfferTruthSource
+import java.math.BigInteger
 
 /**
  * Displays the [OffersListComposable] for open offers and the focused [Offer], if any.
@@ -26,20 +27,34 @@ import com.commuto.interfacedesktop.offer.PreviewableOfferTruthSource
 @Composable
 fun OffersComposable(offerTruthSource: OfferTruthSource) {
 
-    // The offer to show in the offer detail composable
+    /**
+     * Indicates which composable should be shown on the trailing side of [OffersListComposable]
+     */
+    val focusedOfferComposable = remember { mutableStateOf(FocusedOfferComposable.OfferComposable) }
+
+    /**
+     * The offer to show in the offer detail composable.
+     */
     val focusedOffer = remember { mutableStateOf<Offer?>(null) }
 
     Row {
-        OffersListComposable(Modifier.widthIn(100.dp, 300.dp), offerTruthSource, focusedOffer)
-        if (focusedOffer.value != null) {
-            OfferComposable(offerTruthSource, focusedOffer.value!!.id)
-        } else {
-            Row(
-                modifier = Modifier.fillMaxSize(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceEvenly
-            ) {
-                Text(I18n.get("NoOfferFocused"))
+        OffersListComposable(Modifier.widthIn(100.dp, 300.dp), offerTruthSource, focusedOfferComposable, focusedOffer)
+        when (focusedOfferComposable.value) {
+            FocusedOfferComposable.OfferComposable -> {
+                if (focusedOffer.value != null) {
+                    OfferComposable(offerTruthSource, focusedOffer.value!!.id)
+                } else {
+                    Row(
+                        modifier = Modifier.fillMaxSize(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceEvenly
+                    ) {
+                        Text(I18n.get("NoOfferFocused"))
+                    }
+                }
+            }
+            FocusedOfferComposable.CreateOfferComposable -> {
+                CreateOfferComposable(BigInteger.ONE)
             }
         }
     }
