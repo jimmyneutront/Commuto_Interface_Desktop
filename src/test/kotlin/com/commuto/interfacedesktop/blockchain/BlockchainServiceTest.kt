@@ -21,10 +21,11 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.Serializable
-import org.junit.Assert
+import org.junit.Assert.assertEquals
 import org.junit.Test
 import org.web3j.protocol.Web3j
 import org.web3j.protocol.http.HttpService
+import java.math.BigInteger
 import java.net.UnknownHostException
 import java.nio.ByteBuffer
 import java.util.*
@@ -54,6 +55,65 @@ class BlockchainServiceTest {
             offersService
         )
         blockchainService.listenLoop()
+    }
+
+    /**
+     * Ensures [BlockchainService.getServiceFeeRateAsync] functions properly.
+     */
+    @Test
+    fun testGetServiceFeeRate() {
+        @Serializable
+        data class TestingServerResponse(val commutoSwapAddress: String)
+
+        val testingServiceUrl = "http://localhost:8546/test_blockchainservice_getServiceFeeRate"
+        val testingServerClient = HttpClient(OkHttp) {
+            install(ContentNegotiation) {
+                json()
+            }
+            install(HttpTimeout) {
+                socketTimeoutMillis = 90_000
+                requestTimeoutMillis = 90_000
+            }
+        }
+        val testingServerResponse: TestingServerResponse = runBlocking {
+            testingServerClient.get(testingServiceUrl).body()
+        }
+
+        val w3 = Web3j.build(HttpService(System.getenv("BLOCKCHAIN_NODE")))
+
+        class TestBlockchainExceptionHandler : BlockchainExceptionNotifiable {
+            @Throws
+            override fun handleBlockchainException(exception: Exception) {
+                throw exception
+            }
+        }
+        val blockchainExceptionHandler = TestBlockchainExceptionHandler()
+
+        class TestOfferService : OfferNotifiable {
+            override suspend fun handleOfferOpenedEvent(event: OfferOpenedEvent) {
+                throw IllegalStateException("Should not be called")
+            }
+            override suspend fun handleOfferEditedEvent(event: OfferEditedEvent) {
+                throw IllegalStateException("Should not be called")
+            }
+            override suspend fun handleOfferCanceledEvent(event: OfferCanceledEvent) {
+                throw IllegalStateException("Should not be called")
+            }
+            override suspend fun handleOfferTakenEvent(event: OfferTakenEvent) {
+                throw IllegalStateException("Should not be called")
+            }
+        }
+        val offerService = TestOfferService()
+
+        val blockchainService = BlockchainService(
+            blockchainExceptionHandler,
+            offerService,
+            w3,
+            testingServerResponse.commutoSwapAddress
+        )
+        runBlocking {
+            assertEquals(blockchainService.getServiceFeeRateAsync().await(), BigInteger.valueOf(100L))
+        }
     }
 
     /**
@@ -127,9 +187,9 @@ class BlockchainServiceTest {
         runBlocking {
             withTimeout(30_000) {
                 val receivedOfferOpenedEvent = offerService.offerOpenedEventChannel.receive()
-                Assert.assertEquals(receivedOfferOpenedEvent.offerID, expectedOfferId)
+                assertEquals(receivedOfferOpenedEvent.offerID, expectedOfferId)
                 val receivedOfferTakenEvent = offerService.offerTakenEventChannel.receive()
-                Assert.assertEquals(receivedOfferTakenEvent.offerID, expectedOfferId)
+                assertEquals(receivedOfferTakenEvent.offerID, expectedOfferId)
             }
         }
     }
@@ -205,9 +265,9 @@ class BlockchainServiceTest {
         runBlocking {
             withTimeout(30_000) {
                 val receivedOfferOpenedEvent = offerService.offerOpenedEventChannel.receive()
-                Assert.assertEquals(receivedOfferOpenedEvent.offerID, expectedOfferId)
+                assertEquals(receivedOfferOpenedEvent.offerID, expectedOfferId)
                 val receivedOfferCanceledEvent = offerService.offerCanceledEventChannel.receive()
-                Assert.assertEquals(receivedOfferCanceledEvent.offerID, expectedOfferId)
+                assertEquals(receivedOfferCanceledEvent.offerID, expectedOfferId)
             }
         }
     }
@@ -283,9 +343,9 @@ class BlockchainServiceTest {
         runBlocking {
             withTimeout(30_000) {
                 val receivedOfferOpenedEvent = offerService.offerOpenedEventChannel.receive()
-                Assert.assertEquals(receivedOfferOpenedEvent.offerID, expectedOfferId)
+                assertEquals(receivedOfferOpenedEvent.offerID, expectedOfferId)
                 val receivedOfferEditedEvent = offerService.offerEditedEventChannel.receive()
-                Assert.assertEquals(receivedOfferEditedEvent.offerID, expectedOfferId)
+                assertEquals(receivedOfferEditedEvent.offerID, expectedOfferId)
             }
         }
     }

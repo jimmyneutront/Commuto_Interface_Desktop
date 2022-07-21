@@ -248,6 +248,15 @@ class BlockchainService (private val exceptionHandler: BlockchainExceptionNotifi
     }
 
     /**
+     * A [Deferred] wrapper around [CommutoSwap.serviceFeeRate] method.
+     *
+     * @return A [Deferred] with a [BigInteger] result.
+     */
+    fun getServiceFeeRateAsync(): Deferred<BigInteger> {
+        return commutoSwap.serviceFeeRate.sendAsync().asDeferred()
+    }
+
+    /**
      * Parses the given [EthBlock.Block] in search of
      * [CommutoSwap](https://github.com/jimmyneutront/commuto-protocol/blob/main/CommutoSwap.sol)
      * events, creates a list of all such events that it finds, and then calls
