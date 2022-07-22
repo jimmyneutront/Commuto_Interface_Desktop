@@ -2,10 +2,7 @@ package com.commuto.interfacedesktop.offer
 
 import com.commuto.interfacedesktop.blockchain.BlockchainEventRepository
 import com.commuto.interfacedesktop.blockchain.BlockchainService
-import com.commuto.interfacedesktop.blockchain.events.commutoswap.OfferCanceledEvent
-import com.commuto.interfacedesktop.blockchain.events.commutoswap.OfferEditedEvent
-import com.commuto.interfacedesktop.blockchain.events.commutoswap.OfferOpenedEvent
-import com.commuto.interfacedesktop.blockchain.events.commutoswap.OfferTakenEvent
+import com.commuto.interfacedesktop.blockchain.events.commutoswap.*
 import com.commuto.interfacedesktop.database.DatabaseService
 import com.commuto.interfacedesktop.key.KeyManagerService
 import com.commuto.interfacedesktop.p2p.OfferMessageNotifiable
@@ -38,6 +35,7 @@ import javax.inject.Singleton
  * canceled but haven't yet been removed from persistent storage or [offerTruthSource].
  * @property offerTakenEventRepository A repository containing [OfferTakenEvent]s for offers that have been taken but
  * haven't yet been removed from persistent storage or [offerTruthSource].
+ * @property serviceFeeRateChangedEventRepository A repository containing [ServiceFeeRateChangedEvent]s
  * @property offerTruthSource The [OfferTruthSource] in which this is responsible for maintaining an accurate list of
  * all open offers. If this is not yet initialized, event handling methods will throw the corresponding error.
  */
@@ -48,12 +46,14 @@ class OfferService (
     private val offerOpenedEventRepository: BlockchainEventRepository<OfferOpenedEvent>,
     private val offerEditedEventRepository: BlockchainEventRepository<OfferEditedEvent>,
     private val offerCanceledEventRepository: BlockchainEventRepository<OfferCanceledEvent>,
-    private val offerTakenEventRepository: BlockchainEventRepository<OfferTakenEvent>
+    private val offerTakenEventRepository: BlockchainEventRepository<OfferTakenEvent>,
+    private val serviceFeeRateChangedEventRepository: BlockchainEventRepository<ServiceFeeRateChangedEvent>
 ): OfferNotifiable, OfferMessageNotifiable {
 
     @Inject constructor(databaseService: DatabaseService, keyManagerService: KeyManagerService): this(
         databaseService,
         keyManagerService,
+        BlockchainEventRepository(),
         BlockchainEventRepository(),
         BlockchainEventRepository(),
         BlockchainEventRepository(),
@@ -368,6 +368,22 @@ class OfferService (
                         .interfaceId)}")
             return
         }
+    }
+
+    /**
+     * The method called by [BlockchainService] to notify [OfferService] of a [ServiceFeeRateChangedEvent]. Once
+     * notified, [OfferService] updates [offerTruthSource]'s `serviceFeeRate` property with the value specified in
+     * [event] on the main coroutine dispatcher.
+     */
+    override suspend fun handleServiceFeeRateChangedEvent(event: ServiceFeeRateChangedEvent) {
+        logger.info("handleServiceFeeRateChangedEvent: handling event. New rate: ${event.newServiceFeeRate}")
+        serviceFeeRateChangedEventRepository.append(event)
+        withContext(Dispatchers.Main) {
+            offerTruthSource.serviceFeeRate.value = event.newServiceFeeRate
+        }
+        serviceFeeRateChangedEventRepository.remove(event)
+        logger.info("handleServiceFeeRateChangedEvent: finished handling event. New rate: " +
+                "${event.newServiceFeeRate}")
     }
 
 }

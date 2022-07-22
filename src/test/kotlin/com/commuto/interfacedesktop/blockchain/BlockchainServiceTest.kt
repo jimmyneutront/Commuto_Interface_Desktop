@@ -1,9 +1,6 @@
 package com.commuto.interfacedesktop.blockchain
 
-import com.commuto.interfacedesktop.blockchain.events.commutoswap.OfferCanceledEvent
-import com.commuto.interfacedesktop.blockchain.events.commutoswap.OfferEditedEvent
-import com.commuto.interfacedesktop.blockchain.events.commutoswap.OfferOpenedEvent
-import com.commuto.interfacedesktop.blockchain.events.commutoswap.OfferTakenEvent
+import com.commuto.interfacedesktop.blockchain.events.commutoswap.*
 import com.commuto.interfacedesktop.database.DatabaseDriverFactory
 import com.commuto.interfacedesktop.database.DatabaseService
 import com.commuto.interfacedesktop.key.KeyManagerService
@@ -102,6 +99,9 @@ class BlockchainServiceTest {
             override suspend fun handleOfferTakenEvent(event: OfferTakenEvent) {
                 throw IllegalStateException("Should not be called")
             }
+            override suspend fun handleServiceFeeRateChangedEvent(event: ServiceFeeRateChangedEvent) {
+                throw IllegalStateException("Should not be called")
+            }
         }
         val offerService = TestOfferService()
 
@@ -173,6 +173,9 @@ class BlockchainServiceTest {
             }
             override suspend fun handleOfferTakenEvent(event: OfferTakenEvent) {
                 offerTakenEventChannel.send(event)
+            }
+            override suspend fun handleServiceFeeRateChangedEvent(event: ServiceFeeRateChangedEvent) {
+                throw IllegalStateException("Should not be called")
             }
         }
         val offerService = TestOfferService()
@@ -250,6 +253,9 @@ class BlockchainServiceTest {
                 offerCanceledEventChannel.send(event)
             }
             override suspend fun handleOfferTakenEvent(event: OfferTakenEvent) {
+                throw IllegalStateException("Should not be called")
+            }
+            override suspend fun handleServiceFeeRateChangedEvent(event: ServiceFeeRateChangedEvent) {
                 throw IllegalStateException("Should not be called")
             }
         }
@@ -330,6 +336,9 @@ class BlockchainServiceTest {
             override suspend fun handleOfferTakenEvent(event: OfferTakenEvent) {
                 throw IllegalStateException("Should not be called")
             }
+            override suspend fun handleServiceFeeRateChangedEvent(event: ServiceFeeRateChangedEvent) {
+                throw IllegalStateException("Should not be called")
+            }
         }
         val offerService = TestOfferService()
 
@@ -378,6 +387,9 @@ class BlockchainServiceTest {
                 throw IllegalStateException("Should not be called")
             }
             override suspend fun handleOfferTakenEvent(event: OfferTakenEvent) {
+                throw IllegalStateException("Should not be called")
+            }
+            override suspend fun handleServiceFeeRateChangedEvent(event: ServiceFeeRateChangedEvent) {
                 throw IllegalStateException("Should not be called")
             }
         }

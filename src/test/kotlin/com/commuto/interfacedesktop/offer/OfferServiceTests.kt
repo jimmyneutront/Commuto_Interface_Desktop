@@ -1,13 +1,11 @@
 package com.commuto.interfacedesktop.offer
 
 import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.mutableStateOf
 import com.commuto.interfacedesktop.blockchain.BlockchainEventRepository
 import com.commuto.interfacedesktop.blockchain.BlockchainExceptionNotifiable
 import com.commuto.interfacedesktop.blockchain.BlockchainService
-import com.commuto.interfacedesktop.blockchain.events.commutoswap.OfferCanceledEvent
-import com.commuto.interfacedesktop.blockchain.events.commutoswap.OfferEditedEvent
-import com.commuto.interfacedesktop.blockchain.events.commutoswap.OfferOpenedEvent
-import com.commuto.interfacedesktop.blockchain.events.commutoswap.OfferTakenEvent
+import com.commuto.interfacedesktop.blockchain.events.commutoswap.*
 import com.commuto.interfacedesktop.database.DatabaseDriverFactory
 import com.commuto.interfacedesktop.database.DatabaseService
 import com.commuto.interfacedesktop.key.KeyManagerService
@@ -109,7 +107,8 @@ class OfferServiceTests {
             offerOpenedEventRepository,
             BlockchainEventRepository(),
             BlockchainEventRepository(),
-            BlockchainEventRepository()
+            BlockchainEventRepository(),
+            BlockchainEventRepository(),
         )
 
         class TestOfferTruthSource: OfferTruthSource {
@@ -118,6 +117,7 @@ class OfferServiceTests {
             }
             val offersChannel = Channel<Offer>()
             override var offers = mutableStateMapOf<UUID, Offer>()
+            override var serviceFeeRate = mutableStateOf<BigInteger?>(null)
             override fun addOffer(offer: Offer) {
                 offers[offer.id] = offer
                 runBlocking {
@@ -239,6 +239,7 @@ class OfferServiceTests {
             BlockchainEventRepository(),
             offerCanceledEventRepository,
             BlockchainEventRepository(),
+            BlockchainEventRepository(),
         )
 
         class TestOfferTruthSource: OfferTruthSource {
@@ -247,14 +248,13 @@ class OfferServiceTests {
             }
             val offersChannel = Channel<Offer>()
             override var offers = mutableStateMapOf<UUID, Offer>()
-
+            override var serviceFeeRate = mutableStateOf<BigInteger?>(null)
             override fun addOffer(offer: Offer) {
                 offers[offer.id] = offer
                 runBlocking {
                     offersChannel.send(offer)
                 }
             }
-
             override fun removeOffer(id: UUID) {
                 val offerToSend = offers[id]!!
                 offers.remove(id)
@@ -373,7 +373,8 @@ class OfferServiceTests {
             BlockchainEventRepository(),
             BlockchainEventRepository(),
             BlockchainEventRepository(),
-            offerTakenEventRepository
+            offerTakenEventRepository,
+            BlockchainEventRepository(),
         )
 
         class TestOfferTruthSource: OfferTruthSource {
@@ -382,11 +383,10 @@ class OfferServiceTests {
             }
             val offersChannel = Channel<Offer>()
             override var offers = mutableStateMapOf<UUID, Offer>()
-
+            override var serviceFeeRate = mutableStateOf<BigInteger?>(null)
             override fun addOffer(offer: Offer) {
                 offers[offer.id] = offer
             }
-
             override fun removeOffer(id: UUID) {
                 val offerToSend = offers[id]!!
                 offers.remove(id)
@@ -489,6 +489,7 @@ class OfferServiceTests {
             offerEditedEventRepository,
             BlockchainEventRepository(),
             BlockchainEventRepository(),
+            BlockchainEventRepository(),
         )
 
         class TestOfferTruthSource: OfferTruthSource {
@@ -498,6 +499,7 @@ class OfferServiceTests {
             val offersChannel = Channel<Offer>()
             var offersAddedCounter = 0
             override var offers = mutableStateMapOf<UUID, Offer>()
+            override var serviceFeeRate = mutableStateOf<BigInteger?>(null)
             override fun addOffer(offer: Offer) {
                 offersAddedCounter++
                 offers[offer.id] = offer
@@ -508,7 +510,6 @@ class OfferServiceTests {
                     }
                 }
             }
-
             override fun removeOffer(id: UUID) {
                 offers.remove(id)
             }
@@ -653,6 +654,96 @@ class OfferServiceTests {
                 }
             }
         }
+    }
+
+    /**
+     * Ensures that [OfferService] handles
+     * [ServiceFeeRateChanged](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#servicefeeratechanged)
+     * events properly.
+     */
+    @Test
+    fun handleServiceFeeRateChangedEvent() {
+        @Serializable
+        data class TestingServerResponse(val commutoSwapAddress: String)
+
+        val testingServiceUrl = "http://localhost:8546/test_offerservice_handleServiceFeeRateChangedEvent"
+        val testingServerClient = HttpClient(OkHttp) {
+            install(ContentNegotiation) {
+                json()
+            }
+            install(HttpTimeout) {
+                socketTimeoutMillis = 90_000
+                requestTimeoutMillis = 90_000
+            }
+        }
+        val testingServerResponse: TestingServerResponse = runBlocking {
+            testingServerClient.get(testingServiceUrl) {
+                url {
+                    parameters.append("events", "ServiceFeeRateChanged")
+                }
+            }.body()
+        }
+
+        val w3 = Web3j.build(HttpService(System.getenv("BLOCKCHAIN_NODE")))
+
+        val databaseService = DatabaseService(DatabaseDriverFactory())
+        databaseService.createTables()
+        val keyManagerService = KeyManagerService(databaseService)
+
+        class TestBlockchainEventRepository: BlockchainEventRepository<ServiceFeeRateChangedEvent>() {
+            var removedEventChannel = Channel<ServiceFeeRateChangedEvent>()
+            override fun remove(elementToRemove: ServiceFeeRateChangedEvent) {
+                runBlocking {
+                    removedEventChannel.send(elementToRemove)
+                }
+            }
+        }
+        val serviceFeeRateChangedEventRepository = TestBlockchainEventRepository()
+
+        val offerService = OfferService(
+            databaseService,
+            keyManagerService,
+            BlockchainEventRepository(),
+            BlockchainEventRepository(),
+            BlockchainEventRepository(),
+            BlockchainEventRepository(),
+            serviceFeeRateChangedEventRepository,
+        )
+
+        class TestOfferTruthSource: OfferTruthSource {
+            init {
+                offerService.setOfferTruthSource(this)
+            }
+            override var offers = mutableStateMapOf<UUID, Offer>()
+            override var serviceFeeRate = mutableStateOf<BigInteger?>(null)
+            override fun addOffer(offer: Offer) {}
+            override fun removeOffer(id: UUID) {}
+        }
+        val offerTruthSource = TestOfferTruthSource()
+
+        class TestBlockchainExceptionHandler: BlockchainExceptionNotifiable {
+            var gotError = false
+            override fun handleBlockchainException(exception: Exception) {
+                gotError = true
+            }
+        }
+        val exceptionHandler = TestBlockchainExceptionHandler()
+
+        val blockchainService = BlockchainService(
+            exceptionHandler,
+            offerService,
+            w3,
+            testingServerResponse.commutoSwapAddress
+        )
+        blockchainService.listen()
+        runBlocking {
+            withTimeout(60_000) {
+                val serviceFeeRateChangedEvent = serviceFeeRateChangedEventRepository.removedEventChannel.receive()
+                assertEquals(serviceFeeRateChangedEvent.newServiceFeeRate, BigInteger.valueOf(200L))
+                assertEquals(offerTruthSource.serviceFeeRate.value, BigInteger.valueOf(200L))
+            }
+        }
+
     }
 
 }

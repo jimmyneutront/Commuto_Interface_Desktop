@@ -1,9 +1,6 @@
 package com.commuto.interfacedesktop.offer
 
-import com.commuto.interfacedesktop.blockchain.events.commutoswap.OfferCanceledEvent
-import com.commuto.interfacedesktop.blockchain.events.commutoswap.OfferEditedEvent
-import com.commuto.interfacedesktop.blockchain.events.commutoswap.OfferOpenedEvent
-import com.commuto.interfacedesktop.blockchain.events.commutoswap.OfferTakenEvent
+import com.commuto.interfacedesktop.blockchain.events.commutoswap.*
 import javax.inject.Singleton
 
 /**
@@ -47,4 +44,12 @@ interface OfferNotifiable {
      * handle in the implementation of this method.
      */
     suspend fun handleOfferTakenEvent(event: OfferTakenEvent)
+
+    /**
+     * The method called by [com.commuto.interfacedesktop.blockchain.BlockchainService] in order to notify the class
+     * implementing this interface of a [ServiceFeeRateChangedEvent].
+     *
+     * @param event the [ServiceFeeRateChangedEvent] of which
+     */
+    suspend fun handleServiceFeeRateChangedEvent(event: ServiceFeeRateChangedEvent)
 }

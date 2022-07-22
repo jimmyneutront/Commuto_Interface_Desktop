@@ -1,9 +1,12 @@
 package com.commuto.interfacedesktop.ui
 
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.mutableStateOf
 import com.commuto.interfacedesktop.offer.Offer
 import com.commuto.interfacedesktop.offer.OfferService
 import com.commuto.interfacedesktop.offer.OfferTruthSource
+import java.math.BigInteger
 import java.util.*
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -17,6 +20,9 @@ import javax.inject.Singleton
  * taken.
  * @property offers A mutable state map of [UUID]s to [Offer]s that acts as a single source of truth for all
  * offer-related data.
+ * @property serviceFeeRate The current
+ * [service fee rate](https://github.com/jimmyneutront/commuto-whitepaper/blob/main/commuto-whitepaper.txt) as a
+ * percentage times 100, or `null` if the current service fee rate is not known.
  */
 @Singleton
 class OffersViewModel @Inject constructor(private val offerService: OfferService): OfferTruthSource {
@@ -30,6 +36,8 @@ class OffersViewModel @Inject constructor(private val offerService: OfferService
             map[it.id] = it
         }
     }
+
+    override var serviceFeeRate: MutableState<BigInteger?> = mutableStateOf(null)
 
     /**
      * Adds a new [Offer] to [offers].
