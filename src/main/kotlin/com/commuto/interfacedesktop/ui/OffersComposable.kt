@@ -54,7 +54,10 @@ fun OffersComposable(offerTruthSource: OfferTruthSource) {
                 }
             }
             FocusedOfferComposable.CreateOfferComposable -> {
-                CreateOfferComposable(BigInteger.ONE)
+                CreateOfferComposable(
+                    offerTruthSource = offerTruthSource,
+                    chainID = BigInteger.ONE
+                )
             }
         }
     }

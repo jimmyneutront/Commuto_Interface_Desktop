@@ -17,6 +17,8 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.commuto.interfacedesktop.offer.OfferDirection
+import com.commuto.interfacedesktop.offer.OfferTruthSource
+import com.commuto.interfacedesktop.offer.PreviewableOfferTruthSource
 import com.commuto.interfacedesktop.offer.SettlementMethod
 import java.lang.NumberFormatException
 import java.math.BigDecimal
@@ -26,12 +28,14 @@ import java.math.RoundingMode
 /**
  * The screen for creating a new [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer).
  *
+ * @param offerTruthSource The OffersViewModel that acts as a single source of truth for all offer-related data.
  * @param chainID The ID of the blockchain on which the new offer will be created.
  * @param stablecoins A [StablecoinInformationRepository] for all supported stablecoins on the blockchain specified by
  * [chainID].
  */
 @Composable
 fun CreateOfferComposable(
+    offerTruthSource: OfferTruthSource,
     chainID: BigInteger,
     stablecoins: StablecoinInformationRepository = StablecoinInformationRepository.ethereumMainnetStablecoinInfoRepo
 ) {
@@ -85,12 +89,6 @@ fun CreateOfferComposable(
      * amount.
      */
     val securityDepositAmount = remember { mutableStateOf(BigDecimal.ZERO) }
-
-    /**
-     * The current
-     * [service fee rate](https://github.com/jimmyneutront/commuto-whitepaper/blob/main/commuto-whitepaper.txt).
-     */
-    val serviceFeeRate = BigInteger.valueOf(100L)
 
     /**
      * The list of [SettlementMethod]s from which the user can choose.
@@ -211,10 +209,38 @@ fun CreateOfferComposable(
                 )
             }
         )
-        Text(
-            text = "${BigDecimal(serviceFeeRate).divide(BigDecimal.valueOf(100L)).setScale(2)} %",
-            style = MaterialTheme.typography.h4
-        )
+        if (offerTruthSource.serviceFeeRate.value != null) {
+            Text(
+                text = "${BigDecimal(offerTruthSource.serviceFeeRate.value)
+                    .divide(BigDecimal.valueOf(100L)).setScale(2)} %",
+                style = MaterialTheme.typography.h4
+            )
+        } else {
+            Row(
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = "Could not get service fee rate"
+                )
+                Button(
+                    onClick = {},
+                    content = {
+                        Text(
+                            text = "Retry",
+                            style = MaterialTheme.typography.h5
+                        )
+                    },
+                    border = BorderStroke(3.dp, Color.Black),
+                    colors = ButtonDefaults.buttonColors(
+                        backgroundColor =  Color.Transparent,
+                        contentColor = Color.Black,
+                    ),
+                    elevation = null,
+                )
+            }
+        }
         Text(
             text = "Settlement Methods:",
             style =  MaterialTheme.typography.h6,
@@ -527,6 +553,7 @@ fun buildCreateOfferPriceDescription(
 @Composable
 fun PreviewCreateOfferComposable() {
     CreateOfferComposable(
+        offerTruthSource = PreviewableOfferTruthSource(),
         chainID = BigInteger.ONE
     )
 }
