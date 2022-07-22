@@ -12,10 +12,13 @@ import java.util.*
  * @property serviceFeeRate The current
  * [service fee rate](https://github.com/jimmyneutront/commuto-whitepaper/blob/main/commuto-whitepaper.txt) as a
  * percentage times 100, or `null` if the current service fee rate is not known.
+ * @property isGettingServiceFeeRate Indicates whether the class implementing this interface is currently getting the
+ * current service fee rate.
  */
 interface OfferTruthSource {
     var offers: SnapshotStateMap<UUID, Offer>
     var serviceFeeRate: MutableState<BigInteger?>
+    var isGettingServiceFeeRate: MutableState<Boolean>
 
     /**
      * Should add a new [Offer] to [offers].
@@ -30,4 +33,9 @@ interface OfferTruthSource {
      * @param id The ID of the [Offer] to remove.
      */
     fun removeOffer(id: UUID)
+
+    /**
+     * Should attempt to get the current service fee rate and set the value of [serviceFeeRate] equal to the result.
+     */
+    fun updateServiceFeeRate()
 }

@@ -209,36 +209,44 @@ fun CreateOfferComposable(
                 )
             }
         )
-        if (offerTruthSource.serviceFeeRate.value != null) {
+        if (offerTruthSource.isGettingServiceFeeRate.value) {
             Text(
-                text = "${BigDecimal(offerTruthSource.serviceFeeRate.value)
-                    .divide(BigDecimal.valueOf(100L)).setScale(2)} %",
-                style = MaterialTheme.typography.h4
+                text = "Getting Service Fee Rate..."
             )
         } else {
-            Row(
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth()
-            ) {
+            if (offerTruthSource.serviceFeeRate.value != null) {
                 Text(
-                    text = "Could not get service fee rate"
+                    text = "${BigDecimal(offerTruthSource.serviceFeeRate.value)
+                        .divide(BigDecimal.valueOf(100L)).setScale(2)} %",
+                    style = MaterialTheme.typography.h4
                 )
-                Button(
-                    onClick = {},
-                    content = {
-                        Text(
-                            text = "Retry",
-                            style = MaterialTheme.typography.h5
-                        )
-                    },
-                    border = BorderStroke(3.dp, Color.Black),
-                    colors = ButtonDefaults.buttonColors(
-                        backgroundColor =  Color.Transparent,
-                        contentColor = Color.Black,
-                    ),
-                    elevation = null,
-                )
+            } else {
+                Row(
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        text = "Could not get service fee rate"
+                    )
+                    Button(
+                        onClick = {
+                            offerTruthSource.updateServiceFeeRate()
+                        },
+                        content = {
+                            Text(
+                                text = "Retry",
+                                style = MaterialTheme.typography.h5
+                            )
+                        },
+                        border = BorderStroke(3.dp, Color.Black),
+                        colors = ButtonDefaults.buttonColors(
+                            backgroundColor =  Color.Transparent,
+                            contentColor = Color.Black,
+                        ),
+                        elevation = null,
+                    )
+                }
             }
         }
         Text(

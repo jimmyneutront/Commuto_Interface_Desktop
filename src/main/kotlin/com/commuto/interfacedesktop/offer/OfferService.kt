@@ -9,10 +9,11 @@ import com.commuto.interfacedesktop.p2p.OfferMessageNotifiable
 import com.commuto.interfacedesktop.p2p.messages.PublicKeyAnnouncement
 import com.commuto.interfacedesktop.db.Offer as DatabaseOffer
 import com.commuto.interfacedesktop.ui.OffersViewModel
-import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.slf4j.LoggerFactory
+import java.math.BigInteger
 import java.nio.ByteBuffer
 import java.util.*
 import javax.inject.Inject
@@ -90,7 +91,14 @@ class OfferService (
         blockchainService = newBlockchainService
     }
 
-    private val scope = CoroutineScope(Dispatchers.Default)
+    /**
+     * Returns the result of calling [blockchainService]'s [getServiceFeeRateAsync] method.
+     *
+     * @return A [Deferred] with a [BigInteger] result, which is the current service fee rate.
+     */
+    fun getServiceFeeRateAsync(): Deferred<BigInteger> {
+        return blockchainService.getServiceFeeRateAsync()
+    }
 
     /**
      * The method called by [BlockchainService] to notify [OfferService] of an [OfferOpenedEvent]. Once notified,
