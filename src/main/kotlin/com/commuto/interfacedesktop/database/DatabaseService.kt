@@ -7,6 +7,7 @@ import kotlinx.coroutines.withContext
 import org.slf4j.LoggerFactory
 import org.sqlite.SQLiteException
 import javax.inject.Inject
+import javax.inject.Singleton
 
 /**
  * The Database Service Class.
@@ -20,6 +21,7 @@ import javax.inject.Inject
  * @property databaseServiceContext The single-threaded CoroutineContext in which all database read and write operations
  * are run, in order to prevent data races.
  */
+@Singleton
 open class DatabaseService @Inject constructor(private val databaseDriverFactory: DatabaseDriverFactory) {
 
     private val logger = LoggerFactory.getLogger(javaClass)
