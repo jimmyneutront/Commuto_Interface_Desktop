@@ -118,6 +118,7 @@ class OfferServiceTests {
             val offersChannel = Channel<Offer>()
             override var offers = mutableStateMapOf<UUID, Offer>()
             override var serviceFeeRate = mutableStateOf<BigInteger?>(null)
+            override var isGettingServiceFeeRate = mutableStateOf(false)
             override fun addOffer(offer: Offer) {
                 offers[offer.id] = offer
                 runBlocking {
@@ -127,6 +128,10 @@ class OfferServiceTests {
 
             override fun removeOffer(id: UUID) {
                 throw IllegalStateException("TestOfferTruthSource.removeOffer should not be called here")
+            }
+
+            override fun updateServiceFeeRate() {
+                throw IllegalStateException("Should not be called")
             }
         }
         val offerTruthSource = TestOfferTruthSource()
@@ -249,6 +254,7 @@ class OfferServiceTests {
             val offersChannel = Channel<Offer>()
             override var offers = mutableStateMapOf<UUID, Offer>()
             override var serviceFeeRate = mutableStateOf<BigInteger?>(null)
+            override var isGettingServiceFeeRate = mutableStateOf(false)
             override fun addOffer(offer: Offer) {
                 offers[offer.id] = offer
                 runBlocking {
@@ -261,6 +267,10 @@ class OfferServiceTests {
                 runBlocking {
                     offersChannel.send(offerToSend)
                 }
+            }
+
+            override fun updateServiceFeeRate() {
+                throw IllegalStateException("Should not be called")
             }
         }
         val offerTruthSource = TestOfferTruthSource()
@@ -384,6 +394,7 @@ class OfferServiceTests {
             val offersChannel = Channel<Offer>()
             override var offers = mutableStateMapOf<UUID, Offer>()
             override var serviceFeeRate = mutableStateOf<BigInteger?>(null)
+            override var isGettingServiceFeeRate = mutableStateOf(false)
             override fun addOffer(offer: Offer) {
                 offers[offer.id] = offer
             }
@@ -393,6 +404,10 @@ class OfferServiceTests {
                 runBlocking {
                     offersChannel.send(offerToSend)
                 }
+            }
+
+            override fun updateServiceFeeRate() {
+                throw IllegalStateException("Should not be called")
             }
         }
         val offerTruthSource = TestOfferTruthSource()
@@ -500,6 +515,7 @@ class OfferServiceTests {
             var offersAddedCounter = 0
             override var offers = mutableStateMapOf<UUID, Offer>()
             override var serviceFeeRate = mutableStateOf<BigInteger?>(null)
+            override var isGettingServiceFeeRate = mutableStateOf(false)
             override fun addOffer(offer: Offer) {
                 offersAddedCounter++
                 offers[offer.id] = offer
@@ -512,6 +528,9 @@ class OfferServiceTests {
             }
             override fun removeOffer(id: UUID) {
                 offers.remove(id)
+            }
+            override fun updateServiceFeeRate() {
+                throw IllegalStateException("Should not be called")
             }
         }
         val offerTruthSource = TestOfferTruthSource()
@@ -716,8 +735,12 @@ class OfferServiceTests {
             }
             override var offers = mutableStateMapOf<UUID, Offer>()
             override var serviceFeeRate = mutableStateOf<BigInteger?>(null)
+            override var isGettingServiceFeeRate = mutableStateOf(false)
             override fun addOffer(offer: Offer) {}
             override fun removeOffer(id: UUID) {}
+            override fun updateServiceFeeRate() {
+                throw IllegalStateException("Should not be called")
+            }
         }
         val offerTruthSource = TestOfferTruthSource()
 
