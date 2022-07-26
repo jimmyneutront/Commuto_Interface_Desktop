@@ -1,5 +1,6 @@
 package com.commuto.interfacedesktop.contractwrapper;
 
+import com.commuto.interfacedesktop.contractwrapper.CommutoFunctionEncoder;
 import io.reactivex.Flowable;
 import io.reactivex.functions.Function;
 
@@ -32,10 +33,12 @@ import org.web3j.protocol.core.methods.request.EthFilter;
 import org.web3j.protocol.core.methods.response.BaseEventResponse;
 import org.web3j.protocol.core.methods.response.Log;
 import org.web3j.protocol.core.methods.response.TransactionReceipt;
+import org.web3j.protocol.exceptions.TransactionException;
 import org.web3j.tx.Contract;
 import org.web3j.tx.TransactionManager;
 import org.web3j.tx.exceptions.ContractCallException;
 import org.web3j.tx.gas.ContractGasProvider;
+import org.web3j.utils.RevertReasonExtractor;
 
 /**
  * <p>Auto generated code.
@@ -1310,6 +1313,55 @@ public class CommutoSwap extends Contract {
                         newSwap),
                 Collections.<TypeReference<?>>emptyList());
         return executeRemoteCallTransaction(function);
+    }
+
+    /*
+    Required for openOffer and takeOffer calls because Web3j doesn't properly create signatures involving arrays of
+    arrays (for example, bytes[] incorrectly becomes dynamicarray)
+     */
+    protected RemoteFunctionCall<TransactionReceipt> executeRemoteCallTransaction(
+            org.web3j.abi.datatypes.Function function
+    ) {
+        return new RemoteFunctionCall(function, () -> {
+            return this.executeTransaction(function);
+        });
+    }
+
+    /*
+    Required for openOffer and takeOffer calls because Web3j doesn't properly create signatures involving arrays of
+    arrays (for example, bytes[] incorrectly becomes dynamicarray)
+     */
+    protected TransactionReceipt executeTransaction(org.web3j.abi.datatypes.Function function) throws IOException, TransactionException {
+        return this.executeTransaction(function, BigInteger.ZERO);
+    }
+
+    /*
+    Required for openOffer and takeOffer calls because Web3j doesn't properly create signatures involving arrays of
+    arrays (for example, bytes[] incorrectly becomes dynamicarray)
+     */
+    private TransactionReceipt executeTransaction(org.web3j.abi.datatypes.Function function, BigInteger weiValue) throws IOException, TransactionException {
+        return executeTransaction(CommutoFunctionEncoder.encode(function), weiValue, function.getName());
+    }
+
+    /*
+    Required for openOffer and takeOffer calls because Web3j doesn't properly create signatures involving arrays of
+    arrays (for example, bytes[] incorrectly becomes dynamicarray)
+     */
+    TransactionReceipt executeTransaction(String data, BigInteger weiValue, String funcName) throws TransactionException, IOException {
+        return this.executeTransaction(data, weiValue, funcName, false);
+    }
+
+    /*
+    Required for openOffer and takeOffer calls because Web3j doesn't properly create signatures involving arrays of
+    arrays (for example, bytes[] incorrectly becomes dynamicarray)
+     */
+    TransactionReceipt executeTransaction(String data, BigInteger weiValue, String funcName, boolean constructor) throws TransactionException, IOException {
+        TransactionReceipt receipt = this.send(this.contractAddress, data, weiValue, this.gasProvider.getGasPrice(funcName), this.gasProvider.getGasLimit(funcName), constructor);
+        if (!receipt.isStatusOK()) {
+            throw new TransactionException(String.format("Transaction %s has failed with status: %s. Gas used: %s. Revert reason: '%s'.", receipt.getTransactionHash(), receipt.getStatus(), receipt.getGasUsedRaw() != null ? receipt.getGasUsed().toString() : "unknown", RevertReasonExtractor.extractRevertReason(receipt, data, this.web3j, true)), receipt);
+        } else {
+            return receipt;
+        }
     }
 
     @Deprecated
