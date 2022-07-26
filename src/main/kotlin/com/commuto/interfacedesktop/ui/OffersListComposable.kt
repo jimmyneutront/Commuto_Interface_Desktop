@@ -17,7 +17,6 @@ import androidx.compose.ui.unit.dp
 import com.commuto.interfacedesktop.i18n.I18n
 import com.commuto.interfacedesktop.offer.Offer
 import com.commuto.interfacedesktop.offer.OfferTruthSource
-import com.commuto.interfacedesktop.offer.PreviewableOfferTruthSource
 
 /**
  * Displays a [OffersNoneFoundComposable] if there are no open offers in [offerTruthSource], or, if there

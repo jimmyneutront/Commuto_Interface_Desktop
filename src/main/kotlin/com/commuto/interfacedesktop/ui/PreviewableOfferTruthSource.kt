@@ -1,13 +1,14 @@
-package com.commuto.interfacedesktop.offer
+package com.commuto.interfacedesktop.ui
 
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.snapshots.SnapshotStateMap
+import com.commuto.interfacedesktop.offer.Offer
 import java.math.BigInteger
 import java.util.*
 
 /**
- * An [OfferTruthSource] implementation used for previewing user interfaces.
+ * A [UIOfferTruthSource] implementation used for previewing user interfaces.
  *
  * @property offers A [SnapshotStateMap] mapping [UUID]s to [Offer]s, which acts as a single source of truth for all
  * offer-related data.
@@ -17,7 +18,7 @@ import java.util.*
  * @property isGettingServiceFeeRate Indicates whether this is currently getting the current service fee rate. This will
  * always be false, this this class is used only for previewing user interfaces.
  */
-class PreviewableOfferTruthSource: OfferTruthSource {
+class PreviewableOfferTruthSource: UIOfferTruthSource {
     override var offers = SnapshotStateMap<UUID, Offer>().also { map ->
         Offer.sampleOffers.map {
             map[it.id] = it

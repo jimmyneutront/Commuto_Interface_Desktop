@@ -40,7 +40,7 @@ import java.util.*
  */
 @Composable
 fun OfferComposable(
-    offerTruthSource: OfferTruthSource,
+    offerTruthSource: UIOfferTruthSource,
     id: UUID?,
     stablecoinInfoRepo: StablecoinInformationRepository =
         StablecoinInformationRepository.ethereumMainnetStablecoinInfoRepo

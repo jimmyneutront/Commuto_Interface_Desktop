@@ -17,8 +17,6 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.commuto.interfacedesktop.offer.OfferDirection
-import com.commuto.interfacedesktop.offer.OfferTruthSource
-import com.commuto.interfacedesktop.offer.PreviewableOfferTruthSource
 import com.commuto.interfacedesktop.offer.SettlementMethod
 import java.lang.NumberFormatException
 import java.math.BigDecimal
@@ -35,7 +33,7 @@ import java.math.RoundingMode
  */
 @Composable
 fun CreateOfferComposable(
-    offerTruthSource: OfferTruthSource,
+    offerTruthSource: UIOfferTruthSource,
     chainID: BigInteger,
     stablecoins: StablecoinInformationRepository = StablecoinInformationRepository.ethereumMainnetStablecoinInfoRepo
 ) {

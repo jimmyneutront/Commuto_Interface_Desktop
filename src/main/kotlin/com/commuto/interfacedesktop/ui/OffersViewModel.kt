@@ -5,7 +5,6 @@ import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import com.commuto.interfacedesktop.offer.Offer
 import com.commuto.interfacedesktop.offer.OfferService
-import com.commuto.interfacedesktop.offer.OfferTruthSource
 import kotlinx.coroutines.*
 import org.slf4j.LoggerFactory
 import java.math.BigInteger
@@ -29,7 +28,7 @@ import javax.inject.Singleton
  * @property isGettingServiceFeeRate Indicates whether this is currently getting the current service fee rate.
  */
 @Singleton
-class OffersViewModel @Inject constructor(private val offerService: OfferService): OfferTruthSource {
+class OffersViewModel @Inject constructor(private val offerService: OfferService): UIOfferTruthSource {
 
     init {
         offerService.setOfferTruthSource(this)

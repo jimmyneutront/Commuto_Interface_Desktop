@@ -14,18 +14,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.commuto.interfacedesktop.i18n.I18n
 import com.commuto.interfacedesktop.offer.Offer
-import com.commuto.interfacedesktop.offer.OfferTruthSource
-import com.commuto.interfacedesktop.offer.PreviewableOfferTruthSource
 import java.math.BigInteger
 
 /**
  * Displays the [OffersListComposable] for open offers and the focused [Offer], if any.
  *
- * @param offerTruthSource An object implementing [OfferTruthSource] that acts as a single source of truth for all
+ * @param offerTruthSource An object implementing [UIOfferTruthSource] that acts as a single source of truth for all
  * offer-related data.
  */
 @Composable
-fun OffersComposable(offerTruthSource: OfferTruthSource) {
+fun OffersComposable(offerTruthSource: UIOfferTruthSource) {
 
     /**
      * Indicates which composable should be shown on the trailing side of [OffersListComposable]
