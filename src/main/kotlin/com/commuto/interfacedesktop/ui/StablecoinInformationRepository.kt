@@ -25,7 +25,7 @@ class StablecoinInformationRepository(
      * @return A [StablecoinInformation] for the stablecoin with the specified [chainID] and [contractAddress], or
      * null if no such [StablecoinInformation] is found.
      */
-    fun getStablecoinInformation(chainID: BigInteger, contractAddress: String): StablecoinInformation? {
+    fun getStablecoinInformation(chainID: BigInteger, contractAddress: String?): StablecoinInformation? {
         return stablecoinInformation[chainID]?.get(contractAddress)
     }
 

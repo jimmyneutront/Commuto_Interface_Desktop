@@ -4,6 +4,9 @@ import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.snapshots.SnapshotStateMap
 import com.commuto.interfacedesktop.offer.Offer
+import com.commuto.interfacedesktop.offer.OfferDirection
+import com.commuto.interfacedesktop.offer.SettlementMethod
+import java.math.BigDecimal
 import java.math.BigInteger
 import java.util.*
 
@@ -41,4 +44,19 @@ class PreviewableOfferTruthSource: UIOfferTruthSource {
      * Does nothing, since this class is only used for previewing user interfaces.
      */
     override fun updateServiceFeeRate() {}
+
+    /**
+     * Does nothing since this class is only used for previewing user interfaces, but is required for implementing
+     * [UIOfferTruthSource]
+     */
+    override fun openOffer(
+        chainID: BigInteger,
+        stablecoin: String?,
+        stablecoinInformation: StablecoinInformation?,
+        minimumAmount: BigDecimal,
+        maximumAmount: BigDecimal,
+        securityDepositAmount: BigDecimal,
+        direction: OfferDirection?,
+        settlementMethods: List<SettlementMethod>
+    ) {}
 }

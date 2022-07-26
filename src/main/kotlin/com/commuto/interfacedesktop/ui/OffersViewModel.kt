@@ -4,9 +4,14 @@ import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import com.commuto.interfacedesktop.offer.Offer
+import com.commuto.interfacedesktop.offer.OfferDirection
 import com.commuto.interfacedesktop.offer.OfferService
+import com.commuto.interfacedesktop.offer.SettlementMethod
+import com.commuto.interfacedesktop.offer.validation.NewOfferDataValidationException
+import com.commuto.interfacedesktop.offer.validation.validateNewOfferData
 import kotlinx.coroutines.*
 import org.slf4j.LoggerFactory
+import java.math.BigDecimal
 import java.math.BigInteger
 import java.util.*
 import javax.inject.Inject
@@ -87,6 +92,50 @@ class OffersViewModel @Inject constructor(private val offerService: OfferService
             delay(700L)
             withContext(Dispatchers.Main) {
                 isGettingServiceFeeRate.value = false
+            }
+        }
+    }
+
+    /**
+     * Attempts to open a new [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer).
+     *
+     * @param chainID The ID of the blockchain on which the offer will be created.
+     * @param stablecoin The contract address of the stablecoin for which the offer will be created.
+     * @param stablecoinInformation A [StablecoinInformation] about the stablecoin for which the offer will be created.
+     * @param minimumAmount The minimum [BigDecimal] amount of the new offer.
+     * @param maximumAmount The maximum [BigDecimal] amount of the new offer.
+     * @param securityDepositAmount The security deposit [BigDecimal] amount for the new offer.
+     * @param direction The direction of the new offer.
+     * @param settlementMethods The settlement methods of the new offer.
+     */
+    override fun openOffer(
+        chainID: BigInteger,
+        stablecoin: String?,
+        stablecoinInformation: StablecoinInformation?,
+        minimumAmount: BigDecimal,
+        maximumAmount: BigDecimal,
+        securityDepositAmount: BigDecimal,
+        direction: OfferDirection?,
+        settlementMethods: List<SettlementMethod>
+    ) {
+        viewModelScope.launch {
+            logger.info("openOffer: validating new offer data")
+            try {
+                val serviceFeeRateForOffer = serviceFeeRate.value ?: throw NewOfferDataValidationException("Unable to " +
+                        "determine service fee rate")
+                val validatedOfferData = validateNewOfferData(
+                    stablecoin = stablecoin,
+                    stablecoinInformation = stablecoinInformation,
+                    minimumAmount = minimumAmount,
+                    maximumAmount = maximumAmount,
+                    securityDepositAmount = securityDepositAmount,
+                    serviceFeeRate = serviceFeeRateForOffer,
+                    direction = direction,
+                    settlementMethods = settlementMethods
+                )
+                print(validatedOfferData)
+            } catch (exception: Exception) {
+                logger.error("openOffer: got exception during openOffer call", exception)
             }
         }
     }

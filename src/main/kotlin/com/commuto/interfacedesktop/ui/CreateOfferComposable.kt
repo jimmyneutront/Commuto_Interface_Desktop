@@ -257,7 +257,18 @@ fun CreateOfferComposable(
             selectedSettlementMethods = selectedSettlementMethods
         )
         Button(
-            onClick = {},
+            onClick = {
+                offerTruthSource.openOffer(
+                    chainID = chainID,
+                    stablecoin = selectedStablecoin.value,
+                    stablecoinInformation = stablecoins.getStablecoinInformation(chainID, selectedStablecoin.value),
+                    minimumAmount = minimumAmount.value,
+                    maximumAmount =  maximumAmount.value,
+                    securityDepositAmount = securityDepositAmount.value,
+                    direction = direction.value,
+                    settlementMethods = selectedSettlementMethods,
+                )
+            },
             content = {
                 Text(
                     text = "Create Offer",

@@ -46,7 +46,7 @@ fun validateNewOfferData(
     maximumAmount: BigDecimal,
     securityDepositAmount: BigDecimal,
     serviceFeeRate: BigInteger,
-    direction: OfferDirection,
+    direction: OfferDirection?,
     settlementMethods: List<SettlementMethod>
 ): ValidatedNewOfferData {
     if (stablecoin == null || stablecoinInformation == null) {
@@ -71,6 +71,9 @@ fun validateNewOfferData(
     val serviceFeeAmountUpperBound = serviceFeeRate * (maximumAmountBaseUnits / BigInteger.valueOf(10_000L))
     if (settlementMethods.isEmpty()) {
         throw NewOfferDataValidationException("You must specify at least one settlement method.")
+    }
+    if (direction == null) {
+        throw NewOfferDataValidationException("You must specify a direction.")
     }
     settlementMethods.forEach {
         if (it.price == "") {
