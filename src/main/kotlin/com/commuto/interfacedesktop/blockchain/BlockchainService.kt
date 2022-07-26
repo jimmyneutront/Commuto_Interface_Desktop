@@ -9,6 +9,7 @@ import kotlinx.coroutines.*
 import kotlinx.coroutines.future.asDeferred
 import kotlinx.coroutines.future.await
 import org.slf4j.LoggerFactory
+import org.web3j.contracts.eip20.generated.ERC20
 import org.web3j.crypto.Credentials
 import org.web3j.protocol.Web3j
 import org.web3j.protocol.core.DefaultBlockParameter
@@ -72,7 +73,7 @@ class BlockchainService (private val exceptionHandler: BlockchainExceptionNotifi
     private val logger = LoggerFactory.getLogger(javaClass)
 
     private val creds: Credentials = Credentials.create(
-        "0x5de4111afa1a4b94908f83103eb1f1706367c2e68ca870fc3fb9a804cdab365a"
+        "0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d"
     )
 
     private var lastParsedBlockNum: BigInteger = BigInteger.ZERO
@@ -107,6 +108,13 @@ class BlockchainService (private val exceptionHandler: BlockchainExceptionNotifi
         txManager,
         gasProvider
     )
+
+    /**
+     * Returns the contract address of [commutoSwap].
+     */
+    fun getCommutoSwapAddress(): String {
+        return commutoSwap.contractAddress
+    }
 
     /**
      * Launches a new coroutine [Job] in [GlobalScope], the global coroutine scope, runs
@@ -251,6 +259,38 @@ class BlockchainService (private val exceptionHandler: BlockchainExceptionNotifi
      */
     fun getServiceFeeRateAsync(): Deferred<BigInteger> {
         return commutoSwap.serviceFeeRate.sendAsync().asDeferred()
+    }
+
+    /**
+     * A [Deferred] wrapper around the [ERC20](https://eips.ethereum.org/EIPS/eip-20) `approve` function.
+     *
+     * @return A [Deferred] with a [TransactionReceipt] result.
+     */
+    fun approveTokenTransferAsync(
+        tokenAddress: String,
+        destinationAddress: String,
+        amount: BigInteger
+    ): Deferred<TransactionReceipt> {
+        val tokenContract = ERC20.load(
+            tokenAddress,
+            web3,
+            txManager,
+            gasProvider
+        )
+        return tokenContract.approve(destinationAddress, amount).sendAsync().asDeferred()
+    }
+
+    /**
+     * A [Deferred] wrapper around [CommutoSwap.openOffer] method.
+     *
+     * @return A [Deferred] with a [TransactionReceipt] result.
+     */
+    fun openOfferAsync(id: UUID, offerStruct: OfferStruct): Deferred<TransactionReceipt> {
+        val iDByteBuffer = ByteBuffer.wrap(ByteArray(16))
+        iDByteBuffer.putLong(id.mostSignificantBits)
+        iDByteBuffer.putLong(id.leastSignificantBits)
+        val iDByteArray = iDByteBuffer.array()
+        return commutoSwap.openOffer(iDByteArray, offerStruct.toCommutoSwapOffer()).sendAsync().asDeferred()
     }
 
     /**

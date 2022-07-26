@@ -133,7 +133,7 @@ class OffersViewModel @Inject constructor(private val offerService: OfferService
                     direction = direction,
                     settlementMethods = settlementMethods
                 )
-                print(validatedOfferData)
+                offerService.openOffer(validatedOfferData)
             } catch (exception: Exception) {
                 logger.error("openOffer: got exception during openOffer call", exception)
             }

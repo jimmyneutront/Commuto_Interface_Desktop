@@ -1,6 +1,7 @@
 package com.commuto.interfacedesktop.blockchain.structs
 
 import com.commuto.interfacedesktop.contractwrapper.CommutoSwap
+import com.commuto.interfacedesktop.offer.Offer
 import java.math.BigInteger
 
 /**
@@ -56,6 +57,28 @@ data class OfferStruct(
         offer.protocolVersion,
         chainID
     )
+
+    /**
+     * Returns a [CommutoSwap.Offer] derived from this [Offer].
+     *
+     * @return An [OfferStruct] derived from this [Offer].
+     */
+    fun toCommutoSwapOffer(): CommutoSwap.Offer {
+        return CommutoSwap.Offer(
+            this.isCreated,
+            this.isTaken,
+            this.maker,
+            this.interfaceID,
+            this.stablecoin,
+            this.amountLowerBound,
+            this.amountUpperBound,
+            this.securityDepositAmount,
+            this.serviceFeeRate,
+            this.direction,
+            this.settlementMethods,
+            this.protocolVersion
+        )
+    }
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true

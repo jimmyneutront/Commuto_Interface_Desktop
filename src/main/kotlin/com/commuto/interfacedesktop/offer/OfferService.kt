@@ -1,10 +1,12 @@
 package com.commuto.interfacedesktop.offer
 
+import androidx.compose.runtime.mutableStateListOf
 import com.commuto.interfacedesktop.blockchain.BlockchainEventRepository
 import com.commuto.interfacedesktop.blockchain.BlockchainService
 import com.commuto.interfacedesktop.blockchain.events.commutoswap.*
 import com.commuto.interfacedesktop.database.DatabaseService
 import com.commuto.interfacedesktop.key.KeyManagerService
+import com.commuto.interfacedesktop.offer.validation.ValidatedNewOfferData
 import com.commuto.interfacedesktop.p2p.OfferMessageNotifiable
 import com.commuto.interfacedesktop.p2p.messages.PublicKeyAnnouncement
 import com.commuto.interfacedesktop.db.Offer as DatabaseOffer
@@ -98,6 +100,90 @@ class OfferService (
      */
     fun getServiceFeeRateAsync(): Deferred<BigInteger> {
         return blockchainService.getServiceFeeRateAsync()
+    }
+
+    suspend fun openOffer(
+        offerData: ValidatedNewOfferData
+    ) {
+        withContext(Dispatchers.IO) {
+            logger.info("openOffer: creating new ID, Offer object and creating and persistently storing new key pair " +
+                    "for new offer")
+            try {
+                // Generate a new 2056 bit RSA key pair for the new offer
+                val newKeyPairForOffer = keyManagerService.generateKeyPair(true)
+                // Generate a new ID for the offer
+                val newOfferID = UUID.randomUUID()
+                logger.info("openOffer: created ID $newOfferID for new offer")
+                // Create a new Offer
+                val newOffer = Offer(
+                    isCreated = true,
+                    isTaken = false,
+                    id = newOfferID,
+                    /*
+                    It is safe to use the zero address here, because the maker address will be automatically set to that of the function caller by CommutoSwap
+                     */
+                    maker = "0x0000000000000000000000000000000000000000",
+                    interfaceId = newKeyPairForOffer.interfaceId,
+                    stablecoin = offerData.stablecoin,
+                    amountLowerBound = offerData.minimumAmount,
+                    amountUpperBound = offerData.maximumAmount,
+                    securityDepositAmount = offerData.securityDepositAmount,
+                    serviceFeeRate = offerData.serviceFeeRate,
+                    direction = offerData.direction,
+                    settlementMethods = mutableStateListOf<SettlementMethod>().apply {
+                        offerData.settlementMethods.forEach {
+                            this.add(it)
+                        }
+                    },
+                    protocolVersion = BigInteger.ZERO,
+                    chainID = BigInteger("31337"),
+                    havePublicKey = true
+                )
+                logger.info("openOffer: persistently storing ${newOffer.id}")
+                // Persistently store the new offer
+                val encoder = Base64.getEncoder()
+                val offerIDByteBuffer = ByteBuffer.wrap(ByteArray(16))
+                offerIDByteBuffer.putLong(newOffer.id.mostSignificantBits)
+                offerIDByteBuffer.putLong(newOffer.id.leastSignificantBits)
+                val offerIDByteArray = offerIDByteBuffer.array()
+                val offerForDatabase = DatabaseOffer(
+                    isCreated = 1L,
+                    isTaken = 0L,
+                    offerId = encoder.encodeToString(offerIDByteArray),
+                    maker = newOffer.maker,
+                    interfaceId = encoder.encodeToString(newOffer.interfaceId),
+                    stablecoin = newOffer.stablecoin,
+                    amountLowerBound = newOffer.amountLowerBound.toString(),
+                    amountUpperBound = newOffer.amountUpperBound.toString(),
+                    securityDepositAmount = newOffer.securityDepositAmount.toString(),
+                    serviceFeeRate = newOffer.serviceFeeRate.toString(),
+                    onChainDirection = newOffer.onChainDirection.toString(),
+                    protocolVersion = newOffer.protocolVersion.toString(),
+                    chainID = newOffer.chainID.toString(),
+                    havePublicKey = 1L,
+                )
+                databaseService.storeOffer(offerForDatabase)
+                // Authorize token transfer to CommutoSwap contract
+                val tokenAmountForOpeningOffer = newOffer.securityDepositAmount + newOffer.serviceFeeAmountUpperBound
+                logger.info("openOffer: authorizing token transfer for ${newOffer.id}. Amount: " +
+                        "$tokenAmountForOpeningOffer")
+                blockchainService.approveTokenTransferAsync(
+                    tokenAddress = newOffer.stablecoin,
+                    destinationAddress = blockchainService.getCommutoSwapAddress(),
+                    amount = tokenAmountForOpeningOffer
+                ).await()
+                logger.info("openOffer: opening ${newOffer.id}")
+                blockchainService.openOfferAsync(newOffer.id, newOffer.toOfferStruct()).await()
+                logger.info("openOffer: opened ${newOffer.id}")
+                logger.info("openOffer: adding ${newOffer.id} to offerTruthSource")
+                withContext(Dispatchers.Main) {
+                    offerTruthSource.addOffer(newOffer)
+                }
+            } catch (exception: Exception) {
+                logger.error("openOffer: encountered exception: $exception", exception)
+                throw exception
+            }
+        }
     }
 
     /**

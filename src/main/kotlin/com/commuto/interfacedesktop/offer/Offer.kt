@@ -2,7 +2,9 @@ package com.commuto.interfacedesktop.offer
 
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.snapshots.SnapshotStateList
+import com.commuto.interfacedesktop.blockchain.structs.OfferStruct
 import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.math.BigInteger
 import java.util.UUID
@@ -29,18 +31,20 @@ import java.util.UUID
  * [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer)'s securityDepositAmount property.
  * @param serviceFeeRate Corresponds to an on-chain
  * [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer)'s serviceFeeRate property.
- * @param onChainDirection Corresponds to an on-chain
- * [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer)'s direction property.
- * @param onChainSettlementMethods Corresponds to an on-chain
- * [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer)'s settlementMethods property.
- * @param protocolVersion Corresponds to an on-chain
- * [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer)'s protocolVersion property.
- * @param chainID The ID of the blockchain on which this Offer exists.
- *
  * @property direction The direction of the offer, indicating whether the maker is offering to buy stablecoin or sell
  * stablecoin.
  * @property settlementMethods A [SnapshotStateList] of [SettlementMethod]s derived from parsing
  * [onChainSettlementMethods].
+ * @param protocolVersion Corresponds to an on-chain
+ * [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer)'s protocolVersion property.
+ * @param chainID The ID of the blockchain on which this Offer exists.
+ *
+ * @property serviceFeeAmountLowerBound The minimum service fee for the new offer.
+ * @property serviceFeeAmountUpperBound The maximum service fee for the new offer.
+ * @property onChainDirection Corresponds to an on-chain
+ * [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer)'s direction property.
+ * @property onChainSettlementMethods Corresponds to an on-chain
+ * [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer)'s settlementMethods property.
  * @property havePublicKey Indicates whether this interface has a copy of the public key specified by the [interfaceId]
  * property.
  */
@@ -55,35 +59,111 @@ data class Offer(
     val amountUpperBound: BigInteger,
     val securityDepositAmount: BigInteger,
     val serviceFeeRate: BigInteger,
-    val onChainDirection: BigInteger,
-    var onChainSettlementMethods: List<ByteArray>,
+    val direction: OfferDirection,
+    var settlementMethods: SnapshotStateList<SettlementMethod>,
     val protocolVersion: BigInteger,
     val chainID: BigInteger,
     var havePublicKey: Boolean
 ) {
 
-    val direction: OfferDirection
-    var settlementMethods: SnapshotStateList<SettlementMethod>
-
-    init {
-        when (this.onChainDirection) {
+    constructor(
+        isCreated: Boolean,
+        isTaken: Boolean,
+        id: UUID,
+        maker: String,
+        interfaceId: ByteArray,
+        stablecoin: String,
+        amountLowerBound: BigInteger,
+        amountUpperBound: BigInteger,
+        securityDepositAmount: BigInteger,
+        serviceFeeRate: BigInteger,
+        onChainDirection: BigInteger,
+        onChainSettlementMethods: List<ByteArray>,
+        protocolVersion: BigInteger,
+        chainID: BigInteger,
+        havePublicKey: Boolean
+    ) : this(
+        isCreated = isCreated,
+        isTaken = isTaken,
+        id = id,
+        maker = maker,
+        interfaceId = interfaceId,
+        stablecoin = stablecoin,
+        amountLowerBound = amountLowerBound,
+        amountUpperBound = amountUpperBound,
+        securityDepositAmount = securityDepositAmount,
+        serviceFeeRate = serviceFeeRate,
+        direction =
+        when (onChainDirection) {
             BigInteger.ZERO -> {
-                this.direction = OfferDirection.BUY
+                OfferDirection.BUY
             }
             BigInteger.ONE -> {
-                this.direction = OfferDirection.SELL
+                OfferDirection.SELL
             }
             else -> {
                 throw IllegalStateException("Unexpected onChainDirection encountered while creating Offer")
             }
+        },
+        settlementMethods = kotlin.run {
+            val settlementMethods = mutableStateListOf<SettlementMethod>()
+            onChainSettlementMethods.forEach {
+                try {
+                    settlementMethods.add(Json.decodeFromString(it.decodeToString()))
+                } catch (_: Exception) {
+                }
+            }
+            settlementMethods
+        },
+        protocolVersion = protocolVersion,
+        chainID = chainID,
+        havePublicKey = havePublicKey,
+    )
+
+    val serviceFeeAmountLowerBound: BigInteger = this.serviceFeeRate * (this.amountLowerBound /
+            BigInteger.valueOf(10_000L))
+    val serviceFeeAmountUpperBound: BigInteger = this.serviceFeeRate * (this.amountUpperBound /
+            BigInteger.valueOf(10_000L))
+    val onChainDirection: BigInteger
+    var onChainSettlementMethods: List<ByteArray>
+
+    init {
+        when (this.direction) {
+            OfferDirection.BUY -> {
+                this.onChainDirection = BigInteger.ZERO
+            }
+            OfferDirection.SELL -> {
+                this.onChainDirection = BigInteger.ONE
+            }
         }
-        val settlementMethods = mutableStateListOf<SettlementMethod>()
-        onChainSettlementMethods.forEach {
-            try {
-                settlementMethods.add(Json.decodeFromString(it.decodeToString()))
-            } catch(_: Exception) { }
+        val onChainSettlementMethods = mutableListOf<ByteArray>()
+        settlementMethods.forEach {
+            onChainSettlementMethods.add(Json.encodeToString(it).encodeToByteArray())
         }
-        this.settlementMethods = settlementMethods
+        this.onChainSettlementMethods = onChainSettlementMethods
+    }
+
+    /**
+     * Returns an [OfferStruct] derived from this [Offer].
+     *
+     * @return An [OfferStruct] derived from this [Offer].
+     */
+    fun toOfferStruct(): OfferStruct {
+        return OfferStruct(
+            isCreated = this.isCreated,
+            isTaken = this.isTaken,
+            maker = this.maker,
+            interfaceID = this.interfaceId,
+            stablecoin = this.stablecoin,
+            amountLowerBound = this.amountLowerBound,
+            amountUpperBound = this.amountUpperBound,
+            securityDepositAmount = this.securityDepositAmount,
+            serviceFeeRate = this.serviceFeeRate,
+            direction = this.onChainDirection,
+            settlementMethods = this.onChainSettlementMethods,
+            protocolVersion = this.protocolVersion,
+            chainID = this.chainID
+        )
     }
 
 
