@@ -35,15 +35,15 @@ import java.util.*
  * @param offerTruthSource The OffersViewModel that acts as a single source of truth for all offer-related data.
  * @param id: The ID of the offer about which this [OfferComposable] is displaying information.
  * @param stablecoinInfoRepo The [StablecoinInformationRepository] that this [Composable] uses to get stablecoin name
- * and currency code information. Defaults to [StablecoinInformationRepository.ethereumMainnetStablecoinInfoRepo] if no
- * other value is passed.
+ * and currency code information. Defaults to [StablecoinInformationRepository.hardhatStablecoinInfoRepo] if no other
+ * value is passed.
  */
 @Composable
 fun OfferComposable(
     offerTruthSource: UIOfferTruthSource,
     id: UUID?,
     stablecoinInfoRepo: StablecoinInformationRepository =
-        StablecoinInformationRepository.ethereumMainnetStablecoinInfoRepo
+        StablecoinInformationRepository.hardhatStablecoinInfoRepo
 ) {
 
     /**

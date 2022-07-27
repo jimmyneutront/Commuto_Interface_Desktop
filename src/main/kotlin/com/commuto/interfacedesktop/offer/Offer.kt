@@ -178,7 +178,7 @@ data class Offer(
                 id = UUID.randomUUID(),
                 maker = "0x0000000000000000000000000000000000000000",
                 interfaceId = ByteArray(0),
-                stablecoin = "0x6B175474E89094C44Da98b954EedeAC495271d0F", // DAI on Ethereum Mainnet
+                stablecoin = "0x663F3ad617193148711d28f5334eE4Ed07016602", // DAI on Hardhat
                 amountLowerBound = BigInteger.valueOf(10_000) * BigInteger.TEN.pow(18),
                 amountUpperBound = BigInteger.valueOf(20_000) * BigInteger.TEN.pow(18),
                 securityDepositAmount = BigInteger.valueOf(1_000) * BigInteger.TEN.pow(18),
@@ -203,7 +203,7 @@ data class Offer(
                 id = UUID.randomUUID(),
                 maker = "0x0000000000000000000000000000000000000000",
                 interfaceId = ByteArray(0),
-                stablecoin = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48", // USDC on Ethereum Mainnet
+                stablecoin = "0x2E983A1Ba5e8b38AAAeC4B440B9dDcFBf72E15d1", // USDC on Hardhat
                 amountLowerBound = BigInteger.valueOf(10_000) * BigInteger.TEN.pow(6),
                 amountUpperBound = BigInteger.valueOf(20_000) * BigInteger.TEN.pow(6),
                 securityDepositAmount = BigInteger.valueOf(1_000) * BigInteger.TEN.pow(6),
@@ -228,7 +228,7 @@ data class Offer(
                 id = UUID.randomUUID(),
                 maker = "0x0000000000000000000000000000000000000000",
                 interfaceId = ByteArray(0),
-                stablecoin = "0x4Fabb145d64652a948d72533023f6E7A623C7C53", // BUSD on Ethereum Mainnet
+                stablecoin = "0x8438Ad1C834623CfF278AB6829a248E37C2D7E3f", // BUSD on Hardhat
                 amountLowerBound = BigInteger.valueOf(10_000) * BigInteger.TEN.pow(18),
                 amountUpperBound = BigInteger.valueOf(10_000) * BigInteger.TEN.pow(18),
                 securityDepositAmount = BigInteger.valueOf(1_000) * BigInteger.TEN.pow(18),

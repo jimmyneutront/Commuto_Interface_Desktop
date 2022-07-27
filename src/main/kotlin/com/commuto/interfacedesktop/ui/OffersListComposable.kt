@@ -38,7 +38,7 @@ fun OffersListComposable(
     focusedOfferComposable: MutableState<FocusedOfferComposable>,
     focusedOffer: MutableState<Offer?>
 ) {
-    val stablecoinInformationRepository = StablecoinInformationRepository.ethereumMainnetStablecoinInfoRepo
+    val stablecoinInformationRepository = StablecoinInformationRepository.hardhatStablecoinInfoRepo
     val offers = remember { offerTruthSource.offers }
     Column(modifier = modifier) {
         Row(

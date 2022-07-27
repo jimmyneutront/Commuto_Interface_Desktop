@@ -35,7 +35,7 @@ import java.math.RoundingMode
 fun CreateOfferComposable(
     offerTruthSource: UIOfferTruthSource,
     chainID: BigInteger,
-    stablecoins: StablecoinInformationRepository = StablecoinInformationRepository.ethereumMainnetStablecoinInfoRepo
+    stablecoins: StablecoinInformationRepository = StablecoinInformationRepository.hardhatStablecoinInfoRepo
 ) {
 
     /**
