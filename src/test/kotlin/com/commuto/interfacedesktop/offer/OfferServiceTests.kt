@@ -10,8 +10,11 @@ import com.commuto.interfacedesktop.database.DatabaseDriverFactory
 import com.commuto.interfacedesktop.database.DatabaseService
 import com.commuto.interfacedesktop.key.KeyManagerService
 import com.commuto.interfacedesktop.key.keys.PublicKey
+import com.commuto.interfacedesktop.offer.validation.validateNewOfferData
 import com.commuto.interfacedesktop.p2p.messages.PublicKeyAnnouncement
+import com.commuto.interfacedesktop.db.Offer as DatabaseOffer
 import com.commuto.interfacedesktop.ui.PreviewableOfferTruthSource
+import com.commuto.interfacedesktop.ui.StablecoinInformation
 import io.ktor.client.*
 import io.ktor.client.call.*
 import io.ktor.client.engine.okhttp.*
@@ -24,6 +27,8 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.setMain
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -31,6 +36,7 @@ import org.junit.Before
 import org.junit.Test
 import org.web3j.protocol.Web3j
 import org.web3j.protocol.http.HttpService
+import java.math.BigDecimal
 import java.math.BigInteger
 import java.nio.ByteBuffer
 import java.util.*
@@ -742,6 +748,185 @@ class OfferServiceTests {
                 val serviceFeeRateChangedEvent = serviceFeeRateChangedEventRepository.removedEventChannel.receive()
                 assertEquals(serviceFeeRateChangedEvent.newServiceFeeRate, BigInteger.valueOf(200L))
                 assertEquals(offerTruthSource.serviceFeeRate.value, BigInteger.valueOf(200L))
+            }
+        }
+
+    }
+
+    /**
+     * Ensures that [OfferService.openOffer] functions properly.
+     */
+    @Test
+    fun testOpenOffer() {
+        @Serializable
+        data class TestingServerResponse(val commutoSwapAddress: String, val stablecoinAddress: String)
+
+        val testingServiceUrl = "http://localhost:8546/test_offerservice_openOffer"
+        val testingServerClient = HttpClient(OkHttp) {
+            install(ContentNegotiation) {
+                json()
+            }
+            install(HttpTimeout) {
+                socketTimeoutMillis = 90_000
+                requestTimeoutMillis = 90_000
+            }
+        }
+        val testingServerResponse: TestingServerResponse = runBlocking {
+            testingServerClient.get(testingServiceUrl).body()
+        }
+
+        val w3 = Web3j.build(HttpService(System.getenv("BLOCKCHAIN_NODE")))
+
+        val databaseService = DatabaseService(DatabaseDriverFactory())
+        databaseService.createTables()
+        val keyManagerService = KeyManagerService(databaseService)
+
+        val offerService = OfferService(
+            databaseService,
+            keyManagerService,
+            BlockchainEventRepository(),
+            BlockchainEventRepository(),
+            BlockchainEventRepository(),
+            BlockchainEventRepository(),
+            BlockchainEventRepository(),
+        )
+
+        class TestOfferTruthSource: OfferTruthSource {
+            init {
+                offerService.setOfferTruthSource(this)
+            }
+            override var offers = mutableStateMapOf<UUID, Offer>()
+            override var serviceFeeRate = mutableStateOf<BigInteger?>(null)
+            val addedOfferChannel = Channel<Offer>()
+            override fun addOffer(offer: Offer) {
+                offers[offer.id] = offer
+                runBlocking {
+                    addedOfferChannel.send(offer)
+                }
+            }
+            override fun removeOffer(id: UUID) {}
+        }
+        val offerTruthSource = TestOfferTruthSource()
+
+        class TestBlockchainExceptionHandler: BlockchainExceptionNotifiable {
+            var gotError = false
+            override fun handleBlockchainException(exception: Exception) {
+                gotError = true
+            }
+        }
+        val exceptionHandler = TestBlockchainExceptionHandler()
+
+        val blockchainService = BlockchainService(
+            exceptionHandler,
+            offerService,
+            w3,
+            testingServerResponse.commutoSwapAddress
+        )
+
+        val offerSettlementMethods = listOf(SettlementMethod(
+            currency = "FIAT",
+            price = "1.00",
+            method = "Bank Transfer"
+        ))
+        val offerData = validateNewOfferData(
+            stablecoin = testingServerResponse.stablecoinAddress,
+            stablecoinInformation = StablecoinInformation(
+                currencyCode = "STBL",
+                name = "Basic Stablecoin",
+                decimal = 3
+            ),
+            minimumAmount = BigDecimal("100.00"),
+            maximumAmount = BigDecimal("200.00"),
+            securityDepositAmount = BigDecimal("20.00"),
+            serviceFeeRate = BigInteger.valueOf(100L),
+            direction =  OfferDirection.SELL,
+            settlementMethods = offerSettlementMethods
+        )
+        runBlocking {
+            launch {
+                offerService.openOffer(offerData)
+            }
+            launch {
+                withTimeout(60_000) {
+                    val addedOffer = offerTruthSource.addedOfferChannel.receive()
+                    val addedOfferID = offerTruthSource.offers.keys.first()
+                    assert(addedOffer.isCreated)
+                    assertFalse(addedOffer.isTaken)
+                    assertEquals(addedOffer.id, addedOfferID)
+                    //TOOD: check proper maker address once WalletService is implemented
+                    assertEquals(addedOffer.stablecoin, testingServerResponse.stablecoinAddress)
+                    assertEquals(addedOffer.amountLowerBound, BigInteger.valueOf(100_000))
+                    assertEquals(addedOffer.amountUpperBound, BigInteger.valueOf(200_000))
+                    assertEquals(addedOffer.securityDepositAmount, BigInteger.valueOf(20_000))
+                    assertEquals(addedOffer.serviceFeeRate, BigInteger.valueOf(100))
+                    assertEquals(addedOffer.serviceFeeAmountLowerBound, BigInteger.valueOf(1_000))
+                    assertEquals(addedOffer.serviceFeeAmountUpperBound, BigInteger.valueOf(2_000))
+                    assertEquals(addedOffer.onChainDirection, BigInteger.ONE)
+                    assertEquals(addedOffer.direction, OfferDirection.SELL)
+                    assertEquals(addedOffer.onChainSettlementMethods.size, offerSettlementMethods.size)
+                    for (index in addedOffer.onChainSettlementMethods.indices) {
+                        assert(
+                            addedOffer.onChainSettlementMethods[index].contentEquals(
+                                Json.encodeToString(offerSettlementMethods[index]).encodeToByteArray()
+                            )
+                        )
+                    }
+                    assertEquals(addedOffer.settlementMethods.size, offerSettlementMethods.size)
+                    for (index in addedOffer.settlementMethods.indices) {
+                        assertEquals(addedOffer.settlementMethods[index], offerSettlementMethods[index])
+                    }
+                    assertEquals(addedOffer.protocolVersion, BigInteger.ZERO)
+                    assert(addedOffer.havePublicKey)
+
+                    assertNotNull(keyManagerService.getKeyPair(addedOffer.interfaceId))
+
+                    val encoder = Base64.getEncoder()
+                    val offerIDByteBuffer = ByteBuffer.wrap(ByteArray(16))
+                    offerIDByteBuffer.putLong(addedOffer.id.mostSignificantBits)
+                    offerIDByteBuffer.putLong(addedOffer.id.leastSignificantBits)
+                    val offerIDByteArray = offerIDByteBuffer.array()
+                    val offerInDatabase = databaseService.getOffer(encoder.encodeToString(offerIDByteArray))
+                    //TODO: check proper maker address once WalletService is implemented
+                    val expectedOfferInDatabase = DatabaseOffer(
+                        offerId = encoder.encodeToString(offerIDByteArray),
+                        isCreated = 1L,
+                        isTaken = 0L,
+                        maker = "0x0000000000000000000000000000000000000000",
+                        interfaceId = encoder.encodeToString(addedOffer.interfaceId),
+                        stablecoin = addedOffer.stablecoin,
+                        amountLowerBound = addedOffer.amountLowerBound.toString(),
+                        amountUpperBound = addedOffer.amountUpperBound.toString(),
+                        securityDepositAmount = addedOffer.securityDepositAmount.toString(),
+                        serviceFeeRate = addedOffer.serviceFeeRate.toString(),
+                        onChainDirection = addedOffer.onChainDirection.toString(),
+                        protocolVersion = addedOffer.protocolVersion.toString(),
+                        chainID = addedOffer.chainID.toString(),
+                        havePublicKey = 1L
+                    )
+                    assertEquals(expectedOfferInDatabase, offerInDatabase)
+
+                    val offerStructOnChain = blockchainService.getOffer(addedOfferID)!!
+                    assert(offerStructOnChain.isCreated)
+                    assertFalse(offerStructOnChain.isTaken)
+                    // TODO: check proper maker address once WalletService is implemented
+                    assert(addedOffer.interfaceId.contentEquals(offerStructOnChain.interfaceID))
+                    assertEquals(addedOffer.stablecoin.lowercase(), offerStructOnChain.stablecoin.lowercase())
+                    assertEquals(addedOffer.amountLowerBound, offerStructOnChain.amountLowerBound)
+                    assertEquals(addedOffer.amountUpperBound, offerStructOnChain.amountUpperBound)
+                    assertEquals(addedOffer.securityDepositAmount, offerStructOnChain.securityDepositAmount)
+                    assertEquals(addedOffer.serviceFeeRate, offerStructOnChain.serviceFeeRate)
+                    assertEquals(addedOffer.onChainDirection, offerStructOnChain.direction)
+                    assertEquals(addedOffer.onChainSettlementMethods.size, offerStructOnChain.settlementMethods.size)
+                    for (index in addedOffer.onChainSettlementMethods.indices) {
+                        assert(
+                            addedOffer.onChainSettlementMethods[index].contentEquals(
+                                offerStructOnChain.settlementMethods[index]
+                            )
+                        )
+                    }
+                    assertEquals(addedOffer.protocolVersion, offerStructOnChain.protocolVersion)
+                    // TODO: re-enable this once we get accurate chain IDs
+                }
             }
         }
 
