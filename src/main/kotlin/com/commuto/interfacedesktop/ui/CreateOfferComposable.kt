@@ -105,7 +105,7 @@ fun CreateOfferComposable(
             .padding(PaddingValues(bottom = 10.dp))
     ) {
         Text(
-            text = "Create Offer",
+            text = "Open Offer",
             style = MaterialTheme.typography.h3,
             fontWeight = FontWeight.Bold,
         )
@@ -256,35 +256,73 @@ fun CreateOfferComposable(
             stablecoinCurrencyCode = stablecoinCurrencyCode,
             selectedSettlementMethods = selectedSettlementMethods
         )
-        Button(
-            onClick = {
-                offerTruthSource.openOffer(
-                    chainID = chainID,
-                    stablecoin = selectedStablecoin.value,
-                    stablecoinInformation = stablecoins.getStablecoinInformation(chainID, selectedStablecoin.value),
-                    minimumAmount = minimumAmount.value,
-                    maximumAmount =  maximumAmount.value,
-                    securityDepositAmount = securityDepositAmount.value,
-                    direction = direction.value,
-                    settlementMethods = selectedSettlementMethods,
-                )
-            },
-            content = {
-                Text(
-                    text = "Create Offer",
-                    style = MaterialTheme.typography.h4,
-                    fontWeight = FontWeight.Bold,
-                    textAlign = TextAlign.Center
-                )
-            },
-            border = BorderStroke(3.dp, Color.Black),
-            colors = ButtonDefaults.buttonColors(
-                backgroundColor =  Color.Transparent,
-                contentColor = Color.Black,
-            ),
-            elevation = null,
-            modifier = Modifier.width(400.dp)
-        )
+        /*
+        We don't want to display a description of the offer opening process state if an offer isn't being opened. We
+        also don't want to do this if we encounter an exception; we should display the actual exception message instead.
+         */
+        if (offerTruthSource.openingOfferState.value != OpeningOfferState.NONE &&
+            offerTruthSource.openingOfferState.value != OpeningOfferState.EXCEPTION) {
+            Text(
+                text = offerTruthSource.openingOfferState.value.description,
+                style =  MaterialTheme.typography.h6,
+            )
+        }
+        if (offerTruthSource.openingOfferState.value == OpeningOfferState.EXCEPTION) {
+            Text(
+                text = offerTruthSource.openingOfferException?.message ?: "An unknown exception occured",
+                style =  MaterialTheme.typography.h6,
+                color = Color.Red
+            )
+        }
+        if (offerTruthSource.openingOfferState.value == OpeningOfferState.NONE ||
+            offerTruthSource.openingOfferState.value == OpeningOfferState.EXCEPTION) {
+            Button(
+                onClick = {
+                    offerTruthSource.openOffer(
+                        chainID = chainID,
+                        stablecoin = selectedStablecoin.value,
+                        stablecoinInformation = stablecoins.getStablecoinInformation(chainID, selectedStablecoin.value),
+                        minimumAmount = minimumAmount.value,
+                        maximumAmount =  maximumAmount.value,
+                        securityDepositAmount = securityDepositAmount.value,
+                        direction = direction.value,
+                        settlementMethods = selectedSettlementMethods,
+                    )
+                },
+                content = {
+                    Text(
+                        text = "Open Offer",
+                        style = MaterialTheme.typography.h4,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center
+                    )
+                },
+                border = BorderStroke(3.dp, Color.Black),
+                colors = ButtonDefaults.buttonColors(
+                    backgroundColor =  Color.Transparent,
+                    contentColor = Color.Black,
+                ),
+                elevation = null,
+                modifier = Modifier.width(400.dp)
+            )
+        } else if (offerTruthSource.openingOfferState.value == OpeningOfferState.COMPLETED) {
+            Text(
+                text = "Offer Opened",
+                style = MaterialTheme.typography.h4,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.width(400.dp)
+            )
+        } else {
+            Text(
+                text = "Opening Offer",
+                style = MaterialTheme.typography.h4,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.width(400.dp)
+            )
+        }
+
     }
 }
 

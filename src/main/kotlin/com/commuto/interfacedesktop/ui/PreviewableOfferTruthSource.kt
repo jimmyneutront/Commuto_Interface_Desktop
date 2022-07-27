@@ -29,6 +29,8 @@ class PreviewableOfferTruthSource: UIOfferTruthSource {
     }
     override var serviceFeeRate: MutableState<BigInteger?> = mutableStateOf(null)
     override var isGettingServiceFeeRate = mutableStateOf(false)
+    override val openingOfferState = mutableStateOf(OpeningOfferState.NONE)
+    override var openingOfferException: Exception? = null
 
     /**
      * Does nothing, since this class is only used for previewing user interfaces.

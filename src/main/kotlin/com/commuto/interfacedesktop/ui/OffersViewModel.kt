@@ -31,6 +31,11 @@ import javax.inject.Singleton
  * [service fee rate](https://github.com/jimmyneutront/commuto-whitepaper/blob/main/commuto-whitepaper.txt) as a
  * percentage times 100, or `null` if the current service fee rate is not known.
  * @property isGettingServiceFeeRate Indicates whether this is currently getting the current service fee rate.
+ * @property openingOfferState Indicates whether we are currently opening an offer, and if so, the point of the
+ * [offer opening process](https://github.com/jimmyneutront/commuto-whitepaper/blob/main/commuto-interface-specification.txt)
+ * we are currently in.
+ * @property openingOfferException The [Exception] that occured during the offer creation process, or `null` if no such
+ * exception has occured.
  */
 @Singleton
 class OffersViewModel @Inject constructor(private val offerService: OfferService): UIOfferTruthSource {
@@ -51,6 +56,10 @@ class OffersViewModel @Inject constructor(private val offerService: OfferService
 
     override var isGettingServiceFeeRate = mutableStateOf(false)
 
+    override val openingOfferState = mutableStateOf(OpeningOfferState.NONE)
+
+    override var openingOfferException: Exception? = null
+
     private val viewModelScope = CoroutineScope(Dispatchers.IO)
 
     /**
@@ -69,6 +78,17 @@ class OffersViewModel @Inject constructor(private val offerService: OfferService
      */
     override fun removeOffer(id: UUID) {
         offers.remove(id)
+    }
+
+    /**
+     * Sets [openingOfferState]'s value on the Main coroutine dispatcher.
+     *
+     * @param state The new value to which [openingOfferState]'s value will be set.
+     */
+    suspend fun setOpeningOfferState(state: OpeningOfferState) {
+        withContext(Dispatchers.Main) {
+            openingOfferState.value = state
+        }
     }
 
     /**
@@ -120,9 +140,11 @@ class OffersViewModel @Inject constructor(private val offerService: OfferService
     ) {
         viewModelScope.launch {
             logger.info("openOffer: validating new offer data")
+            setOpeningOfferState(OpeningOfferState.VALIDATING)
+            openingOfferState
             try {
-                val serviceFeeRateForOffer = serviceFeeRate.value ?: throw NewOfferDataValidationException("Unable to " +
-                        "determine service fee rate")
+                val serviceFeeRateForOffer = serviceFeeRate.value ?: throw NewOfferDataValidationException("Unable " +
+                        "to determine service fee rate")
                 val validatedOfferData = validateNewOfferData(
                     stablecoin = stablecoin,
                     stablecoinInformation = stablecoinInformation,
@@ -133,9 +155,19 @@ class OffersViewModel @Inject constructor(private val offerService: OfferService
                     direction = direction,
                     settlementMethods = settlementMethods
                 )
-                offerService.openOffer(validatedOfferData)
+                logger.info("openOffer: opening new offer with validated data")
+                offerService.openOffer(
+                    offerData = validatedOfferData,
+                    afterObjectCreation = { setOpeningOfferState(OpeningOfferState.STORING) },
+                    afterPersistentStorage = { setOpeningOfferState(OpeningOfferState.APPROVING) },
+                    afterTransferApproval = { setOpeningOfferState(OpeningOfferState.OPENING) },
+                )
+                logger.info("openOffer: successfully opened offer")
+                setOpeningOfferState(OpeningOfferState.COMPLETED)
             } catch (exception: Exception) {
                 logger.error("openOffer: got exception during openOffer call", exception)
+                openingOfferException = exception
+                setOpeningOfferState(OpeningOfferState.EXCEPTION)
             }
         }
     }

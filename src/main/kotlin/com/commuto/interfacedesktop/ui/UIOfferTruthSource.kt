@@ -12,9 +12,16 @@ import java.math.BigInteger
  * application with a graphical user interface.
  * @property isGettingServiceFeeRate Indicates whether the class implementing this interface is currently getting the
  * current service fee rate.
+ * @property openingOfferState Indicates whether we are currently opening an offer, and if so, the point of the
+ * [offer opening process](https://github.com/jimmyneutront/commuto-whitepaper/blob/main/commuto-interface-specification.txt)
+ * we are currently in.
+ * @property openingOfferException The [Exception] that occured during the offer creation process, or `null` if no such
+ * exception has occured.
  */
 interface UIOfferTruthSource: OfferTruthSource {
     var isGettingServiceFeeRate: MutableState<Boolean>
+    val openingOfferState: MutableState<OpeningOfferState>
+    var openingOfferException: Exception?
 
     /**
      * Should attempt to get the current service fee rate and set the value of [serviceFeeRate] equal to the result.

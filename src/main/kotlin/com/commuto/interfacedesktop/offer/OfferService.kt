@@ -102,8 +102,33 @@ class OfferService (
         return blockchainService.getServiceFeeRateAsync()
     }
 
+    /**
+     * Attempts to open a new [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer), using the
+     * process described in the [interface specification](https://github.com/jimmyneutront/commuto-whitepaper/blob/main/commuto-interface-specification.txt).
+     *
+     * On the IO coroutine dispatcher, this creates and persistently stores a new key pair, creates a new offer ID
+     * [UUID] and a new [Offer] from the information contained in [offerData], persistently stores the new [Offer],
+     * approves token transfer to the
+     * [CommutoSwap](https://github.com/jimmyneutront/commuto-protocol/blob/main/CommutoSwap.sol) contract, calls the
+     * CommutoSwap contract's [openOffer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#open-offer)
+     * function, passing the new offer ID and [Offer]. Finally, on the Main coroutine dispatcher, the new [Offer] is
+     * added to [offerTruthSource].
+     *
+     * @param offerData A [ValidatedNewOfferData] containing the data for the new offer to be opened.
+     * @param afterObjectCreation A lambda that will be executed after the new key pair, offer ID and [Offer] object are
+     * created.
+     * @param afterPersistentStorage A lambda that will be executed after the [Offer] is persistently stored.
+     * @param afterTransferApproval A lambda that will be run after the token transfer approval to the
+     * [CommutoSwap](https://github.com/jimmyneutront/commuto-protocol/blob/main/CommutoSwap.sol) contract is completed.
+     * @param afterOpen A lambda that will be run after the offer is opened, via a call to
+     * [openOffer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#open-offer).
+     */
     suspend fun openOffer(
-        offerData: ValidatedNewOfferData
+        offerData: ValidatedNewOfferData,
+        afterObjectCreation: (suspend () -> Unit)? = null,
+        afterPersistentStorage: (suspend () -> Unit)? = null,
+        afterTransferApproval: (suspend () -> Unit)? = null,
+        afterOpen: (suspend () -> Unit)? = null
     ) {
         withContext(Dispatchers.IO) {
             logger.info("openOffer: creating new ID, Offer object and creating and persistently storing new key pair " +
@@ -139,6 +164,7 @@ class OfferService (
                     chainID = BigInteger("31337"),
                     havePublicKey = true
                 )
+                afterObjectCreation?.invoke()
                 logger.info("openOffer: persistently storing ${newOffer.id}")
                 // Persistently store the new offer
                 val encoder = Base64.getEncoder()
@@ -163,6 +189,7 @@ class OfferService (
                     havePublicKey = 1L,
                 )
                 databaseService.storeOffer(offerForDatabase)
+                afterPersistentStorage?.invoke()
                 // Authorize token transfer to CommutoSwap contract
                 val tokenAmountForOpeningOffer = newOffer.securityDepositAmount + newOffer.serviceFeeAmountUpperBound
                 logger.info("openOffer: authorizing token transfer for ${newOffer.id}. Amount: " +
@@ -172,6 +199,7 @@ class OfferService (
                     destinationAddress = blockchainService.getCommutoSwapAddress(),
                     amount = tokenAmountForOpeningOffer
                 ).await()
+                afterTransferApproval?.invoke()
                 logger.info("openOffer: opening ${newOffer.id}")
                 blockchainService.openOfferAsync(newOffer.id, newOffer.toOfferStruct()).await()
                 logger.info("openOffer: opened ${newOffer.id}")
@@ -179,6 +207,7 @@ class OfferService (
                 withContext(Dispatchers.Main) {
                     offerTruthSource.addOffer(newOffer)
                 }
+                afterOpen?.invoke()
             } catch (exception: Exception) {
                 logger.error("openOffer: encountered exception: $exception", exception)
                 throw exception
