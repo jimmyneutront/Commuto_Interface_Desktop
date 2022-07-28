@@ -15,8 +15,8 @@ import java.math.BigInteger
  * @property openingOfferState Indicates whether we are currently opening an offer, and if so, the point of the
  * [offer opening process](https://github.com/jimmyneutront/commuto-whitepaper/blob/main/commuto-interface-specification.txt)
  * we are currently in.
- * @property openingOfferException The [Exception] that occured during the offer creation process, or `null` if no such
- * exception has occured.
+ * @property openingOfferException The [Exception] that occurred during the offer creation process, or `null` if no such
+ * exception has occurred.
  */
 interface UIOfferTruthSource: OfferTruthSource {
     var isGettingServiceFeeRate: MutableState<Boolean>

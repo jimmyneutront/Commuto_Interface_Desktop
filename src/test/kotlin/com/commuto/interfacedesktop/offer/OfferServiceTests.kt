@@ -905,6 +905,13 @@ class OfferServiceTests {
                     )
                     assertEquals(expectedOfferInDatabase, offerInDatabase)
 
+                    val settlementMethodsInDatabase = databaseService.getSettlementMethods(
+                        expectedOfferInDatabase.offerId, expectedOfferInDatabase.chainID)
+                    val expectedSettlementMethodsInDatabase = addedOffer.onChainSettlementMethods.map {
+                        encoder.encodeToString(it)
+                    }
+                    assertEquals(settlementMethodsInDatabase, expectedSettlementMethodsInDatabase)
+
                     val offerStructOnChain = blockchainService.getOffer(addedOfferID)!!
                     assert(offerStructOnChain.isCreated)
                     assertFalse(offerStructOnChain.isTaken)

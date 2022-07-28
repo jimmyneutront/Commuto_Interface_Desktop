@@ -107,8 +107,8 @@ class OfferService (
      * process described in the [interface specification](https://github.com/jimmyneutront/commuto-whitepaper/blob/main/commuto-interface-specification.txt).
      *
      * On the IO coroutine dispatcher, this creates and persistently stores a new key pair, creates a new offer ID
-     * [UUID] and a new [Offer] from the information contained in [offerData], persistently stores the new [Offer],
-     * approves token transfer to the
+     * [UUID] and a new [Offer] from the information contained in [offerData], persistently stores the new [Offer] and
+     * its settlement methods, approves token transfer to the
      * [CommutoSwap](https://github.com/jimmyneutront/commuto-protocol/blob/main/CommutoSwap.sol) contract, calls the
      * CommutoSwap contract's [openOffer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#open-offer)
      * function, passing the new offer ID and [Offer]. Finally, on the Main coroutine dispatcher, the new [Offer] is
@@ -189,6 +189,14 @@ class OfferService (
                     havePublicKey = 1L,
                 )
                 databaseService.storeOffer(offerForDatabase)
+                val settlementMethodStrings = newOffer.onChainSettlementMethods.map {
+                    encoder.encodeToString(it)
+                }
+                logger.info("openOffer: persistently storing ${settlementMethodStrings.size} settlement " +
+                        "methods for offer ${newOffer.id.toString()}")
+                databaseService.storeSettlementMethods(offerForDatabase.offerId, offerForDatabase.chainID,
+                    settlementMethodStrings)
+                afterPersistentStorage?.invoke()
                 afterPersistentStorage?.invoke()
                 // Authorize token transfer to CommutoSwap contract
                 val tokenAmountForOpeningOffer = newOffer.securityDepositAmount + newOffer.serviceFeeAmountUpperBound
