@@ -167,7 +167,22 @@ open class P2PService constructor(private val exceptionHandler: P2PExceptionNoti
         }
     }
 
-    open suspend fun sendMessage(message: String) {}
+    /**
+     * Sends the given message [String] in the Commuto Interface Network Test Room.
+     *
+     * @param message The [String] to send in the Commuto Interface Network Test Room.
+     */
+    open suspend fun sendMessage(message: String) {
+        logger.info("sendMessage: sending $message")
+        val result = mxClient.rooms.sendMessageEvent(
+            roomId = RoomId("!WEuJJHaRpDvkbSveLu:matrix.org"),
+            eventContent = RoomMessageEventContent.TextMessageEventContent(message),
+        ).getOrElse {
+            logger.error("sendMessage: got exception", it)
+            throw it
+        }
+        logger.info("sendMessage: success; ID: $result")
+    }
 
     /**
      * Creates a
