@@ -180,6 +180,7 @@ class OfferServiceTests {
                 assertEquals(offerInDatabase.serviceFeeRate, "100")
                 assertEquals(offerInDatabase.onChainDirection, "1")
                 assertEquals(offerInDatabase.protocolVersion, "1")
+                assertEquals(offerInDatabase.state, OfferState.AWAITING_PUBLIC_KEY_ANNOUNCEMENT.asString)
                 // TODO: Skip these tests until the settlement method decoding issue is fixed
                 /*
                 val settlementMethodsInDatabase = databaseService.getSettlementMethods(encoder
@@ -298,7 +299,7 @@ class OfferServiceTests {
             chainID = "31337",
             havePublicKey = 1L,
             isUserMaker = 1L,
-            state = "a_state_here"
+            state = OfferState.OPEN_OFFER_TRANSACTION_BROADCAST.asString,
         )
         databaseService.storeOffer(offerForDatabase)
 
@@ -328,6 +329,8 @@ class OfferServiceTests {
         assertFalse(exceptionHandler.gotError)
         assertEquals(p2pService.offerIDForAnnouncement, newOfferID)
         assert(p2pService.keyPairForAnnouncement!!.interfaceId.contentEquals(keyPairForOffer.interfaceId))
+        val offerInDatabase = databaseService.getOffer(offerIDString)
+        assertEquals(offerInDatabase!!.state, OfferState.OFFER_OPENED.asString)
 
     }
 
@@ -706,6 +709,9 @@ class OfferServiceTests {
                 assertEquals(offerInDatabase.serviceFeeRate, "100")
                 assertEquals(offerInDatabase.onChainDirection, "1")
                 assertEquals(offerInDatabase.protocolVersion, "1")
+                assertEquals(offerInDatabase.havePublicKey, 0L)
+                assertEquals(offerInDatabase.isUserMaker, 0L)
+                assertEquals(offerInDatabase.state, OfferState.AWAITING_PUBLIC_KEY_ANNOUNCEMENT.asString)
                 // TODO: Re-enable this when settlement method parsing issue in secondary constructor is fixed
                 /*
                 val settlementMethodsInDatabase = databaseService.getSettlementMethods(encoder
@@ -767,7 +773,7 @@ class OfferServiceTests {
             onChainDirection = BigInteger.ZERO,
             onChainSettlementMethods = listOf(),
             protocolVersion = BigInteger.ZERO,
-            chainID = BigInteger.ZERO,
+            chainID = BigInteger.valueOf(31337L),
             havePublicKey = false,
             isUserMaker = false,
             state = OfferState.AWAITING_PUBLIC_KEY_ANNOUNCEMENT,
@@ -812,6 +818,7 @@ class OfferServiceTests {
                     assert(offerTruthSource.offers[offerID]!!.havePublicKey)
                     val offerInDatabase = databaseService.getOffer(encoder.encodeToString(offerIDByteArray))
                     assertEquals(offerInDatabase!!.havePublicKey, 1L)
+                    assertEquals(offerInDatabase.state, "awaitingPKAnnouncement")
                     val keyInDatabase = keyManagerService.getPublicKey(publicKey.interfaceId)
                     assertEquals(publicKey.publicKey, keyInDatabase!!.publicKey)
                 }
@@ -1059,7 +1066,7 @@ class OfferServiceTests {
                         chainID = addedOffer.chainID.toString(),
                         havePublicKey = 1L,
                         isUserMaker = 1L,
-                        "opening"
+                        "openOfferTxPublished"
                     )
                     assertEquals(expectedOfferInDatabase, offerInDatabase)
 
