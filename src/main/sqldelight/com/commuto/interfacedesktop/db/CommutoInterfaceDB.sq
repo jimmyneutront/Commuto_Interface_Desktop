@@ -13,7 +13,8 @@ serviceFeeRate TEXT NOT NULL,
 onChainDirection TEXT NOT NULL,
 protocolVersion TEXT NOT NULL,
 chainID TEXT NOT NULL,
-havePublicKey INTEGER NOT NULL
+havePublicKey INTEGER NOT NULL,
+isUserMaker INTEGER NOT NULL
 );
 
 createSettlementMethodTable:
@@ -51,11 +52,12 @@ INSERT INTO Offer(
     onChainDirection,
     protocolVersion,
     chainID,
-    havePublicKey
+    havePublicKey,
+    isUserMaker
 )
 VALUES(?, ?, ?, ?, ?, ?, ?,
 ?, ?, ?, ?, ?,
-?, ?);
+?, ?, ?);
 
 insertSettlementMethod:
 INSERT INTO SettlementMethod(offerId, chainID, settlementMethod)

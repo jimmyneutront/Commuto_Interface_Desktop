@@ -91,7 +91,8 @@ internal class Database(databaseDriverFactory: DatabaseDriverFactory) {
             onChainDirection = offer.onChainDirection,
             protocolVersion = offer.protocolVersion,
             chainID = offer.chainID,
-            havePublicKey = offer.havePublicKey
+            havePublicKey = offer.havePublicKey,
+            isUserMaker = offer.isUserMaker,
         )
     }
 

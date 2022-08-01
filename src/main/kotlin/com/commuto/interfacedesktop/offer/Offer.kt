@@ -38,6 +38,9 @@ import java.util.UUID
  * @param protocolVersion Corresponds to an on-chain
  * [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer)'s protocolVersion property.
  * @param chainID The ID of the blockchain on which this Offer exists.
+ * @param havePublicKey Indicates whether this interface has a copy of the public key specified by the [interfaceId]
+ * property.
+ * @param isUserMaker Indicates whether the user of this interface is the maker of this offer.
  *
  * @property serviceFeeAmountLowerBound The minimum service fee for the new offer.
  * @property serviceFeeAmountUpperBound The maximum service fee for the new offer.
@@ -45,8 +48,6 @@ import java.util.UUID
  * [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer)'s direction property.
  * @property onChainSettlementMethods Corresponds to an on-chain
  * [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer)'s settlementMethods property.
- * @property havePublicKey Indicates whether this interface has a copy of the public key specified by the [interfaceId]
- * property.
  */
 data class Offer(
     val isCreated: Boolean,
@@ -63,7 +64,8 @@ data class Offer(
     var settlementMethods: SnapshotStateList<SettlementMethod>,
     val protocolVersion: BigInteger,
     val chainID: BigInteger,
-    var havePublicKey: Boolean
+    var havePublicKey: Boolean,
+    var isUserMaker: Boolean,
 ) {
 
     constructor(
@@ -81,7 +83,8 @@ data class Offer(
         onChainSettlementMethods: List<ByteArray>,
         protocolVersion: BigInteger,
         chainID: BigInteger,
-        havePublicKey: Boolean
+        havePublicKey: Boolean,
+        isUserMaker: Boolean
     ) : this(
         isCreated = isCreated,
         isTaken = isTaken,
@@ -118,6 +121,7 @@ data class Offer(
         protocolVersion = protocolVersion,
         chainID = chainID,
         havePublicKey = havePublicKey,
+        isUserMaker = isUserMaker
     )
 
     val serviceFeeAmountLowerBound: BigInteger = this.serviceFeeRate * (this.amountLowerBound /
@@ -166,7 +170,6 @@ data class Offer(
         )
     }
 
-
     companion object {
         /**
          * A [List] of sample [Offer]s. Used for previewing offer-related Composable functions.
@@ -195,7 +198,8 @@ data class Offer(
                 ),
                 protocolVersion = BigInteger.ZERO,
                 chainID = BigInteger.ONE, // Ethereum Mainnet blockchain ID
-                false
+                havePublicKey = false,
+                isUserMaker = false,
             ),
             Offer(
                 isCreated = true,
@@ -220,7 +224,8 @@ data class Offer(
                 ),
                 protocolVersion = BigInteger.ZERO,
                 chainID = BigInteger.ONE, // Ethereum Mainnet blockchain ID
-                false
+                havePublicKey = false,
+                isUserMaker = false,
             ),
             Offer(
                 isCreated = true,
@@ -237,7 +242,8 @@ data class Offer(
                 onChainSettlementMethods = listOf("not valid JSON".encodeToByteArray()),
                 protocolVersion = BigInteger.ZERO,
                 chainID = BigInteger.ONE, // Ethereum Mainnet blockchain ID
-                false
+                havePublicKey = false,
+                isUserMaker = false,
             ),
             Offer(
                 isCreated = true,
@@ -257,7 +263,8 @@ data class Offer(
                 onChainSettlementMethods = listOf("not valid JSON".encodeToByteArray()),
                 protocolVersion = BigInteger.ZERO,
                 chainID = BigInteger.ONE, // Ethereum Mainnet blockchain ID
-                false
+                havePublicKey = false,
+                isUserMaker = false,
             ),
         )
     }
@@ -278,13 +285,16 @@ data class Offer(
         if (amountUpperBound != other.amountUpperBound) return false
         if (securityDepositAmount != other.securityDepositAmount) return false
         if (serviceFeeRate != other.serviceFeeRate) return false
-        if (onChainDirection != other.onChainDirection) return false
-        if (onChainSettlementMethods != other.onChainSettlementMethods) return false
+        if (direction != other.direction) return false
+        if (settlementMethods != other.settlementMethods) return false
         if (protocolVersion != other.protocolVersion) return false
         if (chainID != other.chainID) return false
         if (havePublicKey != other.havePublicKey) return false
-        if (direction != other.direction) return false
-        if (settlementMethods != other.settlementMethods) return false
+        if (isUserMaker != other.isUserMaker) return false
+        if (serviceFeeAmountLowerBound != other.serviceFeeAmountLowerBound) return false
+        if (serviceFeeAmountUpperBound != other.serviceFeeAmountUpperBound) return false
+        if (onChainDirection != other.onChainDirection) return false
+        if (onChainSettlementMethods != other.onChainSettlementMethods) return false
 
         return true
     }
@@ -300,13 +310,16 @@ data class Offer(
         result = 31 * result + amountUpperBound.hashCode()
         result = 31 * result + securityDepositAmount.hashCode()
         result = 31 * result + serviceFeeRate.hashCode()
-        result = 31 * result + onChainDirection.hashCode()
-        result = 31 * result + onChainSettlementMethods.hashCode()
+        result = 31 * result + direction.hashCode()
+        result = 31 * result + settlementMethods.hashCode()
         result = 31 * result + protocolVersion.hashCode()
         result = 31 * result + chainID.hashCode()
         result = 31 * result + havePublicKey.hashCode()
-        result = 31 * result + direction.hashCode()
-        result = 31 * result + settlementMethods.hashCode()
+        result = 31 * result + isUserMaker.hashCode()
+        result = 31 * result + serviceFeeAmountLowerBound.hashCode()
+        result = 31 * result + serviceFeeAmountUpperBound.hashCode()
+        result = 31 * result + onChainDirection.hashCode()
+        result = 31 * result + onChainSettlementMethods.hashCode()
         return result
     }
 
