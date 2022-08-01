@@ -14,7 +14,8 @@ onChainDirection TEXT NOT NULL,
 protocolVersion TEXT NOT NULL,
 chainID TEXT NOT NULL,
 havePublicKey INTEGER NOT NULL,
-isUserMaker INTEGER NOT NULL
+isUserMaker INTEGER NOT NULL,
+state TEXT NOT NULL
 );
 
 createSettlementMethodTable:
@@ -53,11 +54,12 @@ INSERT INTO Offer(
     protocolVersion,
     chainID,
     havePublicKey,
-    isUserMaker
+    isUserMaker,
+    state
 )
 VALUES(?, ?, ?, ?, ?, ?, ?,
 ?, ?, ?, ?, ?,
-?, ?, ?);
+?, ?, ?, ?);
 
 insertSettlementMethod:
 INSERT INTO SettlementMethod(offerId, chainID, settlementMethod)
@@ -74,6 +76,11 @@ VALUES(?, ?);
 updateOfferHavePublicKeyByOfferIDAndChainID:
 UPDATE Offer
 SET havePublicKey = ?
+WHERE offerId = ? AND chainID = ?;
+
+updateOfferStateByOfferIDAndChainID:
+UPDATE Offer
+SET state = ?
 WHERE offerId = ? AND chainID = ?;
 
 selectOfferByOfferId:

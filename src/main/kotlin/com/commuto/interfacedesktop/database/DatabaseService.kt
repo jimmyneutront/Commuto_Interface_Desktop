@@ -92,6 +92,23 @@ open class DatabaseService @Inject constructor(private val databaseDriverFactory
     }
 
     /**
+     * Updates the [Offer.state] property of a persistently stored
+     * [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer) with the specified [offerID] and
+     * [chainID].
+     *
+     * @param offerID The ID of the offer to be updated, as a Base64-[String] of bytes.
+     * @param chainID The blockchain ID of the offer to be updated, as a [String].
+     * @param state The new value of the offer's [Offer.state] property.
+     */
+    @OptIn(DelicateCoroutinesApi::class)
+    open suspend fun updateOfferState(offerID: String, chainID: String, state: String) {
+        withContext(databaseServiceContext) {
+            database.updateOfferState(offerID, chainID, state)
+        }
+        logger.info("updateOfferState: set value to $state for offer with B64 ID $offerID, if present")
+    }
+
+    /**
      * Removes every [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer) with an offer ID equal
      * to [offerID] and a chain ID equal to [chainID] from persistent storage.
      *

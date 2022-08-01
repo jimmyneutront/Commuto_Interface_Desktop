@@ -41,6 +41,8 @@ import java.util.UUID
  * @param havePublicKey Indicates whether this interface has a copy of the public key specified by the [interfaceId]
  * property.
  * @param isUserMaker Indicates whether the user of this interface is the maker of this offer.
+ * @param state Indicates the current state of this offer, as described in the
+ * [Commuto Interface Specification](https://github.com/jimmyneutront/commuto-whitepaper/blob/main/commuto-interface-specification.txt).
  *
  * @property serviceFeeAmountLowerBound The minimum service fee for the new offer.
  * @property serviceFeeAmountUpperBound The maximum service fee for the new offer.
@@ -66,8 +68,10 @@ data class Offer(
     val chainID: BigInteger,
     var havePublicKey: Boolean,
     var isUserMaker: Boolean,
+    var state: OfferState,
 ) {
 
+    // TODO: Resolve issue with settlement method decoding in this constructor
     constructor(
         isCreated: Boolean,
         isTaken: Boolean,
@@ -84,7 +88,8 @@ data class Offer(
         protocolVersion: BigInteger,
         chainID: BigInteger,
         havePublicKey: Boolean,
-        isUserMaker: Boolean
+        isUserMaker: Boolean,
+        state: OfferState,
     ) : this(
         isCreated = isCreated,
         isTaken = isTaken,
@@ -120,7 +125,8 @@ data class Offer(
         protocolVersion = protocolVersion,
         chainID = chainID,
         havePublicKey = havePublicKey,
-        isUserMaker = isUserMaker
+        isUserMaker = isUserMaker,
+        state = state,
     )
 
     val serviceFeeAmountLowerBound: BigInteger = this.serviceFeeRate * (this.amountLowerBound /
@@ -199,6 +205,7 @@ data class Offer(
                 chainID = BigInteger.ONE, // Ethereum Mainnet blockchain ID
                 havePublicKey = false,
                 isUserMaker = false,
+                state = OfferState.OFFER_OPENED,
             ),
             Offer(
                 isCreated = true,
@@ -225,6 +232,7 @@ data class Offer(
                 chainID = BigInteger.ONE, // Ethereum Mainnet blockchain ID
                 havePublicKey = false,
                 isUserMaker = false,
+                state = OfferState.OFFER_OPENED,
             ),
             Offer(
                 isCreated = true,
@@ -243,6 +251,7 @@ data class Offer(
                 chainID = BigInteger.ONE, // Ethereum Mainnet blockchain ID
                 havePublicKey = false,
                 isUserMaker = false,
+                state = OfferState.OFFER_OPENED,
             ),
             Offer(
                 isCreated = true,
@@ -264,6 +273,7 @@ data class Offer(
                 chainID = BigInteger.ONE, // Ethereum Mainnet blockchain ID
                 havePublicKey = false,
                 isUserMaker = false,
+                state = OfferState.OFFER_OPENED,
             ),
         )
     }
@@ -290,6 +300,7 @@ data class Offer(
         if (chainID != other.chainID) return false
         if (havePublicKey != other.havePublicKey) return false
         if (isUserMaker != other.isUserMaker) return false
+        if (state != other.state) return false
         if (serviceFeeAmountLowerBound != other.serviceFeeAmountLowerBound) return false
         if (serviceFeeAmountUpperBound != other.serviceFeeAmountUpperBound) return false
         if (onChainDirection != other.onChainDirection) return false
@@ -315,6 +326,7 @@ data class Offer(
         result = 31 * result + chainID.hashCode()
         result = 31 * result + havePublicKey.hashCode()
         result = 31 * result + isUserMaker.hashCode()
+        result = 31 * result + state.hashCode()
         result = 31 * result + serviceFeeAmountLowerBound.hashCode()
         result = 31 * result + serviceFeeAmountUpperBound.hashCode()
         result = 31 * result + onChainDirection.hashCode()

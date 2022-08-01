@@ -181,6 +181,7 @@ class OfferService (
                     chainID = BigInteger("31337"),
                     havePublicKey = true,
                     isUserMaker = true,
+                    state = OfferState.OPENING,
                 )
                 afterObjectCreation?.invoke()
                 logger.info("openOffer: persistently storing ${newOffer.id}")
@@ -190,10 +191,11 @@ class OfferService (
                 offerIDByteBuffer.putLong(newOffer.id.mostSignificantBits)
                 offerIDByteBuffer.putLong(newOffer.id.leastSignificantBits)
                 val offerIDByteArray = offerIDByteBuffer.array()
+                val offerIDString = encoder.encodeToString(offerIDByteArray)
                 val offerForDatabase = DatabaseOffer(
                     isCreated = 1L,
                     isTaken = 0L,
-                    offerId = encoder.encodeToString(offerIDByteArray),
+                    offerId = offerIDString,
                     maker = newOffer.maker,
                     interfaceId = encoder.encodeToString(newOffer.interfaceId),
                     stablecoin = newOffer.stablecoin,
@@ -206,6 +208,7 @@ class OfferService (
                     chainID = newOffer.chainID.toString(),
                     havePublicKey = 1L,
                     isUserMaker = 1L,
+                    state = newOffer.state.asString
                 )
                 databaseService.storeOffer(offerForDatabase)
                 val settlementMethodStrings = newOffer.onChainSettlementMethods.map {
@@ -314,6 +317,11 @@ class OfferService (
         } else {
             val havePublicKey = (keyManagerService.getPublicKey(offerStruct.interfaceID) != null)
             logger.info("handleOfferOpenedEvent: havePublicKey for offer ${event.offerID}: $havePublicKey")
+            val offerState: OfferState = if (havePublicKey) {
+                OfferState.OFFER_OPENED
+            } else {
+                OfferState.AWAITING_PUBLIC_KEY_ANNOUNCEMENT
+            }
             val offer = Offer(
                 isCreated = offerStruct.isCreated,
                 isTaken = offerStruct.isTaken,
@@ -331,6 +339,7 @@ class OfferService (
                 chainID = offerStruct.chainID,
                 havePublicKey = havePublicKey,
                 isUserMaker = false,
+                state = offerState,
             )
             val isCreated = if (offerStruct.isCreated) 1L else 0L
             val isTaken = if (offerStruct.isTaken) 1L else 0L
@@ -352,6 +361,7 @@ class OfferService (
                 chainID = offer.chainID.toString(),
                 havePublicKey = havePublicKeyLong,
                 isUserMaker = isUserMakerLong,
+                state = offer.state.asString
             )
             databaseService.storeOffer(offerForDatabase)
             logger.info("handleOfferOpenedEvent: persistently stored offer ${offer.id}")
@@ -420,6 +430,7 @@ class OfferService (
             chainID = offerStruct.chainID,
             havePublicKey = havePublicKey,
             isUserMaker = false,
+            state = OfferState.AWAITING_PUBLIC_KEY_ANNOUNCEMENT,
         )
         val offerIDByteBuffer = ByteBuffer.wrap(ByteArray(16))
         offerIDByteBuffer.putLong(offer.id.mostSignificantBits)

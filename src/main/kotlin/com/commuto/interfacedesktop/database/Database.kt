@@ -93,6 +93,7 @@ internal class Database(databaseDriverFactory: DatabaseDriverFactory) {
             chainID = offer.chainID,
             havePublicKey = offer.havePublicKey,
             isUserMaker = offer.isUserMaker,
+            state = offer.state
         )
     }
 
@@ -140,6 +141,20 @@ internal class Database(databaseDriverFactory: DatabaseDriverFactory) {
     internal fun updateOfferHavePublicKey(offerID: String, chainID: String, havePublicKey: Long) {
         dbQuery.updateOfferHavePublicKeyByOfferIDAndChainID(
             havePublicKey = havePublicKey,
+            offerId = offerID,
+            chainID = chainID
+        )
+    }
+
+    /**
+     * Updates the [Offer.state] property of the [Offer] with the specified [offerID] and [chainID].
+     * @param offerID The ID of the [Offer] to be updated.
+     * @param chainID The ID of the blockchain on which [Offer] to be updated exists.
+     * @param state The new value of the [Offer.state] property.
+     */
+    internal fun updateOfferState(offerID: String, chainID: String, state: String) {
+        dbQuery.updateOfferStateByOfferIDAndChainID(
+            state = state,
             offerId = offerID,
             chainID = chainID
         )
