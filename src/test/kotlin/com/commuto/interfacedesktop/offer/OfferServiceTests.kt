@@ -818,7 +818,7 @@ class OfferServiceTests {
                     assert(offerTruthSource.offers[offerID]!!.havePublicKey)
                     val offerInDatabase = databaseService.getOffer(encoder.encodeToString(offerIDByteArray))
                     assertEquals(offerInDatabase!!.havePublicKey, 1L)
-                    assertEquals(offerInDatabase.state, "awaitingPKAnnouncement")
+                    assertEquals(offerInDatabase.state, "offerOpened")
                     val keyInDatabase = keyManagerService.getPublicKey(publicKey.interfaceId)
                     assertEquals(publicKey.publicKey, keyInDatabase!!.publicKey)
                 }
