@@ -284,7 +284,7 @@ class OfferService (
         offerOpenedEventRepository.append(event)
         val offerStruct = blockchainService.getOffer(event.offerID)
         if (offerStruct == null) {
-            logger.info("handleOfferOpenedEvent: no on-chain offer was found with ID specified in OfferOpenedEvent " +
+            logger.info("handleOfferOpenedEvent: No on-chain offer was found with ID specified in OfferOpenedEvent " +
                     "in handleOfferOpenedEvent call. OfferOpenedEvent.id: ${event.offerID}")
             return
         }
@@ -449,14 +449,12 @@ class OfferService (
         val havePublicKey = (offerInDatabase?.havePublicKey == 1L)
         // If the user is the offer maker, then the offer would be present in the database
         val isUserMaker = (offerInDatabase?.isUserMaker == 1L)
-        val stateOfOfferInDatabase = OfferState.fromString(string = offerInDatabase?.state)
-        val state: OfferState = if (stateOfOfferInDatabase != null) {
-            stateOfOfferInDatabase
-        } else if (havePublicKey) {
-            OfferState.OFFER_OPENED // This should never be reached for an offer made by the user of this interface
-        } else {
-            OfferState.AWAITING_PUBLIC_KEY_ANNOUNCEMENT
-        }
+        val state: OfferState = OfferState.fromString(string = offerInDatabase?.state)
+            ?: if (havePublicKey) {
+                OfferState.OFFER_OPENED // This should never be reached for an offer made by the user of this interface
+            } else {
+                OfferState.AWAITING_PUBLIC_KEY_ANNOUNCEMENT
+            }
         logger.info("handleOfferEditedEvent: havePublicKey for offer ${event.offerID}: $havePublicKey")
         val offer = Offer(
             isCreated = offerStruct.isCreated,

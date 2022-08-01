@@ -18,6 +18,7 @@ import net.folivo.trixnity.core.ErrorResponse
 import net.folivo.trixnity.core.MatrixServerException
 import net.folivo.trixnity.core.model.RoomId
 import net.folivo.trixnity.core.model.events.m.room.RoomMessageEventContent
+import org.junit.Assert.assertEquals
 import org.junit.Test
 import java.nio.ByteBuffer
 import java.nio.charset.Charset
@@ -166,4 +167,47 @@ class P2PServiceTest {
             }
         }
     }
+
+    /**
+     * Ensure that [P2PService.announcePublicKey] makes Public Key Announcements properly.
+     */
+    @Test
+    fun testAnnouncePublicKey() {
+
+        class TestP2PExceptionHandler : P2PExceptionNotifiable {
+            override fun handleP2PException(exception: Exception) {}
+        }
+        val p2pExceptionHandler = TestP2PExceptionHandler()
+        class TestOfferService : OfferMessageNotifiable {
+            override suspend fun handlePublicKeyAnnouncement(message: PublicKeyAnnouncement) {}
+        }
+
+        val mxClient = MatrixClientServerApiClient(
+            baseUrl = Url("https://matrix.org"),
+        ).apply { accessToken.value = "not_a_real_token" }
+
+        class TestP2PService : P2PService(p2pExceptionHandler, TestOfferService(), mxClient) {
+            var receivedMessage: String? = null
+            override suspend fun sendMessage(message: String) {
+                receivedMessage = message
+            }
+        }
+        val p2pService = TestP2PService()
+
+        val keyPair = KeyPair()
+        val offerID = UUID.randomUUID()
+
+        runBlocking {
+            p2pService.announcePublicKey(
+                offerID = offerID,
+                keyPair = keyPair,
+            )
+        }
+
+        val createdPublicKeyAnnouncement = parsePublicKeyAnnouncement(p2pService.receivedMessage)
+        assert(keyPair.interfaceId.contentEquals(createdPublicKeyAnnouncement!!.publicKey.interfaceId))
+        assertEquals(offerID, createdPublicKeyAnnouncement.id)
+
+    }
+
 }
