@@ -5,6 +5,7 @@ package com.commuto.interfacedesktop.p2p
 
 import com.commuto.interfacedesktop.key.keys.KeyPair
 import com.commuto.interfacedesktop.offer.OfferService
+import io.ktor.http.*
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.Job
@@ -19,6 +20,7 @@ import net.folivo.trixnity.core.model.events.m.room.RoomMessageEventContent
 import org.slf4j.LoggerFactory
 import java.net.ConnectException
 import java.util.*
+import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
@@ -48,6 +50,18 @@ import javax.inject.Singleton
 open class P2PService constructor(private val exceptionHandler: P2PExceptionNotifiable,
                              private val offerService: OfferMessageNotifiable,
                              private val mxClient: MatrixClientServerApiClient) {
+
+    @Inject
+    constructor(
+        exceptionHandler: P2PExceptionNotifiable,
+        offerService: OfferMessageNotifiable
+    ): this(
+        exceptionHandler = exceptionHandler,
+        offerService = offerService,
+        mxClient = MatrixClientServerApiClient(
+            baseUrl = Url("https://matrix.org"),
+        ).apply { accessToken.value = "syt_amltbXl0_TlbyjkdfhjbCVJNjOtOt_0GeYu6" }
+    )
 
     init {
         (offerService as? OfferService)?.setP2PService(this)

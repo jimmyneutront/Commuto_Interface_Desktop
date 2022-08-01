@@ -1,6 +1,8 @@
 package com.commuto.interfacedesktop.ui
 
 import com.commuto.interfacedesktop.blockchain.BlockchainExceptionNotifiable
+import com.commuto.interfacedesktop.p2p.P2PExceptionNotifiable
+import com.commuto.interfacedesktop.p2p.P2PService
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -9,7 +11,7 @@ import javax.inject.Singleton
  * exceptions occur.
  */
 @Singleton
-class ExceptionViewModel @Inject constructor(): BlockchainExceptionNotifiable {
+class ExceptionViewModel @Inject constructor(): BlockchainExceptionNotifiable, P2PExceptionNotifiable {
     /**
      * The method called by [com.commuto.interfacedesktop.blockchain.BlockchainService] in order to notify of an
      * [Exception] encountered by [com.commuto.interfacedesktop.blockchain.BlockchainService].
@@ -18,6 +20,15 @@ class ExceptionViewModel @Inject constructor(): BlockchainExceptionNotifiable {
      * which this method should notify the user.
      */
     override fun handleBlockchainException(exception: Exception) {
+        throw exception
+    }
+
+    /**
+     * The method called by [P2PService] in order to notify of an encountered [Exception].
+     *
+     * @param exception The [Exception] encountered by [P2PService] that this method should handle
+     */
+    override fun handleP2PException(exception: Exception) {
         throw exception
     }
 }

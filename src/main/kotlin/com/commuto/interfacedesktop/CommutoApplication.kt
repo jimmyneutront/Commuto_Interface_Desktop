@@ -6,6 +6,7 @@ import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
 import com.commuto.interfacedesktop.blockchain.BlockchainService
 import com.commuto.interfacedesktop.database.DatabaseService
+import com.commuto.interfacedesktop.p2p.P2PService
 import com.commuto.interfacedesktop.ui.OffersComposable
 import com.commuto.interfacedesktop.ui.OffersViewModel
 import javax.inject.Inject
@@ -21,6 +22,7 @@ import javax.inject.Singleton
 class CommutoApplication @Inject constructor(
     val databaseService: DatabaseService,
     val blockchainService: BlockchainService,
+    val p2pService: P2PService,
     val offersViewModel: OffersViewModel
 ) {
     /**
@@ -31,6 +33,8 @@ class CommutoApplication @Inject constructor(
         databaseService.createTables()
         // Start listening to the blockchain
         blockchainService.listen()
+        // Start listening to the peer-to-peer network
+        p2pService.listen()
         application {
             Window(
                 onCloseRequest = ::exitApplication,

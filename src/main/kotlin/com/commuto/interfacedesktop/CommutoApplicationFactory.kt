@@ -2,6 +2,8 @@ package com.commuto.interfacedesktop
 
 import com.commuto.interfacedesktop.blockchain.BlockchainExceptionNotifiableModule
 import com.commuto.interfacedesktop.offer.OfferNotifiableModule
+import com.commuto.interfacedesktop.p2p.OfferMessageNotifiableModule
+import com.commuto.interfacemobile.android.p2p.P2PExceptionNotifiableModule
 import dagger.Component
 import javax.inject.Singleton
 
@@ -11,8 +13,11 @@ import javax.inject.Singleton
  * [DaggerCommutoApplicationFactory] class.
  */
 @Singleton
-@Component(modules = [OfferNotifiableModule::class,
-    BlockchainExceptionNotifiableModule::class
+@Component(modules = [
+    OfferNotifiableModule::class,
+    OfferMessageNotifiableModule::class,
+    BlockchainExceptionNotifiableModule::class,
+    P2PExceptionNotifiableModule::class
 ])
 interface CommutoApplicationFactory {
     /**
