@@ -1,6 +1,11 @@
+// Suppress warning in initializer
+@file:Suppress("LeakingThis")
+
 package com.commuto.interfacedesktop.p2p
 
+import com.commuto.interfacedesktop.key.keys.KeyPair
 import com.commuto.interfacedesktop.key.keys.PublicKey
+import com.commuto.interfacedesktop.offer.OfferService
 import com.commuto.interfacedesktop.p2p.messages.PublicKeyAnnouncement
 import com.commuto.interfacedesktop.p2p.serializable.messages.SerializablePublicKeyAnnouncementMessage
 import com.commuto.interfacedesktop.p2p.serializable.payloads.SerializablePublicKeyAnnouncementPayload
@@ -49,9 +54,13 @@ import javax.inject.Singleton
  * loop.
  */
 @Singleton
-class P2PService constructor(private val exceptionHandler: P2PExceptionNotifiable,
+open class P2PService constructor(private val exceptionHandler: P2PExceptionNotifiable,
                              private val offerService: OfferMessageNotifiable,
                              private val mxClient: MatrixClientServerApiClient) {
+
+    init {
+        (offerService as? OfferService)?.setP2PService(this)
+    }
 
     private val logger = LoggerFactory.getLogger(javaClass)
 
@@ -167,6 +176,11 @@ class P2PService constructor(private val exceptionHandler: P2PExceptionNotifiabl
         }
     }
 
+    open suspend fun announcePublicKey(offerID: UUID, keyPair: KeyPair) {
+
+    }
+
+    // TODO: This should get its own file
     /**
      * Attempts to restore a [PublicKeyAnnouncement] from a give [String].
      *
