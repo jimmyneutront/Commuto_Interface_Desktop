@@ -1,5 +1,6 @@
 package com.commuto.interfacedesktop.offer
 
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import com.commuto.interfacedesktop.blockchain.BlockchainEventRepository
@@ -240,17 +241,41 @@ class OfferServiceTests {
 
         val w3 = Web3j.build(HttpService(System.getenv("BLOCKCHAIN_NODE")))
 
-        val offerTruthSource = PreviewableOfferTruthSource()
+        class TestBlockchainEventRepository: BlockchainEventRepository<OfferOpenedEvent>() {
+            val removedEventChannel = Channel<OfferOpenedEvent>()
+            override fun remove(elementToRemove: OfferOpenedEvent) {
+                runBlocking {
+                    removedEventChannel.send(elementToRemove)
+                }
+                super.remove(elementToRemove)
+            }
+        }
+        val offerOpenedEventRepository = TestBlockchainEventRepository()
+
         val offerService = OfferService(
             databaseService,
             keyManagerService,
-            BlockchainEventRepository(),
+            offerOpenedEventRepository,
             BlockchainEventRepository(),
             BlockchainEventRepository(),
             BlockchainEventRepository(),
             BlockchainEventRepository(),
         )
-        offerService.setOfferTruthSource(offerTruthSource)
+
+        class TestOfferTruthSource: OfferTruthSource {
+            init {
+                offerService.setOfferTruthSource(this)
+            }
+            override var offers = mutableStateMapOf<UUID, Offer>()
+            override var serviceFeeRate = mutableStateOf<BigInteger?>(null)
+            override fun addOffer(offer: Offer) {
+                offers[offer.id] = offer
+            }
+            override fun removeOffer(id: UUID) {
+                offers.remove(id)
+            }
+        }
+        val offerTruthSource = TestOfferTruthSource()
 
         class TestP2PExceptionHandler : P2PExceptionNotifiable {
             @Throws
@@ -278,6 +303,26 @@ class OfferServiceTests {
         }
         val p2pService = TestP2PService()
 
+        val offer = Offer(
+            isCreated = true,
+            isTaken = false,
+            id = newOfferID,
+            maker = "0x0000000000000000000000000000000000000000",
+            interfaceId = keyPairForOffer.interfaceId,
+            stablecoin = "0x0000000000000000000000000000000000000000",
+            amountLowerBound = BigInteger.ZERO,
+            amountUpperBound = BigInteger.ZERO,
+            securityDepositAmount = BigInteger.ZERO,
+            serviceFeeRate = BigInteger.ZERO,
+            direction = OfferDirection.BUY,
+            settlementMethods = mutableStateListOf(),
+            protocolVersion = BigInteger.ZERO,
+            chainID = BigInteger.valueOf(31337L),
+            havePublicKey = true,
+            isUserMaker = true,
+            state = OfferState.OPEN_OFFER_TRANSACTION_BROADCAST
+        )
+        offerTruthSource.addOffer(offer)
         val offerIDByteBuffer = ByteBuffer.wrap(ByteArray(16))
         offerIDByteBuffer.putLong(newOfferID.mostSignificantBits)
         offerIDByteBuffer.putLong(newOfferID.leastSignificantBits)
@@ -287,19 +332,19 @@ class OfferServiceTests {
             offerId = offerIDString,
             isCreated = 1L,
             isTaken = 0L,
-            maker = "maker_address",
-            interfaceId = encoder.encodeToString(keyPairForOffer.interfaceId),
-            stablecoin = "stablecoin_address",
-            amountLowerBound = "lower_bound",
-            amountUpperBound = "upper_bound",
-            securityDepositAmount = "security_deposit",
-            serviceFeeRate = "service_fee",
-            onChainDirection = "on_chain_direction",
-            protocolVersion = "protocol_version",
-            chainID = "31337",
+            maker = offer.maker,
+            interfaceId = encoder.encodeToString(offer.interfaceId),
+            stablecoin = offer.stablecoin,
+            amountLowerBound = offer.amountLowerBound.toString(),
+            amountUpperBound = offer.amountUpperBound.toString(),
+            securityDepositAmount = offer.securityDepositAmount.toString(),
+            serviceFeeRate = offer.serviceFeeRate.toString(),
+            onChainDirection = offer.direction.string,
+            protocolVersion = offer.protocolVersion.toString(),
+            chainID = offer.chainID.toString(),
             havePublicKey = 1L,
             isUserMaker = 1L,
-            state = OfferState.OPEN_OFFER_TRANSACTION_BROADCAST.asString,
+            state = offer.state.asString,
         )
         databaseService.storeOffer(offerForDatabase)
 
@@ -311,26 +356,25 @@ class OfferServiceTests {
         }
         val exceptionHandler = TestBlockchainExceptionHandler()
 
-        BlockchainService(
+        val blockchainService = BlockchainService(
             exceptionHandler = exceptionHandler,
             offerService = offerService,
             web3 = w3,
             commutoSwapAddress = testingServerResponse.commutoSwapAddress
         )
+        blockchainService.listen()
 
-        val offerOpenedEvent = OfferOpenedEvent(
-            offerID = newOfferID,
-            interfaceID = keyPairForOffer.interfaceId,
-            chainID = BigInteger.valueOf(31337L)
-        )
-
-        offerService.handleOfferOpenedEvent(offerOpenedEvent)
-
-        assertFalse(exceptionHandler.gotError)
-        assertEquals(p2pService.offerIDForAnnouncement, newOfferID)
-        assert(p2pService.keyPairForAnnouncement!!.interfaceId.contentEquals(keyPairForOffer.interfaceId))
-        val offerInDatabase = databaseService.getOffer(offerIDString)
-        assertEquals(offerInDatabase!!.state, OfferState.OFFER_OPENED.asString)
+        runBlocking {
+            withTimeout(60_000) {
+                offerOpenedEventRepository.removedEventChannel.receive()
+                assertFalse(exceptionHandler.gotError)
+                assertEquals(p2pService.offerIDForAnnouncement, newOfferID)
+                assert(p2pService.keyPairForAnnouncement!!.interfaceId.contentEquals(keyPairForOffer.interfaceId))
+                assertEquals(offerTruthSource.offers[newOfferID]!!.state, OfferState.OFFER_OPENED)
+                val offerInDatabase = databaseService.getOffer(offerIDString)
+                assertEquals(offerInDatabase!!.state, OfferState.OFFER_OPENED.asString)
+            }
+        }
 
     }
 
@@ -589,7 +633,7 @@ class OfferServiceTests {
      * [OfferEdited](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offeredited) events properly.
      */
     @Test
-    fun handleOfferEditedEvent() {
+    fun testHandleOfferEditedEvent() {
         @Serializable
         data class TestingServerResponse(val commutoSwapAddress: String, val offerId: String)
 
