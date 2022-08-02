@@ -11,7 +11,8 @@ package com.commuto.interfacedesktop.offer
  * broadcast.
  * @property AWAITING_PUBLIC_KEY_ANNOUNCEMENT Indicates that the
  * [OfferOpened event](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offeropened) for the corresponding
- * offer has been detected, so the public key should now be announced.
+ * offer has been detected, so, if the offer's maker is the user of the interface, the public key should now be
+ * announced; otherwise this means that we are waiting for the maker to announce their public key.
  * @property OFFER_OPENED Indicates that the corresponding offer has been opened on chain and the maker's public key has
  * been announced.
  * @property indexNumber An [Int] corresponding to this state's position in a list of possible offer states organized
