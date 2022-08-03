@@ -65,7 +65,7 @@ fun validateNewOfferData(
         throw NewOfferDataValidationException("The security deposit amount must be at least 10% of the maximum amount.")
     }
     val serviceFeeAmountLowerBound = serviceFeeRate * (minimumAmountBaseUnits / BigInteger.valueOf(10_000L))
-    if (serviceFeeAmountLowerBound <= BigInteger.ZERO) {
+    if (serviceFeeRate != BigInteger.ZERO && serviceFeeAmountLowerBound <= BigInteger.ZERO) {
         throw NewOfferDataValidationException("The minimum service fee amount must be greater than zero.")
     }
     val serviceFeeAmountUpperBound = serviceFeeRate * (maximumAmountBaseUnits / BigInteger.valueOf(10_000L))
