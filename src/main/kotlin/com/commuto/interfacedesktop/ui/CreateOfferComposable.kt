@@ -2,8 +2,10 @@ package com.commuto.interfacedesktop.ui
 
 import androidx.compose.desktop.ui.tooling.preview.Preview
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.*
@@ -466,6 +468,9 @@ fun SettlementMethodSelector(
                 stablecoinCurrencyCode = stablecoinCurrencyCode,
                 selectedSettlementMethods = selectedSettlementMethods
             )
+            Spacer(
+                modifier = Modifier.height(5.dp)
+            )
         }
     }
 }
@@ -497,90 +502,80 @@ fun SettlementMethodCardComposable(
 
     val price = remember { mutableStateOf(BigDecimal.ZERO) }
 
-    Button(
-        onClick = {
-            if (isSelected.value) {
-                selectedSettlementMethods.removeIf {
-                    it.method == settlementMethod.method && it.currency == settlementMethod.currency
-                }
-                isSelected.value = false
-            } else {
-                selectedSettlementMethods.add(settlementMethod)
-                isSelected.value = true
-            }
-        },
-        content = {
-            if (price.value == BigDecimal.ZERO) {
-                settlementMethod.price = ""
-            } else {
-                settlementMethod.price = price.value.toString()
-            }
-            Row {
-                Column(
-                    horizontalAlignment = Alignment.Start
-                ) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
+        modifier = Modifier
+            .fillMaxWidth()
+            .border(width = 1.dp, color = color, RoundedCornerShape(10.dp))
+    ) {
+        Column(
+            horizontalAlignment = Alignment.Start,
+            modifier = Modifier.padding(PaddingValues(horizontal = 10.dp))
+        ) {
+            Text(
+                text = buildCurrencyDescription(settlementMethod),
+                color = color,
+                modifier = Modifier.padding(PaddingValues(top = 10.dp))
+            )
+            Button(
+                onClick = {
+                    isEditingPrice.value = !isEditingPrice.value
+                },
+                content = {
                     Text(
-                        text = buildCurrencyDescription(settlementMethod),
-                        color = color,
-                        modifier = Modifier.padding(PaddingValues(top = 10.dp))
+                        text = buildCreateOfferPriceDescription(settlementMethod, stablecoinCurrencyCode)
                     )
-                    Button(
-                        onClick = {
-                            isEditingPrice.value = !isEditingPrice.value
-                        },
-                        content = {
-                            Text(
-                                text = buildCreateOfferPriceDescription(settlementMethod, stablecoinCurrencyCode)
-                            )
-                        },
-                        contentPadding = PaddingValues(vertical = 0.dp, horizontal = 0.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            backgroundColor = Color.Transparent,
-                            contentColor = Color.Black
-                        ),
-                        elevation = null
-                    )
-                    if (isEditingPrice.value) {
-                        TextField(
-                            label = { Text("Price (${stablecoinCurrencyCode}/${settlementMethod.currency})") },
-                            value = priceString.value,
-                            onValueChange = {
-                                if (it == "") {
-                                    price.value = BigDecimal.ZERO
-                                    settlementMethod.price = ""
-                                } else {
-                                    try {
-                                        val newPrice = BigDecimal(it)
-                                        // Don't allow negative values, and limit to 6 decimal places
-                                        if (newPrice >= BigDecimal.ZERO && newPrice.scale() <= 6) {
-                                            price.value = newPrice
-                                            settlementMethod.price = it
-                                            priceString.value = it
-                                        }
-                                    } catch (exception: NumberFormatException) {
-                                        /*
-                                        If the change prevents us from creating a BigDecimal minimum amount value, then we
-                                        don't allow that change
-                                         */
-                                    }
+                },
+                contentPadding = PaddingValues(vertical = 0.dp, horizontal = 0.dp),
+                colors = ButtonDefaults.buttonColors(
+                    backgroundColor = Color.Transparent,
+                    contentColor = Color.Black
+                ),
+                elevation = null
+            )
+            if (isEditingPrice.value) {
+                TextField(
+                    label = { Text("Price (${stablecoinCurrencyCode}/${settlementMethod.currency})") },
+                    value = priceString.value,
+                    onValueChange = {
+                        if (it == "") {
+                            price.value = BigDecimal.ZERO
+                            settlementMethod.price = ""
+                        } else {
+                            try {
+                                val newPrice = BigDecimal(it)
+                                // Don't allow negative values, and limit to 6 decimal places
+                                if (newPrice >= BigDecimal.ZERO && newPrice.scale() <= 6) {
+                                    price.value = newPrice
+                                    settlementMethod.price = it
+                                    priceString.value = it
                                 }
+                            } catch (exception: NumberFormatException) {
+                                /*
+                                If the change prevents us from creating a BigDecimal minimum amount value, then we
+                                don't allow that change
+                                 */
                             }
-                        )
+                        }
                     }
-                }
-                Spacer(
-                    modifier = Modifier.fillMaxWidth()
                 )
             }
-        },
-        border = BorderStroke(1.dp, color),
-        colors = ButtonDefaults.buttonColors(
-            backgroundColor = Color.Transparent,
-            contentColor = Color.Black
-        ),
-        modifier = Modifier.padding(PaddingValues(bottom = 6.dp)).width(400.dp),
-        elevation = null,
-    )
+        }
+        Switch(
+            checked = isSelected.value,
+            onCheckedChange = {
+                if (!it) {
+                    selectedSettlementMethods.removeIf {
+                        it.method == settlementMethod.method && it.currency == settlementMethod.currency
+                    }
+                } else {
+                    selectedSettlementMethods.add(settlementMethod)
+                }
+                isSelected.value = it
+            },
+        )
+    }
 }
 
 /**
