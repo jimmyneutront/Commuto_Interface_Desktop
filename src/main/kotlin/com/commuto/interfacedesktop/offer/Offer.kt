@@ -72,6 +72,7 @@ data class Offer(
 ) {
 
     // TODO: Resolve issue with settlement method decoding in this constructor
+    /*
     constructor(
         isCreated: Boolean,
         isTaken: Boolean,
@@ -128,6 +129,7 @@ data class Offer(
         isUserMaker = isUserMaker,
         state = state,
     )
+     */
 
     val serviceFeeAmountLowerBound: BigInteger = this.serviceFeeRate * (this.amountLowerBound /
             BigInteger.valueOf(10_000L))
@@ -180,7 +182,7 @@ data class Offer(
          * A [List] of sample [Offer]s. Used for previewing offer-related Composable functions.
          */
         val sampleOffers = listOf(
-            Offer(
+            fromOnChainData(
                 isCreated = true,
                 isTaken = false,
                 id = UUID.randomUUID(),
@@ -207,7 +209,7 @@ data class Offer(
                 isUserMaker = false,
                 state = OfferState.OFFER_OPENED,
             ),
-            Offer(
+            fromOnChainData(
                 isCreated = true,
                 isTaken = false,
                 id = UUID.randomUUID(),
@@ -234,7 +236,7 @@ data class Offer(
                 isUserMaker = false,
                 state = OfferState.OFFER_OPENED,
             ),
-            Offer(
+            fromOnChainData(
                 isCreated = true,
                 isTaken = false,
                 id = UUID.randomUUID(),
@@ -253,7 +255,7 @@ data class Offer(
                 isUserMaker = false,
                 state = OfferState.OFFER_OPENED,
             ),
-            Offer(
+            fromOnChainData(
                 isCreated = true,
                 isTaken = false,
                 id = UUID.randomUUID(),
@@ -276,6 +278,97 @@ data class Offer(
                 state = OfferState.OFFER_OPENED,
             ),
         )
+
+        /**
+         * Creates a new [Offer] using on-chain direction and settlement method data.
+         *
+         * @param isCreated: The desired value of the [Offer.isCreated] property.
+         * @param isTaken: The desired value of the [Offer.isTaken] property.
+         * @param id: The offer's ID.
+         * @param maker: The desired value of the [Offer.maker] property.
+         * @param interfaceId: The desired value of the [Offer.interfaceId] property.
+         * @param stablecoin The desired value of the [Offer.stablecoin] property.
+         * @param amountLowerBound The desired value of the [Offer.amountLowerBound] property.
+         * @param amountUpperBound The desired value of the [Offer.amountUpperBound] property.
+         * @param securityDepositAmount The desired value of the [Offer.securityDepositAmount] property.
+         * @param serviceFeeRate The desired value of the [Offer.serviceFeeRate] property.
+         * @param onChainDirection Corresponds to an on-chain
+         * [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer)'s direction property, from which
+         * the value of the [direction] property will be derived.
+         * @param onChainSettlementMethods Corresponds to an on-chain
+         * [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer)'s settlementMethods property,
+         * from which the value of the [settlementMethods] property will be derived.
+         * @param protocolVersion The desired value of the [Offer.protocolVersion] property.
+         * @param chainID The desired value of the [Offer.chainID] property.
+         * @param havePublicKey The desired value of the [Offer.havePublicKey] property.
+         * @param isUserMaker The desired value of the [Offer.isUserMaker] property.
+         * @param state The desired value of the [Offer.state] property.
+         *
+         * @return A new [Offer], with its [Offer.direction] property derived from the passed [onChainDirection] value
+         * and  its [Offer.settlementMethods] property created by deserializing the data passed in
+         * [onChainSettlementMethods]
+         *
+         * @throws IllegalStateException If [onChainDirection] is neither [BigInteger.ZERO] (indicating a buy offer) or
+         * [BigInteger.ONE] indicating a sell offer.
+         */
+        fun fromOnChainData(
+            isCreated: Boolean,
+            isTaken: Boolean,
+            id: UUID,
+            maker: String,
+            interfaceId: ByteArray,
+            stablecoin: String,
+            amountLowerBound: BigInteger,
+            amountUpperBound: BigInteger,
+            securityDepositAmount: BigInteger,
+            serviceFeeRate: BigInteger,
+            onChainDirection: BigInteger,
+            onChainSettlementMethods: List<ByteArray>,
+            protocolVersion: BigInteger,
+            chainID: BigInteger,
+            havePublicKey: Boolean,
+            isUserMaker: Boolean,
+            state: OfferState,
+        ): Offer {
+            val direction = when (onChainDirection) {
+                BigInteger.ZERO -> {
+                    OfferDirection.BUY
+                }
+                BigInteger.ONE -> {
+                    OfferDirection.SELL
+                }
+                else -> {
+                    throw IllegalStateException("Unexpected onChainDirection encountered while creating Offer")
+                }
+            }
+            val settlementMethods = mutableStateListOf<SettlementMethod>().apply {
+                onChainSettlementMethods.forEach {
+                    try {
+                        this.add(Json.decodeFromString(it.decodeToString()))
+                    } catch (_: Exception) {}
+                }
+            }
+            return Offer(
+                isCreated = isCreated,
+                isTaken = isTaken,
+                id = id,
+                maker = maker,
+                interfaceId = interfaceId,
+                stablecoin = stablecoin,
+                amountLowerBound = amountLowerBound,
+                amountUpperBound = amountUpperBound,
+                securityDepositAmount = securityDepositAmount,
+                serviceFeeRate = serviceFeeRate,
+                direction = direction,
+                settlementMethods = settlementMethods,
+                protocolVersion = protocolVersion,
+                chainID = chainID,
+                havePublicKey = havePublicKey,
+                isUserMaker = isUserMaker,
+                state = state,
+            )
+        }
+
     }
 
     override fun equals(other: Any?): Boolean {

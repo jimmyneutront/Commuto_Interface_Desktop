@@ -163,7 +163,8 @@ class OfferService (
                     isTaken = false,
                     id = newOfferID,
                     /*
-                    It is safe to use the zero address here, because the maker address will be automatically set to that of the function caller by CommutoSwap
+                    It is safe to use the zero address here, because the maker address will be automatically set to that
+                    of the function caller by CommutoSwap
                      */
                     maker = "0x0000000000000000000000000000000000000000",
                     interfaceId = newKeyPairForOffer.interfaceId,
@@ -349,7 +350,7 @@ class OfferService (
             } else {
                 OfferState.AWAITING_PUBLIC_KEY_ANNOUNCEMENT
             }
-            val offer = Offer(
+            val offer = Offer.fromOnChainData(
                 isCreated = offerStruct.isCreated,
                 isTaken = offerStruct.isTaken,
                 id = event.offerID,
@@ -456,7 +457,7 @@ class OfferService (
                 OfferState.AWAITING_PUBLIC_KEY_ANNOUNCEMENT
             }
         logger.info("handleOfferEditedEvent: havePublicKey for offer ${event.offerID}: $havePublicKey")
-        val offer = Offer(
+        val offer = Offer.fromOnChainData(
             isCreated = offerStruct.isCreated,
             isTaken = offerStruct.isTaken,
             id = event.offerID,
