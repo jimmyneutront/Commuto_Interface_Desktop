@@ -276,53 +276,56 @@ fun CreateOfferComposable(
                 color = Color.Red
             )
         }
-        if (offerTruthSource.openingOfferState.value == OpeningOfferState.NONE ||
-            offerTruthSource.openingOfferState.value == OpeningOfferState.EXCEPTION) {
-            Button(
-                onClick = {
-                    offerTruthSource.openOffer(
-                        chainID = chainID,
-                        stablecoin = selectedStablecoin.value,
-                        stablecoinInformation = stablecoins.getStablecoinInformation(chainID, selectedStablecoin.value),
-                        minimumAmount = minimumAmount.value,
-                        maximumAmount =  maximumAmount.value,
-                        securityDepositAmount = securityDepositAmount.value,
-                        direction = direction.value,
-                        settlementMethods = selectedSettlementMethods,
-                    )
-                },
-                content = {
-                    Text(
-                        text = "Open Offer",
-                        style = MaterialTheme.typography.h4,
-                        fontWeight = FontWeight.Bold,
-                        textAlign = TextAlign.Center
-                    )
-                },
-                border = BorderStroke(3.dp, Color.Black),
-                colors = ButtonDefaults.buttonColors(
-                    backgroundColor =  Color.Transparent,
-                    contentColor = Color.Black,
-                ),
-                elevation = null,
-                modifier = Modifier.width(400.dp)
-            )
-        } else if (offerTruthSource.openingOfferState.value == OpeningOfferState.COMPLETED) {
-            Text(
-                text = "Offer Opened",
-                style = MaterialTheme.typography.h4,
-                fontWeight = FontWeight.Bold,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.width(400.dp)
-            )
-        } else {
-            Text(
-                text = "Opening Offer",
-                style = MaterialTheme.typography.h4,
-                fontWeight = FontWeight.Bold,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.width(400.dp)
-            )
+        when (offerTruthSource.openingOfferState.value) {
+            OpeningOfferState.NONE, OpeningOfferState.EXCEPTION -> {
+                Button(
+                    onClick = {
+                        offerTruthSource.openOffer(
+                            chainID = chainID,
+                            stablecoin = selectedStablecoin.value,
+                            stablecoinInformation = stablecoins.getStablecoinInformation(chainID, selectedStablecoin.value),
+                            minimumAmount = minimumAmount.value,
+                            maximumAmount =  maximumAmount.value,
+                            securityDepositAmount = securityDepositAmount.value,
+                            direction = direction.value,
+                            settlementMethods = selectedSettlementMethods,
+                        )
+                    },
+                    content = {
+                        Text(
+                            text = "Open Offer",
+                            style = MaterialTheme.typography.h4,
+                            fontWeight = FontWeight.Bold,
+                            textAlign = TextAlign.Center
+                        )
+                    },
+                    border = BorderStroke(3.dp, Color.Black),
+                    colors = ButtonDefaults.buttonColors(
+                        backgroundColor =  Color.Transparent,
+                        contentColor = Color.Black,
+                    ),
+                    elevation = null,
+                    modifier = Modifier.width(400.dp)
+                )
+            }
+            OpeningOfferState.COMPLETED -> {
+                Text(
+                    text = "Offer Opened",
+                    style = MaterialTheme.typography.h4,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.width(400.dp)
+                )
+            }
+            else -> {
+                Text(
+                    text = "Opening Offer",
+                    style = MaterialTheme.typography.h4,
+                    fontWeight = FontWeight.Bold,
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.width(400.dp)
+                )
+            }
         }
 
     }
@@ -564,15 +567,15 @@ fun SettlementMethodCardComposable(
         }
         Switch(
             checked = isSelected.value,
-            onCheckedChange = {
-                if (!it) {
+            onCheckedChange = { newCheckedValue ->
+                if (!newCheckedValue) {
                     selectedSettlementMethods.removeIf {
                         it.method == settlementMethod.method && it.currency == settlementMethod.currency
                     }
                 } else {
                     selectedSettlementMethods.add(settlementMethod)
                 }
-                isSelected.value = it
+                isSelected.value = newCheckedValue
             },
         )
     }
