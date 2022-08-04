@@ -220,6 +220,13 @@ fun CreateOfferComposable(
                         .divide(BigDecimal.valueOf(100L)).setScale(2)} %",
                     style = MaterialTheme.typography.h4
                 )
+                ServiceFeeAmountComposable(
+                    stablecoinInformation = stablecoins
+                        .getStablecoinInformation(chainID, selectedStablecoin.value ?: ""),
+                    minimumAmount = minimumAmount.value,
+                    maximumAmount = maximumAmount.value,
+                    serviceFeeRate = offerTruthSource.serviceFeeRate.value ?: BigInteger.valueOf(1)
+                )
             } else {
                 Row(
                     horizontalArrangement = Arrangement.SpaceBetween,
