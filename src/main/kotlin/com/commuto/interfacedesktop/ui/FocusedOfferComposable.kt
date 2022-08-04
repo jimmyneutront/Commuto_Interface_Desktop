@@ -7,5 +7,5 @@ import androidx.compose.runtime.Composable
  * the [OffersListComposable]
  */
 enum class FocusedOfferComposable {
-    OfferComposable, CreateOfferComposable
+    OfferComposable, OpenOfferComposable
 }

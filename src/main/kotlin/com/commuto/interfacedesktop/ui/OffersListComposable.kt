@@ -53,11 +53,11 @@ fun OffersListComposable(
             )
             Button(
                 onClick = {
-                    focusedOfferComposable.value = FocusedOfferComposable.CreateOfferComposable
+                    focusedOfferComposable.value = FocusedOfferComposable.OpenOfferComposable
                 },
                 content = {
                     Text(
-                        text = "Create",
+                        text = "Open",
                         fontWeight = FontWeight.Bold,
                     )
                 },

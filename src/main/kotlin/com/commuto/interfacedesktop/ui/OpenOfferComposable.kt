@@ -26,15 +26,15 @@ import java.math.BigInteger
 import java.math.RoundingMode
 
 /**
- * The screen for creating a new [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer).
+ * The screen for opening a new [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer).
  *
  * @param offerTruthSource The OffersViewModel that acts as a single source of truth for all offer-related data.
- * @param chainID The ID of the blockchain on which the new offer will be created.
+ * @param chainID The ID of the blockchain on which the new offer will be opened.
  * @param stablecoins A [StablecoinInformationRepository] for all supported stablecoins on the blockchain specified by
  * [chainID].
  */
 @Composable
-fun CreateOfferComposable(
+fun OpenOfferComposable(
     offerTruthSource: UIOfferTruthSource,
     chainID: BigInteger,
     stablecoins: StablecoinInformationRepository = StablecoinInformationRepository.hardhatStablecoinInfoRepo
@@ -457,9 +457,9 @@ fun StablecoinAmountComposable(
 }
 
 /**
- * Displays a vertical list of settlement method cards, one for each settlement method that the offer has created. These
+ * Displays a vertical list of settlement method cards, one for each settlement method that the user has created. These
  * cards can be tapped to indicate that the user is willing to use them to send/receive payment for the offer being
- * created.
+ * opened.
  *
  * @param settlementMethods A [List] of [SettlementMethod]s to be displayed.
  * @param stablecoinCurrencyCode The currency code of the currently selected stablecoin.
@@ -534,7 +534,7 @@ fun SettlementMethodCardComposable(
                 },
                 content = {
                     Text(
-                        text = buildCreateOfferPriceDescription(settlementMethod, stablecoinCurrencyCode)
+                        text = buildOpenOfferPriceDescription(settlementMethod, stablecoinCurrencyCode)
                     )
                 },
                 contentPadding = PaddingValues(vertical = 0.dp, horizontal = 0.dp),
@@ -595,7 +595,7 @@ fun SettlementMethodCardComposable(
  * @param settlementMethod The [SettlementMethod] for which this price description is being built.
  * @param stablecoinCurrencyCode The currency code of the stablecoin that the user has selected.
  */
-fun buildCreateOfferPriceDescription(
+fun buildOpenOfferPriceDescription(
     settlementMethod: SettlementMethod,
     stablecoinCurrencyCode: String,
 ): String {
@@ -607,12 +607,12 @@ fun buildCreateOfferPriceDescription(
 }
 
 /**
- * Displays a preview of [CreateOfferComposable]
+ * Displays a preview of [OpenOfferComposable]
  */
 @Preview
 @Composable
-fun PreviewCreateOfferComposable() {
-    CreateOfferComposable(
+fun PreviewOpenOfferComposable() {
+    OpenOfferComposable(
         offerTruthSource = PreviewableOfferTruthSource(),
         chainID = BigInteger.ONE
     )
