@@ -254,6 +254,28 @@ class OfferService (
     }
 
     /**
+     * Attempts to cancel an [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer) made by the
+     * user of this interface.
+     *
+     * On the IO coroutine dispatcher, this calls [BlockchainService.cancelOfferAsync], passing [offerID].
+     *
+     * @param offerID The ID of the Offer to be canceled.
+     */
+    suspend fun cancelOffer(
+        offerID: UUID
+    ) {
+        withContext(Dispatchers.IO) {
+            logger.info("cancelOffer: canceling $offerID")
+            try {
+                blockchainService.cancelOfferAsync(id = offerID).await()
+            } catch (exception: Exception) {
+                logger.error("openOffer: encountered exception", exception)
+                throw exception
+            }
+        }
+    }
+
+    /**
      * The method called by [BlockchainService] to notify [OfferService] of an [OfferOpenedEvent].
      *
      * Once notified, [OfferService] saves [event] in offerOpenedEventRepository], gets all on-chain offer data by

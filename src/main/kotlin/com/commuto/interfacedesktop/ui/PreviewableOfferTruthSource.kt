@@ -61,4 +61,10 @@ class PreviewableOfferTruthSource: UIOfferTruthSource {
         direction: OfferDirection?,
         settlementMethods: List<SettlementMethod>
     ) {}
+
+    /**
+     * Does nothing since this class is only used for previewing user interfaces, but is required for implementing
+     * [UIOfferTruthSource]
+     */
+    override fun cancelOffer(offer: Offer) {}
 }

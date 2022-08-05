@@ -5,17 +5,11 @@ import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.desktop.ui.tooling.preview.Preview
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CutCornerShape
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.Icon
-import androidx.compose.material.IconButton
-import androidx.compose.material.MaterialTheme
-import androidx.compose.material.Text
+import androidx.compose.material.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.runtime.*
@@ -25,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.commuto.interfacedesktop.offer.*
 import java.math.BigInteger
@@ -159,6 +154,28 @@ fun OfferComposable(
                         }
                     }
                 )
+                if (offer.isUserMaker) {
+                    Button(
+                        onClick = {
+                            offerTruthSource.cancelOffer(offer)
+                        },
+                        content = {
+                            Text(
+                                text = "Cancel Offer",
+                                style = MaterialTheme.typography.h4,
+                                fontWeight = FontWeight.Bold,
+                                textAlign = TextAlign.Center
+                            )
+                        },
+                        border = BorderStroke(3.dp, Color.Red),
+                        colors = ButtonDefaults.buttonColors(
+                            backgroundColor =  Color.Transparent,
+                            contentColor = Color.Red,
+                        ),
+                        elevation = null,
+                        modifier = Modifier.width(400.dp)
+                    )
+                }
             }
         }
     }

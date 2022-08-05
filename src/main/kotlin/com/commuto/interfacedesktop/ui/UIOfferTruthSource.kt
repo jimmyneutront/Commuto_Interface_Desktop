@@ -1,6 +1,7 @@
 package com.commuto.interfacedesktop.ui
 
 import androidx.compose.runtime.MutableState
+import com.commuto.interfacedesktop.offer.Offer
 import com.commuto.interfacedesktop.offer.OfferDirection
 import com.commuto.interfacedesktop.offer.OfferTruthSource
 import com.commuto.interfacedesktop.offer.SettlementMethod
@@ -49,4 +50,15 @@ interface UIOfferTruthSource: OfferTruthSource {
         direction: OfferDirection?,
         settlementMethods: List<SettlementMethod>
     )
+
+    /**
+     * Attempts to cancel an [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer) made by the
+     * user of this interface.
+     *
+     * @param offer The [Offer] to be canceled.
+     */
+    fun cancelOffer(
+        offer: Offer
+    )
+
 }

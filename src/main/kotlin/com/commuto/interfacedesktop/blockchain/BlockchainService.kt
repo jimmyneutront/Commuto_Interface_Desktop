@@ -281,7 +281,12 @@ class BlockchainService (private val exceptionHandler: BlockchainExceptionNotifi
     }
 
     /**
-     * A [Deferred] wrapper around [CommutoSwap.openOffer] method.
+     * A [Deferred] wrapper around the [CommutoSwap.openOffer] method.
+     *
+     * @param id The ID of the new [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer) to be
+     * opened.
+     * @param offerStruct The OfferStruct containing the data of the new
+     * [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer) to be opened.
      *
      * @return A [Deferred] with a [TransactionReceipt] result.
      */
@@ -291,6 +296,22 @@ class BlockchainService (private val exceptionHandler: BlockchainExceptionNotifi
         iDByteBuffer.putLong(id.leastSignificantBits)
         val iDByteArray = iDByteBuffer.array()
         return commutoSwap.openOffer(iDByteArray, offerStruct.toCommutoSwapOffer()).sendAsync().asDeferred()
+    }
+
+    /**
+     * A [Deferred] wrapper around the [CommutoSwap.cancelOffer] method.
+     *
+     * @param id The ID of the [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer) to be
+     * canceled.
+     *
+     * @return A [Deferred] with a [TransactionReceipt] result.
+     */
+    fun cancelOfferAsync(id: UUID): Deferred<TransactionReceipt> {
+        val iDByteBuffer = ByteBuffer.wrap(ByteArray(16))
+        iDByteBuffer.putLong(id.mostSignificantBits)
+        iDByteBuffer.putLong(id.leastSignificantBits)
+        val iDByteArray = iDByteBuffer.array()
+        return commutoSwap.cancelOffer(iDByteArray).sendAsync().asDeferred()
     }
 
     /**
