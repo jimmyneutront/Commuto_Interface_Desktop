@@ -35,9 +35,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import net.folivo.trixnity.clientserverapi.client.MatrixClientServerApiClient
-import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNotNull
+import org.junit.Assert.*
 import org.junit.Before
 import org.junit.Test
 import org.web3j.protocol.Web3j
@@ -1136,6 +1134,139 @@ class OfferServiceTests {
                     // TODO: re-enable this once we get accurate chain IDs
                 }
             }
+        }
+
+    }
+
+    /**
+     * Ensures that [OfferService.cancelOffer] functions properly.
+     */
+    @Test
+    fun testCancelOffer() {
+
+        val offerID = UUID.randomUUID()
+
+        @Serializable
+        data class TestingServerResponse(val commutoSwapAddress: String)
+
+        val testingServiceUrl = "http://localhost:8546/test_offerservice_cancelOffer"
+        val testingServerClient = HttpClient(OkHttp) {
+            install(ContentNegotiation) {
+                json()
+            }
+            install(HttpTimeout) {
+                socketTimeoutMillis = 90_000
+                requestTimeoutMillis = 90_000
+            }
+        }
+        val testingServerResponse: TestingServerResponse = runBlocking {
+            testingServerClient.get(testingServiceUrl){
+                url {
+                    parameters.append("events", "offer-opened")
+                    parameters.append("offerID", offerID.toString())
+                }
+            }.body()
+        }
+
+        val w3 = Web3j.build(HttpService(System.getenv("BLOCKCHAIN_NODE")))
+
+        val databaseService = DatabaseService(DatabaseDriverFactory())
+        databaseService.createTables()
+        val keyManagerService = KeyManagerService(databaseService)
+
+        val offerService = OfferService(
+            databaseService,
+            keyManagerService,
+        )
+
+        class TestOfferTruthSource: OfferTruthSource {
+            init {
+                offerService.setOfferTruthSource(this)
+            }
+            override var offers = mutableStateMapOf<UUID, Offer>()
+            override var serviceFeeRate = mutableStateOf<BigInteger?>(null)
+            override fun addOffer(offer: Offer) {
+                offers[offer.id] = offer
+            }
+            override fun removeOffer(id: UUID) {
+                offers.remove(id)
+            }
+        }
+        val offerTruthSource = TestOfferTruthSource()
+
+        class TestBlockchainExceptionHandler: BlockchainExceptionNotifiable {
+            var gotError = false
+            override fun handleBlockchainException(exception: Exception) {
+                gotError = true
+            }
+        }
+        val exceptionHandler = TestBlockchainExceptionHandler()
+
+        val blockchainService = BlockchainService(
+            exceptionHandler = exceptionHandler,
+            offerService = offerService,
+            web3 = w3,
+            commutoSwapAddress = testingServerResponse.commutoSwapAddress
+        )
+
+        val offer = Offer(
+            isCreated = true,
+            isTaken = false,
+            id = offerID,
+            maker = "0x0000000000000000000000000000000000000000",
+            interfaceId = ByteArray(0),
+            stablecoin = "0x0000000000000000000000000000000000000000",
+            amountLowerBound = BigInteger.valueOf(10000L),
+            amountUpperBound = BigInteger.valueOf(10000L),
+            securityDepositAmount = BigInteger.valueOf(1000L),
+            serviceFeeRate = BigInteger.valueOf(100L),
+            direction = OfferDirection.BUY,
+            settlementMethods = mutableStateListOf(),
+            protocolVersion = BigInteger.ONE,
+            chainID = BigInteger.valueOf(31337L),
+            havePublicKey = true,
+            isUserMaker = true,
+            state = OfferState.OFFER_OPENED
+        )
+        offerTruthSource.addOffer(offer)
+        val offerIDByteBuffer = ByteBuffer.wrap(ByteArray(16))
+        offerIDByteBuffer.putLong(offerID.mostSignificantBits)
+        offerIDByteBuffer.putLong(offerID.leastSignificantBits)
+        val offerIDByteArray = offerIDByteBuffer.array()
+        val encoder = Base64.getEncoder()
+        val offerIDString = encoder.encodeToString(offerIDByteArray)
+        val offerForDatabase = DatabaseOffer(
+            offerId = offerIDString,
+            isCreated = 1L,
+            isTaken = 0L,
+            maker = offer.maker,
+            interfaceId = encoder.encodeToString(offer.interfaceId),
+            stablecoin = offer.stablecoin,
+            amountLowerBound = offer.amountLowerBound.toString(),
+            amountUpperBound = offer.amountUpperBound.toString(),
+            securityDepositAmount = offer.securityDepositAmount.toString(),
+            serviceFeeRate = offer.serviceFeeRate.toString(),
+            onChainDirection = offer.direction.string,
+            protocolVersion = offer.protocolVersion.toString(),
+            chainID = offer.chainID.toString(),
+            havePublicKey = 1L,
+            isUserMaker = 1L,
+            state = offer.state.asString,
+        )
+
+        runBlocking {
+            databaseService.storeOffer(offerForDatabase)
+            offerService.cancelOffer(
+                offerID = offer.id,
+                chainID = offer.chainID
+            )
+            assertEquals(OfferState.CANCEL_OFFER_TRANSACTION_BROADCAST, offerTruthSource.offers[offerID]?.state)
+
+            val offerInDatabase = databaseService.getOffer(offerIDString)
+            assertEquals("cancelOfferTxBroadcast", offerInDatabase!!.state)
+
+            val offerStruct = blockchainService.getOffer(offerID)
+            assertNull(offerStruct)
         }
 
     }
