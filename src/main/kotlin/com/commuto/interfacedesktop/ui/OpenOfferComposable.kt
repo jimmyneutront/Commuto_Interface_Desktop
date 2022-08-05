@@ -278,7 +278,7 @@ fun OpenOfferComposable(
         }
         if (offerTruthSource.openingOfferState.value == OpeningOfferState.EXCEPTION) {
             Text(
-                text = offerTruthSource.openingOfferException?.message ?: "An unknown exception occured",
+                text = offerTruthSource.openingOfferException?.message ?: "An unknown exception occurred",
                 style =  MaterialTheme.typography.h6,
                 color = Color.Red
             )

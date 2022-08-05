@@ -155,13 +155,35 @@ fun OfferComposable(
                     }
                 )
                 if (offer.isUserMaker) {
+                    if (offer.cancelingOfferState.value == CancelingOfferState.EXCEPTION) {
+                        Text(
+                            text = offer.cancelingOfferException?.message ?: "An unknown exception occurred",
+                            style =  MaterialTheme.typography.h6,
+                            color = Color.Red
+                        )
+                    }
                     Button(
                         onClick = {
-                            offerTruthSource.cancelOffer(offer)
+                            // Don't let the user try to cancel the offer if it is already canceled or being canceled
+                            if (offer.cancelingOfferState.value == CancelingOfferState.NONE  ||
+                                offer.cancelingOfferState.value == CancelingOfferState.EXCEPTION) {
+                                offerTruthSource.cancelOffer(offer)
+                            }
                         },
                         content = {
+                            val cancelOfferButtonText: String = when (offer.cancelingOfferState.value) {
+                                CancelingOfferState.NONE, CancelingOfferState.EXCEPTION -> {
+                                    "Cancel Offer"
+                                }
+                                CancelingOfferState.CANCELING -> {
+                                    "Canceling Offer"
+                                }
+                                else -> {
+                                    "Offer Canceled"
+                                }
+                            }
                             Text(
-                                text = "Cancel Offer",
+                                text = cancelOfferButtonText,
                                 style = MaterialTheme.typography.h4,
                                 fontWeight = FontWeight.Bold,
                                 textAlign = TextAlign.Center

@@ -1,6 +1,8 @@
 package com.commuto.interfacedesktop.offer
 
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import com.commuto.interfacedesktop.blockchain.structs.OfferStruct
 import kotlinx.serialization.decodeFromString
@@ -50,6 +52,12 @@ import java.util.UUID
  * [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer)'s direction property.
  * @property onChainSettlementMethods Corresponds to an on-chain
  * [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer)'s settlementMethods property.
+ * @property cancelingOfferState If this offer was made by the user of the interface, this indicates whether the offer
+ * is being canceled, and if so, what part of the offer cancellation process it is in. If this offer was not made by the
+ * user of this interface, this property is not used.
+ * @property cancelingOfferException (This property is used only if the maker of this offer is the user of this
+ * interface.) The [Exception] that occurred during the offer cancellation process, or `null` if no such [Exception] has
+ * occurred.
  */
 data class Offer(
     val isCreated: Boolean,
@@ -137,6 +145,9 @@ data class Offer(
             BigInteger.valueOf(10_000L))
     val onChainDirection: BigInteger
     var onChainSettlementMethods: List<ByteArray>
+
+    val cancelingOfferState: MutableState<CancelingOfferState> = mutableStateOf(CancelingOfferState.NONE)
+    var cancelingOfferException: Exception? = null
 
     init {
         when (this.direction) {
