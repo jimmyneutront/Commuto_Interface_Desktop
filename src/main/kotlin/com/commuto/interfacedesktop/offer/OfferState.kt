@@ -3,8 +3,10 @@ package com.commuto.interfacedesktop.offer
 /**
  * Describes the state of an [Offer] according to the
  * [Commuto Interface Specification](https://github.com/jimmyneutront/commuto-whitepaper/blob/main/commuto-interface-specification.txt).
- * The order in which the cases of this `enum` are defined is the order in which an offer should move through the states
- * that they represent.
+ * The order in which the non-cancellation-related cases of this `enum` are defined is the order in which an offer
+ * should move through the states that they represent. The order in which the cancellation-related cases are defined is
+ * the order in which an offer being canceled should move through the states that they represent.
+ *
  * @property OPENING Indicates that [openOffer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#open-offer)
  * has not yet been called for the corresponding offer.
  * @property OPEN_OFFER_TRANSACTION_BROADCAST Indicates that the transaction to open the corresponding offer has been
@@ -15,6 +17,12 @@ package com.commuto.interfacedesktop.offer
  * announced; otherwise this means that we are waiting for the maker to announce their public key.
  * @property OFFER_OPENED Indicates that the corresponding offer has been opened on chain and the maker's public key has
  * been announced.
+ * @property CANCELING Indicates that the corresponding offer will be canceled, but
+ * [cancelOffer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offercanceled) has not yet been called
+ * for it.
+ * @property CANCEL_OFFER_TRANSACTION_BROADCAST Indicates that the transaction to cancel the corresponding offer has
+ * been broadcast.
+ * @property CANCELED Indicates that the corresponding offer has been canceled on chain.
  * @property indexNumber An [Int] corresponding to this state's position in a list of possible offer states organized
  * according to the order in which an offer should move through them, with the earliest state at the beginning
  * (corresponding to the integer 0) and the latest state at the end (corresponding to the integer 3).
@@ -24,7 +32,12 @@ enum class OfferState {
     OPENING,
     OPEN_OFFER_TRANSACTION_BROADCAST,
     AWAITING_PUBLIC_KEY_ANNOUNCEMENT,
-    OFFER_OPENED;
+    OFFER_OPENED,
+
+    CANCELING,
+    CANCEL_OFFER_TRANSACTION_BROADCAST,
+    CANCELED;
+
 
     val indexNumber: Int
         get() = when (this) {
@@ -32,6 +45,9 @@ enum class OfferState {
             OPEN_OFFER_TRANSACTION_BROADCAST -> 1
             AWAITING_PUBLIC_KEY_ANNOUNCEMENT -> 2
             OFFER_OPENED -> 3
+            CANCELING -> -1
+            CANCEL_OFFER_TRANSACTION_BROADCAST -> -1
+            CANCELED -> -1
         }
 
     val asString: String
@@ -40,6 +56,9 @@ enum class OfferState {
             OPEN_OFFER_TRANSACTION_BROADCAST -> "openOfferTxPublished"
             AWAITING_PUBLIC_KEY_ANNOUNCEMENT -> "awaitingPKAnnouncement"
             OFFER_OPENED -> "offerOpened"
+            CANCELING -> "canceling"
+            CANCEL_OFFER_TRANSACTION_BROADCAST -> "cancelOfferTxBroadcast"
+            CANCELED -> "canceled"
         }
 
     companion object {
@@ -67,6 +86,15 @@ enum class OfferState {
                 }
                 "offerOpened" -> {
                     return OFFER_OPENED
+                }
+                "canceling" -> {
+                    return CANCELING
+                }
+                "cancelOfferTxBroadcast" -> {
+                    return CANCEL_OFFER_TRANSACTION_BROADCAST
+                }
+                "canceled" -> {
+                    return CANCELED
                 }
                 else -> {
                     return null

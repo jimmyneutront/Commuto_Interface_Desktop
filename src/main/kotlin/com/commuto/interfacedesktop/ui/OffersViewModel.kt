@@ -183,7 +183,8 @@ class OffersViewModel @Inject constructor(private val offerService: OfferService
             logger.info("cancelOffer: canceling offer ${offer.id}")
             try {
                 offerService.cancelOffer(
-                    offerID = offer.id
+                    offerID = offer.id,
+                    chainID = offer.chainID
                 )
                 logger.info("cancelOffer: successfully canceled offer ${offer.id}")
             } catch (exception: Exception) {

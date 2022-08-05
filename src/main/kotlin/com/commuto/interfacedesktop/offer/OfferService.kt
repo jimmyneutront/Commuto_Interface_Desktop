@@ -257,17 +257,57 @@ class OfferService (
      * Attempts to cancel an [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer) made by the
      * user of this interface.
      *
-     * On the IO coroutine dispatcher, this calls [BlockchainService.cancelOfferAsync], passing [offerID].
+     * On the IO coroutine dispatcher, persistently updates the state of the offer being canceled to
+     * [OfferState.CANCELING], and then does the same to the corresponding [Offer] in [offerTruthSource] on the main
+     * coroutine dispatcher. Then, back on the IO dispatcher, this cancels the offer on chain by calling the CommutoSwap
+     * contract's [cancelOffer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#cancel-offer) function,
+     * passing the offer ID, and then persistently updates the state of the offer to
+     * [OfferState.CANCEL_OFFER_TRANSACTION_BROADCAST]. Finally, on the main coroutine dispatcher, this sets the state
+     * of the [Offer] in [offerTruthSource] to [OfferState.CANCEL_OFFER_TRANSACTION_BROADCAST]`.
+     *
+     * this calls [BlockchainService.cancelOfferAsync], passing [offerID].
      *
      * @param offerID The ID of the Offer to be canceled.
+     * @param chainID The ID of the blockchain on which the Offer exists.
      */
     suspend fun cancelOffer(
-        offerID: UUID
+        offerID: UUID,
+        chainID: BigInteger
     ) {
         withContext(Dispatchers.IO) {
             logger.info("cancelOffer: canceling $offerID")
             try {
+                logger.info("cancelOffer: persistently updating offer $offerID state to " +
+                        OfferState.CANCELING.asString)
+                val encoder = Base64.getEncoder()
+                val offerIDByteBuffer = ByteBuffer.wrap(ByteArray(16))
+                offerIDByteBuffer.putLong(offerID.mostSignificantBits)
+                offerIDByteBuffer.putLong(offerID.leastSignificantBits)
+                val offerIDByteArray = offerIDByteBuffer.array()
+                val offerIDString = encoder.encodeToString(offerIDByteArray)
+                databaseService.updateOfferState(
+                    offerID = offerIDString,
+                    chainID = chainID.toString(),
+                    state = OfferState.CANCELING.asString
+                )
+                logger.info("cancelOffer: updating offer $offerID state to ${OfferState.CANCELING.asString}")
+                withContext(Dispatchers.Main) {
+                    offerTruthSource.offers[offerID]?.state = OfferState.CANCELING
+                }
+                logger.info("cancelOffer: canceling offer $offerID on chain")
                 blockchainService.cancelOfferAsync(id = offerID).await()
+                logger.info("cancelOffer: persistently updating offer $offerID state to " +
+                        OfferState.CANCEL_OFFER_TRANSACTION_BROADCAST.asString)
+                databaseService.updateOfferState(
+                    offerID = offerIDString,
+                    chainID = chainID.toString(),
+                    state = OfferState.CANCEL_OFFER_TRANSACTION_BROADCAST.asString
+                )
+                logger.info("cancelOffer: updating offer $offerID state to " +
+                        OfferState.CANCEL_OFFER_TRANSACTION_BROADCAST.asString)
+                withContext(Dispatchers.Main) {
+                    offerTruthSource.offers[offerID]?.state = OfferState.CANCEL_OFFER_TRANSACTION_BROADCAST
+                }
             } catch (exception: Exception) {
                 logger.error("openOffer: encountered exception", exception)
                 throw exception
