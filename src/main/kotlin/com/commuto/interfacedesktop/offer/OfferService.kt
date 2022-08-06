@@ -265,8 +265,6 @@ class OfferService (
      * [OfferState.CANCEL_OFFER_TRANSACTION_BROADCAST]. Finally, on the main coroutine dispatcher, this sets the state
      * of the [Offer] in [offerTruthSource] to [OfferState.CANCEL_OFFER_TRANSACTION_BROADCAST]`.
      *
-     * this calls [BlockchainService.cancelOfferAsync], passing [offerID].
-     *
      * @param offerID The ID of the Offer to be canceled.
      * @param chainID The ID of the blockchain on which the Offer exists.
      */
@@ -584,6 +582,7 @@ class OfferService (
         offerCanceledEventRepository.remove(event)
         withContext(Dispatchers.Main) {
             if (offerTruthSource.offers[event.offerID]?.chainID == event.chainID) {
+                offerTruthSource.offers[event.offerID]?.state = OfferState.CANCELED
                 offerTruthSource.removeOffer(event.offerID)
             }
         }
