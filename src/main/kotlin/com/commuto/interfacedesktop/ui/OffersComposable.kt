@@ -51,10 +51,11 @@ fun OffersComposable(offerTruthSource: UIOfferTruthSource) {
                     }
                 }
             }
+            // TODO: Get actual chain ID here
             FocusedOfferComposable.OpenOfferComposable -> {
                 OpenOfferComposable(
                     offerTruthSource = offerTruthSource,
-                    chainID = BigInteger.ONE
+                    chainID = BigInteger.valueOf(31337L)
                 )
             }
         }

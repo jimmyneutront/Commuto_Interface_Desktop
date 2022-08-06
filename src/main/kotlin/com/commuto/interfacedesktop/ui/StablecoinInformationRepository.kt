@@ -68,7 +68,7 @@ class StablecoinInformationRepository(
          */
         val hardhatStablecoinInfoRepo = StablecoinInformationRepository(
             mapOf(
-                BigInteger.ONE to mapOf(
+                BigInteger.valueOf(31337L) to mapOf(
                     "0x663F3ad617193148711d28f5334eE4Ed07016602" to StablecoinInformation(
                         "DAI",
                         "Dai",
