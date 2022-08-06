@@ -6,6 +6,7 @@ import com.commuto.interfacedesktop.database.DatabaseService
 import com.commuto.interfacedesktop.key.KeyManagerService
 import com.commuto.interfacedesktop.offer.OfferNotifiable
 import com.commuto.interfacedesktop.offer.OfferService
+import com.commuto.interfacedesktop.offer.OfferServiceTests
 import com.commuto.interfacedesktop.ui.OffersViewModel
 import io.ktor.client.*
 import io.ktor.client.call.*
@@ -115,6 +116,18 @@ class BlockchainServiceTest {
             assertEquals(blockchainService.getServiceFeeRateAsync().await(), BigInteger.valueOf(100L))
         }
     }
+
+    /**
+     * [BlockchainService.approveTokenTransferAsync] is  tested by [OfferServiceTests.testOpenOffer].
+     */
+
+    /**
+     * [BlockchainService.openOfferAsync] is tested by [OfferServiceTests.testOpenOffer].
+     */
+
+    /**
+     * [BlockchainService.cancelOfferAsync] is tested by [OfferServiceTests.testCancelOffer].
+     */
 
     /**
      * Tests [BlockchainService] by ensuring it detects and handles
