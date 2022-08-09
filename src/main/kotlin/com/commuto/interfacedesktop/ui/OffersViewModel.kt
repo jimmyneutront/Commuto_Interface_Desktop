@@ -1,10 +1,12 @@
 package com.commuto.interfacedesktop.ui
 
 import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import com.commuto.interfacedesktop.offer.*
 import com.commuto.interfacedesktop.offer.validation.NewOfferDataValidationException
+import com.commuto.interfacedesktop.offer.validation.validateEditedSettlementMethods
 import com.commuto.interfacedesktop.offer.validation.validateNewOfferData
 import kotlinx.coroutines.*
 import org.slf4j.LoggerFactory
@@ -212,6 +214,41 @@ class OffersViewModel @Inject constructor(private val offerService: OfferService
                     offerID = offer.id,
                     state = CancelingOfferState.EXCEPTION
                 )
+            }
+        }
+    }
+
+    /**
+     * Attempts to edit an [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer) made by the user
+     * of this interface.
+     *
+     * This validates [newSettlementMethods], passes the offer ID and validated settlement methods to
+     * [OfferService.editOffer], and then clears [offer]'s [Offer.selectedSettlementMethods].
+     *
+     * @param offer The [Offer] to be edited.
+     * @param newSettlementMethods A [List] of [SettlementMethod]s with which the [Offer] will be edited.
+     */
+    override fun editOffer(
+        offer: Offer,
+        newSettlementMethods: List<SettlementMethod>
+    ) {
+        viewModelScope.launch {
+            logger.info("editOffer: editing ${offer.id}")
+            try {
+                val validatedSettlementmethods = validateEditedSettlementMethods(newSettlementMethods)
+                logger.info("editOffer: editing ${offer.id} with validated settlement methods")
+                offerService.editOffer(
+                    offerID = offer.id,
+                    newSettlementMethods = newSettlementMethods
+                )
+                logger.info("editOffer: successfully edited ${offer.id}")
+                offer.settlementMethods = mutableStateListOf<SettlementMethod>().apply {
+                    this.addAll(validatedSettlementmethods)
+                }
+                // We have successfully edited the offer, so we empty the selected settlement method list.
+                offer.selectedSettlementMethods.clear()
+            } catch (exception: Exception) {
+                logger.info("editOffer: got exception during editOffer call", exception)
             }
         }
     }

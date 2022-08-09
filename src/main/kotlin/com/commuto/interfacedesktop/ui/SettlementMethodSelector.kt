@@ -64,13 +64,56 @@ fun SettlementMethodCardComposable(
 
     val isSelected = remember { mutableStateOf(false) }
 
-    val color = if (isSelected.value) Color.Green else Color.Black
-
     val isEditingPrice = remember { mutableStateOf(false) }
 
     val priceString = remember { mutableStateOf(settlementMethod.price) }
 
     val price = remember { mutableStateOf(BigDecimal.ZERO) }
+
+    /**
+     * The actual [SettlementMethod] object that this composable represents. If there is no [SettlementMethod] in
+     * [selectedSettlementMethods] with method and currency values equal to [settlementMethod], then this simply points
+     * to [settlementMethod]. However, if such a [SettlementMethod] is found in [selectedSettlementMethods], then this
+     * is updated to point to that [SettlementMethod] object.
+     */
+    var actualSettlementMethod = settlementMethod
+
+    selectedSettlementMethods.firstOrNull {
+        it.method == settlementMethod.method && it.currency == settlementMethod.currency
+    }?.let {
+        /*
+        If there is a settlement method in selectedSettlementMethods with its method and currency values matching those
+        of the passed settlementMethod, then the settlement method that this card represents has been selected, and
+        therefore isSelected should be true, the price and priceString values of this composable should be set using
+        the price value of the SettlementMethod in selectedSettlementMethods, and then we set actualSettlementMethod
+        equal to the SettlementMethod object in selectedSettlementMethods, so that price changes made by this Composable
+        are made to the SettlementMethod in selectedSettlementMethods rather than the to the settlementMethod parameter,
+        which would cause price changes to be discarded once this Composable disappears.
+         */
+        actualSettlementMethod = it
+        if (actualSettlementMethod.price != "") {
+            try {
+                val newPrice = BigDecimal(actualSettlementMethod.price)
+                // Don't allow negative values, and limit to 6 decimal places
+                if (newPrice >= BigDecimal.ZERO && newPrice.scale() <= 6) {
+                    price.value = newPrice
+                    priceString.value = actualSettlementMethod.price
+                } else {
+                    // If we do somehow have a negative value or more than 6 decimal places, we set the price to zero.
+                    actualSettlementMethod.price = BigDecimal.ZERO.toString()
+                }
+            } catch (exception: NumberFormatException) {
+                /*
+                If the settlement method's price has somehow become corrupted in a way that prevents us from creating a
+                BigDecimal price value, then we set the price to zero.
+                 */
+                actualSettlementMethod.price = BigDecimal.ZERO.toString()
+            }
+        }
+        isSelected.value = true
+    }
+
+    val color = if (isSelected.value) Color.Green else Color.Black
 
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -84,7 +127,7 @@ fun SettlementMethodCardComposable(
             modifier = Modifier.padding(PaddingValues(horizontal = 10.dp))
         ) {
             Text(
-                text = buildCurrencyDescription(settlementMethod),
+                text = buildCurrencyDescription(actualSettlementMethod),
                 color = color,
                 modifier = Modifier.padding(PaddingValues(top = 10.dp))
             )
@@ -94,7 +137,7 @@ fun SettlementMethodCardComposable(
                 },
                 content = {
                     Text(
-                        text = buildOpenOfferPriceDescription(settlementMethod, stablecoinCurrencyCode)
+                        text = buildOpenOfferPriceDescription(actualSettlementMethod, stablecoinCurrencyCode)
                     )
                 },
                 contentPadding = PaddingValues(vertical = 0.dp, horizontal = 0.dp),
@@ -106,25 +149,25 @@ fun SettlementMethodCardComposable(
             )
             if (isEditingPrice.value) {
                 TextField(
-                    label = { Text("Price (${stablecoinCurrencyCode}/${settlementMethod.currency})") },
+                    label = { Text("Price (${stablecoinCurrencyCode}/${actualSettlementMethod.currency})") },
                     value = priceString.value,
                     onValueChange = {
                         if (it == "") {
                             price.value = BigDecimal.ZERO
-                            settlementMethod.price = ""
+                            actualSettlementMethod.price = ""
                         } else {
                             try {
                                 val newPrice = BigDecimal(it)
                                 // Don't allow negative values, and limit to 6 decimal places
                                 if (newPrice >= BigDecimal.ZERO && newPrice.scale() <= 6) {
                                     price.value = newPrice
-                                    settlementMethod.price = it
+                                    actualSettlementMethod.price = it
                                     priceString.value = it
                                 }
                             } catch (exception: NumberFormatException) {
                                 /*
-                                If the change prevents us from creating a BigDecimal minimum amount value, then we
-                                don't allow that change
+                                 If the change prevents us from creating a BigDecimal price value, then we don't allow
+                                 that change
                                  */
                             }
                         }
@@ -137,10 +180,18 @@ fun SettlementMethodCardComposable(
             onCheckedChange = { newCheckedValue ->
                 if (!newCheckedValue) {
                     selectedSettlementMethods.removeIf {
-                        it.method == settlementMethod.method && it.currency == settlementMethod.currency
+                        it.method == actualSettlementMethod.method && it.currency == actualSettlementMethod.currency
                     }
                 } else {
-                    selectedSettlementMethods.add(settlementMethod)
+                    if (selectedSettlementMethods.firstOrNull {
+                            it.method == actualSettlementMethod.method && it.currency == actualSettlementMethod.currency
+                        } == null) {
+                        /*
+                        We should only add the settlement method that this card represents if it is not currently in
+                        selectedSettlementMethods
+                         */
+                        selectedSettlementMethods.add(actualSettlementMethod)
+                    }
                 }
                 isSelected.value = newCheckedValue
             },

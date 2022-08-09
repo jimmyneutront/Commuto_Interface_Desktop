@@ -64,6 +64,8 @@ fun OffersComposable(offerTruthSource: UIOfferTruthSource) {
             }
             FocusedOfferComposable.EditOfferComposable -> {
                 EditOfferComposable(
+                    offer = focusedOffer.value,
+                    offerTruthSource = offerTruthSource,
                     stablecoinCurrencyCode = "STBL",
                     focusedOfferComposable = focusedOfferComposable
                 )

@@ -4,6 +4,7 @@ import androidx.compose.runtime.mutableStateListOf
 import com.commuto.interfacedesktop.blockchain.BlockchainEventRepository
 import com.commuto.interfacedesktop.blockchain.BlockchainService
 import com.commuto.interfacedesktop.blockchain.events.commutoswap.*
+import com.commuto.interfacedesktop.blockchain.structs.OfferStruct
 import com.commuto.interfacedesktop.database.DatabaseService
 import com.commuto.interfacedesktop.key.KeyManagerService
 import com.commuto.interfacedesktop.offer.validation.ValidatedNewOfferData
@@ -15,6 +16,8 @@ import com.commuto.interfacedesktop.ui.OffersViewModel
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import org.slf4j.LoggerFactory
 import java.math.BigInteger
 import java.nio.ByteBuffer
@@ -308,6 +311,63 @@ class OfferService (
                 }
             } catch (exception: Exception) {
                 logger.error("openOffer: encountered exception", exception)
+                throw exception
+            }
+        }
+    }
+
+    /**
+     * Attempts to edit an [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer) made by the user
+     * of this interface.
+     *
+     * On the IO coroutine dispatcher, this serializes the new settlement methods and calls the CommutoSwap contract's
+     * [editOffer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#edit-offer) function, passing the offer
+     * ID and an [OfferStruct] containing the new serialized settlement methods.
+     *
+     * @param offerID The ID of the offer to edit.
+     * @param newSettlementMethods The new settlement methods with which the offer will be edited.
+     */
+    suspend fun editOffer(offerID: UUID, newSettlementMethods: List<SettlementMethod>) {
+        withContext(Dispatchers.IO) {
+            logger.info("editOffer: editing $offerID")
+            try {
+                logger.info("editOffer: serializing settlement methods for $offerID")
+                val onChainSettlementMethods: List<ByteArray> = try {
+                    newSettlementMethods.map {
+                        Json.encodeToString(it).encodeToByteArray()
+                    }
+                } catch (exception: Exception) {
+                    logger.error("editOffer: encountered error serializing settlement methods for $offerID",
+                        exception)
+                    throw exception
+                }
+                logger.info("editOffer: editing $offerID on chain")
+                /*
+                Since editOffer only uses the settlement methods of the passed Offer struct, we put meaningless values in
+                all other properties of the passed struct.
+                 */
+                val offerStruct = OfferStruct(
+                    isCreated = false,
+                    isTaken = false,
+                    maker = "0x0000000000000000000000000000000000000000",
+                    interfaceID = ByteArray(0),
+                    stablecoin = "0x0000000000000000000000000000000000000000",
+                    amountLowerBound = BigInteger.ZERO,
+                    amountUpperBound = BigInteger.ZERO,
+                    securityDepositAmount = BigInteger.ZERO,
+                    serviceFeeRate = BigInteger.ZERO,
+                    direction = BigInteger.ZERO,
+                    settlementMethods = onChainSettlementMethods,
+                    protocolVersion = BigInteger.ZERO,
+                    chainID = BigInteger.ZERO
+                )
+                blockchainService.editOfferAsync(
+                    offerID = offerID,
+                    offerStruct = offerStruct
+                ).await()
+                logger.info("editOffer: successfully edited $offerID")
+            } catch (exception: Exception) {
+                logger.error("editOffer: encountered error while editing $offerID", exception)
                 throw exception
             }
         }

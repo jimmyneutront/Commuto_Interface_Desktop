@@ -61,4 +61,17 @@ interface UIOfferTruthSource: OfferTruthSource {
         offer: Offer
     )
 
+    /**
+     * Attempts to edit an [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer) made by the user
+     * of this interface.
+     *
+     * @param offer The [Offer] to be edited.
+     * @param newSettlementMethods The new [List] of settlement methods that the maker has selected, indicating that
+     * they are willing to use them to send/receive fiat currency for this offer.
+     */
+    fun editOffer(
+        offer: Offer,
+        newSettlementMethods: List<SettlementMethod>
+    )
+
 }

@@ -315,6 +315,41 @@ class BlockchainService (private val exceptionHandler: BlockchainExceptionNotifi
     }
 
     /**
+     * A [Deferred] wrapper around the [CommutoSwap.editOffer] method.
+     *
+     * @param offerID The ID of the [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer) to be
+     * edited.
+     * @param offerStruct The [OfferStruct] from which the [CommutoSwap.Offer] to be passed to
+     * [editOffer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#edit-offer) will be derived.
+     */
+    fun editOfferAsync(offerID: UUID, offerStruct: OfferStruct): Deferred<TransactionReceipt> {
+        val iDByteBuffer = ByteBuffer.wrap(ByteArray(16))
+        iDByteBuffer.putLong(offerID.mostSignificantBits)
+        iDByteBuffer.putLong(offerID.leastSignificantBits)
+        val iDByteArray = iDByteBuffer.array()
+
+        val offer = CommutoSwap.Offer(
+            offerStruct.isCreated,
+            offerStruct.isTaken,
+            offerStruct.maker,
+            offerStruct.interfaceID,
+            offerStruct.stablecoin,
+            offerStruct.amountLowerBound,
+            offerStruct.amountUpperBound,
+            offerStruct.securityDepositAmount,
+            offerStruct.serviceFeeRate,
+            offerStruct.direction,
+            offerStruct.settlementMethods,
+            offerStruct.protocolVersion,
+        )
+
+        return commutoSwap.editOffer(
+            iDByteArray,
+            offer
+        ).sendAsync().asDeferred()
+    }
+
+    /**
      * Parses the given [EthBlock.Block] in search of
      * [CommutoSwap](https://github.com/jimmyneutront/commuto-protocol/blob/main/CommutoSwap.sol)
      * events, creates a list of all such events that it finds, and then calls

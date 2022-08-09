@@ -89,8 +89,14 @@ fun OpenOfferComposable(
 
     /**
      * The list of [SettlementMethod]s from which the user can choose.
+     *
+     * We want a copy of the list of sample settlement methods, we don't want to actually change any of them at all.
      */
-    val settlementMethods = remember { SettlementMethod.sampleSettlementMethodsEmptyPrices }
+    val settlementMethods = remember {
+        SettlementMethod.sampleSettlementMethodsEmptyPrices.map {
+            it.copy()
+        }
+    }
 
     /**
      * The [SettlementMethod]s that the user has selected.

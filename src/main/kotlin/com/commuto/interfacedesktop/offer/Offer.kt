@@ -58,6 +58,10 @@ import java.util.UUID
  * @property cancelingOfferException (This property is used only if the maker of this offer is the user of this
  * interface.) The [Exception] that occurred during the offer cancellation process, or `null` if no such [Exception] has
  * occurred.
+ * @property selectedSettlementMethods (This property is used only if the maker of this offer is the user of this
+ * interface.) The new [SettlementMethod]s with which the user wants to replace the offer's current settlement methods
+ * by editing the offer. If the user is not currently editing this offer, (or if the user is not the maker of this
+ * offer) this list should be empty.
  */
 data class Offer(
     val isCreated: Boolean,
@@ -148,6 +152,8 @@ data class Offer(
 
     val cancelingOfferState: MutableState<CancelingOfferState> = mutableStateOf(CancelingOfferState.NONE)
     var cancelingOfferException: Exception? = null
+
+    val selectedSettlementMethods = mutableStateListOf<SettlementMethod>()
 
     init {
         when (this.direction) {

@@ -67,4 +67,13 @@ class PreviewableOfferTruthSource: UIOfferTruthSource {
      * [UIOfferTruthSource]
      */
     override fun cancelOffer(offer: Offer) {}
+
+    /**
+     * Does nothing since this class is only used for previewing user interfaces, but is required for implementing
+     * [UIOfferTruthSource]
+     */
+    override fun editOffer(
+        offer: Offer,
+        newSettlementMethods: List<SettlementMethod>
+    ) {}
 }
