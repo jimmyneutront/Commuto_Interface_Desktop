@@ -105,7 +105,7 @@ fun EditOfferComposable(
                 stablecoinCurrencyCode = stablecoinCurrencyCode,
                 selectedSettlementMethods = offer.selectedSettlementMethods
             )
-            if (offer.editingOfferException != null) {
+            if (offer.editingOfferState.value == EditingOfferState.EXCEPTION) {
                 Text(
                     text = offer.editingOfferException?.message ?: "An unknown exception occurred",
                     style =  MaterialTheme.typography.h6,
