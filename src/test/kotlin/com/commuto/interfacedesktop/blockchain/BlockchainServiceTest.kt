@@ -7,7 +7,7 @@ import com.commuto.interfacedesktop.key.KeyManagerService
 import com.commuto.interfacedesktop.offer.OfferNotifiable
 import com.commuto.interfacedesktop.offer.OfferService
 import com.commuto.interfacedesktop.offer.OfferServiceTests
-import com.commuto.interfacedesktop.ui.OffersViewModel
+import com.commuto.interfacedesktop.ui.offer.OffersViewModel
 import io.ktor.client.*
 import io.ktor.client.call.*
 import io.ktor.client.engine.okhttp.*

@@ -1,4 +1,4 @@
-package com.commuto.interfacedesktop.ui
+package com.commuto.interfacedesktop.ui.offer
 
 import androidx.compose.desktop.ui.tooling.preview.Preview
 import androidx.compose.foundation.BorderStroke
@@ -17,6 +17,7 @@ import androidx.compose.ui.unit.dp
 import com.commuto.interfacedesktop.i18n.I18n
 import com.commuto.interfacedesktop.offer.Offer
 import com.commuto.interfacedesktop.offer.OfferTruthSource
+import com.commuto.interfacedesktop.ui.StablecoinInformationRepository
 
 /**
  * Displays a [OffersNoneFoundComposable] if there are no open offers in [offerTruthSource], or, if there

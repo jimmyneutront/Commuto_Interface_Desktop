@@ -1,4 +1,4 @@
-package com.commuto.interfacedesktop.ui
+package com.commuto.interfacedesktop.ui.offer
 
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateListOf
@@ -8,6 +8,7 @@ import com.commuto.interfacedesktop.offer.*
 import com.commuto.interfacedesktop.offer.validation.NewOfferDataValidationException
 import com.commuto.interfacedesktop.offer.validation.validateEditedSettlementMethods
 import com.commuto.interfacedesktop.offer.validation.validateNewOfferData
+import com.commuto.interfacedesktop.ui.StablecoinInformation
 import kotlinx.coroutines.*
 import org.slf4j.LoggerFactory
 import java.math.BigDecimal

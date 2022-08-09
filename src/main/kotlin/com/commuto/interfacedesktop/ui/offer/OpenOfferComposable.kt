@@ -1,4 +1,4 @@
-package com.commuto.interfacedesktop.ui
+package com.commuto.interfacedesktop.ui.offer
 
 import androidx.compose.desktop.ui.tooling.preview.Preview
 import androidx.compose.foundation.BorderStroke
@@ -17,6 +17,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.commuto.interfacedesktop.offer.OfferDirection
 import com.commuto.interfacedesktop.offer.SettlementMethod
+import com.commuto.interfacedesktop.ui.StablecoinInformation
+import com.commuto.interfacedesktop.ui.StablecoinInformationRepository
 import java.lang.NumberFormatException
 import java.math.BigDecimal
 import java.math.BigInteger

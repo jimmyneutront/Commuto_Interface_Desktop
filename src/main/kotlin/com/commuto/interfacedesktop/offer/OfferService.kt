@@ -12,7 +12,7 @@ import com.commuto.interfacedesktop.p2p.OfferMessageNotifiable
 import com.commuto.interfacedesktop.p2p.P2PService
 import com.commuto.interfacedesktop.p2p.messages.PublicKeyAnnouncement
 import com.commuto.interfacedesktop.db.Offer as DatabaseOffer
-import com.commuto.interfacedesktop.ui.OffersViewModel
+import com.commuto.interfacedesktop.ui.offer.OffersViewModel
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext

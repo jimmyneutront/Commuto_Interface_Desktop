@@ -1,4 +1,4 @@
-package com.commuto.interfacedesktop.ui
+package com.commuto.interfacedesktop.ui.offer
 
 import androidx.compose.runtime.Composable
 

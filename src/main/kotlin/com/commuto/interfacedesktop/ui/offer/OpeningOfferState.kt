@@ -1,4 +1,4 @@
-package com.commuto.interfacedesktop.ui
+package com.commuto.interfacedesktop.ui.offer
 
 /**
  * Indicates whether we are currently opening a new offer. If we are, then this indicates the part of the

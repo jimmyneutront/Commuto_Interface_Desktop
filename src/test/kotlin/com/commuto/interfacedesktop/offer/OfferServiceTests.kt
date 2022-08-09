@@ -17,7 +17,7 @@ import com.commuto.interfacedesktop.p2p.P2PExceptionNotifiable
 import com.commuto.interfacedesktop.p2p.P2PService
 import com.commuto.interfacedesktop.p2p.messages.PublicKeyAnnouncement
 import com.commuto.interfacedesktop.db.Offer as DatabaseOffer
-import com.commuto.interfacedesktop.ui.PreviewableOfferTruthSource
+import com.commuto.interfacedesktop.ui.offer.PreviewableOfferTruthSource
 import com.commuto.interfacedesktop.ui.StablecoinInformation
 import io.ktor.client.*
 import io.ktor.client.call.*
