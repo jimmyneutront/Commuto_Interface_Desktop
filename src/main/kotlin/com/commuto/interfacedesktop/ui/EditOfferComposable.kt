@@ -16,6 +16,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.commuto.interfacedesktop.offer.EditingOfferState
 import com.commuto.interfacedesktop.offer.Offer
 import com.commuto.interfacedesktop.offer.SettlementMethod
 
@@ -34,7 +35,7 @@ fun EditOfferComposable(
     stablecoinCurrencyCode: String,
     focusedOfferComposable: MutableState<FocusedOfferComposable>
 ) {
-    
+
     /*
      We want a copy of the list of sample settlement methods, we don't want to actually change any of them at all.
       */
@@ -54,6 +55,19 @@ fun EditOfferComposable(
             )
         }
     } else {
+        DisposableEffect(null) {
+            onDispose {
+                // Clear the "Offer Edited" message once the user leaves EditOfferView
+                if (offer.editingOfferState.value == EditingOfferState.COMPLETED) {
+                    offer.editingOfferState.value = EditingOfferState.NONE
+                }
+            }
+        }
+        val editOfferButtonLabel = if (offer.editingOfferState.value != EditingOfferState.EDITING) "Edit Offer" else
+            "Editing Offer"
+        val editOfferButtonOutlineColor = if (offer.editingOfferState.value != EditingOfferState.EDITING) Color.Black
+            else Color.Gray
+
         Column(
             modifier = Modifier
                 .verticalScroll(rememberScrollState())
@@ -91,22 +105,37 @@ fun EditOfferComposable(
                 stablecoinCurrencyCode = stablecoinCurrencyCode,
                 selectedSettlementMethods = offer.selectedSettlementMethods
             )
+            if (offer.editingOfferException != null) {
+                Text(
+                    text = offer.editingOfferException?.message ?: "An unknown exception occurred",
+                    style =  MaterialTheme.typography.h6,
+                    color = Color.Red
+                )
+            } else if (offer.editingOfferState.value == EditingOfferState.COMPLETED) {
+                Text(
+                    text = "Offer Edited.",
+                    style =  MaterialTheme.typography.h6,
+                )
+            }
             Button(
                 onClick = {
-                    offerTruthSource.editOffer(
-                        offer = offer,
-                        newSettlementMethods = offer.selectedSettlementMethods
-                    )
+                    // Don't let the user try to edit the offer if it is currently being edited
+                    if (offer.editingOfferState.value != EditingOfferState.EDITING) {
+                        offerTruthSource.editOffer(
+                            offer = offer,
+                            newSettlementMethods = offer.selectedSettlementMethods
+                        )
+                    }
                 },
                 content = {
                     Text(
-                        text = "Edit Offer",
+                        text = editOfferButtonLabel,
                         style = MaterialTheme.typography.h4,
                         fontWeight = FontWeight.Bold,
                         textAlign = TextAlign.Center
                     )
                 },
-                border = BorderStroke(3.dp, Color.Black),
+                border = BorderStroke(3.dp, editOfferButtonOutlineColor),
                 colors = ButtonDefaults.buttonColors(
                     backgroundColor =  Color.Transparent,
                     contentColor = Color.Black,

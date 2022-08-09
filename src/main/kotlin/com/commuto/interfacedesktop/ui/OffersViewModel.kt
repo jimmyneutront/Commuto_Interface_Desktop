@@ -104,6 +104,19 @@ class OffersViewModel @Inject constructor(private val offerService: OfferService
     }
 
     /**
+     * Sets the [Offer.editingOfferState] value of the [Offer] in [offers] with the specified [offerID] on the main
+     * coroutine dispatcher.
+     *
+     * @param offerID The ID of the [Offer] of which to set the [Offer.editingOfferState].
+     * @param state The value to which the [Offer]'s [Offer.editingOfferState] will be set.
+     */
+    private suspend fun setEditingOfferState(offerID: UUID, state: EditingOfferState) {
+        withContext(Dispatchers.Main) {
+            offers[offerID]?.editingOfferState?.value = state
+        }
+    }
+
+    /**
      * Gets the current service fee rate via [offerService] in this view model's coroutine scope and sets
      * [serviceFeeRate] equal to the result in the main coroutine dispatcher..
      */
@@ -234,7 +247,12 @@ class OffersViewModel @Inject constructor(private val offerService: OfferService
     ) {
         viewModelScope.launch {
             logger.info("editOffer: editing ${offer.id}")
+            setEditingOfferState(
+                offerID = offer.id,
+                state = EditingOfferState.EDITING
+            )
             try {
+                logger.info("editOffer: validating edited settlement methods for ${offer.id}")
                 val validatedSettlementmethods = validateEditedSettlementMethods(newSettlementMethods)
                 logger.info("editOffer: editing ${offer.id} with validated settlement methods")
                 offerService.editOffer(
@@ -247,8 +265,17 @@ class OffersViewModel @Inject constructor(private val offerService: OfferService
                 }
                 // We have successfully edited the offer, so we empty the selected settlement method list.
                 offer.selectedSettlementMethods.clear()
+                setEditingOfferState(
+                    offerID = offer.id,
+                    state = EditingOfferState.COMPLETED
+                )
             } catch (exception: Exception) {
                 logger.info("editOffer: got exception during editOffer call", exception)
+                offer.editingOfferException = exception
+                setEditingOfferState(
+                    offerID = offer.id,
+                    state = EditingOfferState.EXCEPTION
+                )
             }
         }
     }

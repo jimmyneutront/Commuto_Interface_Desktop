@@ -62,6 +62,12 @@ import java.util.UUID
  * interface.) The new [SettlementMethod]s with which the user wants to replace the offer's current settlement methods
  * by editing the offer. If the user is not currently editing this offer, (or if the user is not the maker of this
  * offer) this list should be empty.
+ * @property editingOfferState If this offer was made by the user of the interface, this indicates whether the offer is
+ * being edited, and if so, what part of the offer editing process it is in. If this offer was not made by the user of
+ * this interface, this property is not used.
+ * @property editingOfferException (This property is used only if the maker of this offer is the user of this
+ * interface.) The [Exception] that occurred during the offer editing process, or `null` if no such exception has
+ * occurred.
  */
 data class Offer(
     val isCreated: Boolean,
@@ -154,6 +160,8 @@ data class Offer(
     var cancelingOfferException: Exception? = null
 
     val selectedSettlementMethods = mutableStateListOf<SettlementMethod>()
+    val editingOfferState: MutableState<EditingOfferState> = mutableStateOf(EditingOfferState.NONE)
+    var editingOfferException: Exception? = null
 
     init {
         when (this.direction) {
