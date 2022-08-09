@@ -38,7 +38,8 @@ fun OfferComposable(
     offerTruthSource: UIOfferTruthSource,
     id: UUID?,
     stablecoinInfoRepo: StablecoinInformationRepository =
-        StablecoinInformationRepository.hardhatStablecoinInfoRepo
+        StablecoinInformationRepository.hardhatStablecoinInfoRepo,
+    focusedOfferComposable: MutableState<FocusedOfferComposable>,
 ) {
 
     /**
@@ -155,6 +156,29 @@ fun OfferComposable(
                     }
                 )
                 if (offer.isUserMaker) {
+                    Button(
+                        onClick = {
+                            focusedOfferComposable.value = FocusedOfferComposable.EditOfferComposable
+                        },
+                        content = {
+                            Text(
+                                text = "Edit Offer",
+                                style = MaterialTheme.typography.h4,
+                                fontWeight = FontWeight.Bold,
+                                textAlign = TextAlign.Center
+                            )
+                        },
+                        border = BorderStroke(3.dp, Color.Black),
+                        colors = ButtonDefaults.buttonColors(
+                            backgroundColor =  Color.Transparent,
+                            contentColor = Color.Black,
+                        ),
+                        elevation = null,
+                        modifier = Modifier.width(400.dp),
+                    )
+                    Spacer(
+                        modifier = Modifier.height(9.dp)
+                    )
                     if (offer.cancelingOfferState.value == CancelingOfferState.EXCEPTION) {
                         Text(
                             text = offer.cancelingOfferException?.message ?: "An unknown exception occurred",
@@ -422,7 +446,11 @@ fun DisclosureComposable(header: @Composable () -> Unit, content: @Composable ()
 @Preview
 @Composable
 fun PreviewOfferComposableWithDaiOffer() {
-    OfferComposable(PreviewableOfferTruthSource(), Offer.sampleOffers[0].id)
+    OfferComposable(
+        PreviewableOfferTruthSource(),
+        Offer.sampleOffers[0].id,
+        focusedOfferComposable = mutableStateOf(FocusedOfferComposable.EditOfferComposable),
+    )
 }
 
 /**
@@ -431,7 +459,11 @@ fun PreviewOfferComposableWithDaiOffer() {
 @Preview
 @Composable
 fun PreviewOfferComposableWithUnknownStablecoinOffer() {
-    OfferComposable(PreviewableOfferTruthSource(), Offer.sampleOffers[3].id)
+    OfferComposable(
+        PreviewableOfferTruthSource(),
+        Offer.sampleOffers[3].id,
+        focusedOfferComposable = mutableStateOf(FocusedOfferComposable.EditOfferComposable),
+    )
 }
 
 /**
@@ -440,7 +472,11 @@ fun PreviewOfferComposableWithUnknownStablecoinOffer() {
 @Preview
 @Composable
 fun PreviewOfferComposableWithRandomUUID() {
-    OfferComposable(PreviewableOfferTruthSource(), UUID.randomUUID())
+    OfferComposable(
+        PreviewableOfferTruthSource(),
+        UUID.randomUUID(),
+        focusedOfferComposable = mutableStateOf(FocusedOfferComposable.EditOfferComposable),
+    )
 }
 
 /**
@@ -449,5 +485,9 @@ fun PreviewOfferComposableWithRandomUUID() {
 @Preview
 @Composable
 fun PreviewOfferComposableWithNull() {
-    OfferComposable(PreviewableOfferTruthSource(),null)
+    OfferComposable(
+        PreviewableOfferTruthSource(),
+        null,
+        focusedOfferComposable = mutableStateOf(FocusedOfferComposable.EditOfferComposable),
+    )
 }

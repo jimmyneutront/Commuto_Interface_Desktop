@@ -40,7 +40,11 @@ fun OffersComposable(offerTruthSource: UIOfferTruthSource) {
         when (focusedOfferComposable.value) {
             FocusedOfferComposable.OfferComposable -> {
                 if (focusedOffer.value != null) {
-                    OfferComposable(offerTruthSource, focusedOffer.value!!.id)
+                    OfferComposable(
+                        offerTruthSource,
+                        focusedOffer.value!!.id,
+                        focusedOfferComposable = focusedOfferComposable,
+                    )
                 } else {
                     Row(
                         modifier = Modifier.fillMaxSize(),
@@ -56,6 +60,12 @@ fun OffersComposable(offerTruthSource: UIOfferTruthSource) {
                 OpenOfferComposable(
                     offerTruthSource = offerTruthSource,
                     chainID = BigInteger.valueOf(31337L)
+                )
+            }
+            FocusedOfferComposable.EditOfferComposable -> {
+                EditOfferComposable(
+                    stablecoinCurrencyCode = "STBL",
+                    focusedOfferComposable = focusedOfferComposable
                 )
             }
         }
