@@ -1275,4 +1275,105 @@ class OfferServiceTests {
 
     }
 
+    /**
+     * Ensures that [OfferService.editOffer] and [BlockchainService.editOfferAsync] function properly.
+     */
+    @Test
+    fun testEditOffer() {
+
+        val offerID = UUID.randomUUID()
+
+        @Serializable
+        data class TestingServerResponse(val commutoSwapAddress: String)
+
+        val testingServiceUrl = "http://localhost:8546/test_offerservice_editOffer"
+        val testingServerClient = HttpClient(OkHttp) {
+            install(ContentNegotiation) {
+                json()
+            }
+            install(HttpTimeout) {
+                socketTimeoutMillis = 90_000
+                requestTimeoutMillis = 90_000
+            }
+        }
+        val testingServerResponse: TestingServerResponse = runBlocking {
+            testingServerClient.get(testingServiceUrl){
+                url {
+                    parameters.append("events", "offer-opened")
+                    parameters.append("offerID", offerID.toString())
+                }
+            }.body()
+        }
+
+        val w3 = Web3j.build(HttpService(System.getenv("BLOCKCHAIN_NODE")))
+
+        val databaseService = DatabaseService(DatabaseDriverFactory())
+        databaseService.createTables()
+        val keyManagerService = KeyManagerService(databaseService)
+
+        val offerService = OfferService(
+            databaseService,
+            keyManagerService,
+        )
+
+        class TestOfferTruthSource: OfferTruthSource {
+            init {
+                offerService.setOfferTruthSource(this)
+            }
+            override var offers = mutableStateMapOf<UUID, Offer>()
+            override var serviceFeeRate = mutableStateOf<BigInteger?>(null)
+            override fun addOffer(offer: Offer) {
+                offers[offer.id] = offer
+            }
+            override fun removeOffer(id: UUID) {
+                offers.remove(id)
+            }
+        }
+        TestOfferTruthSource()
+
+        class TestBlockchainExceptionHandler: BlockchainExceptionNotifiable {
+            var gotError = false
+            override fun handleBlockchainException(exception: Exception) {
+                gotError = true
+            }
+        }
+        val exceptionHandler = TestBlockchainExceptionHandler()
+
+        val blockchainService = BlockchainService(
+            exceptionHandler = exceptionHandler,
+            offerService = offerService,
+            web3 = w3,
+            commutoSwapAddress = testingServerResponse.commutoSwapAddress
+        )
+
+        runBlocking {
+            offerService.editOffer(
+                offerID = offerID,
+                newSettlementMethods = listOf(
+                    SettlementMethod(
+                        currency = "USD",
+                        method = "a_method",
+                        price = "1.23"
+                    )
+                )
+            )
+
+            val expectedSettlementMethods = listOf(
+                Json.encodeToString(
+                    SettlementMethod(
+                        currency = "USD",
+                        method = "a_method",
+                        price = "1.23"
+                    )
+                ).encodeToByteArray()
+            )
+
+            val offerStruct = blockchainService.getOffer(offerID)
+            assertEquals(expectedSettlementMethods.size, offerStruct!!.settlementMethods.size)
+            offerStruct.settlementMethods.indices.forEach {
+                assert(expectedSettlementMethods[it].contentEquals(offerStruct.settlementMethods[it]))
+            }
+        }
+    }
+
 }
