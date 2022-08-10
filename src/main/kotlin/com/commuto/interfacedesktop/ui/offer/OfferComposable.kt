@@ -49,16 +49,7 @@ fun OfferComposable(
      */
     val offer = offerTruthSource.offers[id]
 
-    if (id == null) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceEvenly
-        ) {
-            Text(
-                text = "This Offer has an invalid ID.",
-            )
-        }
-    } else if (offer == null) {
+    if (id == null || offer == null) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceEvenly

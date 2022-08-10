@@ -46,8 +46,8 @@ fun OffersComposable(offerTruthSource: UIOfferTruthSource) {
             FocusedOfferComposable.OfferComposable -> {
                 if (focusedOffer.value != null) {
                     OfferComposable(
-                        offerTruthSource,
-                        focusedOffer.value!!.id,
+                        offerTruthSource = offerTruthSource,
+                        id = focusedOffer.value?.id,
                         focusedOfferComposable = focusedOfferComposable,
                     )
                 } else {
