@@ -36,7 +36,12 @@ fun OffersComposable(offerTruthSource: UIOfferTruthSource) {
     val focusedOffer = remember { mutableStateOf<Offer?>(null) }
 
     Row {
-        OffersListComposable(Modifier.widthIn(100.dp, 300.dp), offerTruthSource, focusedOfferComposable, focusedOffer)
+        OffersListComposable(
+            modifier = Modifier.widthIn(100.dp, 300.dp),
+            offerTruthSource = offerTruthSource,
+            focusedOfferComposable = focusedOfferComposable,
+            focusedOffer = focusedOffer,
+        )
         when (focusedOfferComposable.value) {
             FocusedOfferComposable.OfferComposable -> {
                 if (focusedOffer.value != null) {

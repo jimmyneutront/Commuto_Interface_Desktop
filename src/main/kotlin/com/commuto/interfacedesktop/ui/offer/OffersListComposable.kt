@@ -25,6 +25,7 @@ import com.commuto.interfacedesktop.ui.StablecoinInformationRepository
  * [Button] for each open offer in [offerTruthSource] that sets [focusedOffer] equal to that offer and sets
  * [focusedOfferComposable] to [FocusedOfferComposable.OfferComposable] when pressed.
  *
+ * @param modifier A [Modifier] to be applied to the outer column inside this [Composable].
  * @param offerTruthSource An object implementing [OfferTruthSource] that acts as a single source of truth for all
  * offer-related data.
  * @param focusedOfferComposable An enum representing the [Composable] currently being displayed on the trailing side
@@ -139,9 +140,9 @@ private fun OffersNoneFoundComposable() {
 @Composable
 fun PreviewOffersListComposable() {
     OffersListComposable(
-        Modifier.widthIn(0.dp, 400.dp),
-        PreviewableOfferTruthSource(),
-        mutableStateOf(FocusedOfferComposable.OfferComposable),
-        mutableStateOf(null)
+        modifier = Modifier.widthIn(0.dp, 400.dp),
+        offerTruthSource = PreviewableOfferTruthSource(),
+        focusedOfferComposable = mutableStateOf(FocusedOfferComposable.OfferComposable),
+        focusedOffer = mutableStateOf(null)
     )
 }
