@@ -21,6 +21,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
 import com.commuto.interfacedesktop.offer.*
 import com.commuto.interfacedesktop.ui.StablecoinInformation
 import com.commuto.interfacedesktop.ui.StablecoinInformationRepository
@@ -48,6 +49,8 @@ fun OfferComposable(
      * The offer about which this [Composable] displays information.
      */
     val offer = offerTruthSource.offers[id]
+
+    val isShowingTakeOfferSheet = remember { mutableStateOf(false) }
 
     if (id == null || offer == null) {
         Row(
@@ -216,9 +219,103 @@ fun OfferComposable(
                         elevation = null,
                         modifier = Modifier.width(400.dp)
                     )
+                } else if (offer.state == OfferState.OFFER_OPENED) {
+                    /*
+                     We should only display the "Take Offer" button if the user is NOT the maker and if the offer is in
+                     the offerOpened state
+                      */
+                    Button(
+                        onClick = {
+                            isShowingTakeOfferSheet.value = true
+                        },
+                        content = {
+                            Text(
+                                text = "Take offer",
+                                style = MaterialTheme.typography.h4,
+                                fontWeight = FontWeight.Bold,
+                                textAlign = TextAlign.Center
+                            )
+                        },
+                        border = BorderStroke(3.dp, Color.Black),
+                        colors = ButtonDefaults.buttonColors(
+                            backgroundColor =  Color.Transparent,
+                            contentColor = Color.Black,
+                        ),
+                        elevation = null,
+                        modifier = Modifier.width(400.dp)
+                    )
                 }
             }
         }
+
+        if (isShowingTakeOfferSheet.value) {
+            Dialog(
+                onCloseRequest = {},
+                title = "Take Offer",
+                undecorated = true,
+                resizable = true,
+                content = {
+                    Box(
+                        modifier = Modifier
+                            .width(600.dp)
+                    ) {
+                        Column(
+                            verticalArrangement = Arrangement.SpaceBetween,
+                            modifier = Modifier
+                                .padding(10.dp)
+                                .fillMaxHeight(),
+                        ) {
+                            Row(
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(
+                                    text = "Take Offer",
+                                    style = MaterialTheme.typography.h4,
+                                    fontWeight = FontWeight.Bold,
+                                )
+                                Button(
+                                    onClick = {
+                                        isShowingTakeOfferSheet.value = false
+                                    },
+                                    content = {
+                                        Text(
+                                            text = "Cancel",
+                                            fontWeight = FontWeight.Bold,
+                                        )
+                                    },
+                                    colors = ButtonDefaults.buttonColors(
+                                        backgroundColor =  Color.Transparent,
+                                        contentColor = Color.Black,
+                                    ),
+                                    elevation = null,
+                                )
+                            }
+                            Button(
+                                onClick = {},
+                                content = {
+                                    Text(
+                                        text = "Take offer",
+                                        style = MaterialTheme.typography.h4,
+                                        fontWeight = FontWeight.Bold,
+                                        textAlign = TextAlign.Center
+                                    )
+                                },
+                                border = BorderStroke(3.dp, Color.Black),
+                                colors = ButtonDefaults.buttonColors(
+                                    backgroundColor =  Color.Transparent,
+                                    contentColor = Color.Black,
+                                ),
+                                elevation = null,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                    }
+                },
+            )
+        }
+
     }
 }
 
