@@ -25,11 +25,11 @@ import androidx.compose.ui.window.Dialog
 import com.commuto.interfacedesktop.offer.*
 import com.commuto.interfacedesktop.ui.StablecoinInformation
 import com.commuto.interfacedesktop.ui.StablecoinInformationRepository
-import java.math.BigInteger
 import java.util.*
 
 /**
  * Displays details about a particular [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer).
+ *
  * @param offerTruthSource The OffersViewModel that acts as a single source of truth for all offer-related data.
  * @param id: The ID of the offer about which this [OfferComposable] is displaying information.
  * @param stablecoinInfoRepo The [StablecoinInformationRepository] that this [Composable] uses to get stablecoin name
@@ -50,7 +50,7 @@ fun OfferComposable(
      */
     val offer = offerTruthSource.offers[id]
 
-    val isShowingTakeOfferSheet = remember { mutableStateOf(false) }
+    val isShowingTakeOfferDialog = remember { mutableStateOf(false) }
 
     if (id == null || offer == null) {
         Row(
@@ -226,7 +226,7 @@ fun OfferComposable(
                       */
                     Button(
                         onClick = {
-                            isShowingTakeOfferSheet.value = true
+                            isShowingTakeOfferDialog.value = true
                         },
                         content = {
                             Text(
@@ -248,69 +248,23 @@ fun OfferComposable(
             }
         }
 
-        if (isShowingTakeOfferSheet.value) {
+        if (isShowingTakeOfferDialog.value) {
             Dialog(
                 onCloseRequest = {},
                 title = "Take Offer",
                 undecorated = true,
-                resizable = true,
+                resizable = false,
                 content = {
                     Box(
                         modifier = Modifier
                             .width(600.dp)
+                            .height(800.dp)
                     ) {
-                        Column(
-                            verticalArrangement = Arrangement.SpaceBetween,
-                            modifier = Modifier
-                                .padding(10.dp)
-                                .fillMaxHeight(),
-                        ) {
-                            Row(
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Text(
-                                    text = "Take Offer",
-                                    style = MaterialTheme.typography.h4,
-                                    fontWeight = FontWeight.Bold,
-                                )
-                                Button(
-                                    onClick = {
-                                        isShowingTakeOfferSheet.value = false
-                                    },
-                                    content = {
-                                        Text(
-                                            text = "Cancel",
-                                            fontWeight = FontWeight.Bold,
-                                        )
-                                    },
-                                    colors = ButtonDefaults.buttonColors(
-                                        backgroundColor =  Color.Transparent,
-                                        contentColor = Color.Black,
-                                    ),
-                                    elevation = null,
-                                )
-                            }
-                            Button(
-                                onClick = {},
-                                content = {
-                                    Text(
-                                        text = "Take offer",
-                                        style = MaterialTheme.typography.h4,
-                                        fontWeight = FontWeight.Bold,
-                                        textAlign = TextAlign.Center
-                                    )
-                                },
-                                border = BorderStroke(3.dp, Color.Black),
-                                colors = ButtonDefaults.buttonColors(
-                                    backgroundColor =  Color.Transparent,
-                                    contentColor = Color.Black,
-                                ),
-                                elevation = null,
-                                modifier = Modifier.fillMaxWidth()
-                            )
-                        }
+                        TakeOfferComposable(
+                            closeDialog = { isShowingTakeOfferDialog.value = false },
+                            offerTruthSource = offerTruthSource,
+                            id = id,
+                        )
                     }
                 },
             )
@@ -348,58 +302,6 @@ fun buildDirectionDescriptionString(directionString: String, stablecoinInformati
     val stablecoinName = stablecoinInformation?.name ?: "Unknown Stablecoin"
     return "This is a $directionString offer: the maker of this offer wants to ${directionString.lowercase()} " +
             "$stablecoinName in exchange for fiat."
-}
-
-/**
- * Displays the minimum and maximum amount stablecoin that the maker of an
- * [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer)  is willing to exchange.
- *
- * @param stablecoinInformation A [StablecoinInformation?] for this offer's stablecoin.
- * @param min The Offer's minimum amount.
- * @param max The Offer's maximum amount.
- * @param securityDeposit The Offer's security deposit amount.
- */
-@Composable
-fun OfferAmountComposable(
-    stablecoinInformation: StablecoinInformation?,
-    min: BigInteger,
-    max: BigInteger,
-    securityDeposit: BigInteger
-) {
-    val headerString = if (stablecoinInformation != null) "Amount: " else "Amount (in token base units):"
-    val currencyCode = stablecoinInformation?.currencyCode ?: "Unknown Stablecoin"
-    val minimumString = if (stablecoinInformation != null) min.divide(BigInteger.TEN.pow(stablecoinInformation.decimal))
-        .toString() else min.toString()
-    val maximumString = if (stablecoinInformation != null) max.divide(BigInteger.TEN.pow(stablecoinInformation.decimal))
-        .toString() else min.toString()
-    val securityDepositString = if (stablecoinInformation != null) securityDeposit.divide(BigInteger.TEN
-        .pow(stablecoinInformation.decimal)).toString() else securityDeposit.toString()
-    Text(
-        text = headerString,
-        style = MaterialTheme.typography.h6
-    )
-    if (min == max) {
-        Text(
-            text = "$minimumString $currencyCode",
-            style =  MaterialTheme.typography.h5,
-            fontWeight = FontWeight.Bold
-        )
-    } else {
-        Text(
-            text = "Minimum: $minimumString $currencyCode",
-            style =  MaterialTheme.typography.h5,
-            fontWeight = FontWeight.Bold
-        )
-        Text(
-            text = "Maximum: $maximumString $currencyCode",
-            style =  MaterialTheme.typography.h5,
-            fontWeight = FontWeight.Bold
-        )
-    }
-    Text(
-        text = "Security Deposit: $securityDepositString $currencyCode",
-        style = MaterialTheme.typography.h5,
-    )
 }
 
 /**

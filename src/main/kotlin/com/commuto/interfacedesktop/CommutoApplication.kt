@@ -3,8 +3,10 @@ package com.commuto.interfacedesktop
 import androidx.compose.foundation.layout.Row
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
+import androidx.compose.ui.window.WindowPosition
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
 import com.commuto.interfacedesktop.blockchain.BlockchainService
@@ -48,7 +50,11 @@ class CommutoApplication @Inject constructor(
             Window(
                 onCloseRequest = ::exitApplication,
                 title = "Compose for Desktop",
-                state = rememberWindowState(width = 900.dp, height = 600.dp)
+                state = rememberWindowState(
+                    position = WindowPosition(Alignment.Center),
+                    width = 900.dp,
+                    height = 600.dp
+                )
             ) {
                 Row {
                     TabSidebarComposable(

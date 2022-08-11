@@ -269,11 +269,19 @@ data class Offer(
                 interfaceId = ByteArray(0),
                 stablecoin = "0x8438Ad1C834623CfF278AB6829a248E37C2D7E3f", // BUSD on Hardhat
                 amountLowerBound = BigInteger.valueOf(10_000) * BigInteger.TEN.pow(18),
-                amountUpperBound = BigInteger.valueOf(10_000) * BigInteger.TEN.pow(18),
-                securityDepositAmount = BigInteger.valueOf(1_000) * BigInteger.TEN.pow(18),
+                amountUpperBound = BigInteger.valueOf(20_000) * BigInteger.TEN.pow(18),
+                securityDepositAmount = BigInteger.valueOf(2_000) * BigInteger.TEN.pow(18),
                 serviceFeeRate = BigInteger.valueOf(1),
                 onChainDirection = BigInteger.ONE,
-                onChainSettlementMethods = listOf("not valid JSON".encodeToByteArray()),
+                onChainSettlementMethods = listOf(
+                    """
+                     {
+                         "f": "BSD",
+                         "p": "1.00",
+                         "m": "SANDDOLLAR"
+                     }
+                     """.trimIndent().encodeToByteArray()
+                ),
                 protocolVersion = BigInteger.ZERO,
                 chainID = BigInteger.valueOf(31337L), // Hardhat blockchain ID
                 havePublicKey = false,

@@ -4,7 +4,6 @@ import androidx.compose.desktop.ui.tooling.preview.Preview
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.*
 import androidx.compose.runtime.*
@@ -12,14 +11,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.commuto.interfacedesktop.offer.OfferDirection
 import com.commuto.interfacedesktop.offer.SettlementMethod
 import com.commuto.interfacedesktop.ui.StablecoinInformation
 import com.commuto.interfacedesktop.ui.StablecoinInformationRepository
-import java.lang.NumberFormatException
 import java.math.BigDecimal
 import java.math.BigInteger
 import java.math.RoundingMode
@@ -166,7 +163,7 @@ fun OpenOfferComposable(
             text = "Minimum $stablecoinCurrencyCode Amount:",
             style =  MaterialTheme.typography.h6,
         )
-        StablecoinAmountComposable(
+        StablecoinAmountFieldComposable(
             amountString = minimumAmountString,
             amount = minimumAmount
         )
@@ -174,7 +171,7 @@ fun OpenOfferComposable(
             text = "Maximum $stablecoinCurrencyCode Amount:",
             style =  MaterialTheme.typography.h6,
         )
-        StablecoinAmountComposable(
+        StablecoinAmountFieldComposable(
             amountString = maximumAmountString,
             amount = maximumAmount
         )
@@ -196,7 +193,7 @@ fun OpenOfferComposable(
                 )
             }
         )
-        StablecoinAmountComposable(
+        StablecoinAmountFieldComposable(
             amountString = securityDepositAmountString,
             amount = securityDepositAmount
         )
@@ -420,45 +417,6 @@ fun StablecoinListComposable(
             )
         }
     }
-}
-
-/**
- * Displays a [TextField] customized to accept positive stablecoin amounts with up to six decimal places of precision.
- * The user cannot type characters that are not numbers or decimal points, and cannot type negative numbers.
- *
- * @param amountString The current amount as a [String].
- * @param amount The current amount as a [BigDecimal].
- */
-@Composable
-fun StablecoinAmountComposable(
-    amountString: MutableState<String>,
-    amount: MutableState<BigDecimal>
-) {
-    TextField(
-        value = amountString.value,
-        onValueChange = {
-            if (it == "") {
-                amount.value = BigDecimal.ZERO
-                amountString.value = ""
-            } else {
-                try {
-                    val newAmount = BigDecimal(it)
-                    // Don't allow negative values, and limit to 6 decimal places
-                    if (newAmount >= BigDecimal.ZERO && newAmount.scale() <= 6) {
-                        amount.value = newAmount
-                        amountString.value = it
-                    }
-                } catch (exception: NumberFormatException) {
-                    /*
-                    If the change prevents us from creating a BigDecimal minimum amount value, then we don't allow that
-                    change
-                     */
-                }
-            }
-        },
-        textStyle = MaterialTheme.typography.h5,
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
-    )
 }
 
 /**
