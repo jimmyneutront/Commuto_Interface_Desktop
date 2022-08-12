@@ -16,8 +16,8 @@ import kotlinx.serialization.Serializable
 @Serializable
 data class SettlementMethod(
     @SerialName("f") val currency: String,
-    @SerialName("p") val method: String,
-    @SerialName("m") var price: String,
+    @SerialName("m") val method: String,
+    @SerialName("p") var price: String,
 ) {
     companion object {
         /**
