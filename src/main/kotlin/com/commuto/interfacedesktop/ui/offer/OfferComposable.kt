@@ -22,6 +22,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogState
 import com.commuto.interfacedesktop.offer.*
 import com.commuto.interfacedesktop.ui.StablecoinInformation
 import com.commuto.interfacedesktop.ui.StablecoinInformationRepository
@@ -251,6 +252,10 @@ fun OfferComposable(
         if (isShowingTakeOfferDialog.value) {
             Dialog(
                 onCloseRequest = {},
+                state = DialogState(
+                    width = 500.dp,
+                    height = 600.dp,
+                ),
                 title = "Take Offer",
                 undecorated = true,
                 resizable = false,
