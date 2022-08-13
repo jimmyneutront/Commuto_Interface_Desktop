@@ -153,6 +153,13 @@ fun OfferComposable(
                     }
                 )
                 if (offer.isUserMaker) {
+                    if (offer.editingOfferState.value == EditingOfferState.EXCEPTION) {
+                        Text(
+                            text = offer.editingOfferException?.message ?: "An unknown exception occurred",
+                            style =  MaterialTheme.typography.h6,
+                            color = Color.Red
+                        )
+                    }
                     Button(
                         onClick = {
                             focusedOfferComposable.value = FocusedOfferComposable.EditOfferComposable
