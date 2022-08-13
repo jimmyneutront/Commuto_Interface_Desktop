@@ -1,4 +1,4 @@
-package com.commuto.interfacedesktop.ui.offer
+package com.commuto.interfacedesktop.offer
 
 /**
  * Indicates whether we are currently opening a new offer. If we are, then this indicates the part of the
@@ -28,13 +28,16 @@ enum class OpeningOfferState {
 
     val description: String
         get() = when(this) {
-            NONE -> "Press Open Offer to open the offer"
+            NONE -> "Press Open Offer to open the offer" // Note: This should not be used.
             VALIDATING -> "Validating offer data..."
             CREATING -> "Creating a new key pair, offer ID and offer object..."
             STORING -> "Saving the new offer..."
             APPROVING -> "Approving token transfer..."
             OPENING -> "Opening the new offer..."
             COMPLETED -> "Offer successfully opened"
+            /*
+             Note: This should not be used; instead, the actual error message should be displayed
+              */
             EXCEPTION -> "An exception occured."
         }
 

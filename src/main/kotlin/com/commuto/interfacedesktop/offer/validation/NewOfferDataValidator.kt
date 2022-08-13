@@ -11,7 +11,7 @@ import java.math.RoundingMode
  * Validates the data that the user has specified for the creation of a new offer, so that the offer creation
  * transaction does not revert.
  *
- * This funciton ensures that:
+ * This function ensures that:
  * - the user has selected a valid stablecoin
  * - the minimum stablecoin amount is greater than zero
  * - the maximum stablecoin amount is greater than or equal to the minimum amount
@@ -36,8 +36,8 @@ import java.math.RoundingMode
  * @return A [ValidatedNewOfferData] derived from the inputs to this function.
  *
  * @throws [NewOfferDataValidationException] if this is not able to ensure any of the conditions in the list above. The
- * descriptions of the errors thrown by this function are human-readable and can be displayed to the user so that they
- * can correct any problems.
+ * descriptions of the exceptions thrown by this function are human-readable and can be displayed to the user so that
+ * they can correct any problems.
  */
 fun validateNewOfferData(
     stablecoin: String?,

@@ -68,6 +68,12 @@ import java.util.UUID
  * @property editingOfferException (This property is used only if the maker of this offer is the user of this
  * interface.) The [Exception] that occurred during the offer editing process, or `null` if no such exception has
  * occurred.
+ * @property takingOfferState (This property is used only if the maker of this offer is NOT the user of this interface.)
+ * This indicates whether we are currently taking this offer, and if so, what part of the offer taking process we are
+ * in.
+ * @property takingOfferException (This property is used only if the maker of this offer is NOT the user of this
+ * interface.) The [Exception] that we encountered during the offer editing process, or `null` of no such exception has
+ * occured.
  */
 data class Offer(
     val isCreated: Boolean,
@@ -162,6 +168,9 @@ data class Offer(
     val selectedSettlementMethods = mutableStateListOf<SettlementMethod>()
     val editingOfferState: MutableState<EditingOfferState> = mutableStateOf(EditingOfferState.NONE)
     var editingOfferException: Exception? = null
+
+    val takingOfferState: MutableState<TakingOfferState> = mutableStateOf(TakingOfferState.NONE)
+    var takingOfferException: Exception? = null
 
     init {
         when (this.direction) {
@@ -284,7 +293,7 @@ data class Offer(
                 ),
                 protocolVersion = BigInteger.ZERO,
                 chainID = BigInteger.valueOf(31337L), // Hardhat blockchain ID
-                havePublicKey = false,
+                havePublicKey = true,
                 isUserMaker = false,
                 state = OfferState.OFFER_OPENED,
             ),
