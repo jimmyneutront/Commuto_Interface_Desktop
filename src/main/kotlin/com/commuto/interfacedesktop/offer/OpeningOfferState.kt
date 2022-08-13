@@ -5,7 +5,7 @@ package com.commuto.interfacedesktop.offer
  * [offer opening process](https://github.com/jimmyneutront/commuto-whitepaper/blob/main/commuto-interface-specification.txt)
  * we are currently in.
  *
- * @property NONE Indicates that we are not currently creating a new offer.
+ * @property NONE Indicates that we are not currently opening a new offer.
  * @property VALIDATING Indicates that we are currently validating the user's submitted data for the new offer.
  * @property CREATING Indicates that we are currently creating a new key pair, ID, and Offer object for the new offer.
  * @property STORING Indicates that we are currently saving the new offer in persistent storage.
@@ -13,8 +13,8 @@ package com.commuto.interfacedesktop.offer
  * @property OPENING Indicates that we are currently calling CommutoSwap's
  * [openOffer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#open-offer) function for the new offer.
  * @property COMPLETED Indicates that we have successfully opened the new offer.
- * @property EXCEPTION Indicates that an exception was encountered during offer creation.
- * @property description A human readable string describing the current state.
+ * @property EXCEPTION Indicates we encountered an exception during offer creation.
+ * @property description A human-readable string describing the current state.
  */
 enum class OpeningOfferState {
     NONE,

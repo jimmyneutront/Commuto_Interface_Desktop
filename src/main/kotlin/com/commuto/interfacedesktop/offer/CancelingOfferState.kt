@@ -6,10 +6,10 @@ package com.commuto.interfacedesktop.offer
  * of the offer cancellation process we are currently in. Note that this is only used for offers made by the user of
  * this interface.
  *
- * @property NONE Indicates that the corresponding offer is open and not currently being canceled.
- * @property CANCELING Indicates that the corresponding offer is currently being canceled.
- * @property COMPLETED Indicates that the corresponding offer has been canceled.
- * @property EXCEPTION Indicates that an exception was encountered during offer cancellation.
+ * @property NONE Indicates that we are NOT currently canceling the corresponding offer.
+ * @property CANCELING Indicates that we are currently canceling the corresponding offer.
+ * @property COMPLETED Indicates that we have canceled the corresponding offer.
+ * @property EXCEPTION Indicates that we encountered an exception while canceling the corresponding offer.
  */
 enum class CancelingOfferState {
     NONE,
