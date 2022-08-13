@@ -1,7 +1,6 @@
 package com.commuto.interfacedesktop.ui.offer
 
 import androidx.compose.runtime.MutableState
-import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import com.commuto.interfacedesktop.offer.*
@@ -276,8 +275,10 @@ class OffersViewModel @Inject constructor(private val offerService: OfferService
                     newSettlementMethods = newSettlementMethods
                 )
                 logger.info("editOffer: successfully edited ${offer.id}")
-                offer.settlementMethods = mutableStateListOf<SettlementMethod>().apply {
-                    this.addAll(validatedSettlementmethods)
+                withContext(Dispatchers.Main) {
+                    offer.updateSettlementMethods(
+                        settlementMethods = validatedSettlementmethods
+                    )
                 }
                 // We have successfully edited the offer, so we empty the selected settlement method list.
                 offer.selectedSettlementMethods.clear()

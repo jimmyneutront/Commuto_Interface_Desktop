@@ -33,10 +33,9 @@ import java.util.UUID
  * [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer)'s securityDepositAmount property.
  * @param serviceFeeRate Corresponds to an on-chain
  * [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer)'s serviceFeeRate property.
- * @property direction The direction of the offer, indicating whether the maker is offering to buy stablecoin or sell
+ * @param direction The direction of the offer, indicating whether the maker is offering to buy stablecoin or sell
  * stablecoin.
- * @property settlementMethods A [SnapshotStateList] of [SettlementMethod]s derived from parsing
- * [onChainSettlementMethods].
+ * @param settlementMethods settlementMethods The initial value of [settlementMethods].
  * @param protocolVersion Corresponds to an on-chain
  * [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer)'s protocolVersion property.
  * @param chainID The ID of the blockchain on which this Offer exists.
@@ -46,12 +45,16 @@ import java.util.UUID
  * @param state Indicates the current state of this offer, as described in the
  * [Commuto Interface Specification](https://github.com/jimmyneutront/commuto-whitepaper/blob/main/commuto-interface-specification.txt).
  *
+ * @property settlementMethods A [SnapshotStateList] of [SettlementMethod]s derived from parsing
+ * [onChainSettlementMethods]. Note that this has a private setter; code not in this class should use the
+ * [updateSettlementMethods] method.
  * @property serviceFeeAmountLowerBound The minimum service fee for the new offer.
  * @property serviceFeeAmountUpperBound The maximum service fee for the new offer.
  * @property onChainDirection Corresponds to an on-chain
  * [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer)'s direction property.
  * @property onChainSettlementMethods Corresponds to an on-chain
- * [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer)'s settlementMethods property.
+ * [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer)'s settlementMethods property. Note that
+ * this has a private setter; code not in this class should use the [updateSettlementMethodsFromChain] method.
  * @property cancelingOfferState If this offer was made by the user of the interface, this indicates whether the offer
  * is being canceled, and if so, what part of the offer cancellation process it is in. If this offer was not made by the
  * user of this interface, this property is not used.
@@ -75,7 +78,7 @@ import java.util.UUID
  * interface.) The [Exception] that we encountered during the offer editing process, or `null` of no such exception has
  * occured.
  */
-data class Offer(
+class Offer(
     val isCreated: Boolean,
     val isTaken: Boolean,
     val id: UUID,
@@ -87,7 +90,7 @@ data class Offer(
     val securityDepositAmount: BigInteger,
     val serviceFeeRate: BigInteger,
     val direction: OfferDirection,
-    var settlementMethods: SnapshotStateList<SettlementMethod>,
+    settlementMethods: SnapshotStateList<SettlementMethod>,
     val protocolVersion: BigInteger,
     val chainID: BigInteger,
     var havePublicKey: Boolean,
@@ -155,12 +158,16 @@ data class Offer(
     )
      */
 
+    var settlementMethods: SnapshotStateList<SettlementMethod> = settlementMethods
+        private set
+
     val serviceFeeAmountLowerBound: BigInteger = this.serviceFeeRate * (this.amountLowerBound /
             BigInteger.valueOf(10_000L))
     val serviceFeeAmountUpperBound: BigInteger = this.serviceFeeRate * (this.amountUpperBound /
             BigInteger.valueOf(10_000L))
     val onChainDirection: BigInteger
     var onChainSettlementMethods: List<ByteArray>
+        private set
 
     val cancelingOfferState: MutableState<CancelingOfferState> = mutableStateOf(CancelingOfferState.NONE)
     var cancelingOfferException: Exception? = null
@@ -181,11 +188,9 @@ data class Offer(
                 this.onChainDirection = BigInteger.ONE
             }
         }
-        val onChainSettlementMethods = mutableListOf<ByteArray>()
-        settlementMethods.forEach {
-            onChainSettlementMethods.add(Json.encodeToString(it).encodeToByteArray())
+        this.onChainSettlementMethods = settlementMethods.map {
+            Json.encodeToString(it).encodeToByteArray()
         }
-        this.onChainSettlementMethods = onChainSettlementMethods
     }
 
     /**
@@ -209,6 +214,115 @@ data class Offer(
             protocolVersion = this.protocolVersion,
             chainID = this.chainID
         )
+    }
+
+    /**
+     * Updates this [Offer]'s settlement methods given a [List] of [SettlementMethod]s.
+     *
+     * When called, it serializes the contents of [settlementMethods] and sets [onChainSettlementMethods] equal to a
+     * list of the results. Then it sets [Offer.settlementMethods] equal to [settlementMethods].
+     *
+     * @param settlementMethods An updated [List] of [SettlementMethod]s.
+     */
+    fun updateSettlementMethods(settlementMethods: List<SettlementMethod>) {
+        this.onChainSettlementMethods = settlementMethods.map {
+            Json.encodeToString(it).encodeToByteArray()
+        }
+        this.settlementMethods = mutableStateListOf<SettlementMethod>().apply {
+            this.addAll(settlementMethods)
+        }
+    }
+
+    /**
+     * Updates this [Offer]'s settlement methods given a [List] of serialized settlement methods as [ByteArray]s.
+     *
+     * When called, it deserializes the contents of [onChainSettlementMethods] and sets [settlementMethods] equal to a
+     * [List] of the results. Then it sets [Offer.onChainSettlementMethods] equal to [onChainSettlementMethods].
+     *
+     * @param onChainSettlementMethods An updated [List] of serialized settlement methods as [ByteArray]s.
+     */
+    fun updateSettlementMethodsFromChain(onChainSettlementMethods: List<ByteArray>) {
+        val newSettlementMethods = mutableStateListOf<SettlementMethod>().apply {
+            this.addAll(onChainSettlementMethods.mapNotNull {
+                try {
+                    Json.decodeFromString<SettlementMethod>(it.decodeToString())
+                } catch (_: Exception) {
+                    null
+                }
+            })
+        }
+        this.settlementMethods = newSettlementMethods
+        this.onChainSettlementMethods = onChainSettlementMethods
+    }
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (javaClass != other?.javaClass) return false
+
+        other as Offer
+
+        if (isCreated != other.isCreated) return false
+        if (isTaken != other.isTaken) return false
+        if (id != other.id) return false
+        if (maker != other.maker) return false
+        if (!interfaceId.contentEquals(other.interfaceId)) return false
+        if (stablecoin != other.stablecoin) return false
+        if (amountLowerBound != other.amountLowerBound) return false
+        if (amountUpperBound != other.amountUpperBound) return false
+        if (securityDepositAmount != other.securityDepositAmount) return false
+        if (serviceFeeRate != other.serviceFeeRate) return false
+        if (direction != other.direction) return false
+        if (protocolVersion != other.protocolVersion) return false
+        if (chainID != other.chainID) return false
+        if (havePublicKey != other.havePublicKey) return false
+        if (isUserMaker != other.isUserMaker) return false
+        if (state != other.state) return false
+        if (settlementMethods != other.settlementMethods) return false
+        if (serviceFeeAmountLowerBound != other.serviceFeeAmountLowerBound) return false
+        if (serviceFeeAmountUpperBound != other.serviceFeeAmountUpperBound) return false
+        if (onChainDirection != other.onChainDirection) return false
+        if (onChainSettlementMethods != other.onChainSettlementMethods) return false
+        if (cancelingOfferState != other.cancelingOfferState) return false
+        if (cancelingOfferException != other.cancelingOfferException) return false
+        if (selectedSettlementMethods != other.selectedSettlementMethods) return false
+        if (editingOfferState != other.editingOfferState) return false
+        if (editingOfferException != other.editingOfferException) return false
+        if (takingOfferState != other.takingOfferState) return false
+        if (takingOfferException != other.takingOfferException) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = isCreated.hashCode()
+        result = 31 * result + isTaken.hashCode()
+        result = 31 * result + id.hashCode()
+        result = 31 * result + maker.hashCode()
+        result = 31 * result + interfaceId.contentHashCode()
+        result = 31 * result + stablecoin.hashCode()
+        result = 31 * result + amountLowerBound.hashCode()
+        result = 31 * result + amountUpperBound.hashCode()
+        result = 31 * result + securityDepositAmount.hashCode()
+        result = 31 * result + serviceFeeRate.hashCode()
+        result = 31 * result + direction.hashCode()
+        result = 31 * result + protocolVersion.hashCode()
+        result = 31 * result + chainID.hashCode()
+        result = 31 * result + havePublicKey.hashCode()
+        result = 31 * result + isUserMaker.hashCode()
+        result = 31 * result + state.hashCode()
+        result = 31 * result + settlementMethods.hashCode()
+        result = 31 * result + serviceFeeAmountLowerBound.hashCode()
+        result = 31 * result + serviceFeeAmountUpperBound.hashCode()
+        result = 31 * result + onChainDirection.hashCode()
+        result = 31 * result + onChainSettlementMethods.hashCode()
+        result = 31 * result + cancelingOfferState.hashCode()
+        result = 31 * result + (cancelingOfferException?.hashCode() ?: 0)
+        result = 31 * result + selectedSettlementMethods.hashCode()
+        result = 31 * result + editingOfferState.hashCode()
+        result = 31 * result + (editingOfferException?.hashCode() ?: 0)
+        result = 31 * result + takingOfferState.hashCode()
+        result = 31 * result + (takingOfferException?.hashCode() ?: 0)
+        return result
     }
 
     companion object {
@@ -411,62 +525,6 @@ data class Offer(
             )
         }
 
-    }
-
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (javaClass != other?.javaClass) return false
-
-        other as Offer
-
-        if (isCreated != other.isCreated) return false
-        if (isTaken != other.isTaken) return false
-        if (id != other.id) return false
-        if (maker != other.maker) return false
-        if (!interfaceId.contentEquals(other.interfaceId)) return false
-        if (stablecoin != other.stablecoin) return false
-        if (amountLowerBound != other.amountLowerBound) return false
-        if (amountUpperBound != other.amountUpperBound) return false
-        if (securityDepositAmount != other.securityDepositAmount) return false
-        if (serviceFeeRate != other.serviceFeeRate) return false
-        if (direction != other.direction) return false
-        if (settlementMethods != other.settlementMethods) return false
-        if (protocolVersion != other.protocolVersion) return false
-        if (chainID != other.chainID) return false
-        if (havePublicKey != other.havePublicKey) return false
-        if (isUserMaker != other.isUserMaker) return false
-        if (state != other.state) return false
-        if (serviceFeeAmountLowerBound != other.serviceFeeAmountLowerBound) return false
-        if (serviceFeeAmountUpperBound != other.serviceFeeAmountUpperBound) return false
-        if (onChainDirection != other.onChainDirection) return false
-        if (onChainSettlementMethods != other.onChainSettlementMethods) return false
-
-        return true
-    }
-
-    override fun hashCode(): Int {
-        var result = isCreated.hashCode()
-        result = 31 * result + isTaken.hashCode()
-        result = 31 * result + id.hashCode()
-        result = 31 * result + maker.hashCode()
-        result = 31 * result + interfaceId.contentHashCode()
-        result = 31 * result + stablecoin.hashCode()
-        result = 31 * result + amountLowerBound.hashCode()
-        result = 31 * result + amountUpperBound.hashCode()
-        result = 31 * result + securityDepositAmount.hashCode()
-        result = 31 * result + serviceFeeRate.hashCode()
-        result = 31 * result + direction.hashCode()
-        result = 31 * result + settlementMethods.hashCode()
-        result = 31 * result + protocolVersion.hashCode()
-        result = 31 * result + chainID.hashCode()
-        result = 31 * result + havePublicKey.hashCode()
-        result = 31 * result + isUserMaker.hashCode()
-        result = 31 * result + state.hashCode()
-        result = 31 * result + serviceFeeAmountLowerBound.hashCode()
-        result = 31 * result + serviceFeeAmountUpperBound.hashCode()
-        result = 31 * result + onChainDirection.hashCode()
-        result = 31 * result + onChainSettlementMethods.hashCode()
-        return result
     }
 
 }
