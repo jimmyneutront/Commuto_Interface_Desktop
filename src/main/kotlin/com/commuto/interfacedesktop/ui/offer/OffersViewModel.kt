@@ -237,7 +237,7 @@ class OffersViewModel @Inject constructor(private val offerService: OfferService
                     state = CancelingOfferState.COMPLETED
                 )
             } catch (exception: Exception) {
-                logger.error("cancelOffer: got exception during cancelOffer call", exception)
+                logger.error("cancelOffer: got exception during cancelOffer call for ${offer.id}", exception)
                 offer.cancelingOfferException = exception
                 setCancelingOfferState(
                     offerID = offer.id,
@@ -286,7 +286,7 @@ class OffersViewModel @Inject constructor(private val offerService: OfferService
                     state = EditingOfferState.COMPLETED
                 )
             } catch (exception: Exception) {
-                logger.info("editOffer: got exception during editOffer call", exception)
+                logger.info("editOffer: got exception during editOffer call for ${offer.id}", exception)
                 offer.editingOfferException = exception
                 setEditingOfferState(
                     offerID = offer.id,
