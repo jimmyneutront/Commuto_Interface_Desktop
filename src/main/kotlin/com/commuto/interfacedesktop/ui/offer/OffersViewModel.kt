@@ -179,8 +179,8 @@ class OffersViewModel @Inject constructor(private val offerService: OfferService
         settlementMethods: List<SettlementMethod>
     ) {
         viewModelScope.launch {
-            logger.info("openOffer: validating new offer data")
             setOpeningOfferState(OpeningOfferState.VALIDATING)
+            logger.info("openOffer: validating new offer data")
             openingOfferState
             try {
                 val serviceFeeRateForOffer = serviceFeeRate.value ?: throw NewOfferDataValidationException("Unable " +
@@ -261,11 +261,11 @@ class OffersViewModel @Inject constructor(private val offerService: OfferService
         newSettlementMethods: List<SettlementMethod>
     ) {
         viewModelScope.launch {
-            logger.info("editOffer: editing ${offer.id}")
             setEditingOfferState(
                 offerID = offer.id,
                 state = EditingOfferState.EDITING
             )
+            logger.info("editOffer: editing ${offer.id}")
             try {
                 logger.info("editOffer: validating edited settlement methods for ${offer.id}")
                 val validatedSettlementmethods = validateEditedSettlementMethods(newSettlementMethods)
@@ -311,8 +311,8 @@ class OffersViewModel @Inject constructor(private val offerService: OfferService
         settlementMethod: SettlementMethod?
     ) {
         viewModelScope.launch {
-            logger.info("takeOffer: validating new swap data for ${offer.id}")
             setTakingOfferState(offerID = offer.id, state = TakingOfferState.VALIDATING)
+            logger.info("takeOffer: validating new swap data for ${offer.id}")
             try {
                 // TODO: get the proper stablecoin info repo here
                 /*val validatedSwapData =*/ validateNewSwapData(
