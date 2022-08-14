@@ -8,8 +8,9 @@ import com.commuto.interfacedesktop.blockchain.structs.OfferStruct
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import org.slf4j.Logger
 import java.math.BigInteger
-import java.util.UUID
+import java.util.*
 
 /**
  * Represents an [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer).
@@ -240,13 +241,16 @@ class Offer(
      * [List] of the results. Then it sets [Offer.onChainSettlementMethods] equal to [onChainSettlementMethods].
      *
      * @param onChainSettlementMethods An updated [List] of serialized settlement methods as [ByteArray]s.
+     * @param logger An optional [Logger] to log warnings when this is unable to deserialize a [ByteArray].
      */
-    fun updateSettlementMethodsFromChain(onChainSettlementMethods: List<ByteArray>) {
+    fun updateSettlementMethodsFromChain(onChainSettlementMethods: List<ByteArray>, logger: Logger? = null) {
         val newSettlementMethods = mutableStateListOf<SettlementMethod>().apply {
             this.addAll(onChainSettlementMethods.mapNotNull {
                 try {
                     Json.decodeFromString<SettlementMethod>(it.decodeToString())
-                } catch (_: Exception) {
+                } catch (exception: Exception) {
+                    logger?.warn("updateSettlementMethodsFromChain: got exception while deserializing " +
+                            Base64.getEncoder().encodeToString(it), exception)
                     null
                 }
             })
@@ -459,6 +463,8 @@ class Offer(
          * @param havePublicKey The desired value of the [Offer.havePublicKey] property.
          * @param isUserMaker The desired value of the [Offer.isUserMaker] property.
          * @param state The desired value of the [Offer.state] property.
+         * @param logger An optional [Logger] to log warnings when this is unable to deserialize a [ByteArray] in
+         * [onChainSettlementMethods]
          *
          * @return A new [Offer], with its [Offer.direction] property derived from the passed [onChainDirection] value
          * and  its [Offer.settlementMethods] property created by deserializing the data passed in
@@ -485,6 +491,7 @@ class Offer(
             havePublicKey: Boolean,
             isUserMaker: Boolean,
             state: OfferState,
+            logger: Logger? = null,
         ): Offer {
             val direction = when (onChainDirection) {
                 BigInteger.ZERO -> {
@@ -501,7 +508,10 @@ class Offer(
                 onChainSettlementMethods.forEach {
                     try {
                         this.add(Json.decodeFromString(it.decodeToString()))
-                    } catch (_: Exception) {}
+                    } catch (exception: Exception) {
+                        logger?.warn("fromOnChainData: got exception while deserializing ${Base64.getEncoder()
+                            .encodeToString(it)}", exception)
+                    }
                 }
             }
             return Offer(
