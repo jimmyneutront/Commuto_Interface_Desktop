@@ -5,6 +5,8 @@ package com.commuto.interfacedesktop.p2p
 
 import com.commuto.interfacedesktop.key.keys.KeyPair
 import com.commuto.interfacedesktop.offer.OfferService
+import io.ktor.client.*
+import io.ktor.client.plugins.*
 import io.ktor.http.*
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.GlobalScope
@@ -60,7 +62,14 @@ open class P2PService constructor(private val exceptionHandler: P2PExceptionNoti
         offerService = offerService,
         mxClient = MatrixClientServerApiClient(
             baseUrl = Url("https://matrix.org"),
-        ).apply { accessToken.value = "syt_amltbXl0_TlbyjkdfhjbCVJNjOtOt_0GeYu6" }
+            httpClientFactory = {
+                HttpClient(it).config {
+                    install(HttpTimeout) {
+                        socketTimeoutMillis = 60_000
+                    }
+                }
+            }
+        ).apply { accessToken.value = System.getenv("MXKY") }
     )
 
     init {

@@ -38,6 +38,13 @@ class P2PServiceTest {
     fun testP2PService() = runBlocking {
         val mxClient = MatrixClientServerApiClient(
             baseUrl = Url("https://matrix.org"),
+            httpClientFactory = {
+                HttpClient(it).config {
+                    install(HttpTimeout) {
+                        socketTimeoutMillis = 60_000
+                    }
+                }
+            }
         ).apply { accessToken.value = System.getenv("MXKY") }
         class TestP2PExceptionHandler : P2PExceptionNotifiable {
             @Throws
@@ -69,17 +76,15 @@ class P2PServiceTest {
             .putLong(offerId.leastSignificantBits).array()
         val offerIdString = encoder.encodeToString(offerIdBytes)
 
-        val httpClientFactory = { configBlock: (HttpClientConfig<*>.() -> Unit), ->
-            HttpClient(configBlock).config {
-                install(HttpTimeout) {
-                    socketTimeoutMillis = 60_000
-                }
-            }
-        }
-
         val mxClient = MatrixClientServerApiClient(
             baseUrl = Url("https://matrix.org"),
-            httpClientFactory = httpClientFactory
+            httpClientFactory = {
+                HttpClient(it).config {
+                    install(HttpTimeout) {
+                        socketTimeoutMillis = 60_000
+                    }
+                }
+            }
         ).apply { accessToken.value = System.getenv("MXKY") }
 
         class TestP2PExceptionHandler : P2PExceptionNotifiable {
@@ -143,7 +148,14 @@ class P2PServiceTest {
     fun testListenErrorHandling() {
         val mxClient = MatrixClientServerApiClient(
             baseUrl = Url("https://matrix.org"),
-        ).apply { accessToken.value = "not_a_real_token" }
+            httpClientFactory = {
+                HttpClient(it).config {
+                    install(HttpTimeout) {
+                        socketTimeoutMillis = 60_000
+                    }
+                }
+            }
+        ).apply { accessToken.value = System.getenv("MXKY") }
         class TestP2PExceptionHandler : P2PExceptionNotifiable {
             val exceptionChannel = Channel<Exception>()
             override fun handleP2PException(exception: Exception) {
@@ -184,6 +196,13 @@ class P2PServiceTest {
 
         val mxClient = MatrixClientServerApiClient(
             baseUrl = Url("https://matrix.org"),
+            httpClientFactory = {
+                HttpClient(it).config {
+                    install(HttpTimeout) {
+                        socketTimeoutMillis = 60_000
+                    }
+                }
+            }
         ).apply { accessToken.value = "not_a_real_token" }
 
         class TestP2PService : P2PService(p2pExceptionHandler, TestOfferService(), mxClient) {
