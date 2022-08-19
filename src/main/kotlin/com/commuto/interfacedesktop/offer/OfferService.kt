@@ -401,15 +401,15 @@ class OfferService (
      * [interface specification](https://github.com/jimmyneutront/commuto-whitepaper/blob/main/commuto-interface-specification.txt).
      *
      * On the IO coroutine dispatcher, this ensures that an offer with an ID equal to that of [offerToTake] exists on
-     * chain, creates and persistently stores a new key pair and a new [Swap] with the information contained in
-     * [offerToTake] and [swapData]. Then, still on the IO coroutine dispatcher, this approves token transfer for the
-     * proper amount to the [CommutoSwap](https://github.com/jimmyneutront/commuto-protocol/blob/main/CommutoSwap.sol)
-     * contract, calls the CommutoSwap contract's
-     * [takeOffer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#take-offer) function
-     * (via [BlockchainService]), passing the offer ID and new [Swap], and then updates the state of [offerToTake] to
-     * [OfferState.TAKEN] and the state of the swap to [SwapState.TAKE_OFFER_TRANSACTION_BROADCAST]. Then, on the main
-     * coroutine dispatcher, the new [Swap] is added to [swapTruthSource], the value of [offerToTake]'s [Offer.isTaken]
-     * property is set to true and [offerToTake] is removed from [offerTruthSource].
+     * chain and is not taken, creates and persistently stores a new key pair and a new [Swap] with the information
+     * contained in [offerToTake] and [swapData]. Then, still on the IO coroutine dispatcher, this approves token
+     * transfer for the proper amount to the
+     * [CommutoSwap](https://github.com/jimmyneutront/commuto-protocol/blob/main/CommutoSwap.sol) contract, calls the
+     * CommutoSwap contract's [takeOffer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#take-offer)
+     * function (via [BlockchainService]), passing the offer ID and new [Swap], and then updates the state of
+     * [offerToTake] to [OfferState.TAKEN] and the state of the swap to [SwapState.TAKE_OFFER_TRANSACTION_BROADCAST].
+     * Then, on the main coroutine dispatcher, the new [Swap] is added to [swapTruthSource], the value of
+     * [offerToTake]'s [Offer.isTaken] property is set to true and [offerToTake] is removed from [offerTruthSource].
      *
      * @param offerToTake The [Offer] that this function will take.
      * @param swapData A [ValidatedNewSwapData] containing data necessary for taking [offerToTake].
@@ -419,6 +419,9 @@ class OfferService (
      * @param afterPersistentStorage A lambda that will be executed after the [Swap] is persistently stored.
      * @param afterTransferApproval A lambda that will be executed after the token transfer approval to the
      * [CommutoSwap](https://github.com/jimmyneutront/commuto-protocol/blob/main/CommutoSwap.sol) contract is completed.
+     *
+     * @throws OfferServiceException if [offerToTake] does not exist on chain or is already taken, or if the settlement
+     * method specified in [swapData] is not accepted by the maker of [offerToTake].
      */
     suspend fun takeOffer(
         offerToTake: Offer,
@@ -433,10 +436,13 @@ class OfferService (
             try {
                 val encoder = Base64.getEncoder()
                 // Try to get the on-chain offer corresponding to offerToTake
-                val offerOnChain = databaseService.getOffer(encoder.encodeToString(offerToTake.id.asByteArray()))
-                // If offerOnChain is null, then we say isCreated is false
-                if (offerOnChain?.isCreated != 1L) {
-                    throw OfferServiceException("unable to find on-chain offer with id ${offerToTake.id}")
+                val offerOnChain = blockchainService.getOffer(id = offerToTake.id)
+                    ?: throw OfferServiceException("Unable to find on-chain offer with id ${offerToTake.id}")
+                if (!offerOnChain.isCreated) {
+                    throw OfferServiceException("Offer ${offerToTake.id} does not exist")
+                }
+                if (offerOnChain.isTaken) {
+                    throw OfferServiceException("Offer ${offerToTake.id} has already been taken")
                 }
                 afterAvailabilityCheck?.invoke()
                 logger.info("takeOffer: creating Swap object and creating and persistently storing new key " +
