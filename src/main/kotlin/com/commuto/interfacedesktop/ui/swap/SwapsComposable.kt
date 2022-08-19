@@ -14,8 +14,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.commuto.interfacedesktop.swap.Swap
 
+/**
+ * Displays the [SwapsListComposable] for swaps and the focused [Swap], if any.
+ *
+ * @param swapTruthSource An object implementing [UISwapTruthSource] that acts as a single source of truth for all
+ * swap-related data.
+ */
 @Composable
-fun SwapsComposable() {
+fun SwapsComposable(
+    swapTruthSource: UISwapTruthSource
+) {
 
     val focusedSwapComposable = remember { mutableStateOf(FocusedSwapComposable.SwapComposable) }
 
@@ -24,6 +32,7 @@ fun SwapsComposable() {
     Row {
         SwapsListComposable(
             modifier = Modifier.widthIn(100.dp, 300.dp),
+            swapTruthSource = swapTruthSource,
             focusedSwapComposable = focusedSwapComposable,
             focusedSwap = focusedSwap
         )
@@ -51,5 +60,7 @@ fun SwapsComposable() {
 @Preview
 @Composable
 fun PreviewSwapsComposable() {
-    SwapsComposable()
+    SwapsComposable(
+        swapTruthSource = PreviewableSwapTruthSource()
+    )
 }

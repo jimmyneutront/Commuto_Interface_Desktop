@@ -8,7 +8,6 @@ import androidx.compose.material.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -16,7 +15,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.commuto.interfacedesktop.i18n.I18n
 import com.commuto.interfacedesktop.offer.Offer
-import com.commuto.interfacedesktop.offer.OfferTruthSource
 import com.commuto.interfacedesktop.ui.StablecoinInformationRepository
 
 /**
@@ -26,7 +24,7 @@ import com.commuto.interfacedesktop.ui.StablecoinInformationRepository
  * [focusedOfferComposable] to [FocusedOfferComposable.OfferComposable] when pressed.
  *
  * @param modifier A [Modifier] to be applied to the outer column inside this [Composable].
- * @param offerTruthSource An object implementing [OfferTruthSource] that acts as a single source of truth for all
+ * @param offerTruthSource An object implementing [UIOfferTruthSource] that acts as a single source of truth for all
  * offer-related data.
  * @param focusedOfferComposable An enum representing the [Composable] currently being displayed on the trailing side
  * of this [OffersListComposable].
@@ -36,12 +34,11 @@ import com.commuto.interfacedesktop.ui.StablecoinInformationRepository
 @Composable
 fun OffersListComposable(
     modifier: Modifier,
-    offerTruthSource: OfferTruthSource,
+    offerTruthSource: UIOfferTruthSource,
     focusedOfferComposable: MutableState<FocusedOfferComposable>,
     focusedOffer: MutableState<Offer?>
 ) {
     val stablecoinInformationRepository = StablecoinInformationRepository.hardhatStablecoinInfoRepo
-    val offers = remember { offerTruthSource.offers }
     Column(modifier = modifier) {
         Row(
             modifier = Modifier.padding(PaddingValues(start = 10.dp)).fillMaxWidth(),
@@ -76,7 +73,7 @@ fun OffersListComposable(
             OffersNoneFoundComposable()
         } else {
             LazyColumn {
-                for (entry in offers) {
+                for (entry in offerTruthSource.offers) {
                     item {
                         Button(
                             onClick = {
