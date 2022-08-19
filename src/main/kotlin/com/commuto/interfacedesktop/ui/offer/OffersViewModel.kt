@@ -315,11 +315,40 @@ class OffersViewModel @Inject constructor(private val offerService: OfferService
             logger.info("takeOffer: validating new swap data for ${offer.id}")
             try {
                 // TODO: get the proper stablecoin info repo here
-                /*val validatedSwapData =*/ validateNewSwapData(
+                val validatedSwapData = validateNewSwapData(
                     offer = offer,
                     takenSwapAmount = takenSwapAmount,
                     selectedSettlementMethod = settlementMethod,
                     stablecoinInformationRepository = StablecoinInformationRepository.hardhatStablecoinInfoRepo
+                )
+                setTakingOfferState(offerID = offer.id, state = TakingOfferState.CHECKING)
+                offerService.takeOffer(
+                    offerToTake = offer,
+                    swapData = validatedSwapData,
+                    afterAvailabilityCheck = {
+                        setTakingOfferState(
+                            offerID = offer.id,
+                            state = TakingOfferState.CREATING,
+                        )
+                    },
+                    afterObjectCreation = {
+                        setTakingOfferState(
+                            offerID = offer.id,
+                            state = TakingOfferState.STORING,
+                        )
+                    },
+                    afterPersistentStorage = {
+                        setTakingOfferState(
+                            offerID = offer.id,
+                            state = TakingOfferState.APPROVING,
+                        )
+                    },
+                    afterTransferApproval = {
+                        setTakingOfferState(
+                            offerID = offer.id,
+                            state = TakingOfferState.TAKING,
+                        )
+                    }
                 )
                 logger.info("takeOffer: successfully took offer ${offer.id}")
                 setTakingOfferState(offerID = offer.id, state = TakingOfferState.COMPLETED)
