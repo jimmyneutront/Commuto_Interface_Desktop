@@ -6,6 +6,7 @@ import org.junit.Assert
 import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import org.junit.Assert.assertNull
 
 class DatabaseServiceTest {
     private var driver = DatabaseDriverFactory()
@@ -117,7 +118,7 @@ class DatabaseServiceTest {
         databaseService.storeOffer(offerToStore)
         databaseService.updateOfferState("a_uuid", "a_chain_id", "a_new_state_here")
         val returnedOffer = databaseService.getOffer("a_uuid")
-        Assert.assertEquals(returnedOffer!!.state, "a_new_state_here")
+        assertEquals("a_new_state_here", returnedOffer!!.state)
     }
 
     @Test
@@ -156,6 +157,110 @@ class DatabaseServiceTest {
         Assert.assertEquals(differentSettlementMethods[0], "settlement_method_zero")
         Assert.assertEquals(differentSettlementMethods[1], "settlement_method_one")
         Assert.assertEquals(differentSettlementMethods[2], "settlement_method_two")
+    }
+
+    /**
+     * Ensures the code to store, get and delete a [Swap] from persistent storage works properly.
+     */
+    @Test
+    fun testStoreAndGetAndDeleteSwap() = runBlocking {
+        val swapToStore = Swap(
+            swapID = "a_uuid",
+            isCreated = 1L,
+            requiresFill = 0L,
+            maker = "maker_address",
+            makerInterfaceID = "maker_interface_id",
+            taker = "taker_address",
+            takerInterfaceID = "taker_interface_id",
+            stablecoin = "stablecoin_address",
+            amountLowerBound = "lower_bound_amount",
+            amountUpperBound = "upper_bound_amount",
+            securityDepositAmount = "security_deposit_amount",
+            takenSwapAmount = "taken_swap_amount",
+            serviceFeeAmount = "service_fee_amount",
+            serviceFeeRate = "service_fee_rate",
+            onChainDirection = "direction",
+            settlementMethod = "settlement_method",
+            protocolVersion = "some_version",
+            isPaymentSent = 0L,
+            isPaymentReceived = 0L,
+            hasBuyerClosed = 0L,
+            hasSellerClosed = 0L,
+            disputeRaiser = "dispute_raiser",
+            chainID = "a_chain_id",
+            state = "a_state_here",
+        )
+        databaseService.storeSwap(swapToStore)
+        val anotherSwapToStore = Swap(
+            swapID = "a_uuid",
+            isCreated = 1L,
+            requiresFill = 0L,
+            maker = "another_maker_address",
+            makerInterfaceID = "another_maker_interface_id",
+            taker = "another_taker_address",
+            takerInterfaceID = "another_taker_interface_id",
+            stablecoin = "another_stablecoin_address",
+            amountLowerBound = "another_lower_bound_amount",
+            amountUpperBound = "another_upper_bound_amount",
+            securityDepositAmount = "another_security_deposit_amount",
+            takenSwapAmount = "another_taken_swap_amount",
+            serviceFeeAmount = "another_service_fee_amount",
+            serviceFeeRate = "another_service_fee_rate",
+            onChainDirection = "another_direction",
+            settlementMethod = "another_settlement_method",
+            protocolVersion = "another_some_version",
+            isPaymentSent = 0L,
+            isPaymentReceived = 0L,
+            hasBuyerClosed = 0L,
+            hasSellerClosed = 0L,
+            disputeRaiser = "another_dispute_raiser",
+            chainID = "another_chain_id",
+            state = "another_state_here",
+        )
+        // This should do nothing and not throw
+        databaseService.storeSwap(anotherSwapToStore)
+        // This should not throw since only one such Swap should exist in the database
+        val returnedSwap = databaseService.getSwap("a_uuid")
+        assertEquals(swapToStore, returnedSwap)
+        databaseService.deleteSwaps("a_uuid", "a_chain_id")
+        assertNull(databaseService.getSwap("a_uuid"))
+    }
+
+    /**
+     * Ensures that code to update a persistently stored [Swap.state] property works properly.
+     */
+    @Test
+    fun testUpdateSwapState() = runBlocking {
+        val swapToStore = Swap(
+            swapID = "a_uuid",
+            isCreated = 1L,
+            requiresFill = 0L,
+            maker = "maker_address",
+            makerInterfaceID = "maker_interface_id",
+            taker = "taker_address",
+            takerInterfaceID = "taker_interface_id",
+            stablecoin = "stablecoin_address",
+            amountLowerBound = "lower_bound_amount",
+            amountUpperBound = "upper_bound_amount",
+            securityDepositAmount = "security_deposit_amount",
+            takenSwapAmount = "taken_swap_amount",
+            serviceFeeAmount = "service_fee_amount",
+            serviceFeeRate = "service_fee_rate",
+            onChainDirection = "direction",
+            settlementMethod = "settlement_method",
+            protocolVersion = "some_version",
+            isPaymentSent = 0L,
+            isPaymentReceived = 0L,
+            hasBuyerClosed = 0L,
+            hasSellerClosed = 0L,
+            disputeRaiser = "dispute_raiser",
+            chainID = "a_chain_id",
+            state = "a_state_here",
+        )
+        databaseService.storeSwap(swapToStore)
+        databaseService.updateSwapState("a_uuid", "a_chain_id", "a_new_state_here")
+        val returnedSwap = databaseService.getSwap("a_uuid")
+        assertEquals("a_new_state_here", returnedSwap!!.state)
     }
 
     @Test

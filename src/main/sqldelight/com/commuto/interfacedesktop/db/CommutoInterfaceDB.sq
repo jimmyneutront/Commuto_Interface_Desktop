@@ -18,6 +18,34 @@ isUserMaker INTEGER NOT NULL,
 state TEXT NOT NULL
 );
 
+createSwapTable:
+CREATE TABLE Swap (
+swapID TEXT UNIQUE NOT NULL,
+isCreated INTEGER NOT NULL,
+requiresFill INTEGER NOT NULL,
+maker TEXT NOT NULL,
+makerInterfaceID TEXT NOT NULL,
+taker TEXT NOT NULL,
+takerInterfaceID TEXT NOT NULL,
+stablecoin TEXT NOT NULL,
+amountLowerBound TEXT NOT NULL,
+amountUpperBound TEXT NOT NULL,
+securityDepositAmount TEXT NOT NULL,
+takenSwapAmount TEXT NOT NULL,
+serviceFeeAmount TEXT NOT NULL,
+serviceFeeRate TEXT NOT NULL,
+onChainDirection TEXT NOT NULL,
+settlementMethod TEXT NOT NULL,
+protocolVersion TEXT NOT NULL,
+isPaymentSent INTEGER NOT NULL,
+isPaymentReceived INTEGER NOT NULL,
+hasBuyerClosed INTEGER NOT NULL,
+hasSellerClosed INTEGER NOT NULL,
+disputeRaiser TEXT NOT NULL,
+chainID TEXT NOT NULL,
+state TEXT NOT NULL
+);
+
 createSettlementMethodTable:
 CREATE TABLE SettlementMethod (
 offerId TEXT NOT NULL,
@@ -73,6 +101,39 @@ insertPublicKey:
 INSERT INTO PublicKey(interfaceId, publicKey)
 VALUES(?, ?);
 
+insertSwap:
+INSERT INTO Swap(
+    swapID,
+    isCreated,
+    requiresFill,
+    maker,
+    makerInterfaceID,
+    taker,
+    takerInterfaceID,
+    stablecoin,
+    amountLowerBound,
+    amountUpperBound,
+    securityDepositAmount,
+    takenSwapAmount,
+    serviceFeeAmount,
+    serviceFeeRate,
+    onChainDirection,
+    settlementMethod,
+    protocolVersion,
+    isPaymentSent,
+    isPaymentReceived,
+    hasBuyerClosed,
+    hasSellerClosed,
+    disputeRaiser,
+    chainID,
+    state
+)
+VALUES(?, ?, ?, ?, ?, ?, ?,
+?, ?, ?, ?, ?,
+?, ?, ?, ?, ?,
+?, ?, ?, ?, ?, ?,
+?);
+
 updateOfferHavePublicKeyByOfferIDAndChainID:
 UPDATE Offer
 SET havePublicKey = ?
@@ -82,6 +143,11 @@ updateOfferStateByOfferIDAndChainID:
 UPDATE Offer
 SET state = ?
 WHERE offerId = ? AND chainID = ?;
+
+updateSwapStateBySwapIDAndChainID:
+UPDATE Swap
+SET state = ?
+WHERE swapID = ? AND chainID = ?;
 
 selectOfferByOfferId:
 SELECT * FROM Offer
@@ -99,13 +165,21 @@ selectPublicKeyByInterfaceId:
 SELECT * FROM PublicKey
 WHERE interfaceId = ?;
 
+selectSwapBySwapID:
+SELECT * FROM Swap
+WHERE swapID = ?;
+
 deleteOfferByOfferIdAndChainID:
 DELETE FROM Offer
 WHERE offerId = ? AND chainID = ?;
 
 deleteSettlementMethodByOfferIdAndChainID:
 DELETE FROM SettlementMethod
-WHERE offerId = ? AND chainID == ?;
+WHERE offerId = ? AND chainID = ?;
+
+deleteSwapBySwapIDAndChainID:
+DELETE FROM Swap
+WHERE swapID = ? AND chainID = ?;
 
 removeAllOffers:
 DELETE FROM Offer;
@@ -118,3 +192,6 @@ DELETE FROM KeyPair;
 
 removeAllPublicKeys:
 DELETE FROM PublicKey;
+
+removeAllSwaps:
+DELETE FROM Swap;

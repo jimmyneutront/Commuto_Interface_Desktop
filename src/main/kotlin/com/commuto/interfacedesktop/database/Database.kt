@@ -20,6 +20,7 @@ internal class Database(databaseDriverFactory: DatabaseDriverFactory) {
         dbQuery.createSettlementMethodTable()
         dbQuery.createPublicKeyTable()
         dbQuery.createKeyPairTable()
+        dbQuery.createSwapTable()
     }
 
     /**
@@ -31,6 +32,7 @@ internal class Database(databaseDriverFactory: DatabaseDriverFactory) {
             dbQuery.removeAllSettlementMethods()
             dbQuery.removeAllKeyPairs()
             dbQuery.removeAllPublicKeys()
+            dbQuery.removeAllSwaps()
         }
     }
 
@@ -70,6 +72,15 @@ internal class Database(databaseDriverFactory: DatabaseDriverFactory) {
      */
     internal fun selectPublicKeyByInterfaceId(interfaceId: String): List<PublicKey> {
         return dbQuery.selectPublicKeyByInterfaceId(interfaceId).executeAsList()
+    }
+
+    /**
+     * Returns [Swap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#swap)s with the specified swap ID.
+     * @param id The ID of the Swaps to be returned.
+     * @return A [List] of [Swap]s with swap IDs equal to [id].
+     */
+    internal fun selectSwapBySwapID(id: String): List<Swap> {
+        return dbQuery.selectSwapBySwapID(id).executeAsList()
     }
 
     /**
@@ -133,6 +144,39 @@ internal class Database(databaseDriverFactory: DatabaseDriverFactory) {
     }
 
     /**
+     * Inserts a [Swap] into the database.
+     * @param swap The [Swap] to be inserted ino the database.
+     */
+    internal fun insertSwap(swap: Swap) {
+        dbQuery.insertSwap(
+            swapID = swap.swapID,
+            isCreated = swap.isCreated,
+            requiresFill = swap.requiresFill,
+            maker = swap.maker,
+            makerInterfaceID = swap.makerInterfaceID,
+            taker = swap.taker,
+            takerInterfaceID = swap.takerInterfaceID,
+            stablecoin = swap.stablecoin,
+            amountLowerBound = swap.amountLowerBound,
+            amountUpperBound = swap.amountUpperBound,
+            securityDepositAmount = swap.securityDepositAmount,
+            takenSwapAmount = swap.takenSwapAmount,
+            serviceFeeAmount = swap.serviceFeeAmount,
+            serviceFeeRate = swap.serviceFeeRate,
+            onChainDirection = swap.onChainDirection,
+            settlementMethod = swap.settlementMethod,
+            protocolVersion = swap.protocolVersion,
+            isPaymentSent = swap.isPaymentSent,
+            isPaymentReceived = swap.isPaymentReceived,
+            hasBuyerClosed = swap.hasBuyerClosed,
+            hasSellerClosed = swap.hasSellerClosed,
+            disputeRaiser = swap.disputeRaiser,
+            chainID = swap.chainID,
+            state = swap.state
+        )
+    }
+
+    /**
      * Updates the [Offer.havePublicKey] property of the [Offer] with the specified [offerID] and [chainID].
      * @param offerID The ID of the [Offer] to be updated.
      * @param chainID The ID of the blockchain on which [Offer] to be updated exists.
@@ -149,7 +193,7 @@ internal class Database(databaseDriverFactory: DatabaseDriverFactory) {
     /**
      * Updates the [Offer.state] property of the [Offer] with the specified [offerID] and [chainID].
      * @param offerID The ID of the [Offer] to be updated.
-     * @param chainID The ID of the blockchain on which [Offer] to be updated exists.
+     * @param chainID The ID of the blockchain on which the [Offer] to be updated exists.
      * @param state The new value of the [Offer.state] property.
      */
     internal fun updateOfferState(offerID: String, chainID: String, state: String) {
@@ -173,6 +217,20 @@ internal class Database(databaseDriverFactory: DatabaseDriverFactory) {
     }
 
     /**
+     * Updates the [Swap.state] property of the [Swap] with the specified [swapID] and [chainID].
+     * @param swapID The ID of the [Swap] to be updated.
+     * @param chainID The ID of the blockchain on which the [Swap] to be updated exists.
+     * @param state The new value of the [Swap.state] property.
+     */
+    internal fun updateSwapState(swapID: String, chainID: String, state: String) {
+        dbQuery.updateSwapStateBySwapIDAndChainID(
+            state = state,
+            swapID = swapID,
+            chainID = chainID
+        )
+    }
+
+    /**
      * Deletes all [SettlementMethod]s with the specified offer ID and specified blockchain ID from the database.
      * @param offerID The offer ID of the [SettlementMethod]s to be deleted.
      * @param chainID The blockchain ID of the [SettlementMethod]s to be deleted.
@@ -180,6 +238,18 @@ internal class Database(databaseDriverFactory: DatabaseDriverFactory) {
     internal fun deleteSettlementMethods(offerID: String, chainID: String) {
         dbQuery.deleteSettlementMethodByOfferIdAndChainID(
             offerId = offerID,
+            chainID = chainID
+        )
+    }
+
+    /**
+     * Deletes all [Swap]s with the specified swap ID and chain ID from the database.
+     * @param swapID The ID of the [Swap]s to be deleted.
+     * @param chainID The blockchain ID of the [Swap]s to be deleted.
+     */
+    internal fun deleteSwap(swapID: String, chainID: String) {
+        dbQuery.deleteSwapBySwapIDAndChainID(
+            swapID = swapID,
             chainID = chainID
         )
     }

@@ -127,7 +127,7 @@ open class DatabaseService @Inject constructor(private val databaseDriverFactory
 
     /**
      * Retrieves the persistently stored [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer)
-     * with the given offer ID, or returns null if no such event is present.
+     * with the given offer ID, or returns null if no such offer is present.
      *
      * @param id The offer ID of the Offer to return, as a Base64-[String] of bytes.
      *
@@ -339,6 +339,94 @@ open class DatabaseService @Inject constructor(private val databaseDriverFactory
             PublicKey(interfaceId, dbPublicKeys[0].publicKey)
         } else {
             logger.info("getPublicKey: no public key found with interface ID $interfaceId")
+            null
+        }
+    }
+
+    /**
+     * Persistently stores a [Swap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#swap). If a Swap with
+     * the specified ID already exists in the database, this does nothing.
+     *
+     * @param swap The [Swap] to be stored in the database.
+     *
+     * @throws Exception if database insertion is unsuccessful for a reason OTHER than UNIQUE constraint failure.
+     */
+    @OptIn(DelicateCoroutinesApi::class)
+    suspend fun storeSwap(swap: Swap) {
+        try {
+            withContext(databaseServiceContext) {
+                database.insertSwap(swap)
+            }
+            logger.info("storeSwap: stored swap with B64 ID ${swap.swapID}")
+        } catch (exception: SQLiteException) {
+            /*
+            The result code for a UNIQUE constraint failure; see here: https://www.sqlite.org/rescode.html
+            If a Swap with the specified ID already exists, we do nothing.
+             */
+            if (exception.resultCode.code != 2067) {
+                throw exception
+            }
+            logger.info("storeSwap: swap with B64 ID ${swap.swapID} already exists in database")
+        }
+    }
+    /**
+     * Updates the [Swap.state] property of a persistently stored
+     * [Swap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#swap) with the specified [swapID] and
+     * [chainID].
+     *
+     * @param swapID The ID of the swap to be updated, as a Base64-[String] of bytes.
+     * @param chainID The blockchain ID of the swap to be updated, as a [String].
+     * @param state The new value of the swap's [Swap.state] property.
+     */
+    @OptIn(DelicateCoroutinesApi::class)
+    suspend fun updateSwapState(swapID: String, chainID: String, state: String) {
+        withContext(databaseServiceContext) {
+            database.updateSwapState(swapID, chainID, state)
+        }
+        logger.info("updateSwapState: set value to $state for swap with B64 ID $swapID, if present")
+    }
+
+    /**
+     * Removes every [Swap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#swap) with a swap ID equal to
+     * [swapID] and a chain ID equal to [chainID] from persistent storage.
+     *
+     * @param swapID The ID of the swaps to be removed, as a Base64-[String] of bytes.
+     * @param chainID The blockchain ID of the swaps to be removed, as a [String].
+     *
+     * @throws Exception If deletion is unsuccessful.
+     */
+    @OptIn(DelicateCoroutinesApi::class)
+    suspend fun deleteSwaps(swapID: String, chainID: String) {
+        withContext(databaseServiceContext) {
+            database.deleteSwap(swapID, chainID)
+        }
+        logger.info("deleteSwaps: deleted swap with B64 ID $swapID and chain ID $chainID, if present")
+    }
+
+    /**
+     * Retrieves the persistently stored [Swap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#swap) with
+     * the given ID, or returns null if no such swap is present.
+     *
+     * @param id The ID of the Swap to return, as a Base64-[String] of bytes.
+     *
+     * @throws IllegalStateException if multiple swaps are found for a single ID, or if the ID of the swap returned from
+     * the database query does not match [id].
+     */
+    @OptIn(DelicateCoroutinesApi::class)
+    suspend fun getSwap(id: String): Swap? {
+        val dbSwaps: List<Swap> = withContext(databaseServiceContext) {
+            database.selectSwapBySwapID(id)
+        }
+        return if (dbSwaps.size > 1) {
+            throw IllegalStateException("Multiple swaps found with given id $id")
+        } else if (dbSwaps.size == 1) {
+            check(dbSwaps[0].swapID == id) {
+                "Returned swap id $id did not match specified swap id $id"
+            }
+            logger.info("getSwap: returning swap with B64 ID $id")
+            dbSwaps[0]
+        } else {
+            logger.info("getSwap: no swap found with B64 ID $id")
             null
         }
     }
