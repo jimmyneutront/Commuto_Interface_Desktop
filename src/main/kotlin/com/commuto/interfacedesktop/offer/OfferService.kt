@@ -6,16 +6,23 @@ import com.commuto.interfacedesktop.blockchain.BlockchainService
 import com.commuto.interfacedesktop.blockchain.events.commutoswap.*
 import com.commuto.interfacedesktop.blockchain.structs.OfferStruct
 import com.commuto.interfacedesktop.database.DatabaseService
+import com.commuto.interfacedesktop.extension.asByteArray
 import com.commuto.interfacedesktop.key.KeyManagerService
 import com.commuto.interfacedesktop.offer.validation.ValidatedNewOfferData
+import com.commuto.interfacedesktop.offer.validation.ValidatedNewSwapData
 import com.commuto.interfacedesktop.p2p.OfferMessageNotifiable
 import com.commuto.interfacedesktop.p2p.P2PService
 import com.commuto.interfacedesktop.p2p.messages.PublicKeyAnnouncement
+import com.commuto.interfacedesktop.swap.Swap
+import com.commuto.interfacedesktop.swap.SwapState
+import com.commuto.interfacedesktop.swap.SwapTruthSource
 import com.commuto.interfacedesktop.db.Offer as DatabaseOffer
+import com.commuto.interfacedesktop.db.Swap as DatabaseSwap
 import com.commuto.interfacedesktop.ui.offer.OffersViewModel
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.slf4j.LoggerFactory
@@ -45,6 +52,7 @@ import javax.inject.Singleton
  * @property serviceFeeRateChangedEventRepository A repository containing [ServiceFeeRateChangedEvent]s
  * @property offerTruthSource The [OfferTruthSource] in which this is responsible for maintaining an accurate list of
  * all open offers. If this is not yet initialized, event handling methods will throw the corresponding error.
+ * @property swapTruthSource The [SwapTruthSource] in which this creates new [Swap]s as necessary.
  * @property blockchainService The [BlockchainService] that this uses to interact with the blockchain.
  * @property p2pService The [P2PService] that this uses for interacting with the peer-to-peer network.
  */
@@ -71,6 +79,8 @@ class OfferService (
 
     private lateinit var offerTruthSource: OfferTruthSource
 
+    private lateinit var swapTruthSource: SwapTruthSource
+
     private lateinit var blockchainService: BlockchainService
 
     private lateinit var p2pService: P2PService
@@ -87,6 +97,18 @@ class OfferService (
             "offersTruthSource is already initialized"
         }
         offerTruthSource = newTruthSource
+    }
+
+    /**
+     * Used to set the [swapTruthSource] property. This can only be called once.
+     *
+     * @param newTruthSource The new value of the [swapTruthSource] property, which cannot be null.
+     */
+    fun setSwapTruthSource(newTruthSource: SwapTruthSource) {
+        check(!::swapTruthSource.isInitialized) {
+            "swapTruthSource is already initialized"
+        }
+        swapTruthSource = newTruthSource
     }
 
     /**
@@ -368,6 +390,185 @@ class OfferService (
                 logger.info("editOffer: successfully edited $offerID")
             } catch (exception: Exception) {
                 logger.error("editOffer: encountered error while editing $offerID", exception)
+                throw exception
+            }
+        }
+    }
+
+    /**
+     * Attempts to take an [Swap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer), using the
+     * process described in the
+     * [interface specification](https://github.com/jimmyneutront/commuto-whitepaper/blob/main/commuto-interface-specification.txt).
+     *
+     * On the IO coroutine dispatcher, this ensures that an offer with an ID equal to that of [offerToTake] exists on
+     * chain, creates and persistently stores a new key pair and a new [Swap] with the information contained in
+     * [offerToTake] and [swapData]. Then, still on the IO coroutine dispatcher, this approves token transfer for the
+     * proper amount to the [CommutoSwap](https://github.com/jimmyneutront/commuto-protocol/blob/main/CommutoSwap.sol)
+     * contract, calls the CommutoSwap contract's
+     * [takeOffer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#take-offer) function
+     * (via [BlockchainService]), passing the offer ID and new [Swap], and then updates the state of [offerToTake] to
+     * [OfferState.TAKEN] and the state of the swap to [SwapState.TAKE_OFFER_TRANSACTION_BROADCAST]. Then, on the main
+     * coroutine dispatcher, the new [Swap] is added to [swapTruthSource] and [offerToTake] is removed from
+     * [offerTruthSource].
+     *
+     * @param offerToTake The [Offer] that this function will take.
+     * @param swapData A [ValidatedNewSwapData] containing data necessary for taking [offerToTake].
+     * @param afterAvailabilityCheck A lambda that will be executed after this has ensured that the offer exists and is
+     * not taken.
+     * @param afterObjectCreation A lambda that will be executed after the new key pair and [Swap] objects are created.
+     * @param afterPersistentStorage A lambda that will be executed after the [Swap] is persistently stored.
+     * @param afterTransferApproval A lambda that will be executed after the token transfer approval to the
+     * [CommutoSwap](https://github.com/jimmyneutront/commuto-protocol/blob/main/CommutoSwap.sol) contract is completed.
+     */
+    suspend fun takeOffer(
+        offerToTake: Offer,
+        swapData: ValidatedNewSwapData,
+        afterAvailabilityCheck: (suspend () -> Unit)? = null,
+        afterObjectCreation: (suspend () -> Unit)? = null,
+        afterPersistentStorage: (suspend () -> Unit)? = null,
+        afterTransferApproval: (suspend () -> Unit)? = null,
+    ) {
+        withContext(Dispatchers.IO) {
+            logger.info("takeOffer: checking that ${offerToTake.id} is created and not taken")
+            try {
+                val encoder = Base64.getEncoder()
+                // Try to get the on-chain offer corresponding to offerToTake
+                val offerOnChain = databaseService.getOffer(encoder.encodeToString(offerToTake.id.asByteArray()))
+                // If offerOnChain is null, then we say isCreated is false
+                if (offerOnChain?.isCreated != 1L) {
+                    throw OfferServiceException("unable to find on-chain offer with id ${offerToTake.id}")
+                }
+                afterAvailabilityCheck?.invoke()
+                logger.info("takeOffer: creating Swap object and creating and persistently storing new key " +
+                        "pair to take offer ${offerToTake.id}")
+                // Generate a new 2056 bit RSA key pair for the new offer
+                val newKeyPairForSwap = keyManagerService.generateKeyPair(true)
+                val requiresFill = when (offerToTake.direction) {
+                    OfferDirection.BUY -> false
+                    OfferDirection.SELL -> true
+                }
+                val serviceFeeAmount = (swapData.takenSwapAmount * offerToTake.serviceFeeRate) /
+                        BigInteger.valueOf(10_000L)
+                val selectedOnChainSettlementMethod = offerToTake.onChainSettlementMethods.firstOrNull {
+                    try {
+                        val settlementMethod = Json.decodeFromString<SettlementMethod>(it.decodeToString())
+                        settlementMethod == swapData.settlementMethod
+                    } catch (exception: Exception) {
+                        logger.warn("takeOffer: got exception while deserializing settlement method " +
+                                "${encoder.encodeToString(it)} for ${offerToTake.id}")
+                        false
+                    }
+                }
+                    ?: throw OfferServiceException("Unable to find specified settlement method in list of settlement " +
+                            "methods accepted by offer maker")
+                // TODO: Get proper taker address here
+                val newSwap = Swap(
+                    isCreated = true,
+                    requiresFill = requiresFill,
+                    id = offerToTake.id,
+                    maker = offerToTake.maker,
+                    makerInterfaceID = offerToTake.interfaceId,
+                    taker = "0x0000000000000000000000000000000000000000",
+                    takerInterfaceID = newKeyPairForSwap.interfaceId,
+                    stablecoin = offerToTake.stablecoin,
+                    amountLowerBound = offerToTake.amountLowerBound,
+                    amountUpperBound = offerToTake.amountUpperBound,
+                    securityDepositAmount = offerToTake.securityDepositAmount,
+                    takenSwapAmount = swapData.takenSwapAmount,
+                    serviceFeeAmount = serviceFeeAmount,
+                    serviceFeeRate = offerToTake.serviceFeeRate,
+                    direction = offerToTake.direction,
+                    onChainSettlementMethod = selectedOnChainSettlementMethod,
+                    protocolVersion = offerToTake.protocolVersion,
+                    isPaymentSent = false,
+                    isPaymentReceived = false,
+                    hasBuyerClosed = false,
+                    hasSellerClosed = false,
+                    onChainDisputeRaiser = BigInteger.ZERO,
+                    chainID = offerToTake.chainID,
+                    state = SwapState.TAKING,
+                )
+                afterObjectCreation?.invoke()
+                logger.info("takeOffer: persistently storing ${offerToTake.id}")
+                // Persistently store the new swap
+                val offerIDB64String = encoder.encodeToString(offerToTake.id.asByteArray())
+                val swapForDatabase = DatabaseSwap(
+                    swapID = offerIDB64String,
+                    isCreated = 1L,
+                    requiresFill = 0L,
+                    maker = newSwap.maker,
+                    makerInterfaceID = encoder.encodeToString(newSwap.makerInterfaceID),
+                    taker = newSwap.taker,
+                    takerInterfaceID = encoder.encodeToString(newSwap.takerInterfaceID),
+                    stablecoin = newSwap.stablecoin,
+                    amountLowerBound = newSwap.amountLowerBound.toString(),
+                    amountUpperBound = newSwap.amountUpperBound.toString(),
+                    securityDepositAmount = newSwap.securityDepositAmount.toString(),
+                    takenSwapAmount = newSwap.takenSwapAmount.toString(),
+                    serviceFeeAmount = newSwap.serviceFeeAmount.toString(),
+                    serviceFeeRate = newSwap.serviceFeeRate.toString(),
+                    onChainDirection = newSwap.onChainDirection.toString(),
+                    settlementMethod = encoder.encodeToString(newSwap.onChainSettlementMethod),
+                    protocolVersion = newSwap.protocolVersion.toString(),
+                    isPaymentSent = 0L,
+                    isPaymentReceived = 0L,
+                    hasBuyerClosed = 0L,
+                    hasSellerClosed = 0L,
+                    disputeRaiser = newSwap.onChainDisputeRaiser.toString(),
+                    chainID = newSwap.chainID.toString(),
+                    state = newSwap.state.asString,
+                )
+                databaseService.storeSwap(swapForDatabase)
+                afterPersistentStorage?.invoke()
+                val tokenAmountForTakingOffer = when(offerToTake.direction) {
+                    /*
+                    We are taking a BUY offer, so we are SELLING stablecoin. Therefore we must authorize a transfer
+                    equal to the taken swap amount, the security deposit amount, and the service fee amount to the
+                    CommutoSwap contract.
+                     */
+                    OfferDirection.BUY -> newSwap.takenSwapAmount + newSwap.securityDepositAmount +
+                            newSwap.serviceFeeAmount
+                    OfferDirection.SELL -> newSwap.securityDepositAmount + newSwap.serviceFeeAmount
+                }
+                logger.info("takeOffer: authorizing transfer for ${offerToTake.id}. Amount: " +
+                        "$tokenAmountForTakingOffer")
+                blockchainService.approveTokenTransferAsync(
+                    tokenAddress = newSwap.stablecoin,
+                    destinationAddress = blockchainService.getCommutoSwapAddress(),
+                    amount = tokenAmountForTakingOffer,
+                ).await()
+                afterTransferApproval?.invoke()
+                logger.info("takeOffer: taking ${offerToTake.id}")
+                blockchainService.takeOfferAsync(
+                    id = offerToTake.id,
+                    swapStruct = newSwap.toSwapStruct()
+                ).await()
+                logger.info("takeOffer: took ${offerToTake.id}")
+                offerToTake.state = OfferState.TAKEN
+                databaseService.updateOfferState(
+                    offerID = offerIDB64String,
+                    chainID = offerToTake.chainID.toString(),
+                    state = OfferState.TAKEN.asString
+                )
+                newSwap.state = SwapState.TAKE_OFFER_TRANSACTION_BROADCAST
+                databaseService.updateSwapState(
+                    swapID = offerIDB64String,
+                    chainID = newSwap.chainID.toString(),
+                    state = SwapState.TAKE_OFFER_TRANSACTION_BROADCAST.asString
+                )
+                logger.info("takeOffer: adding ${newSwap.id} to swapTruthSource and removing " +
+                        "${offerToTake.id} from offerTruthSource")
+                withContext(Dispatchers.Main) {
+                    swapTruthSource.addSwap(swap = newSwap)
+                    offerTruthSource.removeOffer(id = offerToTake.id)
+                }
+                logger.info("takeOffer: removing offer ${offerToTake.id} from persistent storage")
+                databaseService.deleteOffers(
+                    offerID = offerIDB64String,
+                    chainID = offerToTake.chainID.toString()
+                )
+            } catch (exception: Exception) {
+                logger.error("takeOffer: encountered exception during call for ${offerToTake.id}", exception)
                 throw exception
             }
         }

@@ -10,8 +10,16 @@ package com.commuto.interfacedesktop.swap
  * has not yet been called for the offer corresponding to the associated swap.
  * @property TAKE_OFFER_TRANSACTION_BROADCAST Indicates that the transaction to take the offer corresponding to the
  * associated swap has been broadcast.
+ * @property asString A [String] corresponding to a particular case of [SwapState].
  */
 enum class SwapState {
     TAKING,
     TAKE_OFFER_TRANSACTION_BROADCAST;
+
+    val asString: String
+        get() = when (this) {
+            TAKING -> "taking"
+            TAKE_OFFER_TRANSACTION_BROADCAST -> "takeOfferTxPublished"
+        }
+
 }

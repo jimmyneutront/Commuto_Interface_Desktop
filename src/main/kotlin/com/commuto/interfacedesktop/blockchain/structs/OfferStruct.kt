@@ -1,7 +1,6 @@
 package com.commuto.interfacedesktop.blockchain.structs
 
 import com.commuto.interfacedesktop.contractwrapper.CommutoSwap
-import com.commuto.interfacedesktop.offer.Offer
 import java.math.BigInteger
 
 /**
@@ -59,9 +58,9 @@ data class OfferStruct(
     )
 
     /**
-     * Returns a [CommutoSwap.Offer] derived from this [Offer].
+     * Returns a [CommutoSwap.Offer] derived from this [OfferStruct].
      *
-     * @return An [OfferStruct] derived from this [Offer].
+     * @return An [CommutoSwap.Offer] derived from this [OfferStruct].
      */
     fun toCommutoSwapOffer(): CommutoSwap.Offer {
         return CommutoSwap.Offer(

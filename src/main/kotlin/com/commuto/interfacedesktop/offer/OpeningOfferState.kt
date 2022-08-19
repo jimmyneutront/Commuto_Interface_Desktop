@@ -13,7 +13,7 @@ package com.commuto.interfacedesktop.offer
  * @property OPENING Indicates that we are currently calling CommutoSwap's
  * [openOffer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#open-offer) function for the new offer.
  * @property COMPLETED Indicates that we have successfully opened the new offer.
- * @property EXCEPTION Indicates we encountered an exception during offer creation.
+ * @property EXCEPTION Indicates that we encountered an exception during offer creation.
  * @property description A human-readable string describing the current state.
  */
 enum class OpeningOfferState {

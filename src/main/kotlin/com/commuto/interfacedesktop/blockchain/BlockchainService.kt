@@ -2,7 +2,9 @@ package com.commuto.interfacedesktop.blockchain
 
 import com.commuto.interfacedesktop.blockchain.events.commutoswap.*
 import com.commuto.interfacedesktop.blockchain.structs.OfferStruct
+import com.commuto.interfacedesktop.blockchain.structs.SwapStruct
 import com.commuto.interfacedesktop.contractwrapper.CommutoSwap
+import com.commuto.interfacedesktop.extension.asByteArray
 import com.commuto.interfacedesktop.offer.OfferNotifiable
 import com.commuto.interfacedesktop.offer.OfferService
 import kotlinx.coroutines.*
@@ -285,7 +287,7 @@ class BlockchainService (private val exceptionHandler: BlockchainExceptionNotifi
      *
      * @param id The ID of the new [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer) to be
      * opened.
-     * @param offerStruct The OfferStruct containing the data of the new
+     * @param offerStruct The [OfferStruct] containing the data of the new
      * [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer) to be opened.
      *
      * @return A [Deferred] with a [TransactionReceipt] result.
@@ -347,6 +349,18 @@ class BlockchainService (private val exceptionHandler: BlockchainExceptionNotifi
             iDByteArray,
             offer
         ).sendAsync().asDeferred()
+    }
+
+    /**
+     * A [Deferred] wrapper around the [CommutoSwap.takeOffer] method.
+     *
+     * @param id The ID of the [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer) to be taken.
+     * @param swapStruct The [SwapStruct] containing data necessary to take the offer.
+     *
+     * @return A [Deferred] with a [TransactionReceipt] result.
+     */
+    fun takeOfferAsync(id: UUID, swapStruct: SwapStruct): Deferred<TransactionReceipt> {
+        return commutoSwap.takeOffer(id.asByteArray(), swapStruct.toCommutoSwapSwap()).sendAsync().asDeferred()
     }
 
     /**
