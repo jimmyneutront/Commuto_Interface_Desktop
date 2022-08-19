@@ -62,6 +62,36 @@ fun OfferComposable(
                 text = "This Offer is not available.",
             )
         }
+    } else if (!offer.isCreated && offer.cancelingOfferState.value == CancelingOfferState.NONE) {
+        /*
+        If isCreated is false and cancelingOfferState.value is NONE, then the offer has been canceled by someone OTHER
+        than the user of this interface, and therefore we don't show any offer info, just this message. Otherwise, if
+        this offer WAS canceled by the user of this interface, we do show offer info, but relabel the "Cancel Offer"
+        button to indicate that the offer has been canceled.
+         */
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceEvenly
+        ) {
+            Text(
+                text = "This Offer has been canceled.",
+            )
+        }
+    } else if (offer.isTaken.value && offer.takingOfferState.value == TakingOfferState.NONE) {
+        /*
+        If isTaken is true and takingOfferState.value is NONE, then the offer has been taken by someone OTHER than the
+        user of this interface, and therefore we don't show any offer info, just this message. Otherwise, if this offer
+        WAS taken by the user of this interface, we do show offer info, but relabel the "Take Offer" button to indicate
+        that the offer has been taken.
+         */
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceEvenly
+        ) {
+            Text(
+                text = "This Offer has been canceled.",
+            )
+        }
     } else {
         val stablecoinInformation = stablecoinInfoRepo.getStablecoinInformation(offer.chainID, offer.stablecoin)
         val settlementMethods = remember { offer.settlementMethods }

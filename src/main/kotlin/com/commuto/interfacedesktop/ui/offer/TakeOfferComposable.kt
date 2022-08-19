@@ -20,6 +20,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.commuto.interfacedesktop.offer.CancelingOfferState
 import com.commuto.interfacedesktop.offer.Offer
 import com.commuto.interfacedesktop.offer.SettlementMethod
 import com.commuto.interfacedesktop.offer.TakingOfferState
@@ -67,40 +68,32 @@ fun TakeOfferComposable(
     val selectedSettlementMethod = remember { mutableStateOf<SettlementMethod?>(null) }
 
     if (offer == null) {
-        Column(
-            modifier = Modifier
-                .padding(10.dp)
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceEvenly
-            ) {
-                Text(
-                    text = "Take Offer",
-                    style = MaterialTheme.typography.h4,
-                    fontWeight = FontWeight.Bold,
-                )
-                Button(
-                    onClick = {
-                        closeDialog()
-                    },
-                    content = {
-                        Text(
-                            text = "Cancel",
-                            fontWeight = FontWeight.Bold,
-                        )
-                    },
-                    colors = ButtonDefaults.buttonColors(
-                        backgroundColor =  Color.Transparent,
-                        contentColor = Color.Black,
-                    ),
-                    elevation = null,
-                )
-            }
-            Text(
-                text = "This Offer is not available.",
-            )
-        }
+        TakeOfferUnavailableComposable(
+            message = "This Offer is unavailable.",
+            closeDialog = closeDialog
+        )
+    } else if (!offer.isCreated && offer.cancelingOfferState.value == CancelingOfferState.NONE) {
+        /*
+        If isCreated is false and cancelingOfferState.value is NONE, then the offer has been canceled by someone OTHER
+        than the user of this interface, and therefore we don't show any offer info, just this message. Otherwise, if
+        this offer WAS canceled by the user of this interface, we do show offer info, but relabel the "Cancel Offer"
+        button to indicate that the offer has been canceled.
+         */
+        TakeOfferUnavailableComposable(
+            message = "This Offer has been canceled.",
+            closeDialog = closeDialog
+        )
+    } else if (offer.isTaken.value && offer.takingOfferState.value == TakingOfferState.NONE) {
+        /*
+        If isTaken is true and takingOfferState.value is NONE, then the offer has been taken by someone OTHER than the
+        user of this interface, and therefore we don't show any offer info, just this message. Otherwise, if this offer
+        WAS taken by the user of this interface, we do show offer info, but relabel the "Take Offer" button to indicate
+        that the offer has been taken.
+         */
+        TakeOfferUnavailableComposable(
+            message = "This Offer has been taken.",
+            closeDialog = closeDialog
+        )
     } else {
         val stablecoinInformation = stablecoinInfoRepo.getStablecoinInformation(
             chainID = offer.chainID, contractAddress = offer.stablecoin
@@ -239,6 +232,54 @@ fun TakeOfferComposable(
                 modifier = Modifier.fillMaxWidth()
             )
         }
+    }
+}
+
+/**
+ * Used to display an error message when an offer cannot be taken for some reason. This should only be used in
+ * [TakeOfferComposable].
+ *
+ * @param message A message explaining why the offer cannot be taken.
+ * @param closeDialog A lambda that will close the dialog in which this [Composable] is presented.
+ */
+@Composable
+fun TakeOfferUnavailableComposable(
+    message: String,
+    closeDialog: () -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .padding(10.dp)
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceEvenly
+        ) {
+            Text(
+                text = "Take Offer",
+                style = MaterialTheme.typography.h4,
+                fontWeight = FontWeight.Bold,
+            )
+            Button(
+                onClick = {
+                    closeDialog()
+                },
+                content = {
+                    Text(
+                        text = "Cancel",
+                        fontWeight = FontWeight.Bold,
+                    )
+                },
+                colors = ButtonDefaults.buttonColors(
+                    backgroundColor =  Color.Transparent,
+                    contentColor = Color.Black,
+                ),
+                elevation = null,
+            )
+        }
+        Text(
+            text = message,
+        )
     }
 }
 
