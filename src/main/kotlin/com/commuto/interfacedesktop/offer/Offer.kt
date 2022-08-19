@@ -18,8 +18,7 @@ import java.util.*
  * @param id The ID that uniquely identifies the offer, as a [UUID].
  * @param isCreated Corresponds to an on-chain
  * [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer)'s isCreated property.
- * @param isTaken Corresponds to an on-chain
- * [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer)'s isTaken property.
+ * @param isTaken The initial value of [isTaken].
  * @param maker Corresponds to an on-chain
  * [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer)'s maker property.
  * @param interfaceId Corresponds to an on-chain
@@ -46,6 +45,8 @@ import java.util.*
  * @param state Indicates the current state of this offer, as described in the
  * [Commuto Interface Specification](https://github.com/jimmyneutront/commuto-whitepaper/blob/main/commuto-interface-specification.txt).
  *
+ * @property isTaken A [MutableState] wrapping a [Boolean] corresponding to an on-chain
+ * [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer)'s isTaken property.
  * @property settlementMethods A [SnapshotStateList] of [SettlementMethod]s derived from parsing
  * [onChainSettlementMethods]. Note that this has a private setter; code not in this class should use the
  * [updateSettlementMethods] method.
@@ -81,7 +82,7 @@ import java.util.*
  */
 class Offer(
     val isCreated: Boolean,
-    val isTaken: Boolean,
+    isTaken: Boolean,
     val id: UUID,
     val maker: String,
     val interfaceId: ByteArray,
@@ -159,6 +160,8 @@ class Offer(
     )
      */
 
+    val isTaken: MutableState<Boolean>
+
     var settlementMethods: SnapshotStateList<SettlementMethod> = settlementMethods
         private set
 
@@ -181,6 +184,7 @@ class Offer(
     var takingOfferException: Exception? = null
 
     init {
+        this.isTaken = mutableStateOf(isTaken)
         when (this.direction) {
             OfferDirection.BUY -> {
                 this.onChainDirection = BigInteger.ZERO
@@ -202,7 +206,7 @@ class Offer(
     fun toOfferStruct(): OfferStruct {
         return OfferStruct(
             isCreated = this.isCreated,
-            isTaken = this.isTaken,
+            isTaken = this.isTaken.value,
             maker = this.maker,
             interfaceID = this.interfaceId,
             stablecoin = this.stablecoin,

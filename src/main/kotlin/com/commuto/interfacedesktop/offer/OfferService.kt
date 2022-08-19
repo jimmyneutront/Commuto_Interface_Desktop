@@ -408,8 +408,8 @@ class OfferService (
      * [takeOffer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#take-offer) function
      * (via [BlockchainService]), passing the offer ID and new [Swap], and then updates the state of [offerToTake] to
      * [OfferState.TAKEN] and the state of the swap to [SwapState.TAKE_OFFER_TRANSACTION_BROADCAST]. Then, on the main
-     * coroutine dispatcher, the new [Swap] is added to [swapTruthSource] and [offerToTake] is removed from
-     * [offerTruthSource].
+     * coroutine dispatcher, the new [Swap] is added to [swapTruthSource], the value of [offerToTake]'s [Offer.isTaken]
+     * property is set to true and [offerToTake] is removed from [offerTruthSource].
      *
      * @param offerToTake The [Offer] that this function will take.
      * @param swapData A [ValidatedNewSwapData] containing data necessary for taking [offerToTake].
@@ -560,6 +560,7 @@ class OfferService (
                         "${offerToTake.id} from offerTruthSource")
                 withContext(Dispatchers.Main) {
                     swapTruthSource.addSwap(swap = newSwap)
+                    offerToTake.isTaken.value = true
                     offerTruthSource.removeOffer(id = offerToTake.id)
                 }
                 logger.info("takeOffer: removing offer ${offerToTake.id} from persistent storage")
