@@ -237,8 +237,8 @@ class BlockchainService (private val exceptionHandler: BlockchainExceptionNotifi
     }
 
     /**
-     * Uses the [CommutoSwap.getOffer] method and the [Web3j.ethChainId] to get the current chain ID and all on-chain
-     * data about the offer with the specified ID, and creates and returns an [OfferStruct] with the results.
+     * Uses the [CommutoSwap.getOffer] method and [Web3j.ethChainId] to get the current chain ID and all on-chain data
+     * about the offer with the specified ID, and creates and returns an [OfferStruct] with the results.
      *
      * @param id The ID of the offer to return.
      *
@@ -361,6 +361,21 @@ class BlockchainService (private val exceptionHandler: BlockchainExceptionNotifi
      */
     fun takeOfferAsync(id: UUID, swapStruct: SwapStruct): Deferred<TransactionReceipt> {
         return commutoSwap.takeOffer(id.asByteArray(), swapStruct.toCommutoSwapSwap()).sendAsync().asDeferred()
+    }
+
+    /**
+     * Uses the [CommutoSwap.getSwap] method and [Web3j.ethChainId] to get the current chain ID and all on-chain data
+     * about the swap with the specified ID, and creates and returns an [SwapStruct] with the results.
+     *
+     * @param id The ID of the swap to return.
+     *
+     * @return A [SwapStruct] containing all on-chain data of the swap with the specified ID, or null if no such swap
+     * exists.
+     */
+    suspend fun getSwap(id: UUID): SwapStruct? {
+        val swap = commutoSwap.getSwap(id.asByteArray()).sendAsync().asDeferred()
+        val chainID = web3.ethChainId().sendAsync().asDeferred()
+        return SwapStruct.createFromGetSwapResponse(swap.await(), chainID.await().chainId)
     }
 
     /**

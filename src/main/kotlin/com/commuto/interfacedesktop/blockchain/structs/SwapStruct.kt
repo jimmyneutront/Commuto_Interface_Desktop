@@ -55,6 +55,37 @@ data class SwapStruct(
 ) {
 
     /**
+     * Creates a [SwapStruct] from a [CommutoSwap.Swap] and the specified [chainID].
+     *
+     * @param swap The [CommutoSwap.Swap] from which the returned [SwapStruct] will be created.
+     * @param chainID The ID of the blockchain on which this swap exists.
+     */
+    private constructor(swap: CommutoSwap.Swap, chainID: BigInteger): this(
+        isCreated = swap.isCreated,
+        requiresFill = swap.requiresFill,
+        maker = swap.maker,
+        makerInterfaceID = swap.makerInterfaceId,
+        taker = swap.taker,
+        takerInterfaceID = swap.takerInterfaceId,
+        stablecoin = swap.stablecoin,
+        amountLowerBound = swap.amountLowerBound,
+        amountUpperBound = swap.amountUpperBound,
+        securityDepositAmount = swap.securityDepositAmount,
+        takenSwapAmount = swap.takenSwapAmount,
+        serviceFeeAmount = swap.serviceFeeAmount,
+        serviceFeeRate = swap.serviceFeeRate,
+        direction = swap.direction,
+        settlementMethod = swap.settlementMethod,
+        protocolVersion = swap.protocolVersion,
+        isPaymentSent = swap.isPaymentSent,
+        isPaymentReceived = swap.isPaymentReceived,
+        hasBuyerClosed = swap.hasBuyerClosed,
+        hasSellerClosed = swap.hasSellerClosed,
+        disputeRaiser = swap.disputeRaiser,
+        chainID = chainID,
+    )
+
+    /**
      * Returns a [CommutoSwap.Swap] derived from this [SwapStruct].
      *
      * @return A [CommutoSwap.Swap] derived from this [SwapStruct]
@@ -141,6 +172,26 @@ data class SwapStruct(
         result = 31 * result + disputeRaiser.hashCode()
         result = 31 * result + chainID.hashCode()
         return result
+    }
+
+    companion object {
+        /**
+         * Creates an [SwapStruct] from a [CommutoSwap.Swap] and the specified [chainID] if [CommutoSwap.Swap.isCreated]
+         * is true, or returns null if false.
+         *
+         * @param swap The [CommutoSwap.Swap] from which the returned [SwapStruct] will be created.
+         * @param chainID The ID of the blockchain on which this swap exists.
+         *
+         * @return A [SwapStruct] derived from [swap] and [chainID] if [CommutoSwap.Offer.isCreated] is true, or null
+         * if false.
+         */
+        fun createFromGetSwapResponse(swap: CommutoSwap.Swap, chainID: BigInteger): SwapStruct? {
+            return if (!swap.isCreated) {
+                null
+            } else {
+                SwapStruct(swap, chainID)
+            }
+        }
     }
 
 }

@@ -1452,7 +1452,7 @@ class OfferServiceTests {
         }
         val exceptionHandler = TestBlockchainExceptionHandler()
 
-        BlockchainService(
+        val blockchainService = BlockchainService(
             exceptionHandler,
             offerService,
             w3,
@@ -1526,7 +1526,11 @@ class OfferServiceTests {
                 swapData = swapData,
             )
 
-            // TODO: check for swap on chain
+            val swapOnChain = blockchainService.getSwap(id = offerID)
+            assertTrue(swapOnChain!!.isCreated)
+
+            assertNotNull(keyManagerService.getKeyPair(interfaceId = swapOnChain.takerInterfaceID))
+
             val swapInTruthSource = swapTruthSource.swaps[offerID]
             assertTrue(swapInTruthSource!!.isCreated)
             assertFalse(swapInTruthSource.requiresFill)
@@ -1534,7 +1538,7 @@ class OfferServiceTests {
             assertEquals("0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266", swapInTruthSource.maker)
             assert(ByteArray(0).contentEquals(swapInTruthSource.makerInterfaceID))
             // TODO: check taker address once walletService is implemented
-            // TODO: check taker interface ID once we have swap from chain
+            assert(swapOnChain.takerInterfaceID.contentEquals(swapInTruthSource.takerInterfaceID))
             assertEquals(testingServerResponse.stablecoinAddress, swapInTruthSource.stablecoin)
             assertEquals(BigInteger.valueOf(10_000L) * BigInteger.TEN.pow(18), swapInTruthSource
                 .amountLowerBound)
