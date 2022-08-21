@@ -874,6 +874,7 @@ class OfferService (
         offerTakenEventRepository.remove(event)
         withContext(Dispatchers.Main) {
             if (offerTruthSource.offers[event.offerID]?.chainID == event.chainID) {
+                offerTruthSource.offers[event.offerID]?.isTaken?.value = true
                 offerTruthSource.removeOffer(event.offerID)
             }
         }
