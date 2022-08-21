@@ -1,6 +1,6 @@
 createOfferTable:
 CREATE TABLE Offer (
-offerId TEXT UNIQUE NOT NULL,
+id TEXT UNIQUE NOT NULL,
 isCreated INTEGER NOT NULL,
 isTaken INTEGER NOT NULL,
 maker TEXT NOT NULL,
@@ -20,7 +20,7 @@ state TEXT NOT NULL
 
 createSwapTable:
 CREATE TABLE Swap (
-swapID TEXT UNIQUE NOT NULL,
+id TEXT UNIQUE NOT NULL,
 isCreated INTEGER NOT NULL,
 requiresFill INTEGER NOT NULL,
 maker TEXT NOT NULL,
@@ -48,7 +48,7 @@ state TEXT NOT NULL
 
 createSettlementMethodTable:
 CREATE TABLE SettlementMethod (
-offerId TEXT NOT NULL,
+id TEXT NOT NULL,
 chainID TEXT NOT NULL,
 settlementMethod TEXT NOT NULL
 );
@@ -68,7 +68,7 @@ publicKey TEXT NOT NULL
 
 insertOffer:
 INSERT INTO Offer(
-    offerId,
+    id,
     isCreated,
     isTaken,
     maker,
@@ -90,7 +90,7 @@ VALUES(?, ?, ?, ?, ?, ?, ?,
 ?, ?, ?, ?);
 
 insertSettlementMethod:
-INSERT INTO SettlementMethod(offerId, chainID, settlementMethod)
+INSERT INTO SettlementMethod(id, chainID, settlementMethod)
 VALUES(?, ?, ?);
 
 insertKeyPair:
@@ -103,7 +103,7 @@ VALUES(?, ?);
 
 insertSwap:
 INSERT INTO Swap(
-    swapID,
+    id,
     isCreated,
     requiresFill,
     maker,
@@ -137,25 +137,25 @@ VALUES(?, ?, ?, ?, ?, ?, ?,
 updateOfferHavePublicKeyByOfferIDAndChainID:
 UPDATE Offer
 SET havePublicKey = ?
-WHERE offerId = ? AND chainID = ?;
+WHERE id = ? AND chainID = ?;
 
 updateOfferStateByOfferIDAndChainID:
 UPDATE Offer
 SET state = ?
-WHERE offerId = ? AND chainID = ?;
+WHERE id = ? AND chainID = ?;
 
 updateSwapStateBySwapIDAndChainID:
 UPDATE Swap
 SET state = ?
-WHERE swapID = ? AND chainID = ?;
+WHERE id = ? AND chainID = ?;
 
 selectOfferByOfferId:
 SELECT * FROM Offer
-WHERE offerId = ?;
+WHERE id = ?;
 
 selectSettlementMethodByOfferIdAndChainID:
 SELECT * FROM SettlementMethod
-WHERE offerId = ? AND chainID = ?;
+WHERE id = ? AND chainID = ?;
 
 selectKeyPairByInterfaceId:
 SELECT * FROM KeyPair
@@ -167,19 +167,19 @@ WHERE interfaceId = ?;
 
 selectSwapBySwapID:
 SELECT * FROM Swap
-WHERE swapID = ?;
+WHERE id = ?;
 
 deleteOfferByOfferIdAndChainID:
 DELETE FROM Offer
-WHERE offerId = ? AND chainID = ?;
+WHERE id = ? AND chainID = ?;
 
 deleteSettlementMethodByOfferIdAndChainID:
 DELETE FROM SettlementMethod
-WHERE offerId = ? AND chainID = ?;
+WHERE id = ? AND chainID = ?;
 
 deleteSwapBySwapIDAndChainID:
 DELETE FROM Swap
-WHERE swapID = ? AND chainID = ?;
+WHERE id = ? AND chainID = ?;
 
 removeAllOffers:
 DELETE FROM Offer;

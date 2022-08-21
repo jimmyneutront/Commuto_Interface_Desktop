@@ -114,7 +114,7 @@ internal class Database(databaseDriverFactory: DatabaseDriverFactory) {
      */
     internal fun insertSettlementMethod(settlementMethod: SettlementMethod) {
         dbQuery.insertSettlementMethod(
-            offerId = settlementMethod.offerId,
+            id = settlementMethod.id,
             chainID = settlementMethod.chainID,
             settlementMethod = settlementMethod.settlementMethod,
         )
@@ -237,7 +237,7 @@ internal class Database(databaseDriverFactory: DatabaseDriverFactory) {
      */
     internal fun deleteSettlementMethods(offerID: String, chainID: String) {
         dbQuery.deleteSettlementMethodByOfferIdAndChainID(
-            offerId = offerID,
+            id = offerID,
             chainID = chainID
         )
     }
