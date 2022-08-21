@@ -89,7 +89,7 @@ internal class Database(databaseDriverFactory: DatabaseDriverFactory) {
      */
     internal fun insertOffer(offer: Offer) {
         dbQuery.insertOffer(
-            offerId = offer.offerId,
+            id = offer.id,
             isCreated = offer.isCreated,
             isTaken = offer.isTaken,
             maker = offer.maker,
@@ -149,7 +149,7 @@ internal class Database(databaseDriverFactory: DatabaseDriverFactory) {
      */
     internal fun insertSwap(swap: Swap) {
         dbQuery.insertSwap(
-            swapID = swap.swapID,
+            id = swap.id,
             isCreated = swap.isCreated,
             requiresFill = swap.requiresFill,
             maker = swap.maker,
@@ -185,7 +185,7 @@ internal class Database(databaseDriverFactory: DatabaseDriverFactory) {
     internal fun updateOfferHavePublicKey(offerID: String, chainID: String, havePublicKey: Long) {
         dbQuery.updateOfferHavePublicKeyByOfferIDAndChainID(
             havePublicKey = havePublicKey,
-            offerId = offerID,
+            id = offerID,
             chainID = chainID
         )
     }
@@ -199,7 +199,7 @@ internal class Database(databaseDriverFactory: DatabaseDriverFactory) {
     internal fun updateOfferState(offerID: String, chainID: String, state: String) {
         dbQuery.updateOfferStateByOfferIDAndChainID(
             state = state,
-            offerId = offerID,
+            id = offerID,
             chainID = chainID
         )
     }
@@ -211,7 +211,7 @@ internal class Database(databaseDriverFactory: DatabaseDriverFactory) {
      */
     internal fun deleteOffer(offerID: String, chainID: String) {
         dbQuery.deleteOfferByOfferIdAndChainID(
-            offerId = offerID,
+            id = offerID,
             chainID = chainID
         )
     }
@@ -225,7 +225,7 @@ internal class Database(databaseDriverFactory: DatabaseDriverFactory) {
     internal fun updateSwapState(swapID: String, chainID: String, state: String) {
         dbQuery.updateSwapStateBySwapIDAndChainID(
             state = state,
-            swapID = swapID,
+            id = swapID,
             chainID = chainID
         )
     }
@@ -249,7 +249,7 @@ internal class Database(databaseDriverFactory: DatabaseDriverFactory) {
      */
     internal fun deleteSwap(swapID: String, chainID: String) {
         dbQuery.deleteSwapBySwapIDAndChainID(
-            swapID = swapID,
+            id = swapID,
             chainID = chainID
         )
     }

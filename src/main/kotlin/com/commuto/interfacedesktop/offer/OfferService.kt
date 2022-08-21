@@ -222,7 +222,7 @@ class OfferService (
                 val offerForDatabase = DatabaseOffer(
                     isCreated = 1L,
                     isTaken = 0L,
-                    offerId = offerIDString,
+                    id = offerIDString,
                     maker = newOffer.maker,
                     interfaceId = encoder.encodeToString(newOffer.interfaceId),
                     stablecoin = newOffer.stablecoin,
@@ -243,7 +243,7 @@ class OfferService (
                 }
                 logger.info("openOffer: persistently storing ${settlementMethodStrings.size} settlement " +
                         "methods for offer ${newOffer.id}")
-                databaseService.storeSettlementMethods(offerForDatabase.offerId, offerForDatabase.chainID,
+                databaseService.storeSettlementMethods(offerForDatabase.id, offerForDatabase.chainID,
                     settlementMethodStrings)
                 afterPersistentStorage?.invoke()
                 afterPersistentStorage?.invoke()
@@ -510,7 +510,7 @@ class OfferService (
                 // Persistently store the new swap
                 val offerIDB64String = encoder.encodeToString(offerToTake.id.asByteArray())
                 val swapForDatabase = DatabaseSwap(
-                    swapID = offerIDB64String,
+                    id = offerIDB64String,
                     isCreated = 1L,
                     requiresFill = 0L,
                     maker = newSwap.maker,
@@ -715,7 +715,7 @@ class OfferService (
             val offerForDatabase = DatabaseOffer(
                 isCreated = isCreated,
                 isTaken = isTaken,
-                offerId = encoder.encodeToString(offerIDByteArray),
+                id = encoder.encodeToString(offerIDByteArray),
                 maker = offer.maker,
                 interfaceId = encoder.encodeToString(offer.interfaceId),
                 stablecoin = offer.stablecoin,
@@ -735,7 +735,7 @@ class OfferService (
             val settlementMethodStrings = offer.onChainSettlementMethods.map {
                 encoder.encodeToString(it)
             }
-            databaseService.storeSettlementMethods(offerForDatabase.offerId, offerForDatabase.chainID,
+            databaseService.storeSettlementMethods(offerForDatabase.id, offerForDatabase.chainID,
                 settlementMethodStrings)
             logger.info("handleOfferOpenedEvent: persistently stored ${settlementMethodStrings.size} settlement " +
                     "methods for offer ${offer.id}")

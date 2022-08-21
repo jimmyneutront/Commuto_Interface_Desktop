@@ -325,7 +325,7 @@ class OfferServiceTests {
         val offerIDByteArray = offerIDByteBuffer.array()
         val offerIDString = encoder.encodeToString(offerIDByteArray)
         val offerForDatabase = DatabaseOffer(
-            offerId = offerIDString,
+            id = offerIDString,
             isCreated = 1L,
             isTaken = 0L,
             maker = offer.maker,
@@ -822,10 +822,10 @@ class OfferServiceTests {
         val havePublicKey = if (offer.havePublicKey) 1L else 0L
         val isUserMaker = if (offer.isUserMaker) 1L else 0L
         val encoder = Base64.getEncoder()
-        val offerForDatabase = com.commuto.interfacedesktop.db.Offer(
+        val offerForDatabase = DatabaseOffer(
             isCreated = isCreated,
             isTaken = isTaken,
-            offerId = encoder.encodeToString(offerIDByteArray),
+            id = encoder.encodeToString(offerIDByteArray),
             maker = offer.maker,
             interfaceId = encoder.encodeToString(offer.interfaceId),
             stablecoin = offer.stablecoin,
@@ -1090,7 +1090,7 @@ class OfferServiceTests {
                     val offerInDatabase = databaseService.getOffer(encoder.encodeToString(offerIDByteArray))
                     //TODO: check proper maker address once WalletService is implemented
                     val expectedOfferInDatabase = DatabaseOffer(
-                        offerId = encoder.encodeToString(offerIDByteArray),
+                        id = encoder.encodeToString(offerIDByteArray),
                         isCreated = 1L,
                         isTaken = 0L,
                         maker = "0x0000000000000000000000000000000000000000",
@@ -1105,12 +1105,12 @@ class OfferServiceTests {
                         chainID = addedOffer.chainID.toString(),
                         havePublicKey = 1L,
                         isUserMaker = 1L,
-                        "openOfferTxPublished"
+                        state = "openOfferTxPublished"
                     )
                     assertEquals(expectedOfferInDatabase, offerInDatabase)
 
                     val settlementMethodsInDatabase = databaseService.getSettlementMethods(
-                        expectedOfferInDatabase.offerId, expectedOfferInDatabase.chainID)
+                        expectedOfferInDatabase.id, expectedOfferInDatabase.chainID)
                     val expectedSettlementMethodsInDatabase = addedOffer.onChainSettlementMethods.map {
                         encoder.encodeToString(it)
                     }
@@ -1241,7 +1241,7 @@ class OfferServiceTests {
         val encoder = Base64.getEncoder()
         val offerIDString = encoder.encodeToString(offerIDByteArray)
         val offerForDatabase = DatabaseOffer(
-            offerId = offerIDString,
+            id = offerIDString,
             isCreated = 1L,
             isTaken = 0L,
             maker = offer.maker,
@@ -1490,7 +1490,7 @@ class OfferServiceTests {
         val encoder = Base64.getEncoder()
         val offerIDB64String = encoder.encodeToString(offerID.asByteArray())
         val offerForDatabase = DatabaseOffer(
-            offerId = offerIDB64String,
+            id = offerIDB64String,
             isCreated = 1L,
             isTaken = 0L,
             maker = offer.maker,
@@ -1577,7 +1577,7 @@ class OfferServiceTests {
             val swapInDatabase = databaseService.getSwap(id = offerIDB64String)
             // TODO: check proper taker address once WalletService is implemented
             val expectedSwapInDatabase = DatabaseSwap(
-                swapID = offerIDB64String,
+                id = offerIDB64String,
                 isCreated = 1L,
                 requiresFill = 0L,
                 maker = swapInTruthSource.maker,
@@ -1606,7 +1606,7 @@ class OfferServiceTests {
                 chainID = swapInTruthSource.chainID.toString(),
                 state = swapInTruthSource.state.asString,
             )
-            assertEquals(expectedSwapInDatabase.swapID, swapInDatabase!!.swapID)
+            assertEquals(expectedSwapInDatabase.id, swapInDatabase!!.id)
             assertEquals(expectedSwapInDatabase.isCreated, swapInDatabase.isCreated)
             assertEquals(expectedSwapInDatabase.requiresFill, swapInDatabase.requiresFill)
             assertEquals(expectedSwapInDatabase.maker, swapInDatabase.maker)
