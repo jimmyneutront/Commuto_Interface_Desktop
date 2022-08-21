@@ -72,7 +72,7 @@ fun TakeOfferComposable(
             message = "This Offer is unavailable.",
             closeDialog = closeDialog
         )
-    } else if (!offer.isCreated && offer.cancelingOfferState.value == CancelingOfferState.NONE) {
+    } else if (!offer.isCreated.value && offer.cancelingOfferState.value == CancelingOfferState.NONE) {
         /*
         If isCreated is false and cancelingOfferState.value is NONE, then the offer has been canceled by someone OTHER
         than the user of this interface, and therefore we don't show any offer info, just this message. Otherwise, if

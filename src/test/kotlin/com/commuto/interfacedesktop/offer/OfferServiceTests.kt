@@ -503,7 +503,8 @@ class OfferServiceTests {
                 offerTruthSource.offersChannel.receive()
                 assertFalse(exceptionHandler.gotError)
                 assert(offerTruthSource.offers.isEmpty())
-                assertEquals(OfferState.CANCELED, openedOffer!!.state)
+                assertFalse(openedOffer!!.isCreated.value)
+                assertEquals(OfferState.CANCELED, openedOffer.state)
                 assertEquals(offerCanceledEventRepository.appendedEvent!!.offerID, expectedOfferId)
                 assertEquals(offerCanceledEventRepository.removedEvent!!.offerID, expectedOfferId)
                 val offerInDatabase = databaseService.getOffer(encoder.encodeToString(expectedOfferIdByteArray))
@@ -816,7 +817,7 @@ class OfferServiceTests {
             state = OfferState.AWAITING_PUBLIC_KEY_ANNOUNCEMENT,
         )
         offerTruthSource.offers[offerID] = offer
-        val isCreated = if (offer.isCreated) 1L else 0L
+        val isCreated = if (offer.isCreated.value) 1L else 0L
         val isTaken = if (offer.isTaken.value) 1L else 0L
         val havePublicKey = if (offer.havePublicKey) 1L else 0L
         val isUserMaker = if (offer.isUserMaker) 1L else 0L
@@ -1051,7 +1052,7 @@ class OfferServiceTests {
                 withTimeout(60_000) {
                     val addedOffer = offerTruthSource.addedOfferChannel.receive()
                     val addedOfferID = offerTruthSource.offers.keys.first()
-                    assert(addedOffer.isCreated)
+                    assert(addedOffer.isCreated.value)
                     assertFalse(addedOffer.isTaken.value)
                     assertEquals(addedOffer.id, addedOfferID)
                     //TOOD: check proper maker address once WalletService is implemented

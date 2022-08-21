@@ -834,6 +834,7 @@ class OfferService (
         offerCanceledEventRepository.remove(event)
         withContext(Dispatchers.Main) {
             if (offerTruthSource.offers[event.offerID]?.chainID == event.chainID) {
+                offerTruthSource.offers[event.offerID]?.isCreated?.value = false
                 offerTruthSource.offers[event.offerID]?.state = OfferState.CANCELED
                 offerTruthSource.removeOffer(event.offerID)
             }
