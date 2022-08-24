@@ -13,4 +13,8 @@ class TestSwapService: SwapNotifiable {
      * Does nothing, required to adopt [SwapNotifiable]. Should not be used.
      */
     override suspend fun sendTakerInformationMessage(swapID: UUID, chainID: BigInteger) {}
+    /**
+     * Does nothing, required to adopt [SwapNotifiable]. Should not be used.
+     */
+    override suspend fun handleNewSwap(swapID: UUID, chainID: BigInteger) {}
 }

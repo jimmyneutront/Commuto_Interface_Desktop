@@ -714,6 +714,7 @@ class OfferServiceTests {
                 swapIDChannel.send(swapID)
                 chainIDChannel.send(chainID)
             }
+            override suspend fun handleNewSwap(swapID: UUID, chainID: BigInteger) {}
         }
         val swapService = TestSwapService()
 
@@ -781,6 +782,166 @@ class OfferServiceTests {
             assertEquals(BigInteger.valueOf(31337L), receivedChainID)
             assertFalse(exceptionHandler.gotError)
         }
+    }
+
+    /**
+     * Ensures that [OfferService] handles
+     * [OfferTaken](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offertaken) events properly for offers
+     * made by the interface user.
+     */
+    @Test
+    fun testHandleOfferTakenEventForUserIsMaker() = runBlocking {
+        val newOfferID = UUID.randomUUID()
+
+        val databaseService = DatabaseService(DatabaseDriverFactory())
+        databaseService.createTables()
+        val keyManagerService = KeyManagerService(databaseService)
+
+        val keyPair = keyManagerService.generateKeyPair(storeResult = true)
+
+        // Make testing server set up the proper test environment
+        @Serializable
+        data class TestingServerResponse(val commutoSwapAddress: String)
+
+        val encoder = Base64.getEncoder()
+        val testingServiceUrl = "http://localhost:8546/test_offerservice_forUserIsMaker_handleOfferTakenEvent"
+        val testingServerClient = HttpClient(OkHttp) {
+            install(ContentNegotiation) {
+                json()
+            }
+            install(HttpTimeout) {
+                socketTimeoutMillis = 90_000
+                requestTimeoutMillis = 90_000
+            }
+        }
+        val testingServerResponse: TestingServerResponse = runBlocking {
+            testingServerClient.get(testingServiceUrl) {
+                url {
+                    parameters.append("events", "offer-opened-taken")
+                    parameters.append("offerID", newOfferID.toString())
+                    parameters.append("interfaceID", encoder.encodeToString(keyPair.interfaceId))
+                }
+            }.body()
+        }
+
+        // Set up node connection
+        val w3 = Web3j.build(HttpService(System.getenv("BLOCKCHAIN_NODE")))
+
+        // TODO: move this to its own class
+        class TestOfferTruthSource: OfferTruthSource {
+            override var offers = mutableStateMapOf<UUID, Offer>()
+            override var serviceFeeRate = mutableStateOf<BigInteger?>(null)
+            override fun addOffer(offer: Offer) {
+                offers[offer.id] = offer
+            }
+            override fun removeOffer(id: UUID) {
+                offers.remove(id)
+            }
+        }
+        val offerTruthSource = TestOfferTruthSource()
+
+        // OfferService should call the handleNewSwap method of this class, passing a UUID equal to offerID
+        class TestSwapService: SwapNotifiable {
+            val swapIDChannel = Channel<UUID>()
+            val chainIDChannel = Channel<BigInteger>()
+            override suspend fun sendTakerInformationMessage(swapID: UUID, chainID: BigInteger) {}
+            override suspend fun handleNewSwap(swapID: UUID, chainID: BigInteger) {
+                swapIDChannel.send(swapID)
+                chainIDChannel.send(chainID)
+            }
+        }
+        val swapService = TestSwapService()
+
+        val offerService = OfferService(
+            databaseService,
+            keyManagerService,
+            swapService,
+        )
+        offerService.setOfferTruthSource(offerTruthSource)
+
+        class TestP2PExceptionHandler : P2PExceptionNotifiable {
+            @Throws
+            override fun handleP2PException(exception: Exception) {
+                throw exception
+            }
+        }
+        val p2pExceptionHandler = TestP2PExceptionHandler()
+        val mxClient = MatrixClientServerApiClient(
+            baseUrl = Url("https://matrix.org"),
+        ).apply { accessToken.value = System.getenv("MXKY") }
+        P2PService(
+            exceptionHandler = p2pExceptionHandler,
+            offerService = offerService,
+            mxClient = mxClient
+        )
+        /*
+        We have to persistently store an offer with an ID equal to offerID and isUserMaker set to true, so that
+        OfferService calls handleNewSwap
+         */
+        val offer = Offer(
+            isCreated = true,
+            isTaken = false,
+            id = newOfferID,
+            maker = "0x0000000000000000000000000000000000000000",
+            interfaceId = keyPair.interfaceId,
+            stablecoin = "0x0000000000000000000000000000000000000000",
+            amountLowerBound = BigInteger.ZERO,
+            amountUpperBound = BigInteger.ZERO,
+            securityDepositAmount = BigInteger.ZERO,
+            serviceFeeRate = BigInteger.ZERO,
+            direction = OfferDirection.BUY,
+            settlementMethods = mutableStateListOf(),
+            protocolVersion = BigInteger.ZERO,
+            chainID = BigInteger.valueOf(31337L),
+            havePublicKey = true,
+            isUserMaker = true,
+            state = OfferState.OPEN_OFFER_TRANSACTION_BROADCAST
+        )
+        offerTruthSource.addOffer(offer)
+        val offerForDatabase = DatabaseOffer(
+            id = encoder.encodeToString(newOfferID.asByteArray()),
+            isCreated = 1L,
+            isTaken = 0L,
+            maker = offer.maker,
+            interfaceId = encoder.encodeToString(offer.interfaceId),
+            stablecoin = offer.stablecoin,
+            amountLowerBound = offer.amountLowerBound.toString(),
+            amountUpperBound = offer.amountUpperBound.toString(),
+            securityDepositAmount = offer.securityDepositAmount.toString(),
+            serviceFeeRate = offer.serviceFeeRate.toString(),
+            onChainDirection = offer.direction.string,
+            protocolVersion = offer.protocolVersion.toString(),
+            chainID = offer.chainID.toString(),
+            havePublicKey = 1L,
+            isUserMaker = 1L,
+            state = offer.state.asString,
+        )
+        databaseService.storeOffer(offerForDatabase)
+
+        class TestBlockchainExceptionHandler: BlockchainExceptionNotifiable {
+            var gotError = false
+            override fun handleBlockchainException(exception: Exception) {
+                gotError = true
+            }
+        }
+        val exceptionHandler = TestBlockchainExceptionHandler()
+
+        val blockchainService = BlockchainService(
+            exceptionHandler = exceptionHandler,
+            offerService = offerService,
+            web3 = w3,
+            commutoSwapAddress = testingServerResponse.commutoSwapAddress
+        )
+        blockchainService.listen()
+
+        withTimeout(60_000) {
+            val receivedSwapID = swapService.swapIDChannel.receive()
+            val receivedChainID = swapService.chainIDChannel.receive()
+            assertEquals(newOfferID, receivedSwapID)
+            assertEquals(BigInteger.valueOf(31337L), receivedChainID)
+            assertFalse(exceptionHandler.gotError)
+        }
+
     }
 
     /**

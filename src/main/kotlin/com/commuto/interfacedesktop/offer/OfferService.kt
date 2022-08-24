@@ -15,6 +15,7 @@ import com.commuto.interfacedesktop.p2p.P2PService
 import com.commuto.interfacedesktop.p2p.messages.PublicKeyAnnouncement
 import com.commuto.interfacedesktop.swap.Swap
 import com.commuto.interfacedesktop.swap.SwapNotifiable
+import com.commuto.interfacedesktop.swap.SwapService
 import com.commuto.interfacedesktop.swap.SwapState
 import com.commuto.interfacedesktop.swap.SwapTruthSource
 import com.commuto.interfacedesktop.db.Offer as DatabaseOffer
@@ -56,6 +57,8 @@ import javax.inject.Singleton
  * @property serviceFeeRateChangedEventRepository A repository containing [ServiceFeeRateChangedEvent]s
  * @property offerTruthSource The [OfferTruthSource] in which this is responsible for maintaining an accurate list of
  * all open offers. If this is not yet initialized, event handling methods will throw the corresponding error.
+ * @property swapTruthSource The [SwapTruthSource] in which this and [SwapService] are responsible for maintaining an
+ * accurate list of swaps. If this is not yet initialized, event handling methods will throw the corresponding error.
  * @property swapTruthSource The [SwapTruthSource] in which this creates new [Swap]s as necessary.
  * @property blockchainService The [BlockchainService] that this uses to interact with the blockchain.
  * @property p2pService The [P2PService] that this uses for interacting with the peer-to-peer network.
@@ -864,12 +867,16 @@ class OfferService (
     }
 
     /**
-     * The method called by [BlockchainService] to notify [OfferService] of a [OfferTakenEvent]. Once notified,
-     * [OfferService] saves [event] in [offerTakenEventRepository], removes the corresponding [Offer] and its settlement
-     * methods from persistent storage, removes [event] from [offerTakenEventRepository], and then checks that the chain
-     * ID of the event matches the chain ID of the [Offer] mapped to the offer ID specified in [event] in the
-     * [OfferTruthSource.offers] list on the main coroutine dispatcher. If they do not match, this returns. If they do
-     * match, then this synchronously removes the [Offer] from said list on the main thread.
+     * The method called by [BlockchainService] to notify [OfferService] of an [OfferTakenEvent]. Once notified,
+     * [OfferService] saves [event] in [offerTakenEventRepository] and checks if the user of this interface is the taker
+     * of the offer. If so, then this calls [SwapService.sendTakerInformationMessage]. If not, this checks if the user
+     * of this interface is the maker of the offer. If so, this calls [SwapService.handleNewSwap]. If the user of this
+     * interface is NOT the taker of the offer, (regardless of whether the user is or is not the maker) this removes the
+     * corresponding [Offer] and its settlement methods from persistent storage, removes [event] from
+     * [offerTakenEventRepository], and then checks that the chain ID of the event matches the chain ID of the [Offer]
+     * mapped to the offer ID specified in [event] in the [OfferTruthSource.offers] list on the main coroutine
+     * dispatcher. If they do not match, this returns. If they do match, then this synchronously removes the [Offer]
+     * from said list on the main thread.
      *
      * @param event The [OfferTakenEvent] of which [OfferService] is being notified.
      */
@@ -890,6 +897,23 @@ class OfferService (
                     "announcing taker info")
             swapService.sendTakerInformationMessage(swapID = event.offerID, chainID = event.chainID)
         } else {
+            val offerInDatabase = databaseService.getOffer(id = offerIdString)
+            /*
+            If we have the offer in persistent storage and we are the maker, then we update state to indicate that we
+            are waiting for taker information
+             */
+            if (offerInDatabase != null && offerInDatabase.isUserMaker == 1L) {
+                logger.info("handleOfferTakenEvent: ${event.offerID} was made by the user of this interface, " +
+                        "handling new swap")
+                swapService.handleNewSwap(
+                    swapID = event.offerID,
+                    chainID = event.chainID
+                )
+            }
+            /*
+            Regardless of whether we are or are not the maker of this offer, we are not the taker, so we remove the
+            offer and its settlement methods.
+             */
             databaseService.deleteOffers(offerIdString, event.chainID.toString())
             logger.info("handleOfferTakenEvent: deleted offer ${event.offerID} from persistent storage")
             databaseService.deleteSettlementMethods(offerIdString, event.chainID.toString())

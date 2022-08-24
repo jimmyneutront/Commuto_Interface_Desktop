@@ -21,4 +21,12 @@ interface SwapNotifiable {
      * @param chainID The ID of the blockchain on which the taken offer exists.
      */
     suspend fun sendTakerInformationMessage(swapID: UUID, chainID: BigInteger)
+
+    /**
+     * The function called by [OfferService] when an offer made by the user of this interface has been taken.
+     *
+     * @param swapID The ID of the offer that has been taken.
+     * @param chainID The ID of the blockchain on which the taken offer exists.
+     */
+    suspend fun handleNewSwap(swapID: UUID, chainID: BigInteger)
 }

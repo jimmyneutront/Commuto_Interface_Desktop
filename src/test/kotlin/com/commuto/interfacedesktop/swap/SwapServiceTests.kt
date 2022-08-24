@@ -1,27 +1,43 @@
 package com.commuto.interfacedesktop.swap
 
-import com.commuto.interfacedesktop.db.Swap
+import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.snapshots.SnapshotStateMap
+import com.commuto.interfacedesktop.blockchain.BlockchainExceptionNotifiable
+import com.commuto.interfacedesktop.blockchain.BlockchainService
+import com.commuto.interfacedesktop.blockchain.events.commutoswap.*
 import com.commuto.interfacedesktop.database.DatabaseService
 import com.commuto.interfacedesktop.database.DatabaseDriverFactory
+import com.commuto.interfacedesktop.db.Swap as DatabaseSwap
 import com.commuto.interfacedesktop.extension.asByteArray
 import com.commuto.interfacedesktop.key.KeyManagerService
 import com.commuto.interfacedesktop.key.keys.KeyPair
 import com.commuto.interfacedesktop.key.keys.PublicKey
+import com.commuto.interfacedesktop.offer.OfferNotifiable
 import com.commuto.interfacedesktop.offer.TestSwapTruthSource
 import com.commuto.interfacedesktop.p2p.OfferMessageNotifiable
 import com.commuto.interfacedesktop.p2p.P2PExceptionNotifiable
 import com.commuto.interfacedesktop.p2p.P2PService
 import com.commuto.interfacedesktop.p2p.messages.PublicKeyAnnouncement
+import io.ktor.client.*
+import io.ktor.client.call.*
+import io.ktor.client.engine.okhttp.*
+import io.ktor.client.plugins.*
+import io.ktor.client.plugins.contentnegotiation.*
+import io.ktor.client.request.*
 import io.ktor.http.*
+import io.ktor.serialization.kotlinx.json.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.setMain
+import kotlinx.serialization.Serializable
 import net.folivo.trixnity.clientserverapi.client.MatrixClientServerApiClient
 import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Test
+import org.web3j.protocol.Web3j
+import org.web3j.protocol.http.HttpService
 import java.math.BigInteger
 import java.util.*
 
@@ -69,7 +85,7 @@ class SwapServiceTests {
         created above, otherwise SwapService won't be able to get the keys necessary to make the taker info announcement
          */
         val encoder = Base64.getEncoder()
-        val swapForDatabase = Swap(
+        val swapForDatabase = DatabaseSwap(
             id = encoder.encodeToString(swapID.asByteArray()),
             isCreated = 1L,
             requiresFill = 0L,
@@ -152,4 +168,83 @@ class SwapServiceTests {
         assertEquals(SwapState.AWAITING_MAKER_INFORMATION.asString, swapInDatabase!!.state)
 
     }
+
+    /**
+     * Ensures that [SwapService] handles new swaps made by the user of the interface properly.
+     */
+    @Test
+    fun testHandleNewSwap() = runBlocking {
+        val swapID = UUID.randomUUID()
+        val databaseService = DatabaseService(DatabaseDriverFactory())
+        databaseService.createTables()
+        val keyManagerService = KeyManagerService(databaseService)
+
+        @Serializable
+        data class TestingServerResponse(val commutoSwapAddress: String)
+        val testingServiceUrl = "http://localhost:8546/test_swapservice_handleNewSwap"
+        val testingServerClient = HttpClient(OkHttp) {
+            install(ContentNegotiation) {
+                json()
+            }
+            install(HttpTimeout) {
+                socketTimeoutMillis = 90_000
+                requestTimeoutMillis = 90_000
+            }
+        }
+        val testingServerResponse: TestingServerResponse = runBlocking {
+            testingServerClient.get(testingServiceUrl) {
+                url {
+                    parameters.append("events", "offer-opened-taken")
+                    parameters.append("offerID", swapID.toString())
+                }
+            }.body()
+        }
+
+        val w3 = Web3j.build(HttpService(System.getenv("BLOCKCHAIN_NODE")))
+
+        val swapService = SwapService(
+            databaseService = databaseService,
+            keyManagerService = keyManagerService,
+        )
+
+        class TestSwapTruthSource: SwapTruthSource {
+            var addedSwap: Swap? = null
+            override var swaps: SnapshotStateMap<UUID, Swap> = mutableStateMapOf()
+            override fun addSwap(swap: Swap) {
+                swaps[swap.id] = swap
+                addedSwap = swap
+            }
+        }
+        val swapTruthSource = TestSwapTruthSource()
+        swapService.setSwapTruthSource(swapTruthSource)
+
+        class TestBlockchainExceptionHandler: BlockchainExceptionNotifiable {
+            var gotError = false
+            override fun handleBlockchainException(exception: Exception) {
+                gotError = true
+            }
+        }
+        val exceptionHandler = TestBlockchainExceptionHandler()
+
+        class TestOfferService: OfferNotifiable {
+            override suspend fun handleOfferOpenedEvent(event: OfferOpenedEvent) {}
+            override suspend fun handleOfferEditedEvent(event: OfferEditedEvent) {}
+            override suspend fun handleOfferCanceledEvent(event: OfferCanceledEvent) {}
+            override suspend fun handleOfferTakenEvent(event: OfferTakenEvent) {}
+            override suspend fun handleServiceFeeRateChangedEvent(event: ServiceFeeRateChangedEvent) {}
+        }
+
+        val blockchainService = BlockchainService(
+            exceptionHandler = exceptionHandler,
+            offerService = TestOfferService(),
+            web3 = w3,
+            commutoSwapAddress = testingServerResponse.commutoSwapAddress
+        )
+        swapService.setBlockchainService(blockchainService)
+        swapService.handleNewSwap(swapID = swapID, chainID = BigInteger.valueOf(31337))
+
+        assertEquals(swapID, swapTruthSource.addedSwap!!.id)
+
+    }
+
 }
