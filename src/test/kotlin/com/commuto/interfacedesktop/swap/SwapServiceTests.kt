@@ -67,7 +67,7 @@ class SwapServiceTests {
             keyManagerService = keyManagerService,
         )
 
-        // The ID of the swap for which taker information will be announced
+        // The ID of the swap for which taker information will be sent
         val swapID = UUID.randomUUID()
 
         /*
@@ -82,7 +82,7 @@ class SwapServiceTests {
 
         /*
         We must persistently store a swap with an ID equal to swapID and the maker and taker interface IDs from the keys
-        created above, otherwise SwapService won't be able to get the keys necessary to make the taker info announcement
+        created above, otherwise SwapService won't be able to get the keys necessary to make the taker info message
          */
         val encoder = Base64.getEncoder()
         val swapForDatabase = DatabaseSwap(

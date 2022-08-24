@@ -41,9 +41,9 @@ import javax.inject.Singleton
  *
  * @property databaseService The [DatabaseService] used for  persistent storage.
  * @property keyManagerService The [KeyManagerService] that the [OfferService] will use for managing keys.
- * @property swapService An object adopting [SwapNotifiable] that [OfferService] uses to announce taker information
- * (for offers taken by the user of this interface) or to create [Swap] objects and await the announcement of taker
- * information (for offers that have been taken and were made by the user of this interface).
+ * @property swapService An object adopting [SwapNotifiable] that [OfferService] uses to send taker information
+ * (for offers taken by the user of this interface) or to create [Swap] objects and await receiving taker information
+ * (for offers that have been taken and were made by the user of this interface).
  * @property logger The [org.slf4j.Logger] that this class uses for logging.
  * @property offerOpenedEventRepository A repository containing [OfferOpenedEvent]s for offers that are open and for
  * which complete offer information has not yet been retrieved.
@@ -890,11 +890,11 @@ class OfferService (
         offerTakenEventRepository.append(event)
         /*
          If we have in persistent storage a swap with the ID specified in the event, then we are the taker of the offer,
-         and so we must announce taker information.
+         and so we must send taker information.
           */
         if (databaseService.getSwap(id = offerIdString) != null) {
             logger.info("handleOfferTakenEvent: ${event.offerID} was taken by the user of this interface, " +
-                    "announcing taker info")
+                    "sending taker info")
             swapService.sendTakerInformationMessage(swapID = event.offerID, chainID = event.chainID)
         } else {
             val offerInDatabase = databaseService.getOffer(id = offerIdString)

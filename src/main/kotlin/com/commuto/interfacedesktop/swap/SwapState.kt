@@ -11,9 +11,9 @@ package com.commuto.interfacedesktop.swap
  * @property TAKE_OFFER_TRANSACTION_BROADCAST Indicates that the transaction to take the offer corresponding to the
  * associated swap has been broadcast.
  * @property AWAITING_TAKER_INFORMATION Indicates that the swap has been taken on-chain, and now the swap taker must
- * announce their settlement method information and public key.
- * @property AWAITING_MAKER_INFORMATION Indicates that the taker has announced their settlement method information and
- * public key. and now the swap maker must announce their settlement method information.
+ * send their settlement method information and public key to the maker.
+ * @property AWAITING_MAKER_INFORMATION Indicates that the taker has sent their settlement method information and public
+ * key to the maker, and now the swap maker must send their settlement method information to the taker.
  * @property asString A [String] corresponding to a particular case of [SwapState].
  */
 enum class SwapState {

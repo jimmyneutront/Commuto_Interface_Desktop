@@ -729,7 +729,7 @@ class OfferServiceTests {
         We have to persistently store a swap with an ID equal to newOfferID and with the maker and taker interface IDs
         created above, otherwise OfferService won't be able to tell that the offer corresponding to the emitted
         OfferTaken event was taken by the user of this interface, and SwapService won't be able to get the keys
-        necessary to make the taker info announcement
+        necessary to make the taker info message
          */
         val swapForDatabase = DatabaseSwap(
             id = encoder.encodeToString(newOfferID.asByteArray()),

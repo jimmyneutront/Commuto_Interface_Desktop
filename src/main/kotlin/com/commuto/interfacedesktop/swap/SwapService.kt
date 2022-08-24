@@ -94,7 +94,7 @@ class SwapService @Inject constructor(
      * @param chainID The ID of the blockchain on which the swap exists.
      */
     override suspend fun sendTakerInformationMessage(swapID: UUID, chainID: BigInteger) {
-        logger.info("announceTakerInformation: preparing to announce for $swapID")
+        logger.info("sendTakerInformationMessage: preparing to send for $swapID")
         val encoder = Base64.getEncoder()
         val swapIDString = encoder.encodeToString(swapID.asByteArray())
         databaseService.updateSwapState(
@@ -136,14 +136,14 @@ class SwapService @Inject constructor(
             ?: throw SwapServiceException("Could not find taker's (user's) key pair for $swapID")
         // TODO: get actual payment details once settlementMethodService is implemented
         val settlementMethodDetailsString = "TEMPORARY"
-        logger.info("announceTakerInformation: announcing for $swapID")
+        logger.info("sendTakerInformationMessage: sending for $swapID")
         p2pService.sendTakerInformation(
             makerPublicKey = makerPublicKey,
             takerKeyPair = takerKeyPair,
             swapID = swapID,
             settlementMethodDetails = settlementMethodDetailsString
         )
-        logger.info("announceTakerInformation: announced for $swapID")
+        logger.info("sendTakerInformationMessage: sent for $swapID")
         databaseService.updateSwapState(
             swapID = swapIDString,
             chainID = chainID.toString(),
