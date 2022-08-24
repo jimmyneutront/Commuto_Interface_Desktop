@@ -18,6 +18,7 @@ import com.commuto.interfacedesktop.offer.validation.validateNewOfferData
 import com.commuto.interfacedesktop.p2p.P2PExceptionNotifiable
 import com.commuto.interfacedesktop.p2p.P2PService
 import com.commuto.interfacedesktop.p2p.messages.PublicKeyAnnouncement
+import com.commuto.interfacedesktop.swap.SwapNotifiable
 import com.commuto.interfacedesktop.swap.SwapState
 import com.commuto.interfacedesktop.db.Offer as DatabaseOffer
 import com.commuto.interfacedesktop.db.Swap as DatabaseSwap
@@ -120,6 +121,7 @@ class OfferServiceTests {
         val offerService = OfferService(
             databaseService,
             keyManagerService,
+            TestSwapService(),
             offerOpenedEventRepository,
             BlockchainEventRepository(),
             BlockchainEventRepository(),
@@ -251,6 +253,7 @@ class OfferServiceTests {
         val offerService = OfferService(
             databaseService,
             keyManagerService,
+            TestSwapService(),
             offerOpenedEventRepository,
             BlockchainEventRepository(),
             BlockchainEventRepository(),
@@ -433,6 +436,7 @@ class OfferServiceTests {
         val offerService = OfferService(
             databaseService,
             keyManagerService,
+            TestSwapService(),
             BlockchainEventRepository(),
             BlockchainEventRepository(),
             offerCanceledEventRepository,
@@ -515,7 +519,8 @@ class OfferServiceTests {
 
     /**
      * Ensures that [OfferService] handles
-     * [OfferTaken](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offertaken) events properly.
+     * [OfferTaken](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offertaken) events properly for offers
+     * neither made nor taken by the interface user.
      */
     @Test
     fun testHandleOfferTakenEvent() {
@@ -572,6 +577,7 @@ class OfferServiceTests {
         val offerService = OfferService(
             databaseService,
             keyManagerService,
+            TestSwapService(),
             BlockchainEventRepository(),
             BlockchainEventRepository(),
             BlockchainEventRepository(),
@@ -625,6 +631,155 @@ class OfferServiceTests {
                 val offerInDatabase = databaseService.getOffer(encoder.encodeToString(expectedOfferIdByteArray))
                 assertEquals(offerInDatabase, null)
             }
+        }
+    }
+
+    /**
+     * Ensures that [OfferService] handles
+     * [OfferTaken](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offertaken) events properly for offers
+     * taken by the interface user.
+     */
+    @Test
+    fun testHandleOfferTakenEventForUserIsTaker() = runBlocking {
+
+        val newOfferID = UUID.randomUUID()
+
+        val databaseService = DatabaseService(DatabaseDriverFactory())
+        databaseService.createTables()
+        val keyManagerService = KeyManagerService(databaseService)
+
+        /*
+        The public key of this key pair will be the maker's public key (NOT the user's/taker's), so we do NOT want to
+        store the whole key pair persistently
+         */
+        val makerKeyPair = keyManagerService.generateKeyPair(storeResult = false)
+        val makerInterfaceID = makerKeyPair.interfaceId
+        // We store the maker's public key, as if we received it via the P2P network
+        keyManagerService.storePublicKey(makerKeyPair.getPublicKey())
+
+        // This is the taker's (user's) key pair, so we do want to store it persistently
+        val takerKeyPair = keyManagerService.generateKeyPair(storeResult = true)
+
+        val encoder = Base64.getEncoder()
+        val makerInterfaceIDString = encoder.encodeToString(makerInterfaceID)
+        val takerInterfaceIDString = encoder.encodeToString(takerKeyPair.interfaceId)
+
+        // Make testing server set up the proper test environment
+        @Serializable
+        data class TestingServerResponse(val commutoSwapAddress: String)
+
+        val testingServiceUrl = "http://localhost:8546/test_offerservice_forUserIsTaker_handleOfferTakenEvent"
+        val testingServerClient = HttpClient(OkHttp) {
+            install(ContentNegotiation) {
+                json()
+            }
+            install(HttpTimeout) {
+                socketTimeoutMillis = 90_000
+                requestTimeoutMillis = 90_000
+            }
+        }
+        val testingServerResponse: TestingServerResponse = runBlocking {
+            testingServerClient.get(testingServiceUrl) {
+                url {
+                    parameters.append("events", "offer-opened-taken")
+                    parameters.append("offerID", newOfferID.toString())
+                    parameters.append("makerInterfaceID", makerInterfaceIDString)
+                    parameters.append("takerInterfaceID", takerInterfaceIDString)
+                }
+            }.body()
+        }
+
+        val w3 = Web3j.build(HttpService(System.getenv("BLOCKCHAIN_NODE")))
+
+        // TODO: move this to its own class
+        class TestOfferTruthSource: OfferTruthSource {
+            override var offers = mutableStateMapOf<UUID, Offer>()
+            override var serviceFeeRate = mutableStateOf<BigInteger?>(null)
+            override fun addOffer(offer: Offer) {
+                offers[offer.id] = offer
+            }
+            override fun removeOffer(id: UUID) {
+                offers.remove(id)
+            }
+        }
+
+        /*
+        OfferService should call the sendTakerInformation method of this class, passing a UUID equal to newOfferID
+        to begin the process of sending taker information
+         */
+        class TestSwapService: SwapNotifiable {
+            val swapIDChannel = Channel<UUID>()
+            val chainIDChannel = Channel<BigInteger>()
+            override suspend fun sendTakerInformationMessage(swapID: UUID, chainID: BigInteger) {
+                swapIDChannel.send(swapID)
+                chainIDChannel.send(chainID)
+            }
+        }
+        val swapService = TestSwapService()
+
+        val offerService = OfferService(
+            databaseService,
+            keyManagerService,
+            swapService,
+        )
+        offerService.setOfferTruthSource(TestOfferTruthSource())
+
+        /*
+        We have to persistently store a swap with an ID equal to newOfferID and with the maker and taker interface IDs
+        created above, otherwise OfferService won't be able to tell that the offer corresponding to the emitted
+        OfferTaken event was taken by the user of this interface, and SwapService won't be able to get the keys
+        necessary to make the taker info announcement
+         */
+        val swapForDatabase = DatabaseSwap(
+            id = encoder.encodeToString(newOfferID.asByteArray()),
+            isCreated = 1L,
+            requiresFill = 0L,
+            maker = "",
+            makerInterfaceID = makerInterfaceIDString,
+            taker = "",
+            takerInterfaceID = takerInterfaceIDString,
+            stablecoin = "",
+            amountLowerBound = "",
+            amountUpperBound = "",
+            securityDepositAmount = "",
+            takenSwapAmount = "",
+            serviceFeeAmount = "",
+            serviceFeeRate = "",
+            onChainDirection = "",
+            settlementMethod = "",
+            protocolVersion = "",
+            isPaymentSent = 0L,
+            isPaymentReceived = 0L,
+            hasBuyerClosed = 0L,
+            hasSellerClosed = 0L,
+            disputeRaiser = "",
+            chainID = "",
+            state = "",
+        )
+        databaseService.storeSwap(swapForDatabase)
+
+        class TestBlockchainExceptionHandler: BlockchainExceptionNotifiable {
+            var gotError = false
+            override fun handleBlockchainException(exception: Exception) {
+                gotError = true
+            }
+        }
+        val exceptionHandler = TestBlockchainExceptionHandler()
+
+        val blockchainService = BlockchainService(
+            exceptionHandler = exceptionHandler,
+            offerService = offerService,
+            web3 = w3,
+            commutoSwapAddress = testingServerResponse.commutoSwapAddress
+        )
+        blockchainService.listen()
+
+        withTimeout(60_000) {
+            val receivedSwapID = swapService.swapIDChannel.receive()
+            val receivedChainID = swapService.chainIDChannel.receive()
+            assertEquals(newOfferID, receivedSwapID)
+            assertEquals(BigInteger.valueOf(31337L), receivedChainID)
+            assertFalse(exceptionHandler.gotError)
         }
     }
 
@@ -692,6 +847,7 @@ class OfferServiceTests {
         val offerService = OfferService(
             databaseService,
             keyManagerService,
+            TestSwapService(),
             BlockchainEventRepository(),
             offerEditedEventRepository,
             BlockchainEventRepository(),
@@ -782,7 +938,7 @@ class OfferServiceTests {
         databaseService.createTables()
         val keyManagerService =  KeyManagerService(databaseService)
 
-        val offerService = OfferService(databaseService, keyManagerService)
+        val offerService = OfferService(databaseService, keyManagerService, TestSwapService())
 
         val offerTruthSource = PreviewableOfferTruthSource()
         offerService.setOfferTruthSource(offerTruthSource)
@@ -911,6 +1067,7 @@ class OfferServiceTests {
         val offerService = OfferService(
             databaseService,
             keyManagerService,
+            TestSwapService(),
             BlockchainEventRepository(),
             BlockchainEventRepository(),
             BlockchainEventRepository(),
@@ -986,6 +1143,7 @@ class OfferServiceTests {
         val offerService = OfferService(
             databaseService,
             keyManagerService,
+            TestSwapService(),
             BlockchainEventRepository(),
             BlockchainEventRepository(),
             BlockchainEventRepository(),
@@ -1182,6 +1340,7 @@ class OfferServiceTests {
         val offerService = OfferService(
             databaseService,
             keyManagerService,
+            TestSwapService(),
         )
 
         class TestOfferTruthSource: OfferTruthSource {
@@ -1315,6 +1474,7 @@ class OfferServiceTests {
         val offerService = OfferService(
             databaseService,
             keyManagerService,
+            TestSwapService(),
         )
 
         class TestOfferTruthSource: OfferTruthSource {
@@ -1424,6 +1584,7 @@ class OfferServiceTests {
         val offerService = OfferService(
             databaseService,
             keyManagerService,
+            TestSwapService(),
             BlockchainEventRepository(),
             BlockchainEventRepository(),
             BlockchainEventRepository(),

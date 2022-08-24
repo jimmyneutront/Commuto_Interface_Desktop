@@ -3,6 +3,7 @@ package com.commuto.interfacedesktop.p2p
 import com.commuto.interfacedesktop.key.keys.KeyPair
 import com.commuto.interfacedesktop.key.keys.PublicKey
 import com.commuto.interfacedesktop.p2p.messages.PublicKeyAnnouncement
+import com.commuto.interfacedesktop.p2p.parse.parseTakerInformationMessage
 import com.commuto.interfacedesktop.p2p.serializable.messages.SerializablePublicKeyAnnouncementMessage
 import com.commuto.interfacedesktop.p2p.serializable.payloads.SerializablePublicKeyAnnouncementPayload
 import io.ktor.client.*
@@ -226,6 +227,64 @@ class P2PServiceTest {
         val createdPublicKeyAnnouncement = parsePublicKeyAnnouncement(p2pService.receivedMessage)
         assert(keyPair.interfaceId.contentEquals(createdPublicKeyAnnouncement!!.publicKey.interfaceId))
         assertEquals(offerID, createdPublicKeyAnnouncement.id)
+
+    }
+
+    /**
+     * Ensure that [P2PService.sendTakerInformation] sends
+     * [Taker Information Message](https://github.com/jimmyneutront/commuto-whitepaper/blob/main/commuto-interface-specification.txt)
+     * s properly.
+     */
+    @Test
+    fun testSendTakerInformation() {
+        class TestP2PExceptionHandler : P2PExceptionNotifiable {
+            override fun handleP2PException(exception: Exception) {}
+        }
+        val p2pExceptionHandler = TestP2PExceptionHandler()
+        class TestOfferService : OfferMessageNotifiable {
+            override suspend fun handlePublicKeyAnnouncement(message: PublicKeyAnnouncement) {}
+        }
+        val mxClient = MatrixClientServerApiClient(
+            baseUrl = Url("https://matrix.org"),
+            httpClientFactory = {
+                HttpClient(it).config {
+                    install(HttpTimeout) {
+                        socketTimeoutMillis = 60_000
+                    }
+                }
+            }
+        ).apply { accessToken.value = System.getenv("MXKY") }
+        class TestP2PService : P2PService(p2pExceptionHandler, TestOfferService(), mxClient) {
+            var receivedMessage: String? = null
+            override suspend fun sendMessage(message: String) {
+                receivedMessage = message
+            }
+        }
+        val p2pService = TestP2PService()
+
+        // The key pair, the public key of which we use as the maker's key pair
+        val makerKeyPair = KeyPair()
+        // The taker's/user's key pair
+        val takerKeyPair = KeyPair()
+
+        val swapID = UUID.randomUUID()
+
+        runBlocking {
+            p2pService.sendTakerInformation(
+                makerPublicKey = makerKeyPair.getPublicKey(),
+                takerKeyPair = takerKeyPair,
+                swapID = swapID,
+                settlementMethodDetails = "some_settlement_method_details"
+            )
+        }
+
+        val createdTakerInformationMessage = parseTakerInformationMessage(
+            messageString = p2pService.receivedMessage!!,
+            keyPair = makerKeyPair
+        )
+        assertEquals(swapID, createdTakerInformationMessage!!.swapID)
+        assert(takerKeyPair.interfaceId.contentEquals(createdTakerInformationMessage.publicKey.interfaceId))
+        assertEquals("some_settlement_method_details", createdTakerInformationMessage.settlementMethodDetails)
 
     }
 

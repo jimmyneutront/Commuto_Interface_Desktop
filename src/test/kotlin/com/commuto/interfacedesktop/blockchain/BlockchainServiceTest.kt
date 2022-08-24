@@ -7,6 +7,7 @@ import com.commuto.interfacedesktop.key.KeyManagerService
 import com.commuto.interfacedesktop.offer.OfferNotifiable
 import com.commuto.interfacedesktop.offer.OfferService
 import com.commuto.interfacedesktop.offer.OfferServiceTests
+import com.commuto.interfacedesktop.offer.TestSwapService
 import com.commuto.interfacedesktop.ui.offer.OffersViewModel
 import io.ktor.client.*
 import io.ktor.client.call.*
@@ -46,7 +47,11 @@ class BlockchainServiceTest {
             }
         }
         val databaseService = DatabaseService(DatabaseDriverFactory())
-        val offersService = OfferService(databaseService, KeyManagerService(databaseService))
+        val offersService = OfferService(
+            databaseService = databaseService,
+            keyManagerService = KeyManagerService(databaseService),
+            swapService = TestSwapService()
+        )
         OffersViewModel(offersService)
         val blockchainService = BlockchainService(
             TestBlockchainExceptionHandler(),

@@ -1,6 +1,5 @@
-package com.commuto.interfacemobile.android.p2p
+package com.commuto.interfacedesktop.p2p
 
-import com.commuto.interfacedesktop.p2p.P2PExceptionNotifiable
 import com.commuto.interfacedesktop.ui.ExceptionViewModel
 import dagger.Binds
 import dagger.Module

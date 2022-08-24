@@ -1,7 +1,6 @@
 package com.commuto.interfacedesktop.key.keys
 
 import java.nio.charset.Charset
-import java.util.*
 import kotlin.test.Test
 
 class SymmetricKeyTests {
@@ -12,7 +11,7 @@ class SymmetricKeyTests {
         val charset = Charset.forName("UTF-16")
         val originalData = "test".toByteArray(charset)
         val encryptedData = key.encrypt(originalData)
-        assert(Arrays.equals(originalData, key.decrypt(encryptedData)))
+        assert(originalData.contentEquals(key.decrypt(encryptedData)))
     }
 
 }

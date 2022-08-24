@@ -11,7 +11,7 @@ import java.io.IOException
 import java.math.BigInteger
 
 /**
- * The [RawTransactionManager] used by the [com.commuto.interfacemobile.android.CommutoSwap] instance
+ * The [RawTransactionManager] used by the [com.commuto.interfacedesktop.contractwrapper.CommutoSwap] instance
  * in [BlockchainService].
  *
  * @property web3j: This transaction manager's [Web3j] instance.

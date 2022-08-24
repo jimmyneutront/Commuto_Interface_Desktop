@@ -10,16 +10,24 @@ package com.commuto.interfacedesktop.swap
  * has not yet been called for the offer corresponding to the associated swap.
  * @property TAKE_OFFER_TRANSACTION_BROADCAST Indicates that the transaction to take the offer corresponding to the
  * associated swap has been broadcast.
+ * @property AWAITING_TAKER_INFORMATION Indicates that the swap has been taken on-chain, and now the swap taker must
+ * announce their settlement method information and public key.
+ * @property AWAITING_MAKER_INFORMATION Indicates that the taker has announced their settlement method information and
+ * public key. and now the swap maker must announce their settlement method information.
  * @property asString A [String] corresponding to a particular case of [SwapState].
  */
 enum class SwapState {
     TAKING,
-    TAKE_OFFER_TRANSACTION_BROADCAST;
+    TAKE_OFFER_TRANSACTION_BROADCAST,
+    AWAITING_TAKER_INFORMATION,
+    AWAITING_MAKER_INFORMATION;
 
     val asString: String
         get() = when (this) {
             TAKING -> "taking"
             TAKE_OFFER_TRANSACTION_BROADCAST -> "takeOfferTxPublished"
+            AWAITING_TAKER_INFORMATION -> "awaitingTakerInfo"
+            AWAITING_MAKER_INFORMATION -> "awaitingMakerInfo"
         }
 
 }

@@ -4,7 +4,11 @@
 package com.commuto.interfacedesktop.p2p
 
 import com.commuto.interfacedesktop.key.keys.KeyPair
+import com.commuto.interfacedesktop.key.keys.PublicKey
+import com.commuto.interfacedesktop.key.keys.newSymmetricKey
 import com.commuto.interfacedesktop.offer.OfferService
+import com.commuto.interfacedesktop.p2p.serializable.messages.SerializableTakerInformationMessage
+import com.commuto.interfacedesktop.p2p.serializable.payloads.SerializableTakerInformationMessagePayload
 import io.ktor.client.*
 import io.ktor.client.plugins.*
 import io.ktor.http.*
@@ -12,6 +16,8 @@ import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import net.folivo.trixnity.clientserverapi.client.MatrixClientServerApiClient
 import net.folivo.trixnity.clientserverapi.model.rooms.GetEvents
 import net.folivo.trixnity.core.ErrorResponse
@@ -21,6 +27,7 @@ import net.folivo.trixnity.core.model.events.Event
 import net.folivo.trixnity.core.model.events.m.room.RoomMessageEventContent
 import org.slf4j.LoggerFactory
 import java.net.ConnectException
+import java.security.MessageDigest
 import java.util.*
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -223,6 +230,71 @@ open class P2PService constructor(private val exceptionHandler: P2PExceptionNoti
         val announcement = createPublicKeyAnnouncement(offerID = offerID, keyPair = keyPair)
         logger.info("announcePublicKey: sending announcement for offer $offerID")
         sendMessage(announcement)
+    }
+
+    /**
+     * Creates a
+     * [Taker Information Message](https://github.com/jimmyneutront/commuto-whitepaper/blob/main/commuto-interface-specification.txt)
+     * using the supplied maker's public key, taker's/user's key pair, swap ID and taker's payment details, and sends it
+     * using the [sendMessage] function.
+     *
+     * @param makerPublicKey The public key of the swap maker, to whom information is being sent.
+     * @param takerKeyPair The taker's/user's key pair, which will be used to sign this message.
+     * @param swapID The ID of the swap for which information is being sent.
+     * @param settlementMethodDetails The settlement method details being sent.
+     */
+    open suspend fun sendTakerInformation(
+        makerPublicKey: PublicKey,
+        takerKeyPair: KeyPair,
+        swapID: UUID,
+        settlementMethodDetails: String,
+    ) {
+        logger.info("announcePublicKey: creating for $swapID")
+        // Setup encoder
+        val encoder = Base64.getEncoder()
+
+        // Create Base64-encoded string of the taker's (user's) public key in PKCS#1 bytes
+        val takerPublicKeyString = encoder.encodeToString(takerKeyPair.pubKeyToPkcs1Bytes())
+
+        // TODO: Note (in interface spec) that we are using a UUID string for the swap UUID
+        // Create payload object
+        val payload = SerializableTakerInformationMessagePayload(
+            msgType = "takerInfo",
+            pubKey = takerPublicKeyString,
+            swapId = swapID.toString(),
+            paymentDetails = settlementMethodDetails,
+        )
+
+        // Create payload UTF-8 bytes
+        val payloadUTF8Bytes = Json.encodeToString(payload).toByteArray()
+
+        // Generate a new AES-256 key and initialization vector, and encrypt the payload bytes
+        val symmetricKey = newSymmetricKey()
+        val encryptedPayload = symmetricKey.encrypt(payloadUTF8Bytes)
+
+        // Create signature of encrypted payload
+        val encryptedPayloadHash = MessageDigest.getInstance("SHA-256").digest(encryptedPayload.encryptedData)
+        val payloadSignature = takerKeyPair.sign(encryptedPayloadHash)
+
+        // Encrypt symmetric key and initialization vector with maker's public key
+        val encryptedKey = makerPublicKey.encrypt(symmetricKey.keyBytes)
+        val encryptedIV = makerPublicKey.encrypt(encryptedPayload.initializationVector)
+
+        // Create message object
+        val message = SerializableTakerInformationMessage(
+            sender = encoder.encodeToString(takerKeyPair.interfaceId),
+            recipient = encoder.encodeToString(makerPublicKey.interfaceId),
+            encryptedKey = encoder.encodeToString(encryptedKey),
+            encryptedIV = encoder.encodeToString(encryptedIV),
+            payload = encoder.encodeToString(encryptedPayload.encryptedData),
+            signature = encoder.encodeToString(payloadSignature),
+        )
+        // Create message string
+        val messageString = Json.encodeToString(message)
+
+        // Send message string
+        logger.info("announceTakerInformation: sending for swap $swapID")
+        sendMessage(messageString)
     }
 
 }

@@ -14,6 +14,7 @@ import com.commuto.interfacedesktop.p2p.OfferMessageNotifiable
 import com.commuto.interfacedesktop.p2p.P2PService
 import com.commuto.interfacedesktop.p2p.messages.PublicKeyAnnouncement
 import com.commuto.interfacedesktop.swap.Swap
+import com.commuto.interfacedesktop.swap.SwapNotifiable
 import com.commuto.interfacedesktop.swap.SwapState
 import com.commuto.interfacedesktop.swap.SwapTruthSource
 import com.commuto.interfacedesktop.db.Offer as DatabaseOffer
@@ -39,6 +40,9 @@ import javax.inject.Singleton
  *
  * @property databaseService The [DatabaseService] used for  persistent storage.
  * @property keyManagerService The [KeyManagerService] that the [OfferService] will use for managing keys.
+ * @property swapService An object adopting [SwapNotifiable] that [OfferService] uses to announce taker information
+ * (for offers taken by the user of this interface) or to create [Swap] objects and await the announcement of taker
+ * information (for offers that have been taken and were made by the user of this interface).
  * @property logger The [org.slf4j.Logger] that this class uses for logging.
  * @property offerOpenedEventRepository A repository containing [OfferOpenedEvent]s for offers that are open and for
  * which complete offer information has not yet been retrieved.
@@ -60,6 +64,7 @@ import javax.inject.Singleton
 class OfferService (
     private val databaseService: DatabaseService,
     private val keyManagerService: KeyManagerService,
+    private val swapService: SwapNotifiable,
     private val offerOpenedEventRepository: BlockchainEventRepository<OfferOpenedEvent>,
     private val offerEditedEventRepository: BlockchainEventRepository<OfferEditedEvent>,
     private val offerCanceledEventRepository: BlockchainEventRepository<OfferCanceledEvent>,
@@ -67,9 +72,14 @@ class OfferService (
     private val serviceFeeRateChangedEventRepository: BlockchainEventRepository<ServiceFeeRateChangedEvent>
 ): OfferNotifiable, OfferMessageNotifiable {
 
-    @Inject constructor(databaseService: DatabaseService, keyManagerService: KeyManagerService): this(
+    @Inject constructor(
+        databaseService: DatabaseService,
+        keyManagerService: KeyManagerService,
+        swapService: SwapNotifiable
+    ): this(
         databaseService,
         keyManagerService,
+        swapService,
         BlockchainEventRepository(),
         BlockchainEventRepository(),
         BlockchainEventRepository(),
@@ -871,19 +881,29 @@ class OfferService (
         val offerIDByteArray = offerIDByteBuffer.array()
         val offerIdString = Base64.getEncoder().encodeToString(offerIDByteArray)
         offerTakenEventRepository.append(event)
-        databaseService.deleteOffers(offerIdString, event.chainID.toString())
-        logger.info("handleOfferTakenEvent: deleted offer ${event.offerID} from persistent storage")
-        databaseService.deleteSettlementMethods(offerIdString, event.chainID.toString())
-        logger.info("handleOfferTakenEvent: deleted settlement methods for offer ${event.offerID} from " +
-                "persistent storage")
-        offerTakenEventRepository.remove(event)
-        withContext(Dispatchers.Main) {
-            if (offerTruthSource.offers[event.offerID]?.chainID == event.chainID) {
-                offerTruthSource.offers[event.offerID]?.isTaken?.value = true
-                offerTruthSource.removeOffer(event.offerID)
+        /*
+         If we have in persistent storage a swap with the ID specified in the event, then we are the taker of the offer,
+         and so we must announce taker information.
+          */
+        if (databaseService.getSwap(id = offerIdString) != null) {
+            logger.info("handleOfferTakenEvent: ${event.offerID} was taken by the user of this interface, " +
+                    "announcing taker info")
+            swapService.sendTakerInformationMessage(swapID = event.offerID, chainID = event.chainID)
+        } else {
+            databaseService.deleteOffers(offerIdString, event.chainID.toString())
+            logger.info("handleOfferTakenEvent: deleted offer ${event.offerID} from persistent storage")
+            databaseService.deleteSettlementMethods(offerIdString, event.chainID.toString())
+            logger.info("handleOfferTakenEvent: deleted settlement methods for offer ${event.offerID} from " +
+                    "persistent storage")
+            offerTakenEventRepository.remove(event)
+            withContext(Dispatchers.Main) {
+                if (offerTruthSource.offers[event.offerID]?.chainID == event.chainID) {
+                    offerTruthSource.offers[event.offerID]?.isTaken?.value = true
+                    offerTruthSource.removeOffer(event.offerID)
+                }
             }
+            logger.info("handleOfferTakenEvent: removed offer ${event.offerID} from offerTruthSource if present")
         }
-        logger.info("handleOfferTakenEvent: removed offer ${event.offerID} from offerTruthSource if present")
     }
 
     /**
