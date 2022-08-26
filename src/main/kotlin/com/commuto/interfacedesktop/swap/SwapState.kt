@@ -14,13 +14,22 @@ package com.commuto.interfacedesktop.swap
  * send their settlement method information and public key to the maker.
  * @property AWAITING_MAKER_INFORMATION Indicates that the taker has sent their settlement method information and public
  * key to the maker, and now the swap maker must send their settlement method information to the taker.
+ * @property AWAITING_FILLING Indicates that the maker has sent their settlement method information to the taker, and
+ * that the swap is a maker-as-seller swap and the maker must now fill the swap. If the swap is a maker-as-buyer swap,
+ * this is not used.
+ * @property AWAITING_PAYMENT_SENT If the swap is a maker-as-seller swap, this indicates that the maker has filled the
+ * swap, and the buyer must now send payment for the stablecoin they are purchasing. If the swap is a maker-as-buyer
+ * swap, this indicates that the maker has sent their settlement method information to the taker, and the buyer must now
+ * send payment for the stablecoin they are purchasing.
  * @property asString A [String] corresponding to a particular case of [SwapState].
  */
 enum class SwapState {
     TAKING,
     TAKE_OFFER_TRANSACTION_BROADCAST,
     AWAITING_TAKER_INFORMATION,
-    AWAITING_MAKER_INFORMATION;
+    AWAITING_MAKER_INFORMATION,
+    AWAITING_FILLING,
+    AWAITING_PAYMENT_SENT;
 
     val asString: String
         get() = when (this) {
@@ -28,6 +37,8 @@ enum class SwapState {
             TAKE_OFFER_TRANSACTION_BROADCAST -> "takeOfferTxPublished"
             AWAITING_TAKER_INFORMATION -> "awaitingTakerInfo"
             AWAITING_MAKER_INFORMATION -> "awaitingMakerInfo"
+            AWAITING_FILLING -> "awaitingFilling"
+            AWAITING_PAYMENT_SENT -> "awaitingPaymentSent"
         }
 
 }

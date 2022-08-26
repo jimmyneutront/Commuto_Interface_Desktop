@@ -134,13 +134,13 @@ data class Swap(
                 serviceFeeRate = BigInteger.valueOf(100),
                 direction = OfferDirection.BUY,
                 onChainSettlementMethod =
-                """
-                     {
-                         "f": "EUR",
-                         "p": "0.94",
-                         "m": "SEPA"
-                     }
-                     """.trimIndent().encodeToByteArray(),
+                    """
+                    {
+                        "f": "EUR",
+                        "p": "0.94",
+                        "m": "SEPA"
+                    }
+                    """.trimIndent().encodeToByteArray(),
                 protocolVersion = BigInteger.ZERO,
                 isPaymentSent = false,
                 isPaymentReceived = false,
@@ -167,13 +167,13 @@ data class Swap(
                 serviceFeeRate = BigInteger.valueOf(100),
                 direction = OfferDirection.BUY,
                 onChainSettlementMethod =
-                """
-                     {
-                         "f": "USD",
-                         "p": "1.00",
-                         "m": "SWIFT"
-                     }
-                     """.trimIndent().encodeToByteArray(),
+                    """
+                    {
+                        "f": "USD",
+                        "p": "1.00",
+                        "m": "SWIFT"
+                    }
+                    """.trimIndent().encodeToByteArray(),
                 protocolVersion = BigInteger.ZERO,
                 isPaymentSent = false,
                 isPaymentReceived = false,

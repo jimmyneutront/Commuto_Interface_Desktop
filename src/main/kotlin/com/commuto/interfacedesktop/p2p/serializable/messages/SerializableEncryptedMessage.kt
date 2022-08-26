@@ -2,13 +2,12 @@ package com.commuto.interfacedesktop.p2p.serializable.messages
 
 import kotlinx.serialization.Serializable
 
-// TODO: Replace uses of this with uses of SerializableEncryptedMessage
 /**
- * A [Serializable] class representing a
- * [Taker Information Message](https://github.com/jimmyneutront/commuto-whitepaper/blob/main/commuto-interface-specification.txt)
+ * A [Serializable] class representing an encrypted message, as described in the
+ * [Commuto Interface Specification](https://github.com/jimmyneutront/commuto-whitepaper/blob/main/commuto-interface-specification.txt)
  */
 @Serializable
-class SerializableTakerInformationMessage(
+class SerializableEncryptedMessage(
     val sender: String,
     val recipient: String,
     val encryptedKey: String,

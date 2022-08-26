@@ -12,12 +12,11 @@ import com.commuto.interfacedesktop.extension.asByteArray
 import com.commuto.interfacedesktop.key.KeyManagerService
 import com.commuto.interfacedesktop.key.keys.KeyPair
 import com.commuto.interfacedesktop.key.keys.PublicKey
+import com.commuto.interfacedesktop.offer.OfferDirection
 import com.commuto.interfacedesktop.offer.OfferNotifiable
 import com.commuto.interfacedesktop.offer.TestSwapTruthSource
-import com.commuto.interfacedesktop.p2p.OfferMessageNotifiable
-import com.commuto.interfacedesktop.p2p.P2PExceptionNotifiable
-import com.commuto.interfacedesktop.p2p.P2PService
-import com.commuto.interfacedesktop.p2p.messages.PublicKeyAnnouncement
+import com.commuto.interfacedesktop.p2p.*
+import com.commuto.interfacedesktop.p2p.messages.TakerInformationMessage
 import io.ktor.client.*
 import io.ktor.client.call.*
 import io.ktor.client.engine.okhttp.*
@@ -113,11 +112,6 @@ class SwapServiceTests {
         )
         databaseService.storeSwap(swapForDatabase)
 
-        // TODO: Move this to its own class
-        class TestOfferService : OfferMessageNotifiable {
-            override suspend fun handlePublicKeyAnnouncement(message: PublicKeyAnnouncement) {}
-        }
-
         class TestP2PExceptionHandler : P2PExceptionNotifiable {
             @Throws
             override fun handleP2PException(exception: Exception) {
@@ -130,8 +124,10 @@ class SwapServiceTests {
         ).apply { accessToken.value = System.getenv("MXKY") }
         class TestP2PService: P2PService(
             exceptionHandler = p2pExceptionHandler,
-            offerService = TestOfferService(),
-            mxClient = mxClient
+            offerService = TestOfferMessageNotifiable(),
+            swapService = TestSwapMessageNotifiable(),
+            mxClient = mxClient,
+            keyManagerService = keyManagerService,
         ) {
             var makerPublicKey: PublicKey? = null
             var takerKeyPair: KeyPair? = null
@@ -245,6 +241,154 @@ class SwapServiceTests {
 
         assertEquals(swapID, swapTruthSource.addedSwap!!.id)
 
+    }
+
+    /**
+     * Ensure that [SwapService] handles [TakerInformationMessage]s properly.
+     */
+    @Test
+    fun testHandleTakerInformationMessage() = runBlocking {
+        val databaseService = DatabaseService(DatabaseDriverFactory())
+        databaseService.createTables()
+        val keyManagerService = KeyManagerService(databaseService)
+
+        // The ID of the swap for which taker information is being received
+        val swapID = UUID.randomUUID()
+        // The taker's key pair. Since we are the maker, this is NOT stored persistently.
+        val takerKeyPair = KeyPair()
+        // The maker's key pair. Since we are the maker, this is stored persistently
+        val makerKeyPair = keyManagerService.generateKeyPair(storeResult = true)
+
+        // The taker's information that the maker must handle
+        val message = TakerInformationMessage(
+            swapID = swapID,
+            publicKey = takerKeyPair.getPublicKey(),
+            settlementMethodDetails = "taker_settlement_method_details"
+        )
+
+        val swapService = SwapService(
+            databaseService = databaseService,
+            keyManagerService = keyManagerService,
+        )
+        // TODO: move this to its own class
+        class TestP2PExceptionHandler : P2PExceptionNotifiable {
+            @Throws
+            override fun handleP2PException(exception: Exception) {
+                throw exception
+            }
+        }
+
+        val mxClient = MatrixClientServerApiClient(
+            baseUrl = Url("https://matrix.org"),
+        ).apply { accessToken.value = System.getenv("MXKY") }
+
+        // A test P2PService that will allow us to get the maker information that will be sent
+        class TestP2PService: P2PService(
+            exceptionHandler = TestP2PExceptionHandler(),
+            offerService = TestOfferMessageNotifiable(),
+            swapService = swapService,
+            mxClient = mxClient,
+            keyManagerService = keyManagerService,
+        ) {
+            var takerPublicKey: PublicKey? = null
+            var makerKeyPair: KeyPair? = null
+            var swapID: UUID? = null
+            var settlementMethodDetails: String? = null
+            override suspend fun sendMakerInformation(
+                takerPublicKey: PublicKey,
+                makerKeyPair: KeyPair,
+                swapID: UUID,
+                settlementMethodDetails: String
+            ) {
+                this.takerPublicKey = takerPublicKey
+                this.makerKeyPair = makerKeyPair
+                this.swapID = swapID
+                this.settlementMethodDetails = settlementMethodDetails
+            }
+        }
+        val p2pService = TestP2PService()
+
+        // Create swap, add it to swapTruthSource, and save it persistently
+        val swapTruthSource = TestSwapTruthSource()
+        // Provide swapTruthSource to swapService
+        swapService.setSwapTruthSource(swapTruthSource)
+        val swap = Swap(
+            isCreated = true,
+            requiresFill = true,
+            id = swapID,
+            maker = "",
+            makerInterfaceID = makerKeyPair.interfaceId,
+            taker = "",
+            takerInterfaceID = takerKeyPair.interfaceId,
+            stablecoin = "",
+            amountLowerBound = BigInteger.ZERO,
+            amountUpperBound = BigInteger.ZERO,
+            securityDepositAmount = BigInteger.ZERO,
+            takenSwapAmount = BigInteger.ZERO,
+            serviceFeeAmount = BigInteger.ZERO,
+            serviceFeeRate = BigInteger.ZERO,
+            direction = OfferDirection.SELL,
+            onChainSettlementMethod =
+            """
+                 {
+                     "f": "USD",
+                     "p": "1.00",
+                     "m": "SWIFT"
+                 }
+                 """.trimIndent().encodeToByteArray(),
+            protocolVersion = BigInteger.ZERO,
+            isPaymentSent = false,
+            isPaymentReceived = false,
+            hasBuyerClosed = false,
+            hasSellerClosed = false,
+            onChainDisputeRaiser = BigInteger.ZERO,
+            chainID = BigInteger.valueOf(31337L),
+            state = SwapState.AWAITING_TAKER_INFORMATION,
+        )
+        swapTruthSource.addSwap(swap)
+        val encoder = Base64.getEncoder()
+        val swapForDatabase = DatabaseSwap(
+            id = encoder.encodeToString(swapID.asByteArray()),
+            isCreated = 1L,
+            requiresFill = 1L,
+            maker = swap.maker,
+            makerInterfaceID = encoder.encodeToString(swap.makerInterfaceID),
+            taker = swap.taker,
+            takerInterfaceID = encoder.encodeToString(swap.takerInterfaceID),
+            stablecoin = swap.stablecoin,
+            amountLowerBound = swap.amountLowerBound.toString(),
+            amountUpperBound = swap.amountUpperBound.toString(),
+            securityDepositAmount = swap.securityDepositAmount.toString(),
+            takenSwapAmount = swap.takenSwapAmount.toString(),
+            serviceFeeAmount = swap.serviceFeeAmount.toString(),
+            serviceFeeRate = swap.serviceFeeRate.toString(),
+            onChainDirection = swap.onChainDirection.toString(),
+            settlementMethod = encoder.encodeToString(swap.onChainSettlementMethod),
+            protocolVersion = swap.protocolVersion.toString(),
+            isPaymentSent = 0L,
+            isPaymentReceived = 0L,
+            hasBuyerClosed = 0L,
+            hasSellerClosed = 0L,
+            disputeRaiser = swap.onChainDisputeRaiser.toString(),
+            chainID = swap.chainID.toString(),
+            state = swap.state.asString,
+        )
+        databaseService.storeSwap(swapForDatabase)
+
+        swapService.handleTakerInformationMessage(message)
+
+        assert(takerKeyPair.interfaceId.contentEquals(p2pService.takerPublicKey!!.interfaceId))
+        assert(makerKeyPair.interfaceId.contentEquals(p2pService.makerKeyPair!!.interfaceId))
+        assertEquals(swapID, p2pService.swapID!!)
+        // TODO: update this once SettlementMethodService is implemented
+        assertEquals("TEMPORARY", p2pService.settlementMethodDetails)
+
+        // Ensure that SwapService updates swap state in swapTruthSource
+        assertEquals(SwapState.AWAITING_FILLING, swap.state)
+
+        // Ensure that SwapService persistently updates swap state
+        val swapInDatabase = databaseService.getSwap(encoder.encodeToString(swapID.asByteArray()))
+        assertEquals(SwapState.AWAITING_FILLING.asString, swapInDatabase!!.state)
     }
 
 }

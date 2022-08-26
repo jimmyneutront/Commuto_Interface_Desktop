@@ -3,12 +3,15 @@
 
 package com.commuto.interfacedesktop.p2p
 
+import com.commuto.interfacedesktop.key.KeyManagerService
 import com.commuto.interfacedesktop.key.keys.KeyPair
 import com.commuto.interfacedesktop.key.keys.PublicKey
-import com.commuto.interfacedesktop.key.keys.newSymmetricKey
 import com.commuto.interfacedesktop.offer.OfferService
-import com.commuto.interfacedesktop.p2p.serializable.messages.SerializableTakerInformationMessage
-import com.commuto.interfacedesktop.p2p.serializable.payloads.SerializableTakerInformationMessagePayload
+import com.commuto.interfacedesktop.p2p.create.createMakerInformationMessage
+import com.commuto.interfacedesktop.p2p.create.createTakerInformationMessage
+import com.commuto.interfacedesktop.p2p.parse.parseTakerInformationMessage
+import com.commuto.interfacedesktop.p2p.serializable.messages.SerializableEncryptedMessage
+import com.commuto.interfacedesktop.swap.SwapService
 import io.ktor.client.*
 import io.ktor.client.plugins.*
 import io.ktor.http.*
@@ -16,7 +19,7 @@ import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
-import kotlinx.serialization.encodeToString
+import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
 import net.folivo.trixnity.clientserverapi.client.MatrixClientServerApiClient
 import net.folivo.trixnity.clientserverapi.model.rooms.GetEvents
@@ -27,7 +30,6 @@ import net.folivo.trixnity.core.model.events.Event
 import net.folivo.trixnity.core.model.events.m.room.RoomMessageEventContent
 import org.slf4j.LoggerFactory
 import java.net.ConnectException
-import java.security.MessageDigest
 import java.util.*
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -42,10 +44,14 @@ import javax.inject.Singleton
  *
  * @property logger The [org.slf4j.Logger] that this class uses for logging.
  * @property exceptionHandler An object to which [P2PService] will pass errors when they occur.
- * @property offerService An object to which [P2PService] will pass offer-related messages when they
- * occur.
+ * @property offerService An object that implements [OfferMessageNotifiable], to which this will pass offer-related
+ * messages.
+ * @property swapService An object that implements [SwapMessageNotifiable], to which this will pass swap-related
+ * messages.
  * @property mxClient A [MatrixClientServerApiClient] instance used to interact with a Matrix
  * Homeserver.
+ * @property keyManagerService A [KeyManagerService] from which this gets key pairs when attempting to decrypt encrypted
+ * messages.
  * @property lastNonEmptyBatchToken The token at the end of the last batch of non-empty Matrix
  * events that was parsed. (The value specified here is that from the beginning of the Commuto
  * Interface Network testing room.) This should be updated every time a new batch of events is
@@ -56,17 +62,24 @@ import javax.inject.Singleton
  * loop.
  */
 @Singleton
-open class P2PService constructor(private val exceptionHandler: P2PExceptionNotifiable,
-                             private val offerService: OfferMessageNotifiable,
-                             private val mxClient: MatrixClientServerApiClient) {
+open class P2PService constructor(
+    private val exceptionHandler: P2PExceptionNotifiable,
+    private val offerService: OfferMessageNotifiable,
+    private val swapService: SwapMessageNotifiable,
+    private val mxClient: MatrixClientServerApiClient,
+    private val keyManagerService: KeyManagerService,
+) {
 
     @Inject
     constructor(
         exceptionHandler: P2PExceptionNotifiable,
-        offerService: OfferMessageNotifiable
+        offerService: OfferMessageNotifiable,
+        swapService: SwapMessageNotifiable,
+        keyManagerService: KeyManagerService,
     ): this(
         exceptionHandler = exceptionHandler,
         offerService = offerService,
+        swapService = swapService,
         mxClient = MatrixClientServerApiClient(
             baseUrl = Url("https://matrix.org"),
             httpClientFactory = {
@@ -76,11 +89,13 @@ open class P2PService constructor(private val exceptionHandler: P2PExceptionNoti
                     }
                 }
             }
-        ).apply { accessToken.value = System.getenv("MXKY") }
+        ).apply { accessToken.value = System.getenv("MXKY") },
+        keyManagerService = keyManagerService
     )
 
     init {
         (offerService as? OfferService)?.setP2PService(this)
+        (swapService as? SwapService)?.setP2PService(this)
     }
 
     private val logger = LoggerFactory.getLogger(javaClass)
@@ -176,23 +191,80 @@ open class P2PService constructor(private val exceptionHandler: P2PExceptionNoti
     }
 
     /**
-     * Parses a [List] of [Event.RoomEvent]s, filters out all non-text-message events, attempts to
-     * create message objects from the content bodies of text message events, if present, and then
-     * passes any offer-related message objects to [offerService].
+     * Parses a [List] of [Event.RoomEvent]s, filters out all non-text-message events, attempts to create message
+     * objects from the content bodies of text message events, if present, and then passes any offer-related message
+     * objects to [offerService] and any swap-related messages to [swapService].
      *
      * @param events A [List] of [Event.RoomEvent]s.
      */
-    private suspend fun parseEvents(events: List<Event.RoomEvent<*>>) {
+    suspend fun parseEvents(events: List<Event.RoomEvent<*>>) {
         val textMessageEvents = events.filterIsInstance<Event.MessageEvent<*>>().filter {
             it.content is RoomMessageEventContent.TextMessageEventContent
         }
         logger.info("parseEvents: parsing ${textMessageEvents.size} text message events")
         for (event in textMessageEvents) {
-            parsePublicKeyAnnouncement((event.content as RoomMessageEventContent.
-            TextMessageEventContent).body)?.let {
+            // Handle unencrypted messages
+            val pka = parsePublicKeyAnnouncement((event.content as RoomMessageEventContent.
+            TextMessageEventContent).body)
+            if (pka != null) {
                 logger.info("parseEvents: got Public Key Announcement message in event with Matrix event ID: " +
                         event.id.full)
-                offerService.handlePublicKeyAnnouncement(it)
+                offerService.handlePublicKeyAnnouncement(pka)
+            } else {
+                /*
+                If execution reaches this point, then we have already tried to get every possible unencrypted message
+                from the event being handled. Therefore, we now try to get an encrypted message from the event: We
+                attempt to cast the event content as text message event content, and then we attempt to create a
+                SerializableEncryptedMessage from the text message event content body. Then we attempt to create an
+                interface ID from the contents of the recipient field. Then we check keyManagerService to determine if
+                we have a key pair with that interface ID. If we do, then we have determined that the event contains an
+                encrypted message sent to us, and we attempt to parse it.
+                 */
+                val messageString = try {
+                    (event.content as RoomMessageEventContent.TextMessageEventContent).body
+                } catch (e: Exception) {
+                    /*
+                    If we can't can't get a message string from the room's content cast as TextMessageEventContent, then
+                    we stop handling it and move on
+                     */
+                    break
+                }
+                val message = try {
+                    Json.decodeFromString<SerializableEncryptedMessage>(messageString)
+                } catch (e: Exception) {
+                    /*
+                    If we can't get a SerializableEncryptedMessage from the message, then we stop handling it and move
+                    on
+                     */
+                    break
+                }
+                val recipientInterfaceID = try {
+                    val decoder = Base64.getDecoder()
+                    decoder.decode(message.recipient)
+                } catch (e: Exception) {
+                    /*
+                    If we can't create a recipient interface ID from the contents of the "recipient" field, then we stop
+                    handling it and move on
+                     */
+                    break
+                }
+                /*
+                If we don't have a key pair with the interface ID specified in the "recipient" field, then we don't
+                have the private key necessary to decrypt the message, (meaning we aren't the intended recipient) so
+                we stop handling it and move on
+                */
+                val recipientKeyPair = keyManagerService.getKeyPair(recipientInterfaceID)
+                    ?:
+                    break
+                val takerInformationMessage = parseTakerInformationMessage(
+                    messageString = messageString,
+                    keyPair = recipientKeyPair
+                )
+                if (takerInformationMessage != null) {
+                    logger.info("parseEvents: got Taker Information Message in event with Matrix event ID: " +
+                            event.id.full)
+                    swapService.handleTakerInformationMessage(takerInformationMessage)
+                }
             }
         }
     }
@@ -250,50 +322,41 @@ open class P2PService constructor(private val exceptionHandler: P2PExceptionNoti
         settlementMethodDetails: String,
     ) {
         logger.info("sendTakerInformation: creating for $swapID")
-        // Setup encoder
-        val encoder = Base64.getEncoder()
-
-        // Create Base64-encoded string of the taker's (user's) public key in PKCS#1 bytes
-        val takerPublicKeyString = encoder.encodeToString(takerKeyPair.pubKeyToPkcs1Bytes())
-
-        // TODO: Note (in interface spec) that we are using a UUID string for the swap UUID
-        // Create payload object
-        val payload = SerializableTakerInformationMessagePayload(
-            msgType = "takerInfo",
-            pubKey = takerPublicKeyString,
-            swapId = swapID.toString(),
-            paymentDetails = settlementMethodDetails,
+        val messageString = createTakerInformationMessage(
+            makerPublicKey = makerPublicKey,
+            takerKeyPair = takerKeyPair,
+            swapID = swapID,
+            settlementMethodDetails = settlementMethodDetails
         )
+        logger.info("sendTakerInformation: sending for $swapID")
+        sendMessage(messageString)
+    }
 
-        // Create payload UTF-8 bytes
-        val payloadUTF8Bytes = Json.encodeToString(payload).toByteArray()
-
-        // Generate a new AES-256 key and initialization vector, and encrypt the payload bytes
-        val symmetricKey = newSymmetricKey()
-        val encryptedPayload = symmetricKey.encrypt(payloadUTF8Bytes)
-
-        // Create signature of encrypted payload
-        val encryptedPayloadHash = MessageDigest.getInstance("SHA-256").digest(encryptedPayload.encryptedData)
-        val payloadSignature = takerKeyPair.sign(encryptedPayloadHash)
-
-        // Encrypt symmetric key and initialization vector with maker's public key
-        val encryptedKey = makerPublicKey.encrypt(symmetricKey.keyBytes)
-        val encryptedIV = makerPublicKey.encrypt(encryptedPayload.initializationVector)
-
-        // Create message object
-        val message = SerializableTakerInformationMessage(
-            sender = encoder.encodeToString(takerKeyPair.interfaceId),
-            recipient = encoder.encodeToString(makerPublicKey.interfaceId),
-            encryptedKey = encoder.encodeToString(encryptedKey),
-            encryptedIV = encoder.encodeToString(encryptedIV),
-            payload = encoder.encodeToString(encryptedPayload.encryptedData),
-            signature = encoder.encodeToString(payloadSignature),
+    /**
+     * Creates a
+     * [Maker Information Message](https://github.com/jimmyneutront/commuto-whitepaper/blob/main/commuto-interface-specification.txt)
+     * using the supplied taker's public key, maker's/user's key pair, swap ID and maker's payment details, and sends it
+     * using the [sendMessage] function.
+     *
+     * @param takerPublicKey The public key of the swap taker, to whom information is being sent.
+     * @param makerKeyPair The maker's/user's key pair, which will be used to sign this message.
+     * @param swapID The ID of the swap for which information is being sent.
+     * @param settlementMethodDetails The settlement method details being sent.
+     */
+    open suspend fun sendMakerInformation(
+        takerPublicKey: PublicKey,
+        makerKeyPair: KeyPair,
+        swapID: UUID,
+        settlementMethodDetails: String,
+    ) {
+        logger.info("sendMakerInformation: creating for $swapID")
+        val messageString = createMakerInformationMessage(
+            takerPublicKey = takerPublicKey,
+            makerKeyPair = makerKeyPair,
+            swapID = swapID,
+            settlementMethodDetails = settlementMethodDetails
         )
-        // Create message string
-        val messageString = Json.encodeToString(message)
-
-        // Send message string
-        logger.info("sendTakerInformation: sending for swap $swapID")
+        logger.info("sendMakerInformation: sending for $swapID")
         sendMessage(messageString)
     }
 

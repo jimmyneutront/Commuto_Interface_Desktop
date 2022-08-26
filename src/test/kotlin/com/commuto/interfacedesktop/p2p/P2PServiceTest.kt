@@ -1,9 +1,16 @@
 package com.commuto.interfacedesktop.p2p
 
+import com.commuto.interfacedesktop.database.DatabaseDriverFactory
+import com.commuto.interfacedesktop.database.DatabaseService
+import com.commuto.interfacedesktop.key.KeyManagerService
 import com.commuto.interfacedesktop.key.keys.KeyPair
 import com.commuto.interfacedesktop.key.keys.PublicKey
+import com.commuto.interfacedesktop.p2p.create.createTakerInformationMessage
 import com.commuto.interfacedesktop.p2p.messages.PublicKeyAnnouncement
+import com.commuto.interfacedesktop.p2p.messages.TakerInformationMessage
+import com.commuto.interfacedesktop.p2p.parse.parseMakerInformationMessage
 import com.commuto.interfacedesktop.p2p.parse.parseTakerInformationMessage
+import com.commuto.interfacedesktop.p2p.serializable.messages.SerializableEncryptedMessage
 import com.commuto.interfacedesktop.p2p.serializable.messages.SerializablePublicKeyAnnouncementMessage
 import com.commuto.interfacedesktop.p2p.serializable.payloads.SerializablePublicKeyAnnouncementPayload
 import io.ktor.client.*
@@ -12,12 +19,16 @@ import io.ktor.http.*
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
+import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import net.folivo.trixnity.clientserverapi.client.MatrixClientServerApiClient
 import net.folivo.trixnity.core.ErrorResponse
 import net.folivo.trixnity.core.MatrixServerException
+import net.folivo.trixnity.core.model.EventId
 import net.folivo.trixnity.core.model.RoomId
+import net.folivo.trixnity.core.model.UserId
+import net.folivo.trixnity.core.model.events.Event
 import net.folivo.trixnity.core.model.events.m.room.RoomMessageEventContent
 import org.junit.Assert.assertEquals
 import org.junit.Test
@@ -37,6 +48,9 @@ class P2PServiceTest {
      */
     @Test
     fun testP2PService() = runBlocking {
+        val databaseService = DatabaseService(DatabaseDriverFactory())
+        databaseService.createTables()
+        val keyManagerService = KeyManagerService(databaseService)
         val mxClient = MatrixClientServerApiClient(
             baseUrl = Url("https://matrix.org"),
             httpClientFactory = {
@@ -53,11 +67,13 @@ class P2PServiceTest {
                 throw exception
             }
         }
-        class TestOfferService : OfferMessageNotifiable {
-            override suspend fun handlePublicKeyAnnouncement(message: PublicKeyAnnouncement) {
-            }
-        }
-        val p2pService = P2PService(TestP2PExceptionHandler(), TestOfferService(), mxClient)
+        val p2pService = P2PService(
+            exceptionHandler = TestP2PExceptionHandler(),
+            offerService = TestOfferMessageNotifiable(),
+            swapService = TestSwapMessageNotifiable(),
+            mxClient = mxClient,
+            keyManagerService = keyManagerService,
+        )
         p2pService.listenLoop()
     }
 
@@ -67,6 +83,11 @@ class P2PServiceTest {
      */
     @Test
     fun testListen() {
+
+        val databaseService = DatabaseService(DatabaseDriverFactory())
+        databaseService.createTables()
+        val keyManagerService = KeyManagerService(databaseService)
+
         val encoder = Base64.getEncoder()
 
         val keyPair = KeyPair()
@@ -109,7 +130,13 @@ class P2PServiceTest {
 
         val expectedPKA = PublicKeyAnnouncement(offerId, PublicKey(keyPair.keyPair.public))
         val offerService = TestOfferService(expectedPKA)
-        val p2pService = P2PService(TestP2PExceptionHandler(), offerService, mxClient)
+        val p2pService = P2PService(
+            exceptionHandler = TestP2PExceptionHandler(),
+            offerService = offerService,
+            swapService = TestSwapMessageNotifiable(),
+            mxClient = mxClient,
+            keyManagerService = keyManagerService,
+        )
         p2pService.listen()
 
         val publicKeyAnnouncementPayload = SerializablePublicKeyAnnouncementPayload(
@@ -147,6 +174,9 @@ class P2PServiceTest {
      */
     @Test
     fun testListenErrorHandling() {
+        val databaseService = DatabaseService(DatabaseDriverFactory())
+        databaseService.createTables()
+        val keyManagerService = KeyManagerService(databaseService)
         val mxClient = MatrixClientServerApiClient(
             baseUrl = Url("https://matrix.org"),
             httpClientFactory = {
@@ -166,10 +196,13 @@ class P2PServiceTest {
             }
         }
         val p2pExceptionHandler = TestP2PExceptionHandler()
-        class TestOfferService : OfferMessageNotifiable {
-            override suspend fun handlePublicKeyAnnouncement(message: PublicKeyAnnouncement) {}
-        }
-        val p2pService = P2PService(p2pExceptionHandler, TestOfferService(), mxClient)
+        val p2pService = P2PService(
+            exceptionHandler = TestP2PExceptionHandler(),
+            offerService = TestOfferMessageNotifiable(),
+            swapService = TestSwapMessageNotifiable(),
+            mxClient = mxClient,
+            keyManagerService = keyManagerService,
+        )
         p2pService.listen()
         runBlocking {
             withTimeout(10_000) {
@@ -187,13 +220,14 @@ class P2PServiceTest {
     @Test
     fun testAnnouncePublicKey() {
 
+        val databaseService = DatabaseService(DatabaseDriverFactory())
+        databaseService.createTables()
+        val keyManagerService = KeyManagerService(databaseService)
+
         class TestP2PExceptionHandler : P2PExceptionNotifiable {
             override fun handleP2PException(exception: Exception) {}
         }
         val p2pExceptionHandler = TestP2PExceptionHandler()
-        class TestOfferService : OfferMessageNotifiable {
-            override suspend fun handlePublicKeyAnnouncement(message: PublicKeyAnnouncement) {}
-        }
 
         val mxClient = MatrixClientServerApiClient(
             baseUrl = Url("https://matrix.org"),
@@ -206,7 +240,13 @@ class P2PServiceTest {
             }
         ).apply { accessToken.value = "not_a_real_token" }
 
-        class TestP2PService : P2PService(p2pExceptionHandler, TestOfferService(), mxClient) {
+        class TestP2PService : P2PService(
+            p2pExceptionHandler,
+            TestOfferMessageNotifiable(),
+            TestSwapMessageNotifiable(),
+            mxClient,
+            keyManagerService
+        ) {
             var receivedMessage: String? = null
             override suspend fun sendMessage(message: String) {
                 receivedMessage = message
@@ -237,13 +277,13 @@ class P2PServiceTest {
      */
     @Test
     fun testSendTakerInformation() {
+        val databaseService = DatabaseService(DatabaseDriverFactory())
+        databaseService.createTables()
+        val keyManagerService = KeyManagerService(databaseService)
         class TestP2PExceptionHandler : P2PExceptionNotifiable {
             override fun handleP2PException(exception: Exception) {}
         }
         val p2pExceptionHandler = TestP2PExceptionHandler()
-        class TestOfferService : OfferMessageNotifiable {
-            override suspend fun handlePublicKeyAnnouncement(message: PublicKeyAnnouncement) {}
-        }
         val mxClient = MatrixClientServerApiClient(
             baseUrl = Url("https://matrix.org"),
             httpClientFactory = {
@@ -254,7 +294,13 @@ class P2PServiceTest {
                 }
             }
         ).apply { accessToken.value = System.getenv("MXKY") }
-        class TestP2PService : P2PService(p2pExceptionHandler, TestOfferService(), mxClient) {
+        class TestP2PService : P2PService(
+            p2pExceptionHandler,
+            TestOfferMessageNotifiable(),
+            TestSwapMessageNotifiable(),
+            mxClient,
+            keyManagerService
+        ) {
             var receivedMessage: String? = null
             override suspend fun sendMessage(message: String) {
                 receivedMessage = message
@@ -286,6 +332,141 @@ class P2PServiceTest {
         assert(takerKeyPair.interfaceId.contentEquals(createdTakerInformationMessage.publicKey.interfaceId))
         assertEquals("some_settlement_method_details", createdTakerInformationMessage.settlementMethodDetails)
 
+    }
+
+    /**
+     * Ensure that [P2PService.parseEvents] handles [TakerInformationMessage]s properly.
+     */
+    @Test
+    fun testParseTakerInformationMessage() = runBlocking {
+        val databaseService = DatabaseService(DatabaseDriverFactory())
+        databaseService.createTables()
+        val keyManagerService = KeyManagerService(databaseService)
+
+        // Since we are the maker, we want the maker's key pair in persistent storage.
+        val makerKeyPair = keyManagerService.generateKeyPair(storeResult = true)
+        // Since we are the maker, we do NOT want the taker's key pair in persistent storage.
+        val takerKeyPair = KeyPair()
+
+        val swapID = UUID.randomUUID()
+
+        class TestP2PExceptionHandler : P2PExceptionNotifiable {
+            override fun handleP2PException(exception: Exception) {}
+        }
+        val p2pExceptionHandler = TestP2PExceptionHandler()
+        val mxClient = MatrixClientServerApiClient(
+            baseUrl = Url("https://matrix.org"),
+            httpClientFactory = {
+                HttpClient(it).config {
+                    install(HttpTimeout) {
+                        socketTimeoutMillis = 60_000
+                    }
+                }
+            }
+        ).apply { accessToken.value = System.getenv("MXKY") }
+
+        class TestSwapService: SwapMessageNotifiable {
+            var message: TakerInformationMessage? = null
+            override suspend fun handleTakerInformationMessage(message: TakerInformationMessage) {
+                this.message = message
+            }
+        }
+        val swapService = TestSwapService()
+
+        val takerInformationMessageString = createTakerInformationMessage(
+            makerPublicKey = makerKeyPair.getPublicKey(),
+            takerKeyPair = takerKeyPair,
+            swapID = swapID,
+            settlementMethodDetails = "settlement_method_details"
+        )
+
+        val messageEventContent = RoomMessageEventContent.TextMessageEventContent(
+            body = takerInformationMessageString
+        )
+
+        val messageEvent = Event.MessageEvent(
+            content = messageEventContent,
+            id = EventId(full = ""),
+            sender = UserId(full = ""),
+            roomId = RoomId(full = ""),
+            originTimestamp = 0L,
+        )
+
+        val p2pService = P2PService(
+            p2pExceptionHandler,
+            TestOfferMessageNotifiable(),
+            swapService,
+            mxClient,
+            keyManagerService
+        )
+        p2pService.parseEvents(events = listOf(messageEvent))
+
+        assertEquals(swapID, swapService.message!!.swapID)
+        assert(takerKeyPair.interfaceId.contentEquals(swapService.message!!.publicKey.interfaceId))
+        assertEquals("settlement_method_details", swapService.message!!.settlementMethodDetails)
+    }
+
+    /**
+     * Ensure that [P2PService.sendMakerInformation] sends
+     * [Maker Information Message](https://github.com/jimmyneutront/commuto-whitepaper/blob/main/commuto-interface-specification.txt)s
+     * properly.
+     */
+    @Test
+    fun testSendMakerInformation() = runBlocking {
+        val databaseService = DatabaseService(DatabaseDriverFactory())
+        databaseService.createTables()
+        val keyManagerService = KeyManagerService(databaseService)
+        // TODO: move this to its own class
+        class TestP2PExceptionHandler : P2PExceptionNotifiable {
+            override fun handleP2PException(exception: Exception) {}
+        }
+        val mxClient = MatrixClientServerApiClient(
+            baseUrl = Url("https://matrix.org"),
+            httpClientFactory = {
+                HttpClient(it).config {
+                    install(HttpTimeout) {
+                        socketTimeoutMillis = 60_000
+                    }
+                }
+            }
+        ).apply { accessToken.value = System.getenv("MXKY") }
+        class TestP2PService : P2PService(
+            TestP2PExceptionHandler(),
+            TestOfferMessageNotifiable(),
+            TestSwapMessageNotifiable(),
+            mxClient,
+            keyManagerService
+        ) {
+            var receivedMessage: String? = null
+            override suspend fun sendMessage(message: String) {
+                receivedMessage = message
+            }
+        }
+        val p2pService = TestP2PService()
+
+        // The key pair, the public key of which we use as the taker's key pair
+        val takerKeyPair = KeyPair()
+        // The maker's/user's key pair
+        val makerKeyPair = KeyPair()
+
+        val swapID = UUID.randomUUID()
+
+        // Send the information
+        p2pService.sendMakerInformation(
+            takerPublicKey = takerKeyPair.getPublicKey(),
+            makerKeyPair = makerKeyPair,
+            swapID = swapID,
+            settlementMethodDetails = "some_payment_details"
+        )
+        // Parse sent information
+        val createdMakerInformationMessage = parseMakerInformationMessage(
+            message = Json.decodeFromString<SerializableEncryptedMessage>(p2pService.receivedMessage!!),
+            keyPair = takerKeyPair,
+            publicKey = makerKeyPair.getPublicKey(),
+        )
+        // Validate sent information
+        assertEquals(swapID, createdMakerInformationMessage!!.swapID)
+        assertEquals("some_payment_details", createdMakerInformationMessage.settlementMethodDetails)
     }
 
 }

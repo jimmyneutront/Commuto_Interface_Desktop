@@ -4,32 +4,33 @@ import com.commuto.interfacedesktop.key.keys.KeyPair
 import com.commuto.interfacedesktop.key.keys.PublicKey
 import com.commuto.interfacedesktop.key.keys.SymmetricKey
 import com.commuto.interfacedesktop.key.keys.SymmetricallyEncryptedData
-import com.commuto.interfacedesktop.p2p.messages.TakerInformationMessage
-import com.commuto.interfacedesktop.p2p.serializable.messages.SerializableTakerInformationMessage
-import com.commuto.interfacedesktop.p2p.serializable.payloads.SerializableTakerInformationMessagePayload
+import com.commuto.interfacedesktop.p2p.messages.MakerInformationMessage
+import com.commuto.interfacedesktop.p2p.serializable.messages.SerializableEncryptedMessage
+import com.commuto.interfacedesktop.p2p.serializable.payloads.SerializableMakerInformationMessagePayload
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
 import java.security.MessageDigest
 import java.util.*
 
 /**
- * Attempts to restore a [TakerInformationMessage] from a given [String] using a supplied [KeyPair].
+ * Attempts to restore a [MakerInformationMessage] from a given [SerializableEncryptedMessage] using a supplied
+ * [KeyPair] and [PublicKey].
  *
- * @param messageString An optional [String] from which to try to restore a [TakerInformationMessage].
+ * @param message An optional [SerializableEncryptedMessage] from which to try to restore a [MakerInformationMessage].
  * @param keyPair The [KeyPair] with which this will attempt to decrypt the message's symmetric key and initialization
- * vector.
+ * vector. The interface ID of this key pair should be that specified in the message's "recipient" field.
+ * @param publicKey The [PublicKey] with which this will attempt to verify the message's signature. The interface ID of
+ * this public key should be that specified in the message's "sender" field.
  *
- * @return An optional [TakerInformationMessage] that will be `null` if [messageString] does not contain a valid Taker
+ * @return An optional [MakerInformationMessage] that will be `null` if [message] does not contain a valid Maker
  * Information Message encrypted with the public key of [keyPair], and will be non-`null` if it does.
  */
-fun parseTakerInformationMessage(messageString: String?, keyPair: KeyPair): TakerInformationMessage? {
-    if (messageString == null) {
-        return null
-    }
-    // Restore message object
-    val message = try {
-        Json.decodeFromString<SerializableTakerInformationMessage>(messageString)
-    } catch (e: Exception) {
+fun parseMakerInformationMessage(
+    message: SerializableEncryptedMessage?,
+    keyPair: KeyPair,
+    publicKey: PublicKey
+): MakerInformationMessage? {
+    if (message == null) {
         return null
     }
     // Setup decoder
@@ -73,21 +74,15 @@ fun parseTakerInformationMessage(messageString: String?, keyPair: KeyPair): Take
     // Restore payload object
     val payload = try {
         val payloadString = String(bytes = decryptedPayloadBytes, charset = Charsets.UTF_8)
-        Json.decodeFromString<SerializableTakerInformationMessagePayload>(payloadString)
+        Json.decodeFromString<SerializableMakerInformationMessagePayload>(payloadString)
     } catch (e: Exception) {
         return null
     }
-    // Ensure that the message is a taker information message
-    if (payload.msgType != "takerInfo") {
+    // Ensure that the message is a maker information message
+    if (payload.msgType != "makerInfo") {
         return null
     }
-    // Get the taker's public key
-    val publicKey = try {
-        PublicKey(decoder.decode(payload.pubKey))
-    } catch (e: Exception) {
-        return null
-    }
-    // Check that the interface ID of the taker's public key matches the value in the "sender" field of the message
+    // Check that the interface ID of the maker's public key matches the value in the "sender" field of the message
     try {
         if (!decoder.decode(message.sender).contentEquals(publicKey.interfaceId)) {
             return null
@@ -112,9 +107,8 @@ fun parseTakerInformationMessage(messageString: String?, keyPair: KeyPair): Take
     } catch (e: Exception) {
         return null
     }
-    return TakerInformationMessage(
+    return MakerInformationMessage(
         swapID = swapID,
-        publicKey = publicKey,
         settlementMethodDetails = settlementMethodDetails,
     )
 }
