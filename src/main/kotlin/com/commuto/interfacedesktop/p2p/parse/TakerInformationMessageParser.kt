@@ -5,7 +5,7 @@ import com.commuto.interfacedesktop.key.keys.PublicKey
 import com.commuto.interfacedesktop.key.keys.SymmetricKey
 import com.commuto.interfacedesktop.key.keys.SymmetricallyEncryptedData
 import com.commuto.interfacedesktop.p2p.messages.TakerInformationMessage
-import com.commuto.interfacedesktop.p2p.serializable.messages.SerializableTakerInformationMessage
+import com.commuto.interfacedesktop.p2p.serializable.messages.SerializableEncryptedMessage
 import com.commuto.interfacedesktop.p2p.serializable.payloads.SerializableTakerInformationMessagePayload
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
@@ -28,7 +28,7 @@ fun parseTakerInformationMessage(messageString: String?, keyPair: KeyPair): Take
     }
     // Restore message object
     val message = try {
-        Json.decodeFromString<SerializableTakerInformationMessage>(messageString)
+        Json.decodeFromString<SerializableEncryptedMessage>(messageString)
     } catch (e: Exception) {
         return null
     }
