@@ -15,21 +15,18 @@ import java.util.*
 /**
  * Attempts to restore a [TakerInformationMessage] from a given [String] using a supplied [KeyPair].
  *
- * @param messageString An optional [String] from which to try to restore a [TakerInformationMessage].
+ * @param message An optional [SerializableEncryptedMessage] from which to try to restore a [TakerInformationMessage].
  * @param keyPair The [KeyPair] with which this will attempt to decrypt the message's symmetric key and initialization
  * vector.
  *
- * @return An optional [TakerInformationMessage] that will be `null` if [messageString] does not contain a valid Taker
+ * @return An optional [TakerInformationMessage] that will be `null` if [message] does not contain a valid Taker
  * Information Message encrypted with the public key of [keyPair], and will be non-`null` if it does.
  */
-fun parseTakerInformationMessage(messageString: String?, keyPair: KeyPair): TakerInformationMessage? {
-    if (messageString == null) {
-        return null
-    }
-    // Restore message object
-    val message = try {
-        Json.decodeFromString<SerializableEncryptedMessage>(messageString)
-    } catch (e: Exception) {
+fun parseTakerInformationMessage(
+    message: SerializableEncryptedMessage?,
+    keyPair: KeyPair
+): TakerInformationMessage? {
+    if (message == null) {
         return null
     }
     // Setup decoder

@@ -257,7 +257,7 @@ open class P2PService constructor(
                     ?:
                     break
                 val takerInformationMessage = parseTakerInformationMessage(
-                    messageString = messageString,
+                    message = message,
                     keyPair = recipientKeyPair
                 )
                 if (takerInformationMessage != null) {
