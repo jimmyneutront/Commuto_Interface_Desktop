@@ -934,20 +934,28 @@ class OfferService (
      * The method called by [com.commuto.interfacedesktop.p2p.P2PService] to notify [OfferService] of a
      * [PublicKeyAnnouncement].
      *
-     * Once notified, [OfferService] checks that the public key in [message] is not already saved in persistent storage
-     * via [keyManagerService], and does so if it is not. Then this checks [offerTruthSource] for an offer with the ID
-     * specified in [message] and an interface ID equal to that of the public key in [message]. If it finds such an
-     * offer, it checks the offer's [Offer.havePublicKey] and [Offer.state] properties. If [Offer.havePublicKey] is true
-     * or [Offer.state] is at or beyond [OfferState.OFFER_OPENED], then it returns because this interface already has
-     * the public key for this offer. Otherwise, it updates the offer's [Offer.havePublicKey] property to
-     * true, to indicate that we have the public key necessary to take the offer and communicate with its maker, and if
-     * the offer has not already passed through the [OfferState.OFFER_OPENED] state, updates its [Offer.state] property
-     * to [OfferState.OFFER_OPENED]. It updates these properties in persistent storage as well.
+     * Once notified, [OfferService] checks for a key pair in [keyManagerService] with an interface ID equal to that of
+     * the public key contained in [message]. If such a key pair is present, then this returns, to avoid storing the
+     * user's own public key. Otherwise, if no such key pair exists in [keyManagerService], this checks that the public
+     * key in [message] is not already saved in persistent storage via [keyManagerService], and does so if it is not.
+     * Then this checks [offerTruthSource] for an offer with the ID specified in [message] and an interface ID equal to
+     * that of the public key in [message]. If it finds such an offer, it checks the offer's [Offer.havePublicKey] and
+     * [Offer.state] properties. If [Offer.havePublicKey] is true or [Offer.state] is at or beyond
+     * [OfferState.OFFER_OPENED], then it returns because this interface already has the public key for this offer.
+     * Otherwise, it updates the offer's [Offer.havePublicKey] property to true, to indicate that we have the public key
+     * necessary to take the offer and communicate with its maker, and if the offer has not already passed through the
+     * [OfferState.OFFER_OPENED] state, updates its [Offer.state] property to [OfferState.OFFER_OPENED]. It updates
+     * these properties in persistent storage as well.
      *
      * @param message The [PublicKeyAnnouncement] of which [OfferService] is being notified.
      */
     override suspend fun handlePublicKeyAnnouncement(message: PublicKeyAnnouncement) {
         logger.info("handlePublicKeyAnnouncement: handling announcement for offer ${message.id}")
+        if (keyManagerService.getKeyPair(message.publicKey.interfaceId) != null) {
+            logger.info("handlePublicKeyAnnouncement: detected announcement for ${message.id} made by the " +
+                    "user of this interface")
+            return
+        }
         val encoder = Base64.getEncoder()
         if (keyManagerService.getPublicKey(message.publicKey.interfaceId) == null) {
             keyManagerService.storePublicKey(message.publicKey)
