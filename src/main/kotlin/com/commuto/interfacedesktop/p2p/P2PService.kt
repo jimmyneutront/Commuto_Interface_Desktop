@@ -9,6 +9,7 @@ import com.commuto.interfacedesktop.key.keys.PublicKey
 import com.commuto.interfacedesktop.offer.OfferService
 import com.commuto.interfacedesktop.p2p.create.createMakerInformationMessage
 import com.commuto.interfacedesktop.p2p.create.createTakerInformationMessage
+import com.commuto.interfacedesktop.p2p.parse.parseMakerInformationMessage
 import com.commuto.interfacedesktop.p2p.parse.parseTakerInformationMessage
 import com.commuto.interfacedesktop.p2p.serializable.messages.SerializableEncryptedMessage
 import com.commuto.interfacedesktop.swap.SwapService
@@ -238,8 +239,8 @@ open class P2PService constructor(
                      */
                     break
                 }
+                val decoder = Base64.getDecoder()
                 val recipientInterfaceID = try {
-                    val decoder = Base64.getDecoder()
                     decoder.decode(message.recipient)
                 } catch (e: Exception) {
                     /*
@@ -254,16 +255,44 @@ open class P2PService constructor(
                 we stop handling it and move on
                 */
                 val recipientKeyPair = keyManagerService.getKeyPair(recipientInterfaceID)
-                    ?:
-                    break
+                    ?: break
                 val takerInformationMessage = parseTakerInformationMessage(
                     message = message,
                     keyPair = recipientKeyPair
                 )
                 if (takerInformationMessage != null) {
-                    logger.info("parseEvents: got Taker Information Message in event with Matrix event ID: " +
+                    logger.info("parseEvents: got Taker Information Message in event with Matrix event ID " +
                             event.id.full)
                     swapService.handleTakerInformationMessage(takerInformationMessage)
+                    break
+                }
+                /*
+                If execution reaches this point, then we have already tried to get every possible encrypted message that
+                doesn't require us to have the sender's public key. Therefore we attempt to create an interface ID from
+                the contents of that field, and then check keyManagerService to determine if we have a public key with
+                that interface ID. If we do, then we continue attempting to parse the message. If we do not, we log a
+                warning and break.
+                 */
+                val senderInterfaceID = try {
+                    decoder.decode(message.sender)
+                } catch (e: Exception) {
+                    break
+                }
+                val senderPublicKey = keyManagerService.getPublicKey(senderInterfaceID)
+                    ?: break
+                val makerInformationMessage = parseMakerInformationMessage(
+                    message = message,
+                    keyPair = recipientKeyPair,
+                    publicKey = senderPublicKey
+                )
+                if (makerInformationMessage != null) {
+                    logger.info("parseEvents: got Maker Information Message in event with Matrix event ID " +
+                            event.id.full)
+                    swapService.handleMakerInformationMessage(
+                        message = makerInformationMessage,
+                        senderInterfaceID = senderInterfaceID,
+                        recipientInterfaceID = recipientInterfaceID
+                    )
                 }
             }
         }

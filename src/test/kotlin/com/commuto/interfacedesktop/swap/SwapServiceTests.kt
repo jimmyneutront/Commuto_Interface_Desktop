@@ -16,6 +16,7 @@ import com.commuto.interfacedesktop.offer.OfferDirection
 import com.commuto.interfacedesktop.offer.OfferNotifiable
 import com.commuto.interfacedesktop.offer.TestSwapTruthSource
 import com.commuto.interfacedesktop.p2p.*
+import com.commuto.interfacedesktop.p2p.messages.MakerInformationMessage
 import com.commuto.interfacedesktop.p2p.messages.TakerInformationMessage
 import io.ktor.client.*
 import io.ktor.client.call.*
@@ -384,6 +385,115 @@ class SwapServiceTests {
         assertEquals("TEMPORARY", p2pService.settlementMethodDetails)
 
         // Ensure that SwapService updates swap state in swapTruthSource
+        assertEquals(SwapState.AWAITING_FILLING, swap.state)
+
+        // Ensure that SwapService persistently updates swap state
+        val swapInDatabase = databaseService.getSwap(encoder.encodeToString(swapID.asByteArray()))
+        assertEquals(SwapState.AWAITING_FILLING.asString, swapInDatabase!!.state)
+    }
+
+    /**
+     * Ensure that [SwapService] handles [MakerInformationMessage]s properly.
+     */
+    @Test
+    fun testHandleMakerInformationMessage() = runBlocking {
+        // Set up DatabaseService and KeyManagerService
+        val databaseService = DatabaseService(DatabaseDriverFactory())
+        databaseService.createTables()
+        val keyManagerService = KeyManagerService(databaseService)
+
+        // The ID of the swap for which maker information is being received
+        val swapID = UUID.randomUUID()
+        // The maker's key pair. Since we are the taker, this is NOT stored persistently.
+        val makerKeyPair = KeyPair()
+        keyManagerService.storePublicKey(makerKeyPair.getPublicKey())
+        // The taker's key pair. Since we are the taker, this is stored persistently
+        val takerKeyPair = keyManagerService.generateKeyPair(storeResult = true)
+
+        // The maker's information that the taker must handle
+        val message = MakerInformationMessage(
+            swapID = swapID,
+            settlementMethodDetails = "maker_settlement_method_details",
+        )
+
+        val swapService = SwapService(
+            databaseService = databaseService,
+            keyManagerService = keyManagerService,
+        )
+
+        // Create swap, add it to swapTruthSource, and save it persistently
+        val swapTruthSource = TestSwapTruthSource()
+        // Provide swapTruthSource to swapService
+        swapService.setSwapTruthSource(swapTruthSource)
+        val swap = Swap(
+            isCreated = true,
+            requiresFill = true,
+            id = swapID,
+            maker = "",
+            makerInterfaceID = makerKeyPair.interfaceId,
+            taker = "",
+            takerInterfaceID = takerKeyPair.interfaceId,
+            stablecoin = "",
+            amountLowerBound = BigInteger.ZERO,
+            amountUpperBound = BigInteger.ZERO,
+            securityDepositAmount = BigInteger.ZERO,
+            takenSwapAmount = BigInteger.ZERO,
+            serviceFeeAmount = BigInteger.ZERO,
+            serviceFeeRate = BigInteger.ZERO,
+            direction = OfferDirection.SELL,
+            onChainSettlementMethod =
+            """
+                 {
+                     "f": "USD",
+                     "p": "1.00",
+                     "m": "SWIFT"
+                 }
+                 """.trimIndent().encodeToByteArray(),
+            protocolVersion = BigInteger.ZERO,
+            isPaymentSent = false,
+            isPaymentReceived = false,
+            hasBuyerClosed = false,
+            hasSellerClosed = false,
+            onChainDisputeRaiser = BigInteger.ZERO,
+            chainID = BigInteger.valueOf(31337L),
+            state = SwapState.AWAITING_MAKER_INFORMATION,
+        )
+        swapTruthSource.addSwap(swap)
+        val encoder = Base64.getEncoder()
+        val swapForDatabase = DatabaseSwap(
+            id = encoder.encodeToString(swapID.asByteArray()),
+            isCreated = 1L,
+            requiresFill = 1L,
+            maker = swap.maker,
+            makerInterfaceID = encoder.encodeToString(swap.makerInterfaceID),
+            taker = swap.taker,
+            takerInterfaceID = encoder.encodeToString(swap.takerInterfaceID),
+            stablecoin = swap.stablecoin,
+            amountLowerBound = swap.amountLowerBound.toString(),
+            amountUpperBound = swap.amountUpperBound.toString(),
+            securityDepositAmount = swap.securityDepositAmount.toString(),
+            takenSwapAmount = swap.takenSwapAmount.toString(),
+            serviceFeeAmount = swap.serviceFeeAmount.toString(),
+            serviceFeeRate = swap.serviceFeeRate.toString(),
+            onChainDirection = swap.onChainDirection.toString(),
+            settlementMethod = encoder.encodeToString(swap.onChainSettlementMethod),
+            protocolVersion = swap.protocolVersion.toString(),
+            isPaymentSent = 0L,
+            isPaymentReceived = 0L,
+            hasBuyerClosed = 0L,
+            hasSellerClosed = 0L,
+            disputeRaiser = swap.onChainDisputeRaiser.toString(),
+            chainID = swap.chainID.toString(),
+            state = swap.state.asString,
+        )
+        databaseService.storeSwap(swapForDatabase)
+
+        swapService.handleMakerInformationMessage(
+            message = message,
+            senderInterfaceID = makerKeyPair.interfaceId,
+            recipientInterfaceID = takerKeyPair.interfaceId,
+        )
+
         assertEquals(SwapState.AWAITING_FILLING, swap.state)
 
         // Ensure that SwapService persistently updates swap state

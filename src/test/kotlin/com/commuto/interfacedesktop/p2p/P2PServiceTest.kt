@@ -5,7 +5,9 @@ import com.commuto.interfacedesktop.database.DatabaseService
 import com.commuto.interfacedesktop.key.KeyManagerService
 import com.commuto.interfacedesktop.key.keys.KeyPair
 import com.commuto.interfacedesktop.key.keys.PublicKey
+import com.commuto.interfacedesktop.p2p.create.createMakerInformationMessage
 import com.commuto.interfacedesktop.p2p.create.createTakerInformationMessage
+import com.commuto.interfacedesktop.p2p.messages.MakerInformationMessage
 import com.commuto.interfacedesktop.p2p.messages.PublicKeyAnnouncement
 import com.commuto.interfacedesktop.p2p.messages.TakerInformationMessage
 import com.commuto.interfacedesktop.p2p.parse.parseMakerInformationMessage
@@ -370,6 +372,11 @@ class P2PServiceTest {
             override suspend fun handleTakerInformationMessage(message: TakerInformationMessage) {
                 this.message = message
             }
+            override suspend fun handleMakerInformationMessage(
+                message: MakerInformationMessage,
+                senderInterfaceID: ByteArray,
+                recipientInterfaceID: ByteArray
+            ) {}
         }
         val swapService = TestSwapService()
 
@@ -467,6 +474,90 @@ class P2PServiceTest {
         // Validate sent information
         assertEquals(swapID, createdMakerInformationMessage!!.swapID)
         assertEquals("some_payment_details", createdMakerInformationMessage.settlementMethodDetails)
+    }
+
+    /**
+     * Ensure that [P2PService.parseEvents] handles [MakerInformationMessage]s properly.
+     */
+    @Test
+    fun testParseMakerInformationMessage() = runBlocking {
+        val databaseService = DatabaseService(DatabaseDriverFactory())
+        databaseService.createTables()
+        val keyManagerService = KeyManagerService(databaseService)
+
+        // Since we are the taker, we want the taker's key pair in persistent storage
+        val takerKeyPair = keyManagerService.generateKeyPair(storeResult = true)
+        // Since we are the taker, we do NOT want the maker's key pair in persistent storage
+        val makerKeyPair = KeyPair()
+        keyManagerService.storePublicKey(makerKeyPair.getPublicKey())
+
+        val swapID = UUID.randomUUID()
+
+        // TODO: move this to its own class
+        class TestP2PExceptionHandler : P2PExceptionNotifiable {
+            override fun handleP2PException(exception: Exception) {}
+        }
+        val mxClient = MatrixClientServerApiClient(
+            baseUrl = Url("https://matrix.org"),
+            httpClientFactory = {
+                HttpClient(it).config {
+                    install(HttpTimeout) {
+                        socketTimeoutMillis = 60_000
+                    }
+                }
+            }
+        ).apply { accessToken.value = System.getenv("MXKY") }
+
+        class TestSwapService: SwapMessageNotifiable {
+            var message: MakerInformationMessage? = null
+            var senderInterfaceID: ByteArray? = null
+            var recipientInterfaceID: ByteArray? = null
+            override suspend fun handleTakerInformationMessage(message: TakerInformationMessage) {}
+            override suspend fun handleMakerInformationMessage(
+                message: MakerInformationMessage,
+                senderInterfaceID: ByteArray,
+                recipientInterfaceID: ByteArray
+            ) {
+                this.message = message
+                this.senderInterfaceID = senderInterfaceID
+                this.recipientInterfaceID = recipientInterfaceID
+            }
+        }
+        val swapService = TestSwapService()
+
+        val makerInformationMessageString = createMakerInformationMessage(
+            takerPublicKey = takerKeyPair.getPublicKey(),
+            makerKeyPair = makerKeyPair,
+            swapID = swapID,
+            settlementMethodDetails = "maker_settlement_method_details"
+        )
+
+        val messageEventContent = RoomMessageEventContent.TextMessageEventContent(
+            body = makerInformationMessageString
+        )
+
+        val messageEvent = Event.MessageEvent(
+            content = messageEventContent,
+            id = EventId(full = ""),
+            sender = UserId(full = ""),
+            roomId = RoomId(full = ""),
+            originTimestamp = 0L,
+        )
+
+        val p2pService = P2PService(
+            TestP2PExceptionHandler(),
+            TestOfferMessageNotifiable(),
+            swapService,
+            mxClient,
+            keyManagerService
+        )
+        p2pService.parseEvents(events = listOf(messageEvent))
+
+        assertEquals(swapID, swapService.message!!.swapID)
+        assertEquals("maker_settlement_method_details", swapService.message!!.settlementMethodDetails)
+        assert(makerKeyPair.interfaceId.contentEquals(swapService.senderInterfaceID))
+        assert(takerKeyPair.interfaceId.contentEquals(swapService.recipientInterfaceID))
+
     }
 
 }

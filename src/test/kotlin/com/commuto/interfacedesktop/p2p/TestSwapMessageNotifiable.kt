@@ -1,5 +1,6 @@
 package com.commuto.interfacedesktop.p2p
 
+import com.commuto.interfacedesktop.p2p.messages.MakerInformationMessage
 import com.commuto.interfacedesktop.p2p.messages.TakerInformationMessage
 
 /**
@@ -11,4 +12,12 @@ class TestSwapMessageNotifiable: SwapMessageNotifiable {
      * Does nothing, required to adopt [SwapMessageNotifiable]. Should not be used.
      */
     override suspend fun handleTakerInformationMessage(message: TakerInformationMessage) {}
+    /**
+     * Does nothing, required to adopt [SwapMessageNotifiable]. Should not be used.
+     */
+    override suspend fun handleMakerInformationMessage(
+        message: MakerInformationMessage,
+        senderInterfaceID: ByteArray,
+        recipientInterfaceID: ByteArray
+    ) {}
 }

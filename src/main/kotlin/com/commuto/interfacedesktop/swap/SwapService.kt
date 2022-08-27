@@ -9,6 +9,7 @@ import com.commuto.interfacedesktop.offer.OfferDirection
 import com.commuto.interfacedesktop.offer.OfferService
 import com.commuto.interfacedesktop.p2p.P2PService
 import com.commuto.interfacedesktop.p2p.SwapMessageNotifiable
+import com.commuto.interfacedesktop.p2p.messages.MakerInformationMessage
 import com.commuto.interfacedesktop.p2p.messages.TakerInformationMessage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -319,6 +320,74 @@ class SwapService @Inject constructor(
             }
         } else {
             logger.warn("handleTakerInformationMessage: got message for ${message.swapID} which was not found " +
+                    "in swapTruthSource")
+        }
+    }
+
+    /**
+     * The function called by [P2PService] to notify [SwapService] of a [MakerInformationMessage].
+     *
+     * Once notified, this checks that there exists in [swapTruthSource] a [Swap] with the ID specified in [message]. If
+     * there is, this checks that the interface ID of the message sender is equal to the interface ID of the swap maker
+     * and that the interface ID of the message's intended recipient is equal to the interface ID of the swap taker. If
+     * they are, this securely persistently stores the settlement method information in [message]. Then, if this swap is
+     * a maker-as-buyer swap, this updates the state of the swap to [SwapState.AWAITING_PAYMENT_SENT]. Otherwise, the
+     * swap is a maker-as-seller swap, and this updates the state of the swap to [SwapState.AWAITING_FILLING]. The state
+     * is updated both persistently and in [swapTruthSource].
+     *
+     * @param message The [MakerInformationMessage] to handle.
+     * @param senderInterfaceID The interface ID of the message's sender.
+     * @param recipientInterfaceID The interface ID of the message's intended recipient.
+     */
+    override suspend fun handleMakerInformationMessage(
+        message: MakerInformationMessage,
+        senderInterfaceID: ByteArray,
+        recipientInterfaceID: ByteArray
+    ) {
+        logger.info("handleMakerInformationMessage: handling for ${message.swapID}")
+        val swap = swapTruthSource.swaps[message.swapID]
+        if (swap != null) {
+            if (!senderInterfaceID.contentEquals(swap.makerInterfaceID)) {
+                logger.warn("handleMakerInformationMessage: got message for ${message.swapID} that was not " +
+                        "sent by swap maker")
+                return
+            }
+            val encoder = Base64.getEncoder()
+            if (!recipientInterfaceID.contentEquals(swap.takerInterfaceID)) {
+                logger.warn("handleMakerInformationMessage: got message for ${message.swapID} with recipient " +
+                        "interface ID ${encoder.encodeToString(recipientInterfaceID)} that doesn't match taker " +
+                        "interface ID ${encoder.encodeToString(swap.takerInterfaceID)}")
+                return
+            }
+            // TODO: securely store maker settlement method information once SettlementMethodService is implemented
+            when (swap.direction) {
+                OfferDirection.BUY -> {
+                    logger.info("handleMakerInformationMessage: updating state of BUY swap ${message.swapID} " +
+                            "to ${SwapState.AWAITING_PAYMENT_SENT.asString}")
+                    databaseService.updateSwapState(
+                        swapID = encoder.encodeToString(message.swapID.asByteArray()),
+                        chainID = swap.chainID.toString(),
+                        state = SwapState.AWAITING_PAYMENT_SENT.asString,
+                    )
+                    withContext(Dispatchers.Main) {
+                        swap.state = SwapState.AWAITING_PAYMENT_SENT
+                    }
+                }
+                OfferDirection.SELL -> {
+                    logger.info("handleMakerInformationMessage: updating state of SELL swap ${message.swapID} " +
+                            "to ${SwapState.AWAITING_FILLING.asString}")
+                    databaseService.updateSwapState(
+                        swapID = encoder.encodeToString(message.swapID.asByteArray()),
+                        chainID = swap.chainID.toString(),
+                        state = SwapState.AWAITING_FILLING.asString,
+                    )
+                    withContext(Dispatchers.Main) {
+                        swap.state = SwapState.AWAITING_FILLING
+                    }
+                }
+            }
+        } else {
+            logger.warn("handleMakerInformationMessage: got message for ${message.swapID} which was not found " +
                     "in swapTruthSource")
         }
     }
