@@ -189,6 +189,7 @@ class DatabaseServiceTest {
             disputeRaiser = "dispute_raiser",
             chainID = "a_chain_id",
             state = "a_state_here",
+            role = "a_role_here",
         )
         databaseService.storeSwap(swapToStore)
         val anotherSwapToStore = Swap(
@@ -216,6 +217,7 @@ class DatabaseServiceTest {
             disputeRaiser = "another_dispute_raiser",
             chainID = "another_chain_id",
             state = "another_state_here",
+            role = "another_role_here",
         )
         // This should do nothing and not throw
         databaseService.storeSwap(anotherSwapToStore)
@@ -256,6 +258,7 @@ class DatabaseServiceTest {
             disputeRaiser = "dispute_raiser",
             chainID = "a_chain_id",
             state = "a_state_here",
+            role = "a_role_here"
         )
         databaseService.storeSwap(swapToStore)
         databaseService.updateSwapState("a_uuid", "a_chain_id", "a_new_state_here")

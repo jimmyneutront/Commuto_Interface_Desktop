@@ -13,11 +13,7 @@ import com.commuto.interfacedesktop.offer.validation.ValidatedNewSwapData
 import com.commuto.interfacedesktop.p2p.OfferMessageNotifiable
 import com.commuto.interfacedesktop.p2p.P2PService
 import com.commuto.interfacedesktop.p2p.messages.PublicKeyAnnouncement
-import com.commuto.interfacedesktop.swap.Swap
-import com.commuto.interfacedesktop.swap.SwapNotifiable
-import com.commuto.interfacedesktop.swap.SwapService
-import com.commuto.interfacedesktop.swap.SwapState
-import com.commuto.interfacedesktop.swap.SwapTruthSource
+import com.commuto.interfacedesktop.swap.*
 import com.commuto.interfacedesktop.db.Offer as DatabaseOffer
 import com.commuto.interfacedesktop.db.Swap as DatabaseSwap
 import com.commuto.interfacedesktop.ui.offer.OffersViewModel
@@ -492,6 +488,12 @@ class OfferService (
                     ?: throw OfferServiceException("Unable to find specified settlement method in list of settlement " +
                             "methods accepted by offer maker")
                 // TODO: Get proper taker address here
+                val swapRole = when (offerToTake.direction) {
+                    // The maker is offering to buy, so we are selling
+                    OfferDirection.BUY -> SwapRole.TAKER_AND_SELLER
+                    // The maker is offering to sell, so we are buying
+                    OfferDirection.SELL -> SwapRole.TAKER_AND_BUYER
+                }
                 val newSwap = Swap(
                     isCreated = true,
                     requiresFill = requiresFill,
@@ -517,6 +519,7 @@ class OfferService (
                     onChainDisputeRaiser = BigInteger.ZERO,
                     chainID = offerToTake.chainID,
                     state = SwapState.TAKING,
+                    role = swapRole
                 )
                 afterObjectCreation?.invoke()
                 logger.info("takeOffer: persistently storing ${offerToTake.id}")
@@ -547,6 +550,7 @@ class OfferService (
                     disputeRaiser = newSwap.onChainDisputeRaiser.toString(),
                     chainID = newSwap.chainID.toString(),
                     state = newSwap.state.asString,
+                    role = newSwap.role.asString
                 )
                 databaseService.storeSwap(swapForDatabase)
                 afterPersistentStorage?.invoke()

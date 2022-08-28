@@ -172,7 +172,8 @@ internal class Database(databaseDriverFactory: DatabaseDriverFactory) {
             hasSellerClosed = swap.hasSellerClosed,
             disputeRaiser = swap.disputeRaiser,
             chainID = swap.chainID,
-            state = swap.state
+            state = swap.state,
+            role = swap.role
         )
     }
 

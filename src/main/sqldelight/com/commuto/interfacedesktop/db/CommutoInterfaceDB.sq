@@ -43,7 +43,8 @@ hasBuyerClosed INTEGER NOT NULL,
 hasSellerClosed INTEGER NOT NULL,
 disputeRaiser TEXT NOT NULL,
 chainID TEXT NOT NULL,
-state TEXT NOT NULL
+state TEXT NOT NULL,
+role TEXT NOT NULL
 );
 
 createSettlementMethodTable:
@@ -126,13 +127,14 @@ INSERT INTO Swap(
     hasSellerClosed,
     disputeRaiser,
     chainID,
-    state
+    state,
+    role
 )
 VALUES(?, ?, ?, ?, ?, ?, ?,
 ?, ?, ?, ?, ?,
 ?, ?, ?, ?, ?,
 ?, ?, ?, ?, ?, ?,
-?);
+?, ?);
 
 updateOfferHavePublicKeyByOfferIDAndChainID:
 UPDATE Offer

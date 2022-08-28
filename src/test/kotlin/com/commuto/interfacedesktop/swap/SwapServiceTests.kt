@@ -110,6 +110,7 @@ class SwapServiceTests {
             disputeRaiser = "",
             chainID = "31337",
             state = "",
+            role = "",
         )
         databaseService.storeSwap(swapForDatabase)
 
@@ -345,6 +346,7 @@ class SwapServiceTests {
             onChainDisputeRaiser = BigInteger.ZERO,
             chainID = BigInteger.valueOf(31337L),
             state = SwapState.AWAITING_TAKER_INFORMATION,
+            role = SwapRole.MAKER_AND_SELLER,
         )
         swapTruthSource.addSwap(swap)
         val encoder = Base64.getEncoder()
@@ -373,6 +375,7 @@ class SwapServiceTests {
             disputeRaiser = swap.onChainDisputeRaiser.toString(),
             chainID = swap.chainID.toString(),
             state = swap.state.asString,
+            role = swap.role.asString
         )
         databaseService.storeSwap(swapForDatabase)
 
@@ -457,6 +460,7 @@ class SwapServiceTests {
             onChainDisputeRaiser = BigInteger.ZERO,
             chainID = BigInteger.valueOf(31337L),
             state = SwapState.AWAITING_MAKER_INFORMATION,
+            role = SwapRole.TAKER_AND_BUYER
         )
         swapTruthSource.addSwap(swap)
         val encoder = Base64.getEncoder()
@@ -485,6 +489,7 @@ class SwapServiceTests {
             disputeRaiser = swap.onChainDisputeRaiser.toString(),
             chainID = swap.chainID.toString(),
             state = swap.state.asString,
+            role = swap.role.asString
         )
         databaseService.storeSwap(swapForDatabase)
 

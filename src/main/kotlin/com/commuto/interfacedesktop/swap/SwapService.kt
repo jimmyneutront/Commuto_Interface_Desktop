@@ -174,6 +174,10 @@ class SwapService @Inject constructor(
             BigInteger.ONE -> OfferDirection.SELL
             else -> throw SwapServiceException("Swap $swapID has invalid direction: ${swapOnChain.direction}")
         }
+        val swapRole = when (direction) {
+            OfferDirection.BUY -> SwapRole.MAKER_AND_BUYER
+            OfferDirection.SELL -> SwapRole.MAKER_AND_SELLER
+        }
         val newSwap = Swap(
             isCreated = swapOnChain.isCreated,
             requiresFill = swapOnChain.requiresFill,
@@ -199,6 +203,7 @@ class SwapService @Inject constructor(
             onChainDisputeRaiser = swapOnChain.disputeRaiser,
             chainID = swapOnChain.chainID,
             state = SwapState.AWAITING_TAKER_INFORMATION,
+            role = swapRole,
         )
         // TODO: check for taker information once SettlementMethodService is implemented
         logger.info("handleNewSwap: persistently storing $swapID")
@@ -228,6 +233,7 @@ class SwapService @Inject constructor(
             disputeRaiser = newSwap.onChainDisputeRaiser.toString(),
             chainID = newSwap.chainID.toString(),
             state = newSwap.state.asString,
+            role = newSwap.role.asString,
         )
         databaseService.storeSwap(swapForDatabase)
         // Add new Swap to swapTruthSource
