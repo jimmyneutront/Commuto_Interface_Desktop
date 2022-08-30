@@ -331,6 +331,10 @@ fun SwapSettlementMethodComposable(
 
 /**
  * Displays a human readable string describing the swap's current state.
+ *
+ * @param swapState The [Swap.state] property of the [Swap] that this view represents.
+ * @param userRole The [Swap.role] property of the [Swap] that this view represents.
+ * @param settlementMethodCurrency The currency code of this [Swap]'s settlement method.
  */
 @Composable
 fun SwapStateComposable(swapState: MutableState<SwapState>, userRole: SwapRole, settlementMethodCurrency: String) {
