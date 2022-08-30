@@ -39,7 +39,10 @@ fun SwapsComposable(
         when (focusedSwapComposable.value) {
             FocusedSwapComposable.SwapComposable -> {
                 if (focusedSwap.value != null) {
-                    Text(focusedSwap.value?.id.toString())
+                    SwapComposable(
+                        swapTruthSource = swapTruthSource,
+                        id = focusedSwap.value?.id
+                    )
                 } else {
                     Row(
                         modifier = Modifier.fillMaxSize(),

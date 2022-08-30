@@ -32,7 +32,7 @@ import java.util.*
  * Displays details about a particular [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer).
  *
  * @param offerTruthSource The OffersViewModel that acts as a single source of truth for all offer-related data.
- * @param id: The ID of the offer about which this [OfferComposable] is displaying information.
+ * @param id The ID of the offer about which this [OfferComposable] is displaying information.
  * @param stablecoinInfoRepo The [StablecoinInformationRepository] that this [Composable] uses to get stablecoin name
  * and currency code information. Defaults to [StablecoinInformationRepository.hardhatStablecoinInfoRepo] if no other
  * value is passed.

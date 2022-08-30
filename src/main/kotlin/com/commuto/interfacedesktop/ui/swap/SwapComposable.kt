@@ -1,0 +1,470 @@
+package com.commuto.interfacedesktop.ui.swap
+
+import androidx.compose.desktop.ui.tooling.preview.Preview
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CutCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.Button
+import androidx.compose.material.ButtonDefaults
+import androidx.compose.material.MaterialTheme
+import androidx.compose.material.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import com.commuto.interfacedesktop.offer.SettlementMethod
+import com.commuto.interfacedesktop.swap.Swap
+import com.commuto.interfacedesktop.swap.SwapRole
+import com.commuto.interfacedesktop.swap.SwapState
+import com.commuto.interfacedesktop.ui.StablecoinInformation
+import com.commuto.interfacedesktop.ui.StablecoinInformationRepository
+import java.math.BigDecimal
+import java.math.BigInteger
+import java.util.*
+
+/**
+ * Displays information about a specific [Swap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#swap).
+ *
+ * @param swapTruthSource The SwapViewModel that acts as a single source of truth for all swap-related data.
+ * @param id The ID of the swap about which this [SwapComposable] is displaying information.
+ * @param stablecoinInfoRepo The [StablecoinInformationRepository] that this [Composable] uses to get stablecoin name
+ * and currency code information. Defaults to [StablecoinInformationRepository.hardhatStablecoinInfoRepo] if no
+ * other value is passed.
+ */
+@Composable
+fun SwapComposable(
+    swapTruthSource: UISwapTruthSource,
+    id: UUID?,
+    stablecoinInfoRepo: StablecoinInformationRepository = StablecoinInformationRepository.hardhatStablecoinInfoRepo,
+) {
+
+    val swap = swapTruthSource.swaps[id]
+
+    if (id == null) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceEvenly
+        ) {
+            Text(
+                text = "This Swap has an invalid ID.",
+            )
+        }
+    } else if (swap == null) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceEvenly
+        ) {
+            Text(
+                text = "This Swap is not available.",
+            )
+        }
+    } else {
+        val stablecoinInformation = stablecoinInfoRepo.getStablecoinInformation(swap.chainID, swap.stablecoin)
+        val counterpartyDirection: String = remember {
+            when (swap.role) {
+                SwapRole.MAKER_AND_BUYER, SwapRole.TAKER_AND_BUYER -> "Seller"
+                SwapRole.MAKER_AND_SELLER, SwapRole.TAKER_AND_SELLER -> "Buyer"
+            }
+        }
+        Column(
+            modifier = Modifier
+                .verticalScroll(rememberScrollState())
+                .padding(9.dp)
+        ) {
+            Text(
+                text = "Swap",
+                style = MaterialTheme.typography.h3,
+                fontWeight = FontWeight.Bold,
+            )
+            Text(
+                text = "Role:",
+                style =  MaterialTheme.typography.h6,
+            )
+            Text(
+                text = createRoleDescription(
+                    swapRole = swap.role,
+                    stablecoinInformation = stablecoinInformation,
+                ),
+                style = MaterialTheme.typography.h5,
+                fontWeight = FontWeight.Bold
+            )
+            SwapAmountComposable(
+                stablecoinInformation = stablecoinInformation,
+                amount = swap.takenSwapAmount,
+                securityDeposit = swap.securityDepositAmount,
+                serviceFee = swap.serviceFeeAmount,
+            )
+            SwapSettlementMethodComposable(
+                stablecoinInformation = stablecoinInformation,
+                settlementMethod = swap.settlementMethod,
+                swapAmount = swap.takenSwapAmount,
+            )
+            Text(
+                text = "$counterpartyDirection's Details:",
+                style =  MaterialTheme.typography.h6,
+            )
+            Text(
+                text = "TEMPORARY",
+                style =  MaterialTheme.typography.h6,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = "Your Details:",
+                style =  MaterialTheme.typography.h6,
+            )
+            Text(
+                text = "TEMPORARY",
+                style =  MaterialTheme.typography.h6,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = "State:",
+                style =  MaterialTheme.typography.h6,
+            )
+            SwapStateComposable(
+                swapState = swap.state,
+                userRole = swap.role,
+                settlementMethodCurrency = swap.settlementMethod.currency,
+            )
+            ActionButton(
+                swapState = swap.state,
+                userRole = swap.role,
+            )
+            Button(
+                onClick = {},
+                content = {
+                    Text(
+                        text = "Chat",
+                        style = MaterialTheme.typography.h4,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center
+                    )
+                },
+                border = BorderStroke(3.dp, Color.Black),
+                colors = ButtonDefaults.buttonColors(
+                    backgroundColor =  Color.Transparent,
+                    contentColor = Color.Black,
+                ),
+                elevation = null,
+                modifier = Modifier.fillMaxWidth()
+            )
+            Spacer(
+                modifier = Modifier.height(9.dp)
+            )
+            Button(
+                onClick = {},
+                content = {
+                    Text(
+                        text = "Raise Dispute",
+                        style = MaterialTheme.typography.h4,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center
+                    )
+                },
+                border = BorderStroke(3.dp, Color.Red),
+                colors = ButtonDefaults.buttonColors(
+                    backgroundColor =  Color.Transparent,
+                    contentColor = Color.Red,
+                ),
+                elevation = null,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+    }
+}
+
+/**
+ * Creates a role description string (such as "Buying USDC as maker" or "Selling DAI as taker") given the user's
+ * [SwapRole] and an optional [StablecoinInformation].
+ *
+ * @param swapRole The user's [SwapRole] for this swap.
+ * @param stablecoinInformation An optional [StablecoinInformation] for this swap's stablecoin. If this is `null`, this
+ * uses the symbol "Unknown Stablecoin".
+ *
+ * @return A role description.
+ */
+fun createRoleDescription(swapRole: SwapRole, stablecoinInformation: StablecoinInformation?): String {
+    val direction = when (swapRole) {
+        SwapRole.MAKER_AND_BUYER, SwapRole.TAKER_AND_BUYER -> "Buying"
+        SwapRole.MAKER_AND_SELLER, SwapRole.TAKER_AND_SELLER -> "Selling"
+    }
+    val currencyCode = stablecoinInformation?.currencyCode ?: "Unknown Stablecoin"
+    val role = when (swapRole) {
+        SwapRole.MAKER_AND_BUYER, SwapRole.MAKER_AND_SELLER -> "maker"
+        SwapRole.TAKER_AND_BUYER, SwapRole.TAKER_AND_SELLER -> "taker"
+    }
+    return "$direction $currencyCode as $role"
+}
+
+/**
+ * A [Composable] that displays the amount, service fee, and security deposit for a
+ * [Swap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#swap).
+ *
+ * @param stablecoinInformation An optional [StablecoinInformation] for the swap's stablecoin.
+ * @param amount The [Swap]'s [Swap.takenSwapAmount] property.
+ * @param securityDeposit The [Swap]'s [Swap.securityDepositAmount].
+ * @param serviceFee The [Swap]'s [Swap.serviceFeeAmount]`.
+ */
+@Composable
+fun SwapAmountComposable(
+    stablecoinInformation: StablecoinInformation?,
+    amount: BigInteger,
+    securityDeposit: BigInteger,
+    serviceFee: BigInteger,
+) {
+    val currencyCode = stablecoinInformation?.currencyCode ?: "Unknown Stablecoin"
+    val amountHeader = if (stablecoinInformation != null) {
+        "Amount:"
+    } else {
+        "Amount (in token base units):"
+    }
+    val amountString = if (stablecoinInformation != null) amount.divide(BigInteger.TEN.pow(stablecoinInformation
+        .decimal)).toString() else amount.toString()
+    val securityDepositString = if (stablecoinInformation != null) securityDeposit.divide(BigInteger.TEN
+        .pow(stablecoinInformation.decimal)).toString() else amount.toString()
+    val serviceFeeString = if (stablecoinInformation != null) serviceFee.divide(BigInteger.TEN.pow(stablecoinInformation
+        .decimal)).toString() else amount.toString()
+
+    Text(
+        text = amountHeader,
+        style = MaterialTheme.typography.h6
+    )
+    Text(
+        text = "$amountString $currencyCode",
+        style =  MaterialTheme.typography.h5,
+        fontWeight = FontWeight.Bold
+    )
+    Text(
+        text = "Service Fee Amount:",
+        style = MaterialTheme.typography.h6
+    )
+    Text(
+        text = "$serviceFeeString $currencyCode",
+        style =  MaterialTheme.typography.h5,
+        fontWeight = FontWeight.Bold
+    )
+    Text(
+        text = "Security Deposit Amount:",
+        style = MaterialTheme.typography.h6
+    )
+    Text(
+        text = "$securityDepositString $currencyCode",
+        style =  MaterialTheme.typography.h5,
+        fontWeight = FontWeight.Bold
+    )
+}
+
+/**
+ * Displays a card containing information about the swap's settlement method.
+ *
+ * @param stablecoinInformation An optional [StablecoinInformation] for the swap's stablecoin. If this is `null`,
+ * the price description will be "Unable to determine price" and the total string will be "Unable to calculate total".
+ * @param settlementMethod The swap's [SettlementMethod].
+ * @param swapAmount The swap's taken swap amount.
+ */
+@Composable
+fun SwapSettlementMethodComposable(
+    stablecoinInformation: StablecoinInformation?,
+    settlementMethod: SettlementMethod,
+    swapAmount: BigInteger) {
+
+    /**
+     * A human readable string describing the currency and transfer method, such as "EUR via SEPA"
+     */
+    val currencyDescription = "${settlementMethod.currency} via ${settlementMethod.method}"
+
+    /**
+     * A human readable string describing the price for the settlement method, such as "Price: 0.94 EUR/DAI" or "Price:
+     * 1.00 USD/USDC".
+     */
+    var priceDescription = "Unable to determine price"
+
+    /**
+     * A human readable string describing the total traditional currency cost of this swap, such as "15000 EUR" or
+     * "1000 USD".
+     */
+    var totalString = "Unable to calculate total"
+
+    if (stablecoinInformation != null) {
+        priceDescription = "Price: ${settlementMethod.price} ${settlementMethod.currency}/" +
+                stablecoinInformation.currencyCode
+        val amountBigDecimal = swapAmount.toBigDecimal() / BigDecimal.TEN.pow(stablecoinInformation.decimal)
+        val priceBigDecimal = try {
+            BigDecimal(settlementMethod.price)
+        } catch (e: Exception) {
+            null
+        }
+        if (priceBigDecimal != null) {
+            val total = amountBigDecimal * priceBigDecimal
+            totalString = "$total ${settlementMethod.currency}"
+        }
+    }
+
+    Column(
+        modifier = Modifier
+            .border(width = 1.dp, color = Color.Black, CutCornerShape(0.dp))
+            .padding(9.dp)
+    ) {
+        Text(
+            text = currencyDescription,
+            modifier = Modifier.padding(3.dp)
+        )
+        Text(
+            text = priceDescription,
+            modifier = Modifier.padding(3.dp)
+        )
+        Text(
+            text = totalString,
+            modifier = Modifier.padding(3.dp)
+        )
+    }
+
+}
+
+/**
+ * Displays a human readable string describing the swap's current state.
+ */
+@Composable
+fun SwapStateComposable(swapState: SwapState, userRole: SwapRole, settlementMethodCurrency: String) {
+    /**
+     * A name by which we can refer to the stablecoin buyer. If the user is the buyer, this is "you". If the user is the
+     * seller, this is "buyer".
+     */
+    val buyerName = when (userRole) {
+        // The user is the buyer, so the buyer's name is "you"
+        SwapRole.MAKER_AND_BUYER, SwapRole.TAKER_AND_BUYER -> "you"
+        // The user is the seller, so the buyer's name is "buyer"
+        SwapRole.MAKER_AND_SELLER, SwapRole.TAKER_AND_SELLER -> "buyer"
+    }
+
+    /**
+     * A name by which we can refer to the stablecoin seller. If the user is the buyer, this is "seller". If the user is
+     * the seller, this is "you".
+     */
+    val sellerName = when (userRole) {
+        // The user is the buyer, so the seller's name is "seller"
+        SwapRole.MAKER_AND_BUYER, SwapRole.TAKER_AND_BUYER -> "you"
+        // The user is the seller, so the seller's name is "you"
+        SwapRole.MAKER_AND_SELLER, SwapRole.TAKER_AND_SELLER -> "buyer"
+    }
+
+    /**
+     * A string describing [swapState] based on the value of [userRole].
+     */
+    val stateDescription = when (swapState) {
+        SwapState.TAKING -> "Taking Offer..."
+        SwapState.TAKE_OFFER_TRANSACTION_BROADCAST -> "Awaiting confirmation that offer is taken"
+        SwapState.AWAITING_TAKER_INFORMATION -> {
+            when (userRole) {
+                // We are the maker, so we are waiting to receive settlement method information from the taker
+                SwapRole.MAKER_AND_BUYER, SwapRole.MAKER_AND_SELLER -> "Waiting to receive details from taker"
+                // We are the taker, so we are sending settlement method information to the maker
+                SwapRole.TAKER_AND_BUYER, SwapRole.TAKER_AND_SELLER -> "Sending details to maker"
+            }
+        }
+        SwapState.AWAITING_MAKER_INFORMATION -> {
+            when (userRole) {
+                // We are the maker, so we are sending settlement method information to the taker
+                SwapRole.MAKER_AND_BUYER, SwapRole.MAKER_AND_SELLER -> "Sending details to taker"
+                // We are the taker, so we are waiting to receive settlement method information from the maker
+                SwapRole.TAKER_AND_BUYER, SwapRole.TAKER_AND_SELLER -> "Waiting to receive details from maker"
+            }
+        }
+        SwapState.AWAITING_FILLING -> {
+            /*
+            The offer should only be in this state if it is a maker-as-seller offer, therefore if we are not the maker
+            and seller, we are waiting for the maker/seller to fill the swap
+             */
+            when (userRole) {
+                SwapRole.MAKER_AND_SELLER -> "Waiting for you to fill swap"
+                else -> "Waiting for maker to fill swap"
+            }
+        }
+        SwapState.AWAITING_PAYMENT_SENT -> {
+            "Waiting for $buyerName to send $settlementMethodCurrency"
+        }
+    }
+
+    Text(
+        text = stateDescription,
+        style = MaterialTheme.typography.h5,
+        fontWeight = FontWeight.Bold
+    )
+
+}
+
+/**
+ * Displays a button allowing the user to execute the current action that must be completed in order to continue the
+ * swap process, or displays nothing if the user cannot execute said action.
+ *
+ * For example, if the current state of the swap is [SwapState.AWAITING_PAYMENT_SENT] and the user is the buyer, then
+ * the user must confirm that they have sent payment in order for the swap process to continue. Therefore this will
+ * display a button with the label "Confirm Payment is Sent" which allows the user to do so. However, if the user is the
+ * seller, they cannot confirm payment is sent, since that is the buyer's responsibility. In that case, this would
+ * display nothing.
+ *
+ * @param swapState The [Swap.state] property of the [Swap] that this view represents.
+ * @param userRole The [Swap.role] property of the [Swap] that this view represents.
+ */
+@Composable
+fun ActionButton(swapState: SwapState, userRole: SwapRole) {
+    if (swapState == SwapState.AWAITING_FILLING && userRole == SwapRole.MAKER_AND_SELLER) {
+        // If the swap state is awaitingFilling and we are the maker and seller, then we display the "Fill Swap" button
+        BlankActionButton(action = {}, labelText = "Fill Swap")
+    } else if (swapState == SwapState.AWAITING_PAYMENT_SENT && (userRole == SwapRole.MAKER_AND_SELLER ||
+                userRole == SwapRole.TAKER_AND_SELLER)) {
+        /*
+        If the swap state is awaitingPaymentSent and we are the buyer, then we display the "Confirm Payment is Sent"
+        button
+         */
+        BlankActionButton(action = {}, labelText = "Confirm Payment is Sent")
+    }
+}
+
+/**
+ * Displays a button with the specified [labelText] with a black rounded rectangle border that performs [action] when
+ * clicked.
+ *
+ * @param action The lambda to execute when the button is clicked.
+ * @param labelText The [String] that will be displayed as the label of this button.
+ */
+@Composable
+fun BlankActionButton(action: () -> Unit, labelText: String) {
+    Button(
+        onClick = action,
+        content = {
+            Text(
+                text = labelText,
+                style = MaterialTheme.typography.h4,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center
+            )
+        },
+        border = BorderStroke(3.dp, Color.Black),
+        colors = ButtonDefaults.buttonColors(
+            backgroundColor =  Color.Transparent,
+            contentColor = Color.Black,
+        ),
+        elevation = null,
+        modifier = Modifier.fillMaxWidth()
+    )
+}
+
+/**
+ * Displays a preview of [SwapComposable] with a sample [Swap]
+ */
+@Preview
+@Composable
+fun PreviewSwapComposable() {
+    SwapComposable(
+        swapTruthSource = PreviewableSwapTruthSource(),
+        id = Swap.sampleSwaps[0].id,
+    )
+}

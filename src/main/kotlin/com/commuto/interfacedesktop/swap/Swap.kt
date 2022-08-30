@@ -114,6 +114,75 @@ data class Swap(
             chainID = chainID
         )
     }
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (javaClass != other?.javaClass) return false
+
+        other as Swap
+
+        if (isCreated != other.isCreated) return false
+        if (requiresFill != other.requiresFill) return false
+        if (id != other.id) return false
+        if (maker != other.maker) return false
+        if (!makerInterfaceID.contentEquals(other.makerInterfaceID)) return false
+        if (taker != other.taker) return false
+        if (!takerInterfaceID.contentEquals(other.takerInterfaceID)) return false
+        if (stablecoin != other.stablecoin) return false
+        if (amountLowerBound != other.amountLowerBound) return false
+        if (amountUpperBound != other.amountUpperBound) return false
+        if (securityDepositAmount != other.securityDepositAmount) return false
+        if (takenSwapAmount != other.takenSwapAmount) return false
+        if (serviceFeeAmount != other.serviceFeeAmount) return false
+        if (serviceFeeRate != other.serviceFeeRate) return false
+        if (direction != other.direction) return false
+        if (!onChainSettlementMethod.contentEquals(other.onChainSettlementMethod)) return false
+        if (protocolVersion != other.protocolVersion) return false
+        if (isPaymentSent != other.isPaymentSent) return false
+        if (isPaymentReceived != other.isPaymentReceived) return false
+        if (hasBuyerClosed != other.hasBuyerClosed) return false
+        if (hasSellerClosed != other.hasSellerClosed) return false
+        if (onChainDisputeRaiser != other.onChainDisputeRaiser) return false
+        if (chainID != other.chainID) return false
+        if (state != other.state) return false
+        if (role != other.role) return false
+        if (onChainDirection != other.onChainDirection) return false
+        if (settlementMethod != other.settlementMethod) return false
+
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = isCreated.hashCode()
+        result = 31 * result + requiresFill.hashCode()
+        result = 31 * result + id.hashCode()
+        result = 31 * result + maker.hashCode()
+        result = 31 * result + makerInterfaceID.contentHashCode()
+        result = 31 * result + taker.hashCode()
+        result = 31 * result + takerInterfaceID.contentHashCode()
+        result = 31 * result + stablecoin.hashCode()
+        result = 31 * result + amountLowerBound.hashCode()
+        result = 31 * result + amountUpperBound.hashCode()
+        result = 31 * result + securityDepositAmount.hashCode()
+        result = 31 * result + takenSwapAmount.hashCode()
+        result = 31 * result + serviceFeeAmount.hashCode()
+        result = 31 * result + serviceFeeRate.hashCode()
+        result = 31 * result + direction.hashCode()
+        result = 31 * result + onChainSettlementMethod.contentHashCode()
+        result = 31 * result + protocolVersion.hashCode()
+        result = 31 * result + isPaymentSent.hashCode()
+        result = 31 * result + isPaymentReceived.hashCode()
+        result = 31 * result + hasBuyerClosed.hashCode()
+        result = 31 * result + hasSellerClosed.hashCode()
+        result = 31 * result + onChainDisputeRaiser.hashCode()
+        result = 31 * result + chainID.hashCode()
+        result = 31 * result + state.hashCode()
+        result = 31 * result + role.hashCode()
+        result = 31 * result + onChainDirection.hashCode()
+        result = 31 * result + settlementMethod.hashCode()
+        return result
+    }
+
     companion object {
         /**
          * A [List] of sample [Swap]s. Used for previewing swap-related Composable functions.
