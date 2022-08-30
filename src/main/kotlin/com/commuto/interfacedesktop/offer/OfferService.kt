@@ -549,7 +549,7 @@ class OfferService (
                     hasSellerClosed = 0L,
                     disputeRaiser = newSwap.onChainDisputeRaiser.toString(),
                     chainID = newSwap.chainID.toString(),
-                    state = newSwap.state.asString,
+                    state = newSwap.state.value.asString,
                     role = newSwap.role.asString
                 )
                 databaseService.storeSwap(swapForDatabase)
@@ -584,7 +584,11 @@ class OfferService (
                     chainID = offerToTake.chainID.toString(),
                     state = OfferState.TAKEN.asString
                 )
-                newSwap.state = SwapState.TAKE_OFFER_TRANSACTION_BROADCAST
+                /*
+                The swap object isn't being used in any Composable here, so we don't need to update the state value on
+                the main coroutine dispatcher
+                 */
+                newSwap.state.value = SwapState.TAKE_OFFER_TRANSACTION_BROADCAST
                 databaseService.updateSwapState(
                     swapID = offerIDB64String,
                     chainID = newSwap.chainID.toString(),

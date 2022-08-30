@@ -1,5 +1,7 @@
 package com.commuto.interfacedesktop.swap
 
+import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.mutableStateOf
 import com.commuto.interfacedesktop.blockchain.structs.SwapStruct
 import com.commuto.interfacedesktop.offer.OfferDirection
 import com.commuto.interfacedesktop.offer.SettlementMethod
@@ -33,14 +35,15 @@ import java.util.*
  * @param hasBuyerClosed Corresponds to an on-chain Swap's `hasBuyerClosed` property.
  * @param onChainDisputeRaiser Corresponds to an on-chain Swap's `disputeRaiser` property.
  * @param chainID The ID of the blockchain on which this Swap exists.
- * @param state Indicates the current state of this swap, as described in the
- * [Commuto Interface Specification](https://github.com/jimmyneutront/commuto-whitepaper/blob/main/commuto-interface-specification.txt).
+ * @param state The initial value of [state].
  * @param role Indicates the interface user's role for this swap.
  *
  * @property onChainDirection Corresponds to an on-chain Swap's `direction` property.
  * @property settlementMethod A [SettlementMethod] derived by deserializing [onChainSettlementMethod].
+ * @property state Indicates the current state of this swap, as described in the
+ * [Commuto Interface Specification](https://github.com/jimmyneutront/commuto-whitepaper/blob/main/commuto-interface-specification.txt).
  */
-data class Swap(
+class Swap(
     val isCreated: Boolean,
     val requiresFill: Boolean,
     val id: UUID,
@@ -64,12 +67,14 @@ data class Swap(
     val hasSellerClosed: Boolean,
     val onChainDisputeRaiser: BigInteger,
     val chainID: BigInteger,
-    var state: SwapState,
+    state: SwapState,
     val role: SwapRole,
 ) {
 
     val onChainDirection: BigInteger
     val settlementMethod: SettlementMethod
+
+    val state: MutableState<SwapState> = mutableStateOf(state)
 
     init {
         when (this.direction) {
@@ -144,10 +149,10 @@ data class Swap(
         if (hasSellerClosed != other.hasSellerClosed) return false
         if (onChainDisputeRaiser != other.onChainDisputeRaiser) return false
         if (chainID != other.chainID) return false
-        if (state != other.state) return false
         if (role != other.role) return false
         if (onChainDirection != other.onChainDirection) return false
         if (settlementMethod != other.settlementMethod) return false
+        if (state != other.state) return false
 
         return true
     }
@@ -176,10 +181,10 @@ data class Swap(
         result = 31 * result + hasSellerClosed.hashCode()
         result = 31 * result + onChainDisputeRaiser.hashCode()
         result = 31 * result + chainID.hashCode()
-        result = 31 * result + state.hashCode()
         result = 31 * result + role.hashCode()
         result = 31 * result + onChainDirection.hashCode()
         result = 31 * result + settlementMethod.hashCode()
+        result = 31 * result + state.hashCode()
         return result
     }
 

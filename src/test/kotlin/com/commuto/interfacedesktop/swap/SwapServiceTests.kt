@@ -374,7 +374,7 @@ class SwapServiceTests {
             hasSellerClosed = 0L,
             disputeRaiser = swap.onChainDisputeRaiser.toString(),
             chainID = swap.chainID.toString(),
-            state = swap.state.asString,
+            state = swap.state.value.asString,
             role = swap.role.asString
         )
         databaseService.storeSwap(swapForDatabase)
@@ -488,7 +488,7 @@ class SwapServiceTests {
             hasSellerClosed = 0L,
             disputeRaiser = swap.onChainDisputeRaiser.toString(),
             chainID = swap.chainID.toString(),
-            state = swap.state.asString,
+            state = swap.state.value.asString,
             role = swap.role.asString
         )
         databaseService.storeSwap(swapForDatabase)

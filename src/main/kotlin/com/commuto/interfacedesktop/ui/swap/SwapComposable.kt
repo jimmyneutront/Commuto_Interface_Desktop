@@ -12,6 +12,7 @@ import androidx.compose.material.ButtonDefaults
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -332,7 +333,7 @@ fun SwapSettlementMethodComposable(
  * Displays a human readable string describing the swap's current state.
  */
 @Composable
-fun SwapStateComposable(swapState: SwapState, userRole: SwapRole, settlementMethodCurrency: String) {
+fun SwapStateComposable(swapState: MutableState<SwapState>, userRole: SwapRole, settlementMethodCurrency: String) {
     /**
      * A name by which we can refer to the stablecoin buyer. If the user is the buyer, this is "you". If the user is the
      * seller, this is "buyer".
@@ -358,7 +359,7 @@ fun SwapStateComposable(swapState: SwapState, userRole: SwapRole, settlementMeth
     /**
      * A string describing [swapState] based on the value of [userRole].
      */
-    val stateDescription = when (swapState) {
+    val stateDescription = when (swapState.value) {
         SwapState.TAKING -> "Taking Offer..."
         SwapState.TAKE_OFFER_TRANSACTION_BROADCAST -> "Awaiting confirmation that offer is taken"
         SwapState.AWAITING_TAKER_INFORMATION -> {
@@ -414,11 +415,11 @@ fun SwapStateComposable(swapState: SwapState, userRole: SwapRole, settlementMeth
  * @param userRole The [Swap.role] property of the [Swap] that this view represents.
  */
 @Composable
-fun ActionButton(swapState: SwapState, userRole: SwapRole) {
-    if (swapState == SwapState.AWAITING_FILLING && userRole == SwapRole.MAKER_AND_SELLER) {
+fun ActionButton(swapState: MutableState<SwapState>, userRole: SwapRole) {
+    if (swapState.value == SwapState.AWAITING_FILLING && userRole == SwapRole.MAKER_AND_SELLER) {
         // If the swap state is awaitingFilling and we are the maker and seller, then we display the "Fill Swap" button
         BlankActionButton(action = {}, labelText = "Fill Swap")
-    } else if (swapState == SwapState.AWAITING_PAYMENT_SENT && (userRole == SwapRole.MAKER_AND_SELLER ||
+    } else if (swapState.value == SwapState.AWAITING_PAYMENT_SENT && (userRole == SwapRole.MAKER_AND_SELLER ||
                 userRole == SwapRole.TAKER_AND_SELLER)) {
         /*
         If the swap state is awaitingPaymentSent and we are the buyer, then we display the "Confirm Payment is Sent"
