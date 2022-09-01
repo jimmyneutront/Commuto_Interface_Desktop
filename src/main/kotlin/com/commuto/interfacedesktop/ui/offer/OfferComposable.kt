@@ -115,14 +115,28 @@ fun OfferComposable(
                     header = {
                         Text(
                             text = buildDirectionString(offer.direction, stablecoinInformation),
-                            style = MaterialTheme.typography.h5,
-                            fontWeight = FontWeight.Bold
+                            style = MaterialTheme.typography.h6,
+                            fontWeight = FontWeight.Bold,
                         )
                     },
                     content = {
                         Text(buildDirectionDescriptionString(offer.direction.string, stablecoinInformation))
                     }
                 )
+                if (!offer.isUserMaker) {
+                    Text(
+                        text = "If you take this offer, you will:",
+                        style =  MaterialTheme.typography.h6,
+                    )
+                    Text(
+                        text = createRoleDescription(
+                            offerDirection = offer.direction,
+                            stablecoinInformation = stablecoinInformation,
+                        ),
+                        style = MaterialTheme.typography.h5,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
                 OfferAmountComposable(
                     stablecoinInformation,
                     offer.amountLowerBound,
@@ -356,6 +370,32 @@ fun buildDirectionDescriptionString(directionString: String, stablecoinInformati
     val stablecoinName = stablecoinInformation?.name ?: "Unknown Stablecoin"
     return "This is a $directionString offer: the maker of this offer wants to ${directionString.lowercase()} " +
             "$stablecoinName in exchange for fiat."
+}
+
+/**
+ * Creates a role discription string (such as "Buy USDC" or "Sell DAI" for the user, based on the direction of the
+ * offer. This should only be displayed if the user is not the maker of the offer.
+ *
+ * @param offerDirection The [Offer.direction] property of the [Offer].
+ * @param stablecoinInformation An optional [StablecoinInformation] for this offer's stablecoin. If this is `null`, this
+ * uses the symbol "Unknown Stablecoin".
+ *
+ * @return A role description.
+ */
+fun createRoleDescription(offerDirection: OfferDirection, stablecoinInformation: StablecoinInformation?): String {
+    val direction = when (offerDirection) {
+        /*
+        The maker is offering to buy stablecoin, so if the user of this interface takes the offer, they must sell
+        stablecoin
+         */
+        OfferDirection.BUY -> "Sell"
+        /*
+        The maker is offering to sell stablecoin, so if the user of this interface takes the offer, they must buy
+        stablecoin
+         */
+        OfferDirection.SELL -> "Buy"
+    }
+    return "$direction ${stablecoinInformation?.currencyCode ?: "Unknown Stablecoin"}"
 }
 
 /**

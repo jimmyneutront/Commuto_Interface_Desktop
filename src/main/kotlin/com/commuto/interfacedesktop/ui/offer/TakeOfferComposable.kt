@@ -20,10 +20,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.commuto.interfacedesktop.offer.CancelingOfferState
-import com.commuto.interfacedesktop.offer.Offer
-import com.commuto.interfacedesktop.offer.SettlementMethod
-import com.commuto.interfacedesktop.offer.TakingOfferState
+import com.commuto.interfacedesktop.offer.*
+import com.commuto.interfacedesktop.ui.StablecoinInformation
 import com.commuto.interfacedesktop.ui.StablecoinInformationRepository
 import java.math.BigDecimal
 import java.util.*
@@ -110,7 +108,7 @@ fun TakeOfferComposable(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text(
-                    text = "Take ${offer.direction.string} Offer",
+                    text = "Take Offer",
                     style = MaterialTheme.typography.h4,
                     fontWeight = FontWeight.Bold,
                 )
@@ -131,6 +129,19 @@ fun TakeOfferComposable(
                     elevation = null,
                 )
             }
+            Text(
+                text = "You are:",
+                style = MaterialTheme.typography.h6,
+            )
+            Text(
+                text = createRoleDescription(
+                    offerDirection = offer.direction,
+                    stablecoinInformation = stablecoinInformation,
+                    selectedSettlementMethod = selectedSettlementMethod.value
+                ),
+                style = MaterialTheme.typography.h5,
+                fontWeight = FontWeight.Bold,
+            )
             OfferAmountComposable(
                 stablecoinInformation = stablecoinInformation,
                 min = offer.amountLowerBound,
@@ -233,6 +244,50 @@ fun TakeOfferComposable(
             )
         }
     }
+}
+
+/**
+ * Creates a role description string (such as "Buying USDC with USD" or "Selling DAI for EUR", or "Buying BUSD").
+ *
+ * @param offerDirection The offer's direction.
+ * @param stablecoinInformation An optional [StablecoinInformation] for the offer's stablecoin.
+ * @param selectedSettlementMethod The currently selected settlement method that the user (taker) and the maker will use
+ * to exchange traditional currency payment.
+ *
+ * @return A role description [String].
+ */
+fun createRoleDescription(
+    offerDirection: OfferDirection,
+    stablecoinInformation: StablecoinInformation?,
+    selectedSettlementMethod: SettlementMethod?
+): String {
+    val direction = when (offerDirection) {
+        /*
+        The maker is offering to buy stablecoin, so the user of this interface (the taker) is selling stablecoin
+         */
+        OfferDirection.BUY -> "Selling"
+        /*
+        The maker is offering to sell stablecoin, so the user of this interface (the maker) is buying stablecoin
+         */
+        OfferDirection.SELL -> "Buying"
+    }
+    val stablecoinCurrencyCode = stablecoinInformation?.currencyCode ?: "Unknown Stablecoin"
+    val directionPreposition = when (offerDirection) {
+        // The string will be "Selling ... for ..."
+        OfferDirection.BUY -> "for"
+        // The string will be "Buying ... with ..."
+        OfferDirection.SELL -> "with"
+    }
+    val currencyPhrase = if (selectedSettlementMethod != null) {
+        /*
+        If the user has selected a settlement method, we want to include the currency of that settlement method in the
+        role description.
+         */
+        " $directionPreposition ${selectedSettlementMethod.currency}"
+    } else {
+        ""
+    }
+    return "$direction $stablecoinCurrencyCode$currencyPhrase"
 }
 
 /**
