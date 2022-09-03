@@ -369,6 +369,26 @@ open class DatabaseService @Inject constructor(private val databaseDriverFactory
             logger.info("storeSwap: swap with B64 ID ${swap.id} already exists in database")
         }
     }
+
+    /**
+     * Updates the [Swap.requiresFill] property of a persistently stored
+     * [Swap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#swap) with the specified [swapID] and
+     * [chainID].
+     *
+     * @param swapID The ID of the swap to be updated, as a Base64-[String] of bytes.
+     * @param chainID The blockchain ID of the swap to be updated, as a [String].
+     * @param requiresFill The new value of the swap's [Swap.requiresFill] property.
+     */
+    @OptIn(DelicateCoroutinesApi::class)
+    suspend fun updateSwapRequiresFill(swapID: String, chainID: String, requiresFill: Boolean) {
+        val requiresFillLong = if (requiresFill) 1L else 0L
+        withContext(databaseServiceContext) {
+            database.updateSwapRequiresFill(swapID, chainID, requiresFillLong)
+        }
+        logger.info("updateSwapRequiresFill: set value to $requiresFill for swap with B64 ID $swapID, if " +
+                "present")
+    }
+
     /**
      * Updates the [Swap.state] property of a persistently stored
      * [Swap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#swap) with the specified [swapID] and

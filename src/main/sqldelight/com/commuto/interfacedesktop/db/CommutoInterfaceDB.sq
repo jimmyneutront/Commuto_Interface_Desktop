@@ -146,6 +146,11 @@ UPDATE Offer
 SET state = ?
 WHERE id = ? AND chainID = ?;
 
+updateSwapRequiresFillBySwapIDAndChainID:
+UPDATE Swap
+SET requiresFill = ?
+WHERE id = ? AND chainID = ?;
+
 updateSwapStateBySwapIDAndChainID:
 UPDATE Swap
 SET state = ?
