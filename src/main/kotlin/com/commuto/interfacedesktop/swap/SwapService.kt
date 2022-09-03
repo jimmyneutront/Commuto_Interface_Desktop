@@ -200,10 +200,16 @@ class SwapService @Inject constructor(
                 ).await()
                 logger.info("fillSwap: filled ${swapToFill.id}")
                 val encoder = Base64.getEncoder()
+                val swapIDB64String = encoder.encodeToString(swapToFill.id.asByteArray())
                 databaseService.updateSwapState(
-                    swapID = encoder.encodeToString(swapToFill.id.asByteArray()),
+                    swapID = swapIDB64String,
                     chainID = swapToFill.chainID.toString(),
                     state = SwapState.FILL_SWAP_TRANSACTION_BROADCAST.asString,
+                )
+                databaseService.updateSwapRequiresFill(
+                    swapID = swapIDB64String,
+                    chainID = swapToFill.chainID.toString(),
+                    requiresFill = false,
                 )
                 // This is not a MutableState property, so we can upgrade it from a background thread
                 swapToFill.requiresFill = false

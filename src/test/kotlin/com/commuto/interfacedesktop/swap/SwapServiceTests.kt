@@ -597,7 +597,8 @@ class SwapServiceTests {
         assertFalse(swap.requiresFill)
 
         val swapInDatabase = databaseService.getSwap(encoder.encodeToString(swapID.asByteArray()))
-        assertEquals(SwapState.FILL_SWAP_TRANSACTION_BROADCAST.asString, swapInDatabase!!.state)
+        assertEquals(0L, swapInDatabase!!.requiresFill)
+        assertEquals(SwapState.FILL_SWAP_TRANSACTION_BROADCAST.asString, swapInDatabase.state)
 
     }
 
