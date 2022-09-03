@@ -379,6 +379,17 @@ class BlockchainService (private val exceptionHandler: BlockchainExceptionNotifi
     }
 
     /**
+     * A [Deferred] wrapper around the [CommutoSwap.fillSwap] method.
+     *
+     * @param id The ID of the [Swap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#swap) to be filled.
+     *
+     * @return A [Deferred] with a [TransactionReceipt] result.
+     */
+    fun fillSwapAsync(id: UUID): Deferred<TransactionReceipt> {
+        return commutoSwap.fillSwap(id.asByteArray()).sendAsync().asDeferred()
+    }
+
+    /**
      * Parses the given [EthBlock.Block] in search of
      * [CommutoSwap](https://github.com/jimmyneutront/commuto-protocol/blob/main/CommutoSwap.sol)
      * events, creates a list of all such events that it finds, and then calls

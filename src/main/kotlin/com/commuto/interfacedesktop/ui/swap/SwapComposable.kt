@@ -392,6 +392,7 @@ fun SwapStateComposable(swapState: MutableState<SwapState>, userRole: SwapRole, 
                 else -> "Waiting for maker to fill swap"
             }
         }
+        SwapState.FILL_SWAP_TRANSACTION_BROADCAST -> "Awaiting confirmation that swap is filled"
         SwapState.AWAITING_PAYMENT_SENT -> {
             "Waiting for $buyerName to send $settlementMethodCurrency"
         }

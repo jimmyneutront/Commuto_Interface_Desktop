@@ -158,6 +158,66 @@ class SwapService @Inject constructor(
     }
 
     /**
+     * Attempts to fill a maker-as-seller [Swap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#swap),
+     * using the process described in the
+     * [interface specification](https://github.com/jimmyneutront/commuto-whitepaper/blob/main/commuto-interface-specification.txt).
+     *
+     * On the IO coroutine dispatcher, this ensures that the user is the maker and stablecoin seller of [swapToFill],
+     * and that [swapToFill] can actually be filled. Then this approves token transfer for [swapToFill]'s
+     * [Swap.takenSwapAmount] to the
+     * [CommutoSwap](https://github.com/jimmyneutront/commuto-protocol/blob/main/CommutoSwap.sol) contract, calls the
+     * CommutoSwap contract's [fillSwap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#fill-swap)
+     * function (via [blockchainService]), persistently updates the state of [swapToFill] to
+     * [SwapState.FILL_SWAP_TRANSACTION_BROADCAST], and sets [swapToFill]'s [Swap.requiresFill] property to false.
+     * Finally, on the main coroutine dispatcher, this updates [swapToFill]'s [Swap.state] value to
+     * [SwapState.FILL_SWAP_TRANSACTION_BROADCAST].
+     *
+     * @param swapToFill The `Swap` that this function will fill.
+     *
+     * @throws SwapServiceException if [swapToFill] is not a maker-as-seller swap and the user is not the maker, or if
+     * the [swapToFill]'s state is not `awaitingFilling`
+     */
+    suspend fun fillSwap(swapToFill: Swap) {
+        withContext(Dispatchers.IO) {
+            logger.info("fillSwap: checking that ${swapToFill.id} can be filled")
+            try {
+                if (swapToFill.role != SwapRole.MAKER_AND_SELLER) {
+                    throw SwapServiceException("Only Maker-As-Seller swaps can be filled")
+                }
+                if (swapToFill.state.value != SwapState.AWAITING_FILLING) {
+                    throw SwapServiceException("This Swap cannot currently be filled")
+                }
+                logger.info("fillSwap: authorizing transfer for ${swapToFill.id}. Amount: " +
+                        "${swapToFill.takenSwapAmount}")
+                blockchainService.approveTokenTransferAsync(
+                    tokenAddress = swapToFill.stablecoin,
+                    destinationAddress = blockchainService.getCommutoSwapAddress(),
+                    amount = swapToFill.takenSwapAmount,
+                ).await()
+                logger.info("fillSwap: filling ${swapToFill.id}")
+                blockchainService.fillSwapAsync(
+                    id = swapToFill.id
+                ).await()
+                logger.info("fillSwap: filled ${swapToFill.id}")
+                val encoder = Base64.getEncoder()
+                databaseService.updateSwapState(
+                    swapID = encoder.encodeToString(swapToFill.id.asByteArray()),
+                    chainID = swapToFill.chainID.toString(),
+                    state = SwapState.FILL_SWAP_TRANSACTION_BROADCAST.asString,
+                )
+                // This is not a MutableState property, so we can upgrade it from a background thread
+                swapToFill.requiresFill = false
+                withContext(Dispatchers.Main) {
+                    swapToFill.state.value = SwapState.FILL_SWAP_TRANSACTION_BROADCAST
+                }
+            } catch (exception: Exception) {
+                logger.error("fillSwap: encountered exception during call for ${swapToFill.id}", exception)
+                throw exception
+            }
+        }
+    }
+
+    /**
      * Gets the on-chain [Swap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#swap) with the specified
      * swap ID, creates and persistently stores a new [Swap] with state [SwapState.AWAITING_TAKER_INFORMATION] using the
      * on chain swap, and maps [swapID] to the new [Swap] on the main coroutine dispatcher.

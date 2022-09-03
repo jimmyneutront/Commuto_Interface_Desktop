@@ -45,7 +45,7 @@ import java.util.*
  */
 class Swap(
     val isCreated: Boolean,
-    val requiresFill: Boolean,
+    var requiresFill: Boolean,
     val id: UUID,
     val maker: String,
     val makerInterfaceID: ByteArray,
