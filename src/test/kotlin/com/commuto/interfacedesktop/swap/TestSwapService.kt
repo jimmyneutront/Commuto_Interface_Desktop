@@ -1,6 +1,6 @@
-package com.commuto.interfacedesktop.offer
+package com.commuto.interfacedesktop.swap
 
-import com.commuto.interfacedesktop.swap.SwapNotifiable
+import com.commuto.interfacedesktop.offer.OfferService
 import java.math.BigInteger
 import java.util.*
 

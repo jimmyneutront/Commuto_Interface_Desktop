@@ -172,7 +172,7 @@ class SwapService @Inject constructor(
      * Finally, on the main coroutine dispatcher, this updates [swapToFill]'s [Swap.state] value to
      * [SwapState.FILL_SWAP_TRANSACTION_BROADCAST].
      *
-     * @param swapToFill The `Swap` that this function will fill.
+     * @param swapToFill The [Swap] that this function will fill.
      *
      * @throws SwapServiceException if [swapToFill] is not a maker-as-seller swap and the user is not the maker, or if
      * the [swapToFill]'s state is not `awaitingFilling`

@@ -1,9 +1,7 @@
-package com.commuto.interfacedesktop.offer
+package com.commuto.interfacedesktop.swap
 
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.snapshots.SnapshotStateMap
-import com.commuto.interfacedesktop.swap.Swap
-import com.commuto.interfacedesktop.swap.SwapTruthSource
 import java.util.*
 
 /**

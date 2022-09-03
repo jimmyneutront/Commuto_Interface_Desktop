@@ -7,7 +7,8 @@ import com.commuto.interfacedesktop.key.KeyManagerService
 import com.commuto.interfacedesktop.offer.OfferNotifiable
 import com.commuto.interfacedesktop.offer.OfferService
 import com.commuto.interfacedesktop.offer.OfferServiceTests
-import com.commuto.interfacedesktop.offer.TestSwapService
+import com.commuto.interfacedesktop.swap.SwapServiceTests
+import com.commuto.interfacedesktop.swap.TestSwapService
 import com.commuto.interfacedesktop.ui.offer.OffersViewModel
 import io.ktor.client.*
 import io.ktor.client.call.*
@@ -40,12 +41,6 @@ class BlockchainServiceTest {
      */
     @Test
     fun testBlockchainService() = runBlocking {
-        class TestBlockchainExceptionHandler : BlockchainExceptionNotifiable {
-            @Throws
-            override fun handleBlockchainException(exception: Exception) {
-                throw exception
-            }
-        }
         val databaseService = DatabaseService(DatabaseDriverFactory())
         val offersService = OfferService(
             databaseService = databaseService,
@@ -84,12 +79,6 @@ class BlockchainServiceTest {
 
         val w3 = Web3j.build(HttpService(System.getenv("BLOCKCHAIN_NODE")))
 
-        class TestBlockchainExceptionHandler : BlockchainExceptionNotifiable {
-            @Throws
-            override fun handleBlockchainException(exception: Exception) {
-                throw exception
-            }
-        }
         val blockchainExceptionHandler = TestBlockchainExceptionHandler()
 
         class TestOfferService : OfferNotifiable {
@@ -135,6 +124,10 @@ class BlockchainServiceTest {
      */
 
     /**
+     * [BlockchainService.fillSwapAsync] is tested by [SwapServiceTests.testFillSwap].
+     */
+
+    /**
      * Tests [BlockchainService] by ensuring it detects and handles
      * [OfferOpened](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offeropened) and
      * [OfferTaken](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offertaken) events
@@ -169,12 +162,6 @@ class BlockchainServiceTest {
 
         val w3 = Web3j.build(HttpService(System.getenv("BLOCKCHAIN_NODE")))
 
-        class TestBlockchainExceptionHandler : BlockchainExceptionNotifiable {
-            @Throws
-            override fun handleBlockchainException(exception: Exception) {
-                throw exception
-            }
-        }
         val blockchainExceptionHandler = TestBlockchainExceptionHandler()
 
         class TestOfferService : OfferNotifiable {
@@ -250,12 +237,6 @@ class BlockchainServiceTest {
 
         val w3 = Web3j.build(HttpService(System.getenv("BLOCKCHAIN_NODE")))
 
-        class TestBlockchainExceptionHandler : BlockchainExceptionNotifiable {
-            @Throws
-            override fun handleBlockchainException(exception: Exception) {
-                throw exception
-            }
-        }
         val blockchainExceptionHandler = TestBlockchainExceptionHandler()
 
         class TestOfferService : OfferNotifiable {
@@ -331,12 +312,6 @@ class BlockchainServiceTest {
 
         val w3 = Web3j.build(HttpService(System.getenv("BLOCKCHAIN_NODE")))
 
-        class TestBlockchainExceptionHandler : BlockchainExceptionNotifiable {
-            @Throws
-            override fun handleBlockchainException(exception: Exception) {
-                throw exception
-            }
-        }
         val blockchainExceptionHandler = TestBlockchainExceptionHandler()
 
         class TestOfferService : OfferNotifiable {
@@ -384,6 +359,7 @@ class BlockchainServiceTest {
     @Test
     fun testListenErrorHandling() {
         val w3 = Web3j.build(HttpService("http://not.a.node:8546"))
+        // We need this TestBlockchainExceptionHandler to test exception handling logic
         class TestBlockchainExceptionHandler : BlockchainExceptionNotifiable {
             val exceptionChannel = Channel<Exception>()
             override fun handleBlockchainException(exception: Exception) {

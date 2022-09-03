@@ -2,9 +2,8 @@ package com.commuto.interfacedesktop.swap
 
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.snapshots.SnapshotStateMap
-import com.commuto.interfacedesktop.blockchain.BlockchainExceptionNotifiable
 import com.commuto.interfacedesktop.blockchain.BlockchainService
-import com.commuto.interfacedesktop.blockchain.events.commutoswap.*
+import com.commuto.interfacedesktop.blockchain.TestBlockchainExceptionHandler
 import com.commuto.interfacedesktop.database.DatabaseService
 import com.commuto.interfacedesktop.database.DatabaseDriverFactory
 import com.commuto.interfacedesktop.db.Swap as DatabaseSwap
@@ -13,8 +12,7 @@ import com.commuto.interfacedesktop.key.KeyManagerService
 import com.commuto.interfacedesktop.key.keys.KeyPair
 import com.commuto.interfacedesktop.key.keys.PublicKey
 import com.commuto.interfacedesktop.offer.OfferDirection
-import com.commuto.interfacedesktop.offer.OfferNotifiable
-import com.commuto.interfacedesktop.offer.TestSwapTruthSource
+import com.commuto.interfacedesktop.offer.TestOfferService
 import com.commuto.interfacedesktop.p2p.*
 import com.commuto.interfacedesktop.p2p.messages.MakerInformationMessage
 import com.commuto.interfacedesktop.p2p.messages.TakerInformationMessage
@@ -115,12 +113,6 @@ class SwapServiceTests {
         )
         databaseService.storeSwap(swapForDatabase)
 
-        class TestP2PExceptionHandler : P2PExceptionNotifiable {
-            @Throws
-            override fun handleP2PException(exception: Exception) {
-                throw exception
-            }
-        }
         val p2pExceptionHandler = TestP2PExceptionHandler()
         val mxClient = MatrixClientServerApiClient(
             baseUrl = Url("https://matrix.org"),
@@ -217,21 +209,7 @@ class SwapServiceTests {
         val swapTruthSource = TestSwapTruthSource()
         swapService.setSwapTruthSource(swapTruthSource)
 
-        class TestBlockchainExceptionHandler: BlockchainExceptionNotifiable {
-            var gotError = false
-            override fun handleBlockchainException(exception: Exception) {
-                gotError = true
-            }
-        }
         val exceptionHandler = TestBlockchainExceptionHandler()
-
-        class TestOfferService: OfferNotifiable {
-            override suspend fun handleOfferOpenedEvent(event: OfferOpenedEvent) {}
-            override suspend fun handleOfferEditedEvent(event: OfferEditedEvent) {}
-            override suspend fun handleOfferCanceledEvent(event: OfferCanceledEvent) {}
-            override suspend fun handleOfferTakenEvent(event: OfferTakenEvent) {}
-            override suspend fun handleServiceFeeRateChangedEvent(event: ServiceFeeRateChangedEvent) {}
-        }
 
         val blockchainService = BlockchainService(
             exceptionHandler = exceptionHandler,
@@ -273,13 +251,6 @@ class SwapServiceTests {
             databaseService = databaseService,
             keyManagerService = keyManagerService,
         )
-        // TODO: move this to its own class
-        class TestP2PExceptionHandler : P2PExceptionNotifiable {
-            @Throws
-            override fun handleP2PException(exception: Exception) {
-                throw exception
-            }
-        }
 
         val mxClient = MatrixClientServerApiClient(
             baseUrl = Url("https://matrix.org"),
@@ -546,23 +517,7 @@ class SwapServiceTests {
             keyManagerService = keyManagerService,
         )
 
-        // TODO: Move this to its own file
-        class TestBlockchainExceptionHandler: BlockchainExceptionNotifiable {
-            var gotError = false
-            override fun handleBlockchainException(exception: Exception) {
-                gotError = true
-            }
-        }
         val exceptionHandler = TestBlockchainExceptionHandler()
-
-        // TODO: Move this to its own file
-        class TestOfferService: OfferNotifiable {
-            override suspend fun handleOfferOpenedEvent(event: OfferOpenedEvent) {}
-            override suspend fun handleOfferEditedEvent(event: OfferEditedEvent) {}
-            override suspend fun handleOfferCanceledEvent(event: OfferCanceledEvent) {}
-            override suspend fun handleOfferTakenEvent(event: OfferTakenEvent) {}
-            override suspend fun handleServiceFeeRateChangedEvent(event: ServiceFeeRateChangedEvent) {}
-        }
 
         val blockchainService = BlockchainService(
             exceptionHandler = exceptionHandler,
