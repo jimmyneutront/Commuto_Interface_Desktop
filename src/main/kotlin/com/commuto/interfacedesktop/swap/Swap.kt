@@ -42,6 +42,12 @@ import java.util.*
  * @property settlementMethod A [SettlementMethod] derived by deserializing [onChainSettlementMethod].
  * @property state Indicates the current state of this swap, as described in the
  * [Commuto Interface Specification](https://github.com/jimmyneutront/commuto-whitepaper/blob/main/commuto-interface-specification.txt).
+ * @property fillingSwapState (This property is used only if the user of this interface is the maker of this swap and is
+ * selling stablecoin.) This indicates whether we are currently filling this swap, and if so, what part of the swap
+ * filling process we are in.
+ * @property fillingSwapException (This property is used only if the user of this interface is the maker of this swap
+ * and is selling stablecoin.) The [Exception] that we encountered during the swap filling process, or `null` of no such
+ * exception has occurred.
  */
 class Swap(
     val isCreated: Boolean,
@@ -75,6 +81,9 @@ class Swap(
     val settlementMethod: SettlementMethod
 
     val state: MutableState<SwapState> = mutableStateOf(state)
+
+    val fillingSwapState = mutableStateOf(FillingSwapState.NONE)
+    var fillingSwapException: Exception? = null
 
     init {
         when (this.direction) {

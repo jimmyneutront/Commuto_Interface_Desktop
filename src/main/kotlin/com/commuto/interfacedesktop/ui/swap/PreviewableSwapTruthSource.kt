@@ -21,4 +21,9 @@ class PreviewableSwapTruthSource : UISwapTruthSource {
      * Does nothing, since this class is only used for previewing user interfaces.
      */
     override fun addSwap(swap: Swap) {}
+
+    /**
+     * Not used since this class is for previewing user interfaces, but required for adoption of [UISwapTruthSource].
+     */
+    override fun fillSwap(swap: Swap) {}
 }

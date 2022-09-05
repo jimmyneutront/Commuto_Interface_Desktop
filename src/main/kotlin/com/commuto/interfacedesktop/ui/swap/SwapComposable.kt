@@ -21,6 +21,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.commuto.interfacedesktop.offer.SettlementMethod
+import com.commuto.interfacedesktop.swap.FillingSwapState
 import com.commuto.interfacedesktop.swap.Swap
 import com.commuto.interfacedesktop.swap.SwapRole
 import com.commuto.interfacedesktop.swap.SwapState
@@ -135,8 +136,8 @@ fun SwapComposable(
                 settlementMethodCurrency = swap.settlementMethod.currency,
             )
             ActionButton(
-                swapState = swap.state,
-                userRole = swap.role,
+                swap = swap,
+                swapTruthSource = swapTruthSource,
             )
             Button(
                 onClick = {},
@@ -416,16 +417,44 @@ fun SwapStateComposable(swapState: MutableState<SwapState>, userRole: SwapRole, 
  * seller, they cannot confirm payment is sent, since that is the buyer's responsibility. In that case, this would
  * display nothing.
  *
- * @param swapState The [Swap.state] property of the [Swap] that this view represents.
- * @param userRole The [Swap.role] property of the [Swap] that this view represents.
+ * @param swap The [Swap] for which this [ActionButton] displays a button.
+ * @param swapTruthSource The [UISwapTruthSource] that acts as a single source of truth for all swap-related data.
  */
 @Composable
-fun ActionButton(swapState: MutableState<SwapState>, userRole: SwapRole) {
-    if (swapState.value == SwapState.AWAITING_FILLING && userRole == SwapRole.MAKER_AND_SELLER) {
+fun ActionButton(swap: Swap, swapTruthSource: UISwapTruthSource) {
+    if (swap.state.value == SwapState.AWAITING_FILLING && swap.role == SwapRole.MAKER_AND_SELLER) {
         // If the swap state is awaitingFilling and we are the maker and seller, then we display the "Fill Swap" button
-        BlankActionButton(action = {}, labelText = "Fill Swap")
-    } else if (swapState.value == SwapState.AWAITING_PAYMENT_SENT && (userRole == SwapRole.MAKER_AND_SELLER ||
-                userRole == SwapRole.TAKER_AND_SELLER)) {
+        if (swap.fillingSwapState.value != FillingSwapState.NONE &&
+            swap.fillingSwapState.value != FillingSwapState.EXCEPTION) {
+            Text(
+                text = swap.fillingSwapState.value.description,
+                style =  MaterialTheme.typography.h6,
+            )
+        }
+        if (swap.fillingSwapState.value == FillingSwapState.EXCEPTION) {
+            Text(
+                text = swap.fillingSwapException?.message ?: "An unknown exception occurred",
+                style =  MaterialTheme.typography.h6,
+                color = Color.Red
+            )
+        }
+        BlankActionButton(
+            action = {
+                if (swap.fillingSwapState.value == FillingSwapState.NONE ||
+                    swap.fillingSwapState.value == FillingSwapState.NONE) {
+                    swapTruthSource.fillSwap(
+                        swap = swap
+                    )
+                }
+            },
+            labelText = when (swap.fillingSwapState.value) {
+                FillingSwapState.NONE, FillingSwapState.EXCEPTION -> "Fill Swap"
+                FillingSwapState.COMPLETED -> "Swap Filled"
+                else -> "Filling Swap"
+            }
+        )
+    } else if (swap.state.value == SwapState.AWAITING_PAYMENT_SENT && (swap.role == SwapRole.MAKER_AND_SELLER ||
+                swap.role == SwapRole.TAKER_AND_SELLER)) {
         /*
         If the swap state is awaitingPaymentSent and we are the buyer, then we display the "Confirm Payment is Sent"
         button

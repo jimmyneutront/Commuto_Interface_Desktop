@@ -173,11 +173,18 @@ class SwapService @Inject constructor(
      * [SwapState.FILL_SWAP_TRANSACTION_BROADCAST].
      *
      * @param swapToFill The [Swap] that this function will fill.
+     * @param afterPossibilityCheck A lambda that will be executed after this has ensured that the swap can be filled.
+     * @param afterTransferApproval A lambda that will be executed after the token transfer approval to the
+     * [CommutoSwap](https://github.com/jimmyneutront/commuto-protocol/blob/main/CommutoSwap.sol) contract is completed.
      *
      * @throws SwapServiceException if [swapToFill] is not a maker-as-seller swap and the user is not the maker, or if
      * the [swapToFill]'s state is not `awaitingFilling`
      */
-    suspend fun fillSwap(swapToFill: Swap) {
+    suspend fun fillSwap(
+        swapToFill: Swap,
+        afterPossibilityCheck: (suspend () -> Unit)? = null,
+        afterTransferApproval: (suspend () -> Unit)? = null,
+    ) {
         withContext(Dispatchers.IO) {
             logger.info("fillSwap: checking that ${swapToFill.id} can be filled")
             try {
@@ -187,6 +194,7 @@ class SwapService @Inject constructor(
                 if (swapToFill.state.value != SwapState.AWAITING_FILLING) {
                     throw SwapServiceException("This Swap cannot currently be filled")
                 }
+                afterPossibilityCheck?.invoke()
                 logger.info("fillSwap: authorizing transfer for ${swapToFill.id}. Amount: " +
                         "${swapToFill.takenSwapAmount}")
                 blockchainService.approveTokenTransferAsync(
@@ -194,6 +202,7 @@ class SwapService @Inject constructor(
                     destinationAddress = blockchainService.getCommutoSwapAddress(),
                     amount = swapToFill.takenSwapAmount,
                 ).await()
+                afterTransferApproval?.invoke()
                 logger.info("fillSwap: filling ${swapToFill.id}")
                 blockchainService.fillSwapAsync(
                     id = swapToFill.id

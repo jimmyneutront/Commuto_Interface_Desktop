@@ -79,7 +79,7 @@ import java.util.*
  * in.
  * @property takingOfferException (This property is used only if the maker of this offer is NOT the user of this
  * interface.) The [Exception] that we encountered during the offer editing process, or `null` of no such exception has
- * occured.
+ * occurred.
  */
 class Offer(
     isCreated: Boolean,
