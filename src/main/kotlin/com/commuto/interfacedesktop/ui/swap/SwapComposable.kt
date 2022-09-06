@@ -34,7 +34,7 @@ import java.util.*
 /**
  * Displays information about a specific [Swap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#swap).
  *
- * @param swapTruthSource The SwapViewModel that acts as a single source of truth for all swap-related data.
+ * @param swapTruthSource The [UISwapTruthSource] that acts as a single source of truth for all swap-related data.
  * @param id The ID of the swap about which this [SwapComposable] is displaying information.
  * @param stablecoinInfoRepo The [StablecoinInformationRepository] that this [Composable] uses to get stablecoin name
  * and currency code information. Defaults to [StablecoinInformationRepository.hardhatStablecoinInfoRepo] if no

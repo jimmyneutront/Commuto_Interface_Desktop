@@ -214,6 +214,7 @@ class SwapServiceTests {
         val blockchainService = BlockchainService(
             exceptionHandler = exceptionHandler,
             offerService = TestOfferService(),
+            swapService = swapService,
             web3 = w3,
             commutoSwapAddress = testingServerResponse.commutoSwapAddress
         )
@@ -522,6 +523,7 @@ class SwapServiceTests {
         val blockchainService = BlockchainService(
             exceptionHandler = exceptionHandler,
             offerService = TestOfferService(),
+            swapService = swapService,
             web3 = w3,
             commutoSwapAddress = testingServerResponse.commutoSwapAddress
         )

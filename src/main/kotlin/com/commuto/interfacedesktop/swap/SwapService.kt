@@ -1,6 +1,7 @@
 package com.commuto.interfacedesktop.swap
 
 import com.commuto.interfacedesktop.blockchain.BlockchainService
+import com.commuto.interfacedesktop.blockchain.events.commutoswap.SwapFilledEvent
 import com.commuto.interfacedesktop.database.DatabaseService
 import com.commuto.interfacedesktop.db.Swap as DatabaseSwap
 import com.commuto.interfacedesktop.extension.asByteArray
@@ -472,5 +473,7 @@ class SwapService @Inject constructor(
                     "in swapTruthSource")
         }
     }
+
+    override suspend fun handleSwapFilledEvent(event: SwapFilledEvent) {}
 
 }

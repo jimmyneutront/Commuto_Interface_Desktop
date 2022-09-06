@@ -7,6 +7,8 @@ import com.commuto.interfacedesktop.key.KeyManagerService
 import com.commuto.interfacedesktop.offer.OfferNotifiable
 import com.commuto.interfacedesktop.offer.OfferService
 import com.commuto.interfacedesktop.offer.OfferServiceTests
+import com.commuto.interfacedesktop.offer.TestOfferService
+import com.commuto.interfacedesktop.swap.SwapNotifiable
 import com.commuto.interfacedesktop.swap.SwapServiceTests
 import com.commuto.interfacedesktop.swap.TestSwapService
 import com.commuto.interfacedesktop.ui.offer.OffersViewModel
@@ -49,8 +51,9 @@ class BlockchainServiceTest {
         )
         OffersViewModel(offersService)
         val blockchainService = BlockchainService(
-            TestBlockchainExceptionHandler(),
-            offersService
+            errorHandler = TestBlockchainExceptionHandler(),
+            offerService = offersService,
+            swapService = TestSwapService(),
         )
         blockchainService.listenLoop()
     }
@@ -101,10 +104,11 @@ class BlockchainServiceTest {
         val offerService = TestOfferService()
 
         val blockchainService = BlockchainService(
-            blockchainExceptionHandler,
-            offerService,
-            w3,
-            testingServerResponse.commutoSwapAddress
+            exceptionHandler = blockchainExceptionHandler,
+            offerService = offerService,
+            swapService = TestSwapService(),
+            web3 = w3,
+            commutoSwapAddress = testingServerResponse.commutoSwapAddress
         )
         runBlocking {
             assertEquals(blockchainService.getServiceFeeRateAsync().await(), BigInteger.valueOf(100L))
@@ -186,10 +190,11 @@ class BlockchainServiceTest {
         val offerService = TestOfferService()
 
         val blockchainService = BlockchainService(
-            blockchainExceptionHandler,
-            offerService,
-            w3,
-            testingServerResponse.commutoSwapAddress
+            exceptionHandler = blockchainExceptionHandler,
+            offerService = offerService,
+            swapService = TestSwapService(),
+            web3 = w3,
+            commutoSwapAddress = testingServerResponse.commutoSwapAddress
         )
         blockchainService.listen()
         runBlocking {
@@ -261,10 +266,11 @@ class BlockchainServiceTest {
         val offerService = TestOfferService()
 
         val blockchainService = BlockchainService(
-            blockchainExceptionHandler,
-            offerService,
-            w3,
-            testingServerResponse.commutoSwapAddress
+            exceptionHandler = blockchainExceptionHandler,
+            offerService = offerService,
+            swapService = TestSwapService(),
+            web3 = w3,
+            commutoSwapAddress = testingServerResponse.commutoSwapAddress
         )
         blockchainService.listen()
         runBlocking {
@@ -336,10 +342,11 @@ class BlockchainServiceTest {
         val offerService = TestOfferService()
 
         val blockchainService = BlockchainService(
-            blockchainExceptionHandler,
-            offerService,
-            w3,
-            testingServerResponse.commutoSwapAddress
+            exceptionHandler = blockchainExceptionHandler,
+            offerService = offerService,
+            swapService = TestSwapService(),
+            web3 = w3,
+            commutoSwapAddress = testingServerResponse.commutoSwapAddress
         )
         blockchainService.listen()
         runBlocking {
@@ -348,6 +355,65 @@ class BlockchainServiceTest {
                 assertEquals(receivedOfferOpenedEvent.offerID, expectedOfferId)
                 val receivedOfferEditedEvent = offerService.offerEditedEventChannel.receive()
                 assertEquals(receivedOfferEditedEvent.offerID, expectedOfferId)
+            }
+        }
+    }
+
+    /**
+     * Tests [BlockchainService] to ensure it detects and handles
+     * [SwapFilled](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#swapfilled) events properly.
+     */
+    @Test
+    fun testListenSwapFilled() {
+        @Serializable
+        data class TestingServerResponse(val commutoSwapAddress: String, val swapID: String)
+
+        val testingServiceUrl = "http://localhost:8546/test_blockchainservice_listen"
+        val testingServerClient = HttpClient(OkHttp) {
+            install(ContentNegotiation) {
+                json()
+            }
+            install(HttpTimeout) {
+                socketTimeoutMillis = 90_000
+                requestTimeoutMillis = 90_000
+            }
+        }
+        val testingServerResponse: TestingServerResponse = runBlocking {
+            testingServerClient.get(testingServiceUrl) {
+                url {
+                    parameters.append("events", "offer-opened-taken-swapFilled")
+                }
+            }.body()
+        }
+        val expectedSwapID = UUID.fromString(testingServerResponse.swapID)
+
+        val w3 = Web3j.build(HttpService(System.getenv("BLOCKCHAIN_NODE")))
+
+        val exceptionHandler = TestBlockchainExceptionHandler()
+
+        // We need this TestSwapService to track handling of SwapFilled events
+        class TestSwapService: SwapNotifiable {
+            val swapFilledEventChannel = Channel<SwapFilledEvent>()
+            override suspend fun sendTakerInformationMessage(swapID: UUID, chainID: BigInteger) {}
+            override suspend fun handleNewSwap(swapID: UUID, chainID: BigInteger) {}
+            override suspend fun handleSwapFilledEvent(event: SwapFilledEvent) {
+                swapFilledEventChannel.send(event)
+            }
+        }
+        val swapService = TestSwapService()
+
+        val blockchainService = BlockchainService(
+            exceptionHandler,
+            TestOfferService(),
+            swapService,
+            w3,
+            testingServerResponse.commutoSwapAddress
+        )
+        blockchainService.listen()
+        runBlocking {
+            withTimeout(60_000) {
+                val event = swapService.swapFilledEventChannel.receive()
+                assertEquals(expectedSwapID, event.swapID)
             }
         }
     }
@@ -390,10 +456,11 @@ class BlockchainServiceTest {
         val offerService = TestOfferService()
 
         val blockchainService = BlockchainService(
-            blockchainExceptionHandler,
-            offerService,
-            w3,
-            "0x0000000000000000000000000000000000000000"
+            exceptionHandler = blockchainExceptionHandler,
+            offerService = offerService,
+            swapService = TestSwapService(),
+            web3 = w3,
+            commutoSwapAddress = "0x0000000000000000000000000000000000000000"
         )
         blockchainService.listen()
         runBlocking {

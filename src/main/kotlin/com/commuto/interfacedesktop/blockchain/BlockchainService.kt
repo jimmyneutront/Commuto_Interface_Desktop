@@ -7,6 +7,7 @@ import com.commuto.interfacedesktop.contractwrapper.CommutoSwap
 import com.commuto.interfacedesktop.extension.asByteArray
 import com.commuto.interfacedesktop.offer.OfferNotifiable
 import com.commuto.interfacedesktop.offer.OfferService
+import com.commuto.interfacedesktop.swap.SwapNotifiable
 import kotlinx.coroutines.*
 import kotlinx.coroutines.future.asDeferred
 import kotlinx.coroutines.future.await
@@ -38,6 +39,7 @@ import javax.inject.Singleton
  * occur.
  * @property offerService: An object to which [BlockchainService] will pass offer-related events
  * when they occur.
+ * @property swapService An object to which [BlockchainService] will pass swap-related events when they occur.
  * @property web3 The [Web3j] instance that [BlockchainService] uses to interact with the
  * EVM-compatible blockchain.
  * @property logger The [org.slf4j.Logger] that this class uses for logging.
@@ -58,12 +60,18 @@ import javax.inject.Singleton
 @Singleton
 class BlockchainService (private val exceptionHandler: BlockchainExceptionNotifiable,
                          private val offerService: OfferNotifiable,
+                         private val swapService: SwapNotifiable,
                          private val web3: Web3j,
                          commutoSwapAddress: String) {
 
-    @Inject constructor(errorHandler: BlockchainExceptionNotifiable, offerService: OfferNotifiable) :
+    @Inject constructor(
+        errorHandler: BlockchainExceptionNotifiable,
+        offerService: OfferNotifiable,
+        swapService: SwapNotifiable
+    ):
             this(errorHandler,
                 offerService,
+                swapService,
                 Web3j.build(HttpService(System.getenv("BLOCKCHAIN_NODE"))),
                 "0x687F36336FCAB8747be1D41366A416b41E7E1a96"
             )
@@ -458,6 +466,7 @@ class BlockchainService (private val exceptionHandler: BlockchainExceptionNotifi
             eventResponses.add(commutoSwap.getOfferCanceledEvents(receipt))
             eventResponses.add(commutoSwap.getOfferTakenEvents(receipt))
             eventResponses.add(commutoSwap.getServiceFeeRateChangedEvents(receipt))
+            eventResponses.add(commutoSwap.getSwapFilledEvents(receipt))
         }
         return eventResponses.flatten()
     }
@@ -497,6 +506,12 @@ class BlockchainService (private val exceptionHandler: BlockchainExceptionNotifi
                     logger.info("handleEventResponses: handling ServiceFeeRateChangedEvent")
                     offerService.handleServiceFeeRateChangedEvent(
                         ServiceFeeRateChangedEvent.fromEventResponse(eventResponse)
+                    )
+                }
+                is CommutoSwap.SwapFilledEventResponse -> {
+                    logger.info("handleEventResponses: handling SwapFilledEventResponse")
+                    swapService.handleSwapFilledEvent(
+                        SwapFilledEvent.fromEventResponse(eventResponse, chainID)
                     )
                 }
             }
