@@ -474,6 +474,70 @@ class SwapService @Inject constructor(
         }
     }
 
-    override suspend fun handleSwapFilledEvent(event: SwapFilledEvent) {}
+    /**
+     * The function called by [BlockchainService] to notify [SwapService] of a [SwapFilledEvent].
+     *
+     * Once notified, [SwapService] checks in [swapTruthSource] for a [Swap` with the ID specified in [event]. If it
+     * finds such a swap, it ensures that the chain ID of the swap and the chain ID of [event] match. Then, if the role
+     * of the swap is [SwapRole.MAKER_AND_BUYER] or [SwapRole.TAKER_AND_SELLER], it logs a warning, since
+     * [SwapFilledEvent]s should not be emitted for such swaps. Otherwise, the role is [SwapRole.MAKER_AND_SELLER] or
+     * [SwapRole.TAKER_AND_BUYER], and this persistently sets the state of the swap to [SwapState.AWAITING_PAYMENT_SENT]
+     * and requiresFill to `false`, and then does the same to the [Swap] object on the main coroutine dispatcher.
+     *
+     * @param event The [SwapFilledEvent] of which [SwapService] is being notified.
+     *
+     * @throws SwapServiceException if the chain ID of [event] and the [Swap] with the ID specified in [event] do not
+     * match.
+     */
+    override suspend fun handleSwapFilledEvent(event: SwapFilledEvent) {
+        logger.info("handleSwapFilledEvent: handing for ${event.swapID}")
+        swapTruthSource.swaps[event.swapID]?.let { swap ->
+            // Executed if we have a Swap with the ID specified in event
+            if (swap.chainID != event.chainID) {
+                throw SwapServiceException("Chain ID of SwapFilledEvent did not match chain ID of Swap in " +
+                        "handleSwapFilledEvent call. SwapFilledEvent.chainID: ${event.chainID}, Swap.chainID: " +
+                        "${swap.chainID}, SwapFilledEvent.id: ${event.swapID}")
+            }
+            /*
+            At this point, we have ensured that the chain ID of the event and the swap match, so we can proceed safely
+             */
+            when (swap.role) {
+                SwapRole.MAKER_AND_BUYER, SwapRole.TAKER_AND_SELLER -> {
+                    /*
+                    If we are the maker of and buyer in or taker of and seller in the swap, no SwapFilled event should
+                    be emitted for that swap
+                     */
+                    logger.warn("handleSwapFilledEvent: unexpectedly got event for ${event.swapID} with role " +
+                            swap.role.asString)
+                }
+                SwapRole.MAKER_AND_SELLER, SwapRole.TAKER_AND_BUYER -> {
+                    logger.info("handleSwapFilledEvent: handing for ${event.swapID} as ${swap.role.asString}")
+                    /*
+                    We have gotten confirmation that the fillSwap transaction has been confirmed, so we update the state
+                    of the swap to indicate that we are waiting for the buyer to send traditional currency payment
+                     */
+                    val swapIDB64String = Base64.getEncoder().encodeToString(event.swapID.asByteArray())
+                    databaseService.updateSwapRequiresFill(
+                        swapID = swapIDB64String,
+                        chainID = event.chainID.toString(),
+                        requiresFill = false
+                    )
+                    databaseService.updateSwapState(
+                        swapID = swapIDB64String,
+                        chainID = event.chainID.toString(),
+                        state = SwapState.AWAITING_PAYMENT_SENT.asString
+                    )
+                    swap.requiresFill = false
+                    withContext(Dispatchers.Main) {
+                        swap.state.value =  SwapState.AWAITING_PAYMENT_SENT
+                    }
+                }
+            }
+        } ?: run {
+            // Executed if we do not have a Swap with the ID specified in event
+            logger.info("handleSwapFilledEvent: ${event.swapID} not made or taken by user")
+            return
+        }
+    }
 
 }
