@@ -48,6 +48,12 @@ import java.util.*
  * @property fillingSwapException (This property is used only if the user of this interface is the maker of this swap
  * and is selling stablecoin.) The [Exception] that we encountered during the swap filling process, or `null` of no such
  * exception has occurred.
+ * @property reportingPaymentSentState (This property is used only if the user of this interface is the buyer in this
+ * swap.) This indicates whether we are currently reporting that we have sent fiat payment to the seller in this swap,
+ * and if so, what part of the payment-sent-reporting process we are in.
+ * @property reportingPaymentSentException (This property is used only if the user of this interface is the buyer in
+ * this swap.) The [Exception] that we encountered during the reporting-payment-sent process, or `null` if no such
+ * exception has occurred.
  */
 class Swap(
     val isCreated: Boolean,
@@ -84,6 +90,9 @@ class Swap(
 
     val fillingSwapState = mutableStateOf(FillingSwapState.NONE)
     var fillingSwapException: Exception? = null
+
+    val reportingPaymentSentState = mutableStateOf(ReportingPaymentSentState.NONE)
+    var reportingPaymentSentException: Exception? = null
 
     init {
         when (this.direction) {
@@ -162,6 +171,10 @@ class Swap(
         if (onChainDirection != other.onChainDirection) return false
         if (settlementMethod != other.settlementMethod) return false
         if (state != other.state) return false
+        if (fillingSwapState != other.fillingSwapState) return false
+        if (fillingSwapException != other.fillingSwapException) return false
+        if (reportingPaymentSentState != other.reportingPaymentSentState) return false
+        if (reportingPaymentSentException != other.reportingPaymentSentException) return false
 
         return true
     }
@@ -194,6 +207,10 @@ class Swap(
         result = 31 * result + onChainDirection.hashCode()
         result = 31 * result + settlementMethod.hashCode()
         result = 31 * result + state.hashCode()
+        result = 31 * result + fillingSwapState.hashCode()
+        result = 31 * result + (fillingSwapException?.hashCode() ?: 0)
+        result = 31 * result + reportingPaymentSentState.hashCode()
+        result = 31 * result + (reportingPaymentSentException?.hashCode() ?: 0)
         return result
     }
 

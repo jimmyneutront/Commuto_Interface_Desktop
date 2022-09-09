@@ -23,11 +23,13 @@ enum class FillingSwapState {
 
     val description: String
         get() = when(this) {
+            // Note: This should not be used.
             NONE -> "Press Fill Swap to fill the swap"
             CHECKING -> "Checking that the swap can be filled..."
             APPROVING -> "Approving token transfer..."
             FILLING -> "Filling the swap..."
             COMPLETED -> "Swap successfully filled."
+            // Note: This should not be used; instead, the actual exception message should be displayed.
             EXCEPTION -> "An exception occurred."
         }
 }

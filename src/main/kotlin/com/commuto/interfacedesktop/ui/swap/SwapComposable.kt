@@ -21,10 +21,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.commuto.interfacedesktop.offer.SettlementMethod
-import com.commuto.interfacedesktop.swap.FillingSwapState
-import com.commuto.interfacedesktop.swap.Swap
-import com.commuto.interfacedesktop.swap.SwapRole
-import com.commuto.interfacedesktop.swap.SwapState
+import com.commuto.interfacedesktop.swap.*
 import com.commuto.interfacedesktop.ui.StablecoinInformation
 import com.commuto.interfacedesktop.ui.StablecoinInformationRepository
 import java.math.BigDecimal
@@ -442,7 +439,7 @@ fun ActionButton(swap: Swap, swapTruthSource: UISwapTruthSource) {
         BlankActionButton(
             action = {
                 if (swap.fillingSwapState.value == FillingSwapState.NONE ||
-                    swap.fillingSwapState.value == FillingSwapState.NONE) {
+                    swap.fillingSwapState.value == FillingSwapState.EXCEPTION) {
                     swapTruthSource.fillSwap(
                         swap = swap
                     )
@@ -460,7 +457,34 @@ fun ActionButton(swap: Swap, swapTruthSource: UISwapTruthSource) {
         If the swap state is awaitingPaymentSent and we are the buyer, then we display the "Confirm Payment is Sent"
         button
          */
-        BlankActionButton(action = {}, labelText = "Confirm Payment is Sent")
+        if (swap.reportingPaymentSentState.value != ReportingPaymentSentState.NONE &&
+            swap.reportingPaymentSentState.value != ReportingPaymentSentState.EXCEPTION) {
+            Text(
+                text = swap.reportingPaymentSentState.value.description,
+                style =  MaterialTheme.typography.h6,
+            )
+        } else if (swap.reportingPaymentSentState.value == ReportingPaymentSentState.EXCEPTION) {
+            Text(
+                text = swap.reportingPaymentSentException?.message ?: "An unknown exception occurred",
+                style =  MaterialTheme.typography.h6,
+                color = Color.Red
+            )
+        }
+        BlankActionButton(
+            action = {
+                if (swap.reportingPaymentSentState.value == ReportingPaymentSentState.NONE ||
+                    swap.reportingPaymentSentState.value == ReportingPaymentSentState.EXCEPTION) {
+                    swapTruthSource.reportPaymentSent(
+                        swap = swap
+                    )
+                }
+            },
+            labelText = when (swap.reportingPaymentSentState.value) {
+                ReportingPaymentSentState.NONE, ReportingPaymentSentState.EXCEPTION -> "Report that Payment Is Sent"
+                ReportingPaymentSentState.COMPLETED -> "Reported that Payment Is Sent"
+                else -> "Reporting that Payment Is Sent"
+            }
+        )
     }
 }
 

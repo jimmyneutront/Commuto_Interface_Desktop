@@ -16,4 +16,13 @@ interface UISwapTruthSource: SwapTruthSource {
     fun fillSwap(
         swap: Swap
     )
+
+    /**
+     * Attempts to report that a buyer has sent fiat payment for a
+     * [Swap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#swap). This may only be used by the buyer in
+     * [swap].
+     *
+     * @param swap The [Swap] for which to report sending payment.
+     */
+    fun reportPaymentSent(swap: Swap)
 }
