@@ -132,6 +132,10 @@ class BlockchainServiceTest {
      */
 
     /**
+     * [BlockchainService.reportPaymentSentAsync] is tested by [SwapServiceTests.testReportPaymentSent]
+     */
+
+    /**
      * Tests [BlockchainService] by ensuring it detects and handles
      * [OfferOpened](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offeropened) and
      * [OfferTaken](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offertaken) events

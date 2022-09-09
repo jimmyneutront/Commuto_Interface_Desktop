@@ -234,6 +234,59 @@ class SwapService @Inject constructor(
     }
 
     /**
+     * Reports that payment has been sent to the seller in a
+     * [Swap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#swap) using the process described in the
+     * [interface specification](https://github.com/jimmyneutront/commuto-whitepaper/blob/main/commuto-interface-specification.txt).
+     *
+     * On the IO coroutine dispatcher, this ensures that the user is the buyer in [swap] and that reporting payment
+     * sending is currently possible for [swap]. Then this calls the CommutoSwap contract's
+     * [reportPaymentSent](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#https://www.commuto.xyz/docs/technical-reference/core-tec-ref#report-payment-sent)
+     * function (via [blockchainService]), and persistently updates the state of the swap to
+     * [SwapState.REPORT_PAYMENT_SENT_TRANSACTION_BROADCAST]. Finally, on the main coroutine dispatcher, this updates
+     * the state of [swap] to [SwapState.REPORT_PAYMENT_SENT_TRANSACTION_BROADCAST].
+     *
+     * @param swap The [Swap] for which this function will report the sending of payment.
+     * @param afterPossibilityCheck A lambda that will be executed after this has ensured that payment sending can be
+     * reported for the swap.
+     *
+     * @throws SwapServiceException if the user is not the buyer for [swap], or if [swap]'s state is not
+     * [SwapState.AWAITING_PAYMENT_SENT].
+     */
+    suspend fun reportPaymentSent(
+        swap: Swap,
+        afterPossibilityCheck: (suspend () -> Unit)? = null,
+    ) {
+        withContext(Dispatchers.IO) {
+            logger.info("reportPaymentSent: checking reporting is possible for ${swap.id}")
+            try {
+                // Ensure that the user is the buyer for the swap
+                if (swap.role != SwapRole.MAKER_AND_BUYER && swap.role != SwapRole.TAKER_AND_BUYER) {
+                    throw SwapServiceException("Only the Buyer can report sending payment")
+                }
+                // Ensure that this swap is awaiting reporting of payment sent
+                if (swap.state.value != SwapState.AWAITING_PAYMENT_SENT) {
+                    throw SwapServiceException("Payment sending cannot currently be reported for this swap")
+                }
+                afterPossibilityCheck?.invoke()
+                logger.info("reportPaymentSent: reporting ${swap.id}")
+                blockchainService.reportPaymentSentAsync(id = swap.id).await()
+                logger.info("reportPaymentSent: reported for ${swap.id}")
+                databaseService.updateSwapState(
+                    swapID = Base64.getEncoder().encodeToString(swap.id.asByteArray()),
+                    chainID = swap.chainID.toString(),
+                    state = SwapState.REPORT_PAYMENT_SENT_TRANSACTION_BROADCAST.asString,
+                )
+                withContext(Dispatchers.Main) {
+                    swap.state.value = SwapState.REPORT_PAYMENT_SENT_TRANSACTION_BROADCAST
+                }
+            } catch (exception: Exception) {
+                logger.error("reportPaymentSent: encountered exception during call for ${swap.id}", exception)
+                throw exception
+            }
+        }
+    }
+
+    /**
      * Gets the on-chain [Swap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#swap) with the specified
      * swap ID, creates and persistently stores a new [Swap] with state [SwapState.AWAITING_TAKER_INFORMATION] using the
      * on chain swap, and maps [swapID] to the new [Swap] on the main coroutine dispatcher.
@@ -486,7 +539,7 @@ class SwapService @Inject constructor(
      *
      * @param event The [SwapFilledEvent] of which [SwapService] is being notified.
      *
-     * @throws SwapServiceException if the chain ID of [event] and the [Swap] with the ID specified in [event] do not
+     * @throws SwapServiceException if the chain ID of [event] and of the [Swap] with the ID specified in [event] do not
      * match.
      */
     override suspend fun handleSwapFilledEvent(event: SwapFilledEvent) {

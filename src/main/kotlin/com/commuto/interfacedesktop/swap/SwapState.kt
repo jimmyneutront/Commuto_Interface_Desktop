@@ -32,7 +32,8 @@ enum class SwapState {
     AWAITING_MAKER_INFORMATION,
     AWAITING_FILLING,
     FILL_SWAP_TRANSACTION_BROADCAST,
-    AWAITING_PAYMENT_SENT;
+    AWAITING_PAYMENT_SENT,
+    REPORT_PAYMENT_SENT_TRANSACTION_BROADCAST;
 
     val asString: String
         get() = when (this) {
@@ -43,6 +44,7 @@ enum class SwapState {
             AWAITING_FILLING -> "awaitingFilling"
             FILL_SWAP_TRANSACTION_BROADCAST -> "illSwapTransactionBroadcast"
             AWAITING_PAYMENT_SENT -> "awaitingPaymentSent"
+            REPORT_PAYMENT_SENT_TRANSACTION_BROADCAST -> "reportPaymentSentTransactionBroadcast"
         }
 
 }
