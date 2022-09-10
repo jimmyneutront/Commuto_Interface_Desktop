@@ -673,6 +673,7 @@ class OfferServiceTests {
             }
             override suspend fun handleNewSwap(swapID: UUID, chainID: BigInteger) {}
             override suspend fun handleSwapFilledEvent(event: SwapFilledEvent) {}
+            override suspend fun handlePaymentSentEvent(event: PaymentSentEvent) {}
         }
         val swapService = TestSwapService()
 
@@ -793,6 +794,7 @@ class OfferServiceTests {
                 chainIDChannel.send(chainID)
             }
             override suspend fun handleSwapFilledEvent(event: SwapFilledEvent) {}
+            override suspend fun handlePaymentSentEvent(event: PaymentSentEvent) {}
         }
         val swapService = TestSwapService()
 

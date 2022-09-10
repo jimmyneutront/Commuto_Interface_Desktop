@@ -1,6 +1,7 @@
 package com.commuto.interfacedesktop.swap
 
 import com.commuto.interfacedesktop.blockchain.BlockchainService
+import com.commuto.interfacedesktop.blockchain.events.commutoswap.PaymentSentEvent
 import com.commuto.interfacedesktop.blockchain.events.commutoswap.SwapFilledEvent
 import com.commuto.interfacedesktop.database.DatabaseService
 import com.commuto.interfacedesktop.db.Swap as DatabaseSwap
@@ -592,5 +593,7 @@ class SwapService @Inject constructor(
             return
         }
     }
+
+    override suspend fun handlePaymentSentEvent(event: PaymentSentEvent) {}
 
 }
