@@ -151,6 +151,11 @@ UPDATE Swap
 SET requiresFill = ?
 WHERE id = ? AND chainID = ?;
 
+updateSwapIsPaymentSentBySwapIDAndChainID:
+UPDATE Swap
+SET isPaymentSent = ?
+WHERE id = ? AND chainID = ?;
+
 updateSwapStateBySwapIDAndChainID:
 UPDATE Swap
 SET state = ?

@@ -594,6 +594,52 @@ class SwapService @Inject constructor(
         }
     }
 
-    override suspend fun handlePaymentSentEvent(event: PaymentSentEvent) {}
+    /**
+     * The function called by [BlockchainService] to notify [SwapService] of a [PaymentSentEvent].
+     *
+     * Once notified, [SwapService] checks in [swapTruthSource] for a [Swap] with the ID specified in [event]. If it
+     * finds such a swap, it ensures that the chain ID of the swap and the chain ID of [event] match. Then it
+     * persistently sets the swap's [Swap.isPaymentSent] field to `true` and the state of the swap to
+     * [SwapState.AWAITING_PAYMENT_RECEIVED], and then does the same to the [Swap] object on the main coroutine
+     * dispatcher.
+     *
+     * @param event The [PaymentSentEvent] of which [SwapService] is being notified.
+     *
+     * @throws SwapServiceException if the chain ID of [event] and the chain ID of the [Swap] with the ID specified
+     * in [event] do not match.
+     */
+    override suspend fun handlePaymentSentEvent(event: PaymentSentEvent) {
+        logger.info("handlePaymentSentEvent: handing for ${event.swapID}")
+        swapTruthSource.swaps[event.swapID]?.let { swap ->
+            // Executed if we have a Swap with the ID specified in event
+            if (swap.chainID != event.chainID) {
+                throw SwapServiceException("Chain ID of PaymentSentEvent did not match chain ID of Swap in " +
+                        "handlePaymentSentEvent call. PaymentSentEvent.chainID: ${event.chainID}, Swap.chainID: " +
+                        "${swap.chainID}, PaymentSentEvent.id: ${event.swapID}")
+            }
+            /*
+            At this point, we have ensured that the chain ID of the event and the swap match, so we can proceed safely
+             */
+            val swapIDB64String = Base64.getEncoder().encodeToString(event.swapID.asByteArray())
+            databaseService.updateSwapIsPaymentSent(
+                swapID = swapIDB64String,
+                chainID = event.chainID.toString(),
+                isPaymentSent = true
+            )
+            databaseService.updateSwapState(
+                swapID = swapIDB64String,
+                chainID = event.chainID.toString(),
+                state = SwapState.AWAITING_PAYMENT_RECEIVED.asString
+            )
+            swap.isPaymentSent = true
+            withContext(Dispatchers.Main) {
+                swap.state.value = SwapState.AWAITING_PAYMENT_RECEIVED
+            }
+        } ?: run {
+            // Executed if we do not have a Swap with the ID specified in event
+            logger.info("handlePaymentSentEvent: got event for ${event.swapID} which was not found in " +
+                    "swapTruthSource")
+        }
+    }
 
 }

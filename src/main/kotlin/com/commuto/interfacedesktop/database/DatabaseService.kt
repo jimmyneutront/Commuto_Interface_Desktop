@@ -390,6 +390,25 @@ open class DatabaseService @Inject constructor(private val databaseDriverFactory
     }
 
     /**
+     * Updates the [Swap.isPaymentSent] property of a persistently stored
+     * [Swap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#swap) with the specified [swapID] and
+     * [chainID].
+     *
+     * @param swapID The ID of the swap to be updated, as a Base64-[String] of bytes.
+     * @param chainID The blockchain ID of the swap to be updated, as a [String].
+     * @param isPaymentSent The new value of the swap's [Swap.isPaymentSent] property.
+     */
+    @OptIn(DelicateCoroutinesApi::class)
+    suspend fun updateSwapIsPaymentSent(swapID: String, chainID: String, isPaymentSent: Boolean) {
+        val isPaymentSentLong = if (isPaymentSent) 1L else 0L
+        withContext(databaseServiceContext) {
+            database.updateSwapIsPaymentSent(swapID, chainID, isPaymentSentLong)
+        }
+        logger.info("updateSwapIsPaymentSent: set value to $isPaymentSent for swap with B64 ID $swapID, if " +
+                "present")
+    }
+
+    /**
      * Updates the [Swap.state] property of a persistently stored
      * [Swap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#swap) with the specified [swapID] and
      * [chainID].

@@ -23,6 +23,8 @@ package com.commuto.interfacedesktop.swap
  * swap, and the buyer must now send payment for the stablecoin they are purchasing. If the swap is a maker-as-buyer
  * swap, this indicates that the maker has sent their settlement method information to the taker, and the buyer must now
  * send payment for the stablecoin they are purchasing.
+ * @property AWAITING_PAYMENT_RECEIVED This indicates that the seller must confirm that they have received fiat currency
+ * payment from the buyer.
  * @property asString A [String] corresponding to a particular case of [SwapState].
  */
 enum class SwapState {
@@ -33,7 +35,8 @@ enum class SwapState {
     AWAITING_FILLING,
     FILL_SWAP_TRANSACTION_BROADCAST,
     AWAITING_PAYMENT_SENT,
-    REPORT_PAYMENT_SENT_TRANSACTION_BROADCAST;
+    REPORT_PAYMENT_SENT_TRANSACTION_BROADCAST,
+    AWAITING_PAYMENT_RECEIVED;
 
     val asString: String
         get() = when (this) {
@@ -45,6 +48,7 @@ enum class SwapState {
             FILL_SWAP_TRANSACTION_BROADCAST -> "illSwapTransactionBroadcast"
             AWAITING_PAYMENT_SENT -> "awaitingPaymentSent"
             REPORT_PAYMENT_SENT_TRANSACTION_BROADCAST -> "reportPaymentSentTransactionBroadcast"
+            AWAITING_PAYMENT_RECEIVED -> "awaitingPaymentReceived"
         }
 
 }
