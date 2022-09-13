@@ -490,6 +490,41 @@ fun ActionButton(swap: Swap, swapTruthSource: UISwapTruthSource) {
                 else -> "Reporting that Payment Is Sent"
             }
         )
+    } else if (swap.state.value == SwapState.AWAITING_PAYMENT_RECEIVED && (swap.role == SwapRole.MAKER_AND_BUYER ||
+                swap.role == SwapRole.TAKER_AND_BUYER)) {
+        /*
+        If the swap state is awaitingPaymentReceived and we are the seller, then we display the "Confirm Payment is
+        Received" button
+         */
+        if (swap.reportingPaymentReceivedState.value != ReportingPaymentReceivedState.NONE &&
+            swap.reportingPaymentReceivedState.value != ReportingPaymentReceivedState.EXCEPTION) {
+            Text(
+                text = swap.reportingPaymentReceivedState.value.description,
+                style =  MaterialTheme.typography.h6,
+            )
+        } else if (swap.reportingPaymentReceivedState.value == ReportingPaymentReceivedState.EXCEPTION) {
+            Text(
+                text = swap.reportingPaymentReceivedException?.message ?: "An unknown exception occurred",
+                style =  MaterialTheme.typography.h6,
+                color = Color.Red
+            )
+        }
+        BlankActionButton(
+            action = {
+                if (swap.reportingPaymentReceivedState.value == ReportingPaymentReceivedState.NONE ||
+                    swap.reportingPaymentReceivedState.value == ReportingPaymentReceivedState.EXCEPTION) {
+                    swapTruthSource.reportPaymentReceived(
+                        swap = swap
+                    )
+                }
+            },
+            labelText = when (swap.reportingPaymentReceivedState.value) {
+                ReportingPaymentReceivedState.NONE, ReportingPaymentReceivedState.EXCEPTION -> "Report that Payment " +
+                        "Is Received"
+                ReportingPaymentReceivedState.COMPLETED -> "Reported that Payment Is Received"
+                else -> "Reporting that Payment Is Received"
+            }
+        )
     }
 }
 

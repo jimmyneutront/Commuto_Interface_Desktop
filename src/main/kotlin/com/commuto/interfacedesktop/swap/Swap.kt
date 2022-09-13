@@ -54,6 +54,12 @@ import java.util.*
  * @property reportingPaymentSentException (This property is used only if the user of this interface is the buyer in
  * this swap.) The [Exception] that we encountered during the reporting-payment-sent process, or `null` if no such
  * exception has occurred.
+ * @property reportingPaymentReceivedState (This property is used only if the user of this interface is the seller in
+ * this swap.) This indicates whether we are currently reporting that we have received fiat payment from the seller in
+ * this swap, and if so, what part of the payment-received-reporting process we are in.
+ * @property reportingPaymentReceivedException (This property is used only if the user of this interface is the seller
+ * in this swap.) The [Exception] that we encountered during the reporting-payment-received process, or `null` if no
+ * such exception has occurred.
  */
 class Swap(
     val isCreated: Boolean,
@@ -93,6 +99,9 @@ class Swap(
 
     val reportingPaymentSentState = mutableStateOf(ReportingPaymentSentState.NONE)
     var reportingPaymentSentException: Exception? = null
+
+    val reportingPaymentReceivedState = mutableStateOf(ReportingPaymentReceivedState.NONE)
+    var reportingPaymentReceivedException: Exception? = null
 
     init {
         when (this.direction) {
@@ -175,6 +184,8 @@ class Swap(
         if (fillingSwapException != other.fillingSwapException) return false
         if (reportingPaymentSentState != other.reportingPaymentSentState) return false
         if (reportingPaymentSentException != other.reportingPaymentSentException) return false
+        if (reportingPaymentReceivedState != other.reportingPaymentReceivedState) return false
+        if (reportingPaymentReceivedException != other.reportingPaymentReceivedException) return false
 
         return true
     }
@@ -211,6 +222,8 @@ class Swap(
         result = 31 * result + (fillingSwapException?.hashCode() ?: 0)
         result = 31 * result + reportingPaymentSentState.hashCode()
         result = 31 * result + (reportingPaymentSentException?.hashCode() ?: 0)
+        result = 31 * result + reportingPaymentReceivedState.hashCode()
+        result = 31 * result + (reportingPaymentReceivedException?.hashCode() ?: 0)
         return result
     }
 

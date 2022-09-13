@@ -1,10 +1,7 @@
 package com.commuto.interfacedesktop.ui.swap
 
 import androidx.compose.runtime.mutableStateMapOf
-import com.commuto.interfacedesktop.swap.FillingSwapState
-import com.commuto.interfacedesktop.swap.ReportingPaymentSentState
-import com.commuto.interfacedesktop.swap.Swap
-import com.commuto.interfacedesktop.swap.SwapService
+import com.commuto.interfacedesktop.swap.*
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -64,6 +61,18 @@ class SwapViewModel @Inject constructor(private val swapService: SwapService): U
     private suspend fun setReportingPaymentSentState(swap: Swap, state: ReportingPaymentSentState) {
         withContext(Dispatchers.Main) {
             swap.reportingPaymentSentState.value = state
+        }
+    }
+
+    /**
+     * Sets the value of [Swap.reportingPaymentReceivedState] of [swap] to [state] on the main coroutine dispatcher.
+     *
+     * @param swap The [Swap] of which to set the [Swap.reportingPaymentReceivedState] value.
+     * @param state The value to which [swap]'s [Swap.reportingPaymentReceivedState] value will be set.
+     */
+    private suspend fun setReportingPaymentReceivedState(swap: Swap, state: ReportingPaymentReceivedState) {
+        withContext(Dispatchers.Main) {
+            swap.reportingPaymentReceivedState.value = state
         }
     }
 
@@ -146,6 +155,47 @@ class SwapViewModel @Inject constructor(private val swapService: SwapService): U
                 setReportingPaymentSentState(
                     swap = swap,
                     state = ReportingPaymentSentState.EXCEPTION
+                )
+            }
+        }
+    }
+
+    /**
+     * Attempts to report that a seller has received fiat payment for a
+     * [Swap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#swap). This may only be used by the seller
+     * in [swap].
+     *
+     * @param swap The [Swap] for which to report receiving payment.
+     */
+    override fun reportPaymentReceived(swap: Swap) {
+        viewModelScope.launch {
+            setReportingPaymentReceivedState(
+                swap = swap,
+                state = ReportingPaymentReceivedState.CHECKING
+            )
+            try {
+                logger.info("reportPaymentReceived: reporting for ${swap.id}")
+                swapService.reportPaymentReceived(
+                    swap = swap,
+                    afterPossibilityCheck = {
+                        setReportingPaymentReceivedState(
+                            swap = swap,
+                            state = ReportingPaymentReceivedState.REPORTING,
+                        )
+                    },
+                )
+                logger.info("reportPaymentReceived: successfully reported for ${swap.id}")
+                setReportingPaymentReceivedState(
+                    swap = swap,
+                    state = ReportingPaymentReceivedState.COMPLETED
+                )
+            } catch (exception: Exception) {
+                logger.error("reportPaymentReceived: got exception during reportPaymentReceived call for ${swap.id}",
+                    exception)
+                swap.reportingPaymentReceivedException = exception
+                setReportingPaymentReceivedState(
+                    swap = swap,
+                    state = ReportingPaymentReceivedState.EXCEPTION
                 )
             }
         }
