@@ -394,10 +394,12 @@ fun SwapStateComposable(swapState: MutableState<SwapState>, userRole: SwapRole, 
         SwapState.AWAITING_PAYMENT_SENT -> {
             "Waiting for $buyerName to send $settlementMethodCurrency"
         }
-        SwapState.REPORT_PAYMENT_SENT_TRANSACTION_BROADCAST -> "Awaiting confirmation reporting that payment is sent"
+        SwapState.REPORT_PAYMENT_SENT_TRANSACTION_BROADCAST -> "Awaiting confirmation of reporting that payment is sent"
         SwapState.AWAITING_PAYMENT_RECEIVED -> {
-            "Waiting for $sellerName to send $settlementMethodCurrency"
+            "Waiting for $sellerName to receive $settlementMethodCurrency"
         }
+        SwapState.REPORT_PAYMENT_RECEIVED_TRANSACTION_BROADCAST -> "Awaiting confirmation of reporting that payment " +
+                "is received"
     }
 
     Text(

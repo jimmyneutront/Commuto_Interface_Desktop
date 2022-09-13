@@ -288,6 +288,59 @@ class SwapService @Inject constructor(
     }
 
     /**
+     * Reports that payment has been received by the seller in a
+     * [Swap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#swap) using the process described in the
+     * [interface specification](https://github.com/jimmyneutront/commuto-whitepaper/blob/main/commuto-interface-specification.txt).
+     *
+     * On the IO coroutine dispatcher, this ensures that the user is the seller in [swap] and that reporting payment
+     * receipt is currently possible for [swap]. Then this calls the CommutoSwap contract's
+     * [reportPaymentReceived](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#https://www.commuto.xyz/docs/technical-reference/core-tec-ref#report-payment-received)
+     * function (via [blockchainService]), and persistently updates the state of the swap to
+     * [SwapState.REPORT_PAYMENT_RECEIVED_TRANSACTION_BROADCAST]. Finally, on the main coroutine dispatcher, this updates
+     * the state of [swap] to [SwapState.REPORT_PAYMENT_RECEIVED_TRANSACTION_BROADCAST].
+     *
+     * @param swap The [Swap] for which this function will report the receipt of payment.
+     * @param afterPossibilityCheck A lambda that will be executed after this has ensured that payment receipt can be
+     * reported for the swap.
+     *
+     * @throws SwapServiceException if the user is not the seller for [swap], or if [swap]'s state is not
+     * [SwapState.AWAITING_PAYMENT_RECEIVED].
+     */
+    suspend fun reportPaymentReceived(
+        swap: Swap,
+        afterPossibilityCheck: (suspend () -> Unit)? = null,
+    ) {
+        withContext(Dispatchers.IO) {
+            logger.info("reportPaymentReceived: checking reporting is possible for ${swap.id}")
+            try {
+                // Ensure that the user is the seller for the swap
+                if (swap.role != SwapRole.MAKER_AND_SELLER && swap.role != SwapRole.TAKER_AND_SELLER) {
+                    throw SwapServiceException("Only the Seller can report receiving payment")
+                }
+                // Ensure that this swap is awaiting reporting of payment received
+                if (swap.state.value != SwapState.AWAITING_PAYMENT_RECEIVED) {
+                    throw SwapServiceException("Receiving payment cannot currently be reported for this swap")
+                }
+                afterPossibilityCheck?.invoke()
+                logger.info("reportPaymentReceived: reporting ${swap.id}")
+                blockchainService.reportPaymentReceivedAsync(id = swap.id).await()
+                logger.info("reportPaymentReceived: reported for ${swap.id}")
+                databaseService.updateSwapState(
+                    swapID = Base64.getEncoder().encodeToString(swap.id.asByteArray()),
+                    chainID = swap.chainID.toString(),
+                    state = SwapState.REPORT_PAYMENT_RECEIVED_TRANSACTION_BROADCAST.asString,
+                )
+                withContext(Dispatchers.Main) {
+                    swap.state.value = SwapState.REPORT_PAYMENT_RECEIVED_TRANSACTION_BROADCAST
+                }
+            } catch (exception: Exception) {
+                logger.error("reportPaymentReceived: encountered exception during call for ${swap.id}", exception)
+                throw exception
+            }
+        }
+    }
+
+    /**
      * Gets the on-chain [Swap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#swap) with the specified
      * swap ID, creates and persistently stores a new [Swap] with state [SwapState.AWAITING_TAKER_INFORMATION] using the
      * on chain swap, and maps [swapID] to the new [Swap] on the main coroutine dispatcher.

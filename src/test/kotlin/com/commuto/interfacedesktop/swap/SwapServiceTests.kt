@@ -939,4 +939,131 @@ class SwapServiceTests {
 
     }
 
+    /**
+     * Ensures that [SwapService.reportPaymentReceived] and `[BlockchainService.reportPaymentReceivedAsync] function
+     * properly.
+     */
+    @Test
+    fun testReportPaymentReceived() = runBlocking {
+
+        val swapID = UUID.randomUUID()
+
+        @Serializable
+        data class TestingServerResponse(val commutoSwapAddress: String, val stablecoinAddress: String)
+        val testingServiceUrl = "http://localhost:8546/test_swapservice_reportPaymentReceived"
+        val testingServerClient = HttpClient(OkHttp) {
+            install(ContentNegotiation) {
+                json()
+            }
+            install(HttpTimeout) {
+                socketTimeoutMillis = 90_000
+                requestTimeoutMillis = 90_000
+            }
+        }
+        val testingServerResponse: TestingServerResponse = runBlocking {
+            testingServerClient.get(testingServiceUrl){
+                url {
+                    parameters.append("events", "offer-opened-taken-PaymentSent")
+                    parameters.append("swapID", swapID.toString())
+                }
+            }.body()
+        }
+
+        val w3 = Web3j.build(HttpService(System.getenv("BLOCKCHAIN_NODE")))
+
+        val databaseService = DatabaseService(DatabaseDriverFactory())
+        databaseService.createTables()
+        val keyManagerService = KeyManagerService(databaseService)
+
+        val swapService = SwapService(
+            databaseService = databaseService,
+            keyManagerService = keyManagerService,
+        )
+
+        val exceptionHandler = TestBlockchainExceptionHandler()
+
+        val blockchainService = BlockchainService(
+            exceptionHandler = exceptionHandler,
+            offerService = TestOfferService(),
+            swapService = swapService,
+            web3 = w3,
+            commutoSwapAddress = testingServerResponse.commutoSwapAddress
+        )
+        swapService.setBlockchainService(newBlockchainService = blockchainService)
+
+        val swap = Swap(
+            isCreated = true,
+            requiresFill = false,
+            id = swapID,
+            maker = "",
+            makerInterfaceID = ByteArray(0),
+            taker = "",
+            takerInterfaceID = ByteArray(0),
+            stablecoin = testingServerResponse.stablecoinAddress,
+            amountLowerBound = BigInteger.valueOf(10_000L),
+            amountUpperBound = BigInteger.valueOf(10_000L),
+            securityDepositAmount = BigInteger.valueOf(1_000L),
+            takenSwapAmount = BigInteger.valueOf(10_000L),
+            serviceFeeAmount = BigInteger.valueOf(100L),
+            serviceFeeRate = BigInteger.valueOf(100L),
+            direction = OfferDirection.BUY,
+            onChainSettlementMethod =
+            """
+                   {
+                       "f": "USD",
+                       "p": "1.00",
+                       "m": "SWIFT"
+                   }
+                   """.trimIndent().encodeToByteArray(),
+            protocolVersion = BigInteger.ZERO,
+            isPaymentSent = false,
+            isPaymentReceived = false,
+            hasBuyerClosed = false,
+            hasSellerClosed = false,
+            onChainDisputeRaiser = BigInteger.ZERO,
+            chainID = BigInteger.valueOf(31337L),
+            state = SwapState.AWAITING_PAYMENT_RECEIVED,
+            role = SwapRole.TAKER_AND_SELLER,
+        )
+        val encoder = Base64.getEncoder()
+        val swapForDatabase = DatabaseSwap(
+            id = encoder.encodeToString(swapID.asByteArray()),
+            isCreated = 1L,
+            requiresFill = 1L,
+            maker = swap.maker,
+            makerInterfaceID = encoder.encodeToString(swap.makerInterfaceID),
+            taker = swap.taker,
+            takerInterfaceID = encoder.encodeToString(swap.takerInterfaceID),
+            stablecoin = swap.stablecoin,
+            amountLowerBound = swap.amountLowerBound.toString(),
+            amountUpperBound = swap.amountUpperBound.toString(),
+            securityDepositAmount = swap.securityDepositAmount.toString(),
+            takenSwapAmount = swap.takenSwapAmount.toString(),
+            serviceFeeAmount = swap.serviceFeeAmount.toString(),
+            serviceFeeRate = swap.serviceFeeRate.toString(),
+            onChainDirection = swap.onChainDirection.toString(),
+            settlementMethod = encoder.encodeToString(swap.onChainSettlementMethod),
+            protocolVersion = swap.protocolVersion.toString(),
+            isPaymentSent = 0L,
+            isPaymentReceived = 0L,
+            hasBuyerClosed = 0L,
+            hasSellerClosed = 0L,
+            disputeRaiser = swap.onChainDisputeRaiser.toString(),
+            chainID = swap.chainID.toString(),
+            state = swap.state.value.asString,
+            role = swap.role.asString
+        )
+        databaseService.storeSwap(swapForDatabase)
+
+        swapService.reportPaymentReceived(
+            swap = swap,
+        )
+
+        assertEquals(SwapState.REPORT_PAYMENT_RECEIVED_TRANSACTION_BROADCAST, swap.state.value)
+
+        val swapInDatabase = databaseService.getSwap(encoder.encodeToString(swapID.asByteArray()))
+        assertEquals(SwapState.REPORT_PAYMENT_RECEIVED_TRANSACTION_BROADCAST.asString, swapInDatabase!!.state)
+
+    }
+
 }

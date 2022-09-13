@@ -36,7 +36,9 @@ enum class SwapState {
     FILL_SWAP_TRANSACTION_BROADCAST,
     AWAITING_PAYMENT_SENT,
     REPORT_PAYMENT_SENT_TRANSACTION_BROADCAST,
-    AWAITING_PAYMENT_RECEIVED;
+    AWAITING_PAYMENT_RECEIVED,
+    REPORT_PAYMENT_RECEIVED_TRANSACTION_BROADCAST;
+
 
     val asString: String
         get() = when (this) {
@@ -49,6 +51,7 @@ enum class SwapState {
             AWAITING_PAYMENT_SENT -> "awaitingPaymentSent"
             REPORT_PAYMENT_SENT_TRANSACTION_BROADCAST -> "reportPaymentSentTransactionBroadcast"
             AWAITING_PAYMENT_RECEIVED -> "awaitingPaymentReceived"
+            REPORT_PAYMENT_RECEIVED_TRANSACTION_BROADCAST -> "reportPaymentReceivedTransactionBroadcast"
         }
 
 }
