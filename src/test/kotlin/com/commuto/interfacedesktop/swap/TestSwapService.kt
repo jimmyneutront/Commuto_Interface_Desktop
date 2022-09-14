@@ -1,5 +1,6 @@
 package com.commuto.interfacedesktop.swap
 
+import com.commuto.interfacedesktop.blockchain.events.commutoswap.PaymentReceivedEvent
 import com.commuto.interfacedesktop.blockchain.events.commutoswap.PaymentSentEvent
 import com.commuto.interfacedesktop.blockchain.events.commutoswap.SwapFilledEvent
 import com.commuto.interfacedesktop.offer.OfferService
@@ -27,4 +28,8 @@ class TestSwapService: SwapNotifiable {
      * Does nothing, required to adopt [SwapNotifiable]. Should not be used.
      */
     override suspend fun handlePaymentSentEvent(event: PaymentSentEvent) {}
+    /**
+     * Does nothing, required to adopt [SwapNotifiable]. Should not be used.
+     */
+    override suspend fun handlePaymentReceivedEvent(event: PaymentReceivedEvent) {}
 }

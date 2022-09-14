@@ -9,7 +9,7 @@ import java.util.*
  * Represents a [PaymentSent](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#paymentsent) event, emitted
  * by the CommutoSwap smart contract when the buyer in a swap reports that they have sent fiat payment.
  *
- * @property swapID The ID of the filled swap.
+ * @property swapID The ID of the swap for which payment has been sent.
  * @property chainID The ID of the blockchain on which this event was emitted.
  */
 data class PaymentSentEvent(val swapID: UUID, val chainID: BigInteger) {

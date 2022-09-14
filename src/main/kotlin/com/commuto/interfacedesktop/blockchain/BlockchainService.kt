@@ -492,6 +492,7 @@ class BlockchainService (private val exceptionHandler: BlockchainExceptionNotifi
             eventResponses.add(commutoSwap.getServiceFeeRateChangedEvents(receipt))
             eventResponses.add(commutoSwap.getSwapFilledEvents(receipt))
             eventResponses.add(commutoSwap.getPaymentSentEvents(receipt))
+            eventResponses.add(commutoSwap.getPaymentReceivedEvents(receipt))
         }
         return eventResponses.flatten()
     }
@@ -543,6 +544,12 @@ class BlockchainService (private val exceptionHandler: BlockchainExceptionNotifi
                     logger.info("handleEventResponses: handling PaymentSentEventResponse")
                     swapService.handlePaymentSentEvent(
                         PaymentSentEvent.fromEventResponse(eventResponse, chainID)
+                    )
+                }
+                is CommutoSwap.PaymentReceivedEventResponse -> {
+                    logger.info("handleEventResponses: handling PaymentReceivedEventResponse")
+                    swapService.handlePaymentReceivedEvent(
+                        PaymentReceivedEvent.fromEventResponse(eventResponse, chainID)
                     )
                 }
             }
