@@ -401,6 +401,7 @@ fun SwapStateComposable(swapState: MutableState<SwapState>, userRole: SwapRole, 
         SwapState.REPORT_PAYMENT_RECEIVED_TRANSACTION_BROADCAST -> "Awaiting confirmation of reporting that payment " +
                 "is received"
         SwapState.AWAITING_CLOSING -> "Waiting for you to close swap"
+        SwapState.CLOSE_SWAP_TRANSACTION_BROADCAST -> "Awaiting confirmation that swap is closed"
     }
 
     Text(

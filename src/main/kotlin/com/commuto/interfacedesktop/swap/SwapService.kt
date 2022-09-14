@@ -342,6 +342,52 @@ class SwapService @Inject constructor(
     }
 
     /**
+     * Attempts to close a
+     * [Swap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#swap) using the process described in the
+     * [interface specification](https://github.com/jimmyneutront/commuto-whitepaper/blob/main/commuto-interface-specification.txt).
+     *
+     * On the IO coroutine dispatcher, this ensures that [swap] can be closed. Then this calls the CommutoSwap
+     * contract's [closeSwap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#close-swap) function (via
+     * [blockchainService]), and persistently updates the state of the swap to
+     * [SwapState.CLOSE_SWAP_TRANSACTION_BROADCAST]. Finally, this does the same to [swap], updating its [Swap.state] on
+     * the main coroutine dispatcher.
+     *
+     * @param swap The [Swap] this function will close.
+     * @param afterPossibilityCheck A lambda that will be executed after this has ensured [swap] can be closed.
+     *
+     * @throws SwapServiceException if [swap]'s state is not [SwapState.AWAITING_CLOSING].
+     */
+    suspend fun  closeSwap(
+        swap: Swap,
+        afterPossibilityCheck: (suspend () -> Unit)? = null,
+    ) {
+        withContext(Dispatchers.IO) {
+            logger.info("closeSwap: checking if ${swap.id} can be closed")
+            try {
+                // Ensure that this swap is awaiting closing
+                if (swap.state.value != SwapState.AWAITING_CLOSING) {
+                    throw SwapServiceException("This swap cannot currently be closed")
+                }
+                afterPossibilityCheck?.invoke()
+                logger.info("closeSwap: closing ${swap.id}")
+                blockchainService.closeSwapAsync(id = swap.id).await()
+                logger.info("closeSwap: closed ${swap.id}")
+                databaseService.updateSwapState(
+                    swapID = Base64.getEncoder().encodeToString(swap.id.asByteArray()),
+                    chainID = swap.chainID.toString(),
+                    state = SwapState.CLOSE_SWAP_TRANSACTION_BROADCAST.asString,
+                )
+                withContext(Dispatchers.Main) {
+                    swap.state.value = SwapState.CLOSE_SWAP_TRANSACTION_BROADCAST
+                }
+            } catch (exception: Exception) {
+                logger.error("reportPaymentReceived: encountered exception during call for ${swap.id}", exception)
+                throw exception
+            }
+        }
+    }
+
+    /**
      * Gets the on-chain [Swap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#swap) with the specified
      * swap ID, creates and persistently stores a new [Swap] with state [SwapState.AWAITING_TAKER_INFORMATION] using the
      * on chain swap, and maps [swapID] to the new [Swap] on the main coroutine dispatcher.
