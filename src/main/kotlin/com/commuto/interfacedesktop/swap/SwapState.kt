@@ -23,8 +23,14 @@ package com.commuto.interfacedesktop.swap
  * swap, and the buyer must now send payment for the stablecoin they are purchasing. If the swap is a maker-as-buyer
  * swap, this indicates that the maker has sent their settlement method information to the taker, and the buyer must now
  * send payment for the stablecoin they are purchasing.
+ * @property REPORT_PAYMENT_SENT_TRANSACTION_BROADCAST Indicates that the buyer's transaction to report that they have
+ * sent payment has been broadcast.
  * @property AWAITING_PAYMENT_RECEIVED This indicates that the seller must confirm that they have received fiat currency
  * payment from the buyer.
+ * @property REPORT_PAYMENT_RECEIVED_TRANSACTION_BROADCAST Indicates that the seller's transaction to report that they
+ * have received payment has been broadcast.
+ * @property AWAITING_CLOSING Indicates that the seller has reported receipt of fiat payment from the buyer, and the
+ * swap can now be closed.
  * @property asString A [String] corresponding to a particular case of [SwapState].
  */
 enum class SwapState {
@@ -37,8 +43,8 @@ enum class SwapState {
     AWAITING_PAYMENT_SENT,
     REPORT_PAYMENT_SENT_TRANSACTION_BROADCAST,
     AWAITING_PAYMENT_RECEIVED,
-    REPORT_PAYMENT_RECEIVED_TRANSACTION_BROADCAST;
-
+    REPORT_PAYMENT_RECEIVED_TRANSACTION_BROADCAST,
+    AWAITING_CLOSING;
 
     val asString: String
         get() = when (this) {
@@ -52,6 +58,7 @@ enum class SwapState {
             REPORT_PAYMENT_SENT_TRANSACTION_BROADCAST -> "reportPaymentSentTransactionBroadcast"
             AWAITING_PAYMENT_RECEIVED -> "awaitingPaymentReceived"
             REPORT_PAYMENT_RECEIVED_TRANSACTION_BROADCAST -> "reportPaymentReceivedTransactionBroadcast"
+            AWAITING_CLOSING -> "awaitingClosing"
         }
 
 }

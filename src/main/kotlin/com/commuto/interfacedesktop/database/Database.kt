@@ -234,6 +234,20 @@ internal class Database(databaseDriverFactory: DatabaseDriverFactory) {
     }
 
     /**
+     * Updates the [Swap.isPaymentReceived] property of the [Swap] with the specified [swapID] and [chainID].
+     * @param swapID The ID of the [Swap] to be updated.
+     * @param chainID The ID of the blockchain on which the [Swap] to be updated exists.
+     * @param isPaymentReceived The new value of the [Swap.isPaymentReceived] property.
+     */
+    internal fun updateSwapIsPaymentReceived(swapID: String, chainID: String, isPaymentReceived: Long) {
+        dbQuery.updateSwapIsPaymentReceivedBySwapIDAndChainID(
+            isPaymentReceived = isPaymentReceived,
+            id = swapID,
+            chainID = chainID,
+        )
+    }
+
+    /**
      * Deletes all [Offer]s with the specified offer ID and chain ID from the database.
      * @param offerID The offer ID of the [Offer]s to be deleted.
      * @param chainID The blockchain ID of the [Offer]s to be deleted.
