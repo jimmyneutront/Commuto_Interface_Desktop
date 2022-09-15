@@ -675,6 +675,7 @@ class OfferServiceTests {
             override suspend fun handleSwapFilledEvent(event: SwapFilledEvent) {}
             override suspend fun handlePaymentSentEvent(event: PaymentSentEvent) {}
             override suspend fun handlePaymentReceivedEvent(event: PaymentReceivedEvent) {}
+            override suspend fun handleBuyerClosedEvent(event: BuyerClosedEvent) {}
         }
         val swapService = TestSwapService()
 
@@ -797,6 +798,7 @@ class OfferServiceTests {
             override suspend fun handleSwapFilledEvent(event: SwapFilledEvent) {}
             override suspend fun handlePaymentSentEvent(event: PaymentSentEvent) {}
             override suspend fun handlePaymentReceivedEvent(event: PaymentReceivedEvent) {}
+            override suspend fun handleBuyerClosedEvent(event: BuyerClosedEvent) {}
         }
         val swapService = TestSwapService()
 
