@@ -527,16 +527,16 @@ class BlockchainServiceTest {
 
         val exceptionHandler = TestBlockchainExceptionHandler()
 
-        // We need this TestSwapService to track handling of SwapFilled events
+        // We need this TestSwapService to track handling of PaymentReceived events
         class TestSwapService: SwapNotifiable {
-            val paymentSentEventChannel = Channel<PaymentSentEvent>()
+            val paymentReceivedEventChannel = Channel<PaymentReceivedEvent>()
             override suspend fun sendTakerInformationMessage(swapID: UUID, chainID: BigInteger) {}
             override suspend fun handleNewSwap(swapID: UUID, chainID: BigInteger) {}
             override suspend fun handleSwapFilledEvent(event: SwapFilledEvent) {}
-            override suspend fun handlePaymentSentEvent(event: PaymentSentEvent) {
-                paymentSentEventChannel.send(event)
+            override suspend fun handlePaymentSentEvent(event: PaymentSentEvent) {}
+            override suspend fun handlePaymentReceivedEvent(event: PaymentReceivedEvent) {
+                paymentReceivedEventChannel.send(event)
             }
-            override suspend fun handlePaymentReceivedEvent(event: PaymentReceivedEvent) {}
             override suspend fun handleBuyerClosedEvent(event: BuyerClosedEvent) {}
         }
         val swapService = TestSwapService()
@@ -551,7 +551,7 @@ class BlockchainServiceTest {
         blockchainService.listen()
         runBlocking {
             withTimeout(60_000) {
-                val event = swapService.paymentSentEventChannel.receive()
+                val event = swapService.paymentReceivedEventChannel.receive()
                 assertEquals(expectedSwapID, event.swapID)
             }
         }
