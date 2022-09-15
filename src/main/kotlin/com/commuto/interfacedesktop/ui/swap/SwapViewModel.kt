@@ -77,6 +77,18 @@ class SwapViewModel @Inject constructor(private val swapService: SwapService): U
     }
 
     /**
+     * Sets the value of [Swap.closingSwapState] of [swap] to [state] on the main coroutine dispatcher.
+     *
+     * @param swap The [Swap] of which to set the [Swap.closingSwapState] value.
+     * @param state The value to which [swap]'s [Swap.closingSwapState] value will be set.
+     */
+    private suspend fun setClosingSwapState(swap: Swap, state: ClosingSwapState) {
+        withContext(Dispatchers.Main) {
+            swap.closingSwapState.value = state
+        }
+    }
+
+    /**
      * Attempts to fill a [Swap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#swap).
      *
      * @param swap The [Swap] to fill.
@@ -196,6 +208,44 @@ class SwapViewModel @Inject constructor(private val swapService: SwapService): U
                 setReportingPaymentReceivedState(
                     swap = swap,
                     state = ReportingPaymentReceivedState.EXCEPTION
+                )
+            }
+        }
+    }
+
+    /**
+     * Attempts to close a swap [Swap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#swap).
+     *
+     * @param swap The [Swap] to close.
+     */
+    override fun closeSwap(swap: Swap) {
+        viewModelScope.launch {
+            setClosingSwapState(
+                swap = swap,
+                state = ClosingSwapState.CHECKING,
+            )
+            try {
+                logger.info("closeSwap: closing ${swap.id}")
+                swapService.closeSwap(
+                    swap = swap,
+                    afterPossibilityCheck = {
+                        setClosingSwapState(
+                            swap = swap,
+                            state = ClosingSwapState.CLOSING,
+                        )
+                    }
+                )
+                logger.info("closeSwap: successfully closed ${swap.id}")
+                setClosingSwapState(
+                    swap = swap,
+                    state = ClosingSwapState.CHECKING,
+                )
+            } catch (exception: Exception) {
+                logger.error("closeSwap: got exception during closeSwap call for ${swap.id}", exception)
+                swap.closingSwapException = exception
+                setClosingSwapState(
+                    swap = swap,
+                    state = ClosingSwapState.EXCEPTION
                 )
             }
         }

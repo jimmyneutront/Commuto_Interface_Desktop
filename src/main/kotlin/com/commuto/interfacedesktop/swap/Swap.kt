@@ -60,6 +60,10 @@ import java.util.*
  * @property reportingPaymentReceivedException (This property is used only if the user of this interface is the seller
  * in this swap.) The [Exception] that we encountered during the reporting-payment-received process, or `null` if no
  * such exception has occurred.
+ * @property reportingPaymentReceivedState This indicates whether we are currently closing this swap, and if so, what
+ * part of the swap-closing process we are in.
+ * @property reportingPaymentReceivedException The [Exception] that we encountered during the swap closing process, or
+ * `null` if no such exception has occured.
  */
 class Swap(
     val isCreated: Boolean,
@@ -102,6 +106,9 @@ class Swap(
 
     val reportingPaymentReceivedState = mutableStateOf(ReportingPaymentReceivedState.NONE)
     var reportingPaymentReceivedException: Exception? = null
+
+    val closingSwapState = mutableStateOf(ClosingSwapState.NONE)
+    var closingSwapException: Exception? = null
 
     init {
         when (this.direction) {
@@ -186,6 +193,8 @@ class Swap(
         if (reportingPaymentSentException != other.reportingPaymentSentException) return false
         if (reportingPaymentReceivedState != other.reportingPaymentReceivedState) return false
         if (reportingPaymentReceivedException != other.reportingPaymentReceivedException) return false
+        if (closingSwapState != other.closingSwapState) return false
+        if (closingSwapException != other.closingSwapException) return false
 
         return true
     }
@@ -224,6 +233,8 @@ class Swap(
         result = 31 * result + (reportingPaymentSentException?.hashCode() ?: 0)
         result = 31 * result + reportingPaymentReceivedState.hashCode()
         result = 31 * result + (reportingPaymentReceivedException?.hashCode() ?: 0)
+        result = 31 * result + closingSwapState.hashCode()
+        result = 31 * result + (closingSwapException?.hashCode() ?: 0)
         return result
     }
 

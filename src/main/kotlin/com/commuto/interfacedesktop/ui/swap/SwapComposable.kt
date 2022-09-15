@@ -527,6 +527,36 @@ fun ActionButton(swap: Swap, swapTruthSource: UISwapTruthSource) {
                 else -> "Reporting that Payment Is Received"
             }
         )
+    } else if (swap.state.value == SwapState.AWAITING_CLOSING) {
+        // We can now close the swap, so we display the "Close Swap" button
+        if (swap.closingSwapState.value != ClosingSwapState.NONE &&
+            swap.closingSwapState.value != ClosingSwapState.EXCEPTION) {
+            Text(
+                text = swap.closingSwapState.value.description,
+                style =  MaterialTheme.typography.h6,
+            )
+        } else if (swap.closingSwapState.value == ClosingSwapState.EXCEPTION) {
+            Text(
+                text = swap.closingSwapException?.message ?: "An unknown exception occurred",
+                style =  MaterialTheme.typography.h6,
+                color = Color.Red
+            )
+        }
+        BlankActionButton(
+            action = {
+                if (swap.closingSwapState.value == ClosingSwapState.NONE ||
+                    swap.closingSwapState.value == ClosingSwapState.EXCEPTION) {
+                    swapTruthSource.closeSwap(
+                        swap = swap
+                    )
+                }
+            },
+            labelText = when (swap.closingSwapState.value) {
+                ClosingSwapState.NONE, ClosingSwapState.EXCEPTION -> "Close Swap"
+                ClosingSwapState.COMPLETED -> "Swap Closed"
+                else -> "Closing Swap"
+            }
+        )
     }
 }
 

@@ -34,4 +34,11 @@ interface UISwapTruthSource: SwapTruthSource {
      * @param swap The [Swap] for which to report receiving payment.
      */
     fun reportPaymentReceived(swap: Swap)
+
+    /**
+     * Attempts to close a swap [Swap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#swap).
+     *
+     * @param swap The [Swap] to close.
+     */
+    fun closeSwap(swap: Swap)
 }

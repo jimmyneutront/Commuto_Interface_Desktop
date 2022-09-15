@@ -36,4 +36,9 @@ class PreviewableSwapTruthSource : UISwapTruthSource {
      * Not used since this class is for previewing user interfaces, but required for adoption of [UISwapTruthSource].
      */
     override fun reportPaymentReceived(swap: Swap) {}
+
+    /**
+     * Not used since this class is for previewing user interfaces, but required for adoption of [UISwapTruthSource].
+     */
+    override fun closeSwap(swap: Swap) {}
 }
