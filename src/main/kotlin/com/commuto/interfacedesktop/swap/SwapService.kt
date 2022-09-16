@@ -1,10 +1,7 @@
 package com.commuto.interfacedesktop.swap
 
 import com.commuto.interfacedesktop.blockchain.BlockchainService
-import com.commuto.interfacedesktop.blockchain.events.commutoswap.BuyerClosedEvent
-import com.commuto.interfacedesktop.blockchain.events.commutoswap.PaymentReceivedEvent
-import com.commuto.interfacedesktop.blockchain.events.commutoswap.PaymentSentEvent
-import com.commuto.interfacedesktop.blockchain.events.commutoswap.SwapFilledEvent
+import com.commuto.interfacedesktop.blockchain.events.commutoswap.*
 import com.commuto.interfacedesktop.database.DatabaseService
 import com.commuto.interfacedesktop.db.Swap as DatabaseSwap
 import com.commuto.interfacedesktop.extension.asByteArray
@@ -790,6 +787,59 @@ class SwapService @Inject constructor(
         }
     }
 
-    override suspend fun handleBuyerClosedEvent(event: BuyerClosedEvent) {}
+    /**
+     * The function called by [BlockchainService] to notify [SwapService] of a [BuyerClosedEvent].
+     *
+     * Once notified, [SwapService] checks in [swapTruthSource] for a [Swap] with the ID specified in [event]. If it
+     * finds such a swap, it ensures that the chain ID of the swap and the chain ID of [event] match. Then it
+     * persistently sets the swap's [Swap.hasBuyerClosed] field to `true` and does the same to the [Swap] object. If the
+     * user of this interface is the buyer for the swap specified by [BuyerClosedEvent.swapID], this persistently sets
+     * the swaps state to [SwapState.CLOSED], and does the same to the [Swap] object on the main coroutine dispatcher.
+     *
+     * @param event The [BuyerClosedEvent] of which [SwapService] is being notified.
+     *
+     * @throws [SwapServiceException] if the chain ID of [event] and the chain ID of the [Swap] with the ID specified in
+     * [event] do not match.
+     */
+    override suspend fun handleBuyerClosedEvent(event: BuyerClosedEvent) {
+        logger.info("handleBuyerClosedEvent: handling for ${event.swapID}")
+        swapTruthSource.swaps[event.swapID]?.let { swap ->
+            if (swap.chainID != event.chainID) {
+                throw SwapServiceException("Chain ID of BuyerClosedEvent did not match chain ID of Swap in " +
+                        "handleBuyerClosedEvent call. BuyerClosedEvent.chainID: ${event.chainID}, Swap.chainID: " +
+                        "${swap.chainID}, BuyerClosedEvent.id: ${event.swapID}")
+            }
+            /*
+            At this point, we have ensured that the chain ID of the event and the swap match, so we can proceed safely
+             */
+            val swapIDB64String = Base64.getEncoder().encodeToString(event.swapID.asByteArray())
+            databaseService.updateSwapHasBuyerClosed(
+                swapID = swapIDB64String,
+                chainID = event.chainID.toString(),
+                hasBuyerClosed = true
+            )
+            swap.hasBuyerClosed = true
+            /*
+            If the user of this interface is the buyer, then this is their BuyerClosed event. Therefore, we should
+            update the state of the swap to show that the user has closed it.
+             */
+            if (swap.role == SwapRole.MAKER_AND_BUYER || swap.role == SwapRole.TAKER_AND_BUYER) {
+                logger.info("handleBuyerClosedEvent: setting state of ${event.swapID} to CLOSED")
+                databaseService.updateSwapState(
+                    swapID = swapIDB64String,
+                    chainID = event.chainID.toString(),
+                    state = SwapState.CLOSED.asString,
+                )
+                withContext(Dispatchers.Main) {
+                    swap.state.value = SwapState.CLOSED
+                }
+            }
+        } ?: run {
+            // Executed if we do not have a Swap with the ID specified in event
+            logger.info("handleBuyerClosedEvent: got event for ${event.swapID} which was not found in swapTruthSource")
+        }
+    }
+
+    override suspend fun handleSellerClosedEvent(event: SellerClosedEvent) {}
 
 }

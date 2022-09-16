@@ -85,7 +85,7 @@ class Swap(
     val protocolVersion: BigInteger,
     var isPaymentSent: Boolean,
     var isPaymentReceived: Boolean,
-    val hasBuyerClosed: Boolean,
+    var hasBuyerClosed: Boolean,
     val hasSellerClosed: Boolean,
     val onChainDisputeRaiser: BigInteger,
     val chainID: BigInteger,

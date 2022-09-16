@@ -21,7 +21,7 @@ data class BuyerClosedEvent(val swapID: UUID, val chainID: BigInteger) {
          * @param event The [CommutoSwap.BuyerClosedEventResponse] containing the ID of the swap as a [ByteArray].
          * @param chainID: The ID of the blockchain on which this event was emitted.
          *
-         * @return A new [BuyerClosedEvent] with an offer ID as a [UUID] derived from [event]'s swapID ID [ByteArray],
+         * @return A new [BuyerClosedEvent] with a swap ID as a [UUID] derived from [event]'s swapID ID [ByteArray],
          * and the specified [chainID].
          */
         fun fromEventResponse(event: CommutoSwap.BuyerClosedEventResponse, chainID: BigInteger): BuyerClosedEvent {

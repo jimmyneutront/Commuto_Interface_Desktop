@@ -33,6 +33,7 @@ package com.commuto.interfacedesktop.swap
  * swap can now be closed.
  * @property CLOSE_SWAP_TRANSACTION_BROADCAST Indicates that the user's transaction to close the swap has been
  * broadcast.
+ * @property CLOSED Indicates that the user has successfully closed the swap.
  * @property asString A [String] corresponding to a particular case of [SwapState].
  */
 enum class SwapState {
@@ -47,7 +48,8 @@ enum class SwapState {
     AWAITING_PAYMENT_RECEIVED,
     REPORT_PAYMENT_RECEIVED_TRANSACTION_BROADCAST,
     AWAITING_CLOSING,
-    CLOSE_SWAP_TRANSACTION_BROADCAST;
+    CLOSE_SWAP_TRANSACTION_BROADCAST,
+    CLOSED;
 
     val asString: String
         get() = when (this) {
@@ -63,6 +65,7 @@ enum class SwapState {
             REPORT_PAYMENT_RECEIVED_TRANSACTION_BROADCAST -> "reportPaymentReceivedTransactionBroadcast"
             AWAITING_CLOSING -> "awaitingClosing"
             CLOSE_SWAP_TRANSACTION_BROADCAST -> "closeSwapTransactionBroadcast"
+            CLOSED -> "closed"
         }
 
 }

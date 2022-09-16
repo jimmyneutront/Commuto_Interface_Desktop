@@ -161,6 +161,11 @@ UPDATE Swap
 SET isPaymentReceived = ?
 WHERE id = ? AND chainID = ?;
 
+updateSwapHasBuyerClosedBySwapIDAndChainID:
+UPDATE Swap
+SET hasBuyerClosed = ?
+WHERE id = ? AND chainID = ?;
+
 updateSwapStateBySwapIDAndChainID:
 UPDATE Swap
 SET state = ?

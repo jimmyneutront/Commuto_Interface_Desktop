@@ -248,6 +248,20 @@ internal class Database(databaseDriverFactory: DatabaseDriverFactory) {
     }
 
     /**
+     * Updates the [Swap.hasBuyerClosed] property of the [Swap] with the specified [swapID] and [chainID].
+     * @param swapID The ID of the [Swap] to be updated.
+     * @param chainID The ID of the blockchain on which the [Swap] to be updated exists.
+     * @param hasBuyerClosed The new value of the [Swap.hasBuyerClosed] property.
+     */
+    internal fun updateSwapHasBuyerClosed(swapID: String, chainID: String, hasBuyerClosed: Long) {
+        dbQuery.updateSwapHasBuyerClosedBySwapIDAndChainID(
+            hasBuyerClosed = hasBuyerClosed,
+            id = swapID,
+            chainID = chainID,
+        )
+    }
+
+    /**
      * Deletes all [Offer]s with the specified offer ID and chain ID from the database.
      * @param offerID The offer ID of the [Offer]s to be deleted.
      * @param chainID The blockchain ID of the [Offer]s to be deleted.
