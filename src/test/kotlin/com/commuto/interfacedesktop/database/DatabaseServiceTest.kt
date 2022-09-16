@@ -381,6 +381,44 @@ class DatabaseServiceTest {
     }
 
     /**
+     * Ensures that code to update a persistently stored [Swap.hasSellerClosed] property works properly.
+     */
+    @Test
+    fun testUpdateSwapHasSellerClosed() = runBlocking {
+        val swapToStore = Swap(
+            id = "a_uuid",
+            isCreated = 1L,
+            requiresFill = 1L,
+            maker = "maker_address",
+            makerInterfaceID = "maker_interface_id",
+            taker = "taker_address",
+            takerInterfaceID = "taker_interface_id",
+            stablecoin = "stablecoin_address",
+            amountLowerBound = "lower_bound_amount",
+            amountUpperBound = "upper_bound_amount",
+            securityDepositAmount = "security_deposit_amount",
+            takenSwapAmount = "taken_swap_amount",
+            serviceFeeAmount = "service_fee_amount",
+            serviceFeeRate = "service_fee_rate",
+            onChainDirection = "direction",
+            settlementMethod = "settlement_method",
+            protocolVersion = "some_version",
+            isPaymentSent = 1L,
+            isPaymentReceived = 1L,
+            hasBuyerClosed = 0L,
+            hasSellerClosed = 0L,
+            disputeRaiser = "dispute_raiser",
+            chainID = "a_chain_id",
+            state = "a_state_here",
+            role = "a_role_here"
+        )
+        databaseService.storeSwap(swapToStore)
+        databaseService.updateSwapHasSellerClosed("a_uuid", "a_chain_id", true)
+        val returnedSwap = databaseService.getSwap("a_uuid")
+        assertEquals(1L, returnedSwap!!.hasSellerClosed)
+    }
+
+    /**
      * Ensures that code to update a persistently stored [Swap.state] property works properly.
      */
     @Test

@@ -166,6 +166,11 @@ UPDATE Swap
 SET hasBuyerClosed = ?
 WHERE id = ? AND chainID = ?;
 
+updateSwapHasSellerClosedBySwapIDAndChainID:
+UPDATE Swap
+SET hasSellerClosed = ?
+WHERE id = ? AND chainID = ?;
+
 updateSwapStateBySwapIDAndChainID:
 UPDATE Swap
 SET state = ?
