@@ -1,6 +1,8 @@
 package com.commuto.interfacedesktop.database
 
 import com.commuto.interfacedesktop.db.*
+import com.commuto.interfacedesktop.key.DatabaseKeyDeriver
+import com.commuto.interfacedesktop.key.keys.SymmetricKey
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.newSingleThreadContext
 import kotlinx.coroutines.withContext
@@ -15,18 +17,39 @@ import javax.inject.Singleton
  * This is responsible for storing data, serving it to other services upon request, and accepting services' requests to
  * add and remove data from storage.
  *
- * @property databaseDriverFactory the DatabaseDriverFactory that DBService will use to interact with the database.
+ * @property databaseDriverFactory the DatabaseDriverFactory that DatabaseService will use to interact with the
+ * database.
+ * @property databaseKey The [SymmetricKey] with which this encrypts and decrypts encrypted database fields.
  * @property logger The [org.slf4j.Logger] that this class uses for logging.
  * @property database The [Database] holding Commuto Interface data.
  * @property databaseServiceContext The single-threaded CoroutineContext in which all database read and write operations
  * are run, in order to prevent data races.
  */
 @Singleton
-open class DatabaseService @Inject constructor(private val databaseDriverFactory: DatabaseDriverFactory) {
+open class DatabaseService(
+    private val databaseDriverFactory: DatabaseDriverFactory,
+    private val databaseKey: SymmetricKey,
+) {
+
+    /**
+     * Creates a new [DatabaseService] with the given [databaseDriverFactory] and the key created by
+     * [DatabaseKeyDeriver] given the password "test_password" and salt string "test_salt". Note this constructor should
+     * ONLY be used for testing/development.
+     *
+     * @param databaseDriverFactory The [DatabaseDriverFactory] that the returned [DatabaseService] will use.
+     */
+    @Inject constructor(databaseDriverFactory: DatabaseDriverFactory): this(
+        databaseDriverFactory = databaseDriverFactory,
+        databaseKey = DatabaseKeyDeriver(
+            password = "test_password",
+            salt = "test_salt".toByteArray(),
+        ).key
+    )
 
     private val logger = LoggerFactory.getLogger(javaClass)
 
     private val database = Database(databaseDriverFactory)
+
     // We want to run all database operations on a single thread to prevent data races.
     @DelicateCoroutinesApi
     private val databaseServiceContext = newSingleThreadContext("DatabaseServiceContext")
