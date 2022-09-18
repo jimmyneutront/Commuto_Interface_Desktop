@@ -63,7 +63,11 @@ import java.util.*
  * @property reportingPaymentReceivedState This indicates whether we are currently closing this swap, and if so, what
  * part of the swap-closing process we are in.
  * @property reportingPaymentReceivedException The [Exception] that we encountered during the swap closing process, or
- * `null` if no such exception has occured.
+ * `null` if no such exception has occurred.
+ * @property closingSwapState This indicates whether we are currently closing this swap, and if so, what part of the
+ * swap-closing process we are in.
+ * @property closingSwapException The [Exception] that we encountered during the swap closing process, or `null` if no
+ * such exception has occurred.
  */
 class Swap(
     val isCreated: Boolean,

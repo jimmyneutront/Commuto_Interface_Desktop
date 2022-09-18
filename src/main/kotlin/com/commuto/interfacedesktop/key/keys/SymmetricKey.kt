@@ -6,6 +6,7 @@ import javax.crypto.SecretKey
 import javax.crypto.spec.IvParameterSpec
 import javax.crypto.spec.SecretKeySpec
 
+// TODO: Don't use CBC
 /**
  * This is an AES-256 key, with functions for encryption and decryption.
  *
