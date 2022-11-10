@@ -26,7 +26,11 @@ fun validateEditedSettlementMethods(
     settlementMethods.forEach {
         if (it.price == "") {
             throw EditedSettlementMethodValidationException("You must specify a price for each selected settlement " +
-                    "method.")
+                    "method you select.")
+        }
+        if (it.privateData == null) {
+            throw EditedSettlementMethodValidationException("You must supply your information for each settlement " +
+                    "method you select.")
         }
     }
     return settlementMethods

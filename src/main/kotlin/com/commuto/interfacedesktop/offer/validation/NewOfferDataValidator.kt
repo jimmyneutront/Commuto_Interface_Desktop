@@ -78,7 +78,7 @@ fun validateNewOfferData(
     }
     settlementMethods.forEach {
         if (it.price == "") {
-            throw NewOfferDataValidationException("You must specify a price for each selected settlement method.")
+            throw NewOfferDataValidationException("You must specify a price for each settlement method you select.")
         }
         if (it.privateData == null) {
             throw NewOfferDataValidationException("You must supply your information for each settlement method you " +
