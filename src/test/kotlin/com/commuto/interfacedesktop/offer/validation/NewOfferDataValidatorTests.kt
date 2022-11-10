@@ -24,7 +24,12 @@ class NewOfferDataValidatorTests {
             serviceFeeRate = BigInteger("100"),
             direction = OfferDirection.BUY,
             settlementMethods = listOf(
-                SettlementMethod(currency = "a_currency", price = "a_price", method = "a_settlement_method")
+                SettlementMethod(
+                    currency = "a_currency",
+                    price = "a_price",
+                    method = "a_settlement_method",
+                    privateData = "some_private_data"
+                )
             ),
         )
         val expectedValidatedData = ValidatedNewOfferData(
@@ -38,7 +43,12 @@ class NewOfferDataValidatorTests {
             serviceFeeAmountUpperBound = BigInteger("2000000000000000000"),
             direction = OfferDirection.BUY,
             settlementMethods = listOf(
-                SettlementMethod(currency = "a_currency", price = "a_price", method = "a_settlement_method")
+                SettlementMethod(
+                    currency = "a_currency",
+                    price = "a_price",
+                    method = "a_settlement_method",
+                    privateData = "some_private_data"
+                )
             )
         )
         assertEquals(expectedValidatedData, validatedData)
@@ -58,7 +68,12 @@ class NewOfferDataValidatorTests {
             serviceFeeRate = BigInteger.ZERO,
             direction = OfferDirection.BUY,
             settlementMethods = listOf(
-                SettlementMethod(currency = "a_currency", price = "a_price", method = "a_settlement_method")
+                SettlementMethod(
+                    currency = "a_currency",
+                    price = "a_price",
+                    method = "a_settlement_method",
+                    privateData = "some_private_data"
+                )
             ),
         )
         val expectedValidatedData = ValidatedNewOfferData(
@@ -72,7 +87,12 @@ class NewOfferDataValidatorTests {
             serviceFeeAmountUpperBound = BigInteger.ZERO,
             direction = OfferDirection.BUY,
             settlementMethods = listOf(
-                SettlementMethod(currency = "a_currency", price = "a_price", method = "a_settlement_method")
+                SettlementMethod(
+                    currency = "a_currency",
+                    price = "a_price",
+                    method = "a_settlement_method",
+                    privateData = "some_private_data"
+                )
             )
         )
         assertEquals(expectedValidatedData, validatedData)

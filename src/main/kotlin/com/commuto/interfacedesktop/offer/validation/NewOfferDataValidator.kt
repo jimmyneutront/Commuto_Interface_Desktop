@@ -20,6 +20,7 @@ import java.math.RoundingMode
  * - the user has specified a valid direction
  * - the user has selected at least one settlement method
  * - the user has specified a price for each selected settlement method.
+ * - the user has specified their information for each selected settlement method.
  *
  * @param stablecoin The contract address of the stablecoin selected by the user, or `null` if the user has not selected
  * a stablecoin.
@@ -78,6 +79,10 @@ fun validateNewOfferData(
     settlementMethods.forEach {
         if (it.price == "") {
             throw NewOfferDataValidationException("You must specify a price for each selected settlement method.")
+        }
+        if (it.privateData == null) {
+            throw NewOfferDataValidationException("You must supply your information for each settlement method you " +
+                    "select.")
         }
     }
     return ValidatedNewOfferData(
