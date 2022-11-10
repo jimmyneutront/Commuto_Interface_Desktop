@@ -529,6 +529,7 @@ class OfferService (
                 logger.info("takeOffer: persistently storing ${offerToTake.id}")
                 // Persistently store the new swap
                 val offerIDB64String = encoder.encodeToString(offerToTake.id.asByteArray())
+                // TODO: get actual taker private data here
                 val swapForDatabase = DatabaseSwap(
                     id = offerIDB64String,
                     isCreated = 1L,
@@ -546,6 +547,10 @@ class OfferService (
                     serviceFeeRate = newSwap.serviceFeeRate.toString(),
                     onChainDirection = newSwap.onChainDirection.toString(),
                     settlementMethod = encoder.encodeToString(newSwap.onChainSettlementMethod),
+                    makerPrivateData = null,
+                    makerPrivateDataInitializationVector = null,
+                    takerPrivateData = null,
+                    takerPrivateDataInitializationVector = null,
                     protocolVersion = newSwap.protocolVersion.toString(),
                     isPaymentSent = 0L,
                     isPaymentReceived = 0L,

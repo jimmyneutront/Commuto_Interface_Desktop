@@ -444,9 +444,46 @@ open class DatabaseService(
      */
     @OptIn(DelicateCoroutinesApi::class)
     suspend fun storeSwap(swap: Swap) {
+        val encryptedMakerData = encryptPrivateSwapSettlementMethodData(
+            privateSettlementMethodData = swap.makerPrivateData
+        )
+        val encryptedTakerData = encryptPrivateSwapSettlementMethodData(
+            privateSettlementMethodData = swap.takerPrivateData
+        )
+        val swapToInsert = Swap(
+            id = swap.id,
+            isCreated = swap.isCreated,
+            requiresFill = swap.requiresFill,
+            maker = swap.maker,
+            makerInterfaceID = swap.makerInterfaceID,
+            taker = swap.taker,
+            takerInterfaceID = swap.takerInterfaceID,
+            stablecoin = swap.stablecoin,
+            amountLowerBound = swap.amountLowerBound,
+            amountUpperBound = swap.amountUpperBound,
+            securityDepositAmount = swap.securityDepositAmount,
+            takenSwapAmount = swap.takenSwapAmount,
+            serviceFeeAmount = swap.serviceFeeAmount,
+            serviceFeeRate = swap.serviceFeeRate,
+            onChainDirection = swap.onChainDirection,
+            settlementMethod = swap.settlementMethod,
+            makerPrivateData = encryptedMakerData.first,
+            makerPrivateDataInitializationVector = encryptedMakerData.second,
+            takerPrivateData = encryptedTakerData.first,
+            takerPrivateDataInitializationVector = encryptedTakerData.second,
+            protocolVersion = swap.protocolVersion,
+            isPaymentSent = swap.isPaymentSent,
+            isPaymentReceived = swap.isPaymentReceived,
+            hasBuyerClosed = swap.hasBuyerClosed,
+            hasSellerClosed = swap.hasSellerClosed,
+            disputeRaiser = swap.disputeRaiser,
+            chainID = swap.chainID,
+            state = swap.state,
+            role = swap.role
+        )
         try {
             withContext(databaseServiceContext) {
-                database.insertSwap(swap)
+                database.insertSwap(swapToInsert)
             }
             logger.info("storeSwap: stored swap with B64 ID ${swap.id}")
         } catch (exception: SQLiteException) {
@@ -459,6 +496,31 @@ open class DatabaseService(
             }
             logger.info("storeSwap: swap with B64 ID ${swap.id} already exists in database")
         }
+    }
+
+    /**
+     * Encrypts [privateSettlementMethodData] data with [databaseKey] along with the initialization vector used for
+     * encryption, and returns both as Base64 encoded strings of bytes within a pair, or returns a pair of `null` values
+     * if [privateSettlementMethodData] is `null`.
+     *
+     * @param privateSettlementMethodData The string of private data to be symmetrically encrypted with [databaseKey].
+     * @return A [Pair] containing two optional strings. If [privateSettlementMethodData] is not `null`, the first will
+     * be [privateSettlementMethodData] encrypted with [databaseKey] and a new initialization vector as a Base64 encoded
+     * string of bytes, and the second will be the initialization vector used to encrypt [privateSettlementMethodData],
+     * also as a Base64 encoded string of bytes. If [privateSettlementMethodData] is `null`, both strings will be
+     * `null`.
+     */
+    private fun encryptPrivateSwapSettlementMethodData(privateSettlementMethodData: String?): Pair<String?, String?> {
+        var privateCipherDataString: String? = null
+        var initializationVectorString: String? = null
+        val privateByteArray = privateSettlementMethodData?.toByteArray()
+        if (privateByteArray != null) {
+            val encryptedData = databaseKey.encrypt(privateByteArray)
+            val encoder = Base64.getEncoder()
+            privateCipherDataString = encoder.encodeToString(encryptedData.encryptedData)
+            initializationVectorString = encoder.encodeToString(encryptedData.initializationVector)
+        }
+        return Pair(privateCipherDataString, initializationVectorString)
     }
 
     /**
@@ -590,6 +652,7 @@ open class DatabaseService(
         logger.info("deleteSwaps: deleted swap with B64 ID $swapID and chain ID $chainID, if present")
     }
 
+    // TODO: Update this
     /**
      * Retrieves the persistently stored [Swap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#swap) with
      * the given ID, or returns null if no such swap is present.
@@ -608,14 +671,86 @@ open class DatabaseService(
             throw IllegalStateException("Multiple swaps found with given id $id")
         } else if (dbSwaps.size == 1) {
             check(dbSwaps[0].id == id) {
-                "Returned swap id $id did not match specified swap id $id"
+                "Returned swap ID ${dbSwaps[0].id} did not match specified swap ID $id"
             }
+            val decryptedMakerPrivateData = decryptPrivateSwapSettlementMethodData(
+                privateSettlementMethodData = dbSwaps[0].makerPrivateData,
+                privateSettlementMethodDataInitializationVector = dbSwaps[0].makerPrivateDataInitializationVector
+            )
+            val decryptedTakerPrivateData = decryptPrivateSwapSettlementMethodData(
+                privateSettlementMethodData = dbSwaps[0].takerPrivateData,
+                privateSettlementMethodDataInitializationVector = dbSwaps[0].takerPrivateDataInitializationVector
+            )
             logger.info("getSwap: returning swap with B64 ID $id")
-            dbSwaps[0]
+            Swap(
+                id = dbSwaps[0].id,
+                isCreated = dbSwaps[0].isCreated,
+                requiresFill = dbSwaps[0].requiresFill,
+                maker = dbSwaps[0].maker,
+                makerInterfaceID = dbSwaps[0].makerInterfaceID,
+                taker = dbSwaps[0].taker,
+                takerInterfaceID = dbSwaps[0].takerInterfaceID,
+                stablecoin = dbSwaps[0].stablecoin,
+                amountLowerBound = dbSwaps[0].amountLowerBound,
+                amountUpperBound = dbSwaps[0].amountUpperBound,
+                securityDepositAmount = dbSwaps[0].securityDepositAmount,
+                takenSwapAmount = dbSwaps[0].takenSwapAmount,
+                serviceFeeAmount = dbSwaps[0].serviceFeeAmount,
+                serviceFeeRate = dbSwaps[0].serviceFeeRate,
+                onChainDirection = dbSwaps[0].onChainDirection,
+                settlementMethod = dbSwaps[0].settlementMethod,
+                makerPrivateData = decryptedMakerPrivateData,
+                makerPrivateDataInitializationVector = null,
+                takerPrivateData = decryptedTakerPrivateData,
+                takerPrivateDataInitializationVector = null,
+                protocolVersion = dbSwaps[0].protocolVersion,
+                isPaymentSent = dbSwaps[0].isPaymentSent,
+                isPaymentReceived = dbSwaps[0].isPaymentReceived,
+                hasBuyerClosed = dbSwaps[0].hasBuyerClosed,
+                hasSellerClosed = dbSwaps[0].hasSellerClosed,
+                disputeRaiser = dbSwaps[0].disputeRaiser,
+                chainID = dbSwaps[0].chainID,
+                state = dbSwaps[0].state,
+                role = dbSwaps[0].role,
+            )
         } else {
             logger.info("getSwap: no swap found with B64 ID $id")
             null
         }
+    }
+
+    private fun decryptPrivateSwapSettlementMethodData(
+        privateSettlementMethodData: String?,
+        privateSettlementMethodDataInitializationVector: String?
+    ): String? {
+        var decryptedPrivateDataString: String? = null
+        if (privateSettlementMethodData != null && privateSettlementMethodDataInitializationVector != null) {
+            val decoder = Base64.getDecoder()
+            val privateCipherData = try {
+                decoder.decode(privateSettlementMethodData)
+            } catch (exception: Exception) {
+                null
+            }
+            val privateDataInitializationVector = try {
+                decoder.decode(privateSettlementMethodDataInitializationVector)
+            } catch (exception: Exception) {
+                null
+            }
+            if (privateCipherData != null && privateDataInitializationVector != null) {
+                val privateDataObject = SymmetricallyEncryptedData(
+                    data = privateCipherData,
+                    iv = privateDataInitializationVector
+                )
+                try {
+                    databaseKey.decrypt(privateDataObject)
+                } catch(exception: Exception) {
+                    return null
+                }.let {
+                    decryptedPrivateDataString = it.decodeToString()
+                }
+            }
+        }
+        return decryptedPrivateDataString
     }
 
 }
