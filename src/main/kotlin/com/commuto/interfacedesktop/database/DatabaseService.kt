@@ -652,7 +652,6 @@ open class DatabaseService(
         logger.info("deleteSwaps: deleted swap with B64 ID $swapID and chain ID $chainID, if present")
     }
 
-    // TODO: Update this
     /**
      * Retrieves the persistently stored [Swap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#swap) with
      * the given ID, or returns null if no such swap is present.
@@ -719,6 +718,18 @@ open class DatabaseService(
         }
     }
 
+    /**
+     * Decrypts [privateSettlementMethodData] with [databaseKey] and [privateSettlementMethodDataInitializationVector]
+     * and then returns the result as a UTF-8 string, or returns `null` if [privateSettlementMethodData] or
+     * [privateSettlementMethodDataInitializationVector] is `null` or if decryption is unsuccessful.
+     *
+     * @param privateSettlementMethodData The private data to be decrypted, as a Base64 encoded string of bytes.
+     * @param privateSettlementMethodDataInitializationVector The initialization vector that will be used to decrypt
+     * [privateSettlementMethodData], as a Base64 encoded string of bytes.
+     *
+     * @return An optional string that will either be a UTF-8 string made from the results of the decryption, or `null`
+     * if either of the parameters are `null` or if decryption is unsuccessful.
+     */
     private fun decryptPrivateSwapSettlementMethodData(
         privateSettlementMethodData: String?,
         privateSettlementMethodDataInitializationVector: String?
