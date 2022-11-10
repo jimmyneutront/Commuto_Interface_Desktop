@@ -10,12 +10,13 @@ import java.math.BigDecimal
  * transaction does not revert.
  *
  * This function ensures that:
- *  - the isUserMaker field is false (meaning the user is not the maker of the offer)
- *  - the havePublicKey field is true (meaning this interface has a copy of the maker's public key)
+ *  - the isUserMaker field is false (meaning the user is not the maker of the offer).
+ *  - the havePublicKey field is true (meaning this interface has a copy of the maker's public key).
  *  - (if the offer's lower and upper bound amounts are not equal) the takenSwapAmount is within the bounds specified by
- *  the offer maker
- *  - the user has selected a settlement method
- *  - the settlement method selected by the user is accepted by the offer maker
+ *  the offer maker.
+ *  - the user has selected a settlement method.
+ *  - the settlement method selected by the user is accepted by the offer maker.
+ *  - the user has supplied their information for the selected settlement method.
  *
  *  @param offer The [Offer] that is being taken.
  *  @param takenSwapAmount (If the lower and upper bound amounts of [offer] are equal, this will not be used.) The
@@ -59,6 +60,9 @@ fun validateNewSwapData(
     }
     if (selectedSettlementMethod == null) {
         throw NewSwapDataValidationException("You must select a settlement method.")
+    }
+    if (selectedSettlementMethod.privateData == null) {
+        throw NewSwapDataValidationException("You must supply your information for the settlement method you select.")
     }
     val selectedSettlementMethodInArray = offer.settlementMethods.firstOrNull {
         it.currency == selectedSettlementMethod.currency && it.price == selectedSettlementMethod.price &&

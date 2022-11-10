@@ -8,6 +8,7 @@ import com.commuto.interfacedesktop.settlement.SettlementMethod
  * This function ensures that:
  *  - the user has selected at least one settlement method
  *  - the user has specified a price for each selected settlement method
+ *  - the user has specified their information for each selected settlement method.
  *
  *  @param settlementMethods The [List] of [SettlementMethod]s to be validated.
  *
