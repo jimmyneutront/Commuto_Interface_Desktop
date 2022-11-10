@@ -18,7 +18,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.commuto.interfacedesktop.offer.EditingOfferState
 import com.commuto.interfacedesktop.offer.Offer
-import com.commuto.interfacedesktop.offer.SettlementMethod
+import com.commuto.interfacedesktop.settlement.SettlementMethod
 
 /**
  * Allows the user to edit one of their [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer)s.

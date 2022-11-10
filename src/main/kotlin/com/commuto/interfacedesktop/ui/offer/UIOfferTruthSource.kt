@@ -2,6 +2,7 @@ package com.commuto.interfacedesktop.ui.offer
 
 import androidx.compose.runtime.MutableState
 import com.commuto.interfacedesktop.offer.*
+import com.commuto.interfacedesktop.settlement.SettlementMethod
 import com.commuto.interfacedesktop.ui.StablecoinInformation
 import java.math.BigDecimal
 import java.math.BigInteger

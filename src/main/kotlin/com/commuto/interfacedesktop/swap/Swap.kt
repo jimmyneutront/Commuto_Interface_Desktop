@@ -4,7 +4,7 @@ import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
 import com.commuto.interfacedesktop.blockchain.structs.SwapStruct
 import com.commuto.interfacedesktop.offer.OfferDirection
-import com.commuto.interfacedesktop.offer.SettlementMethod
+import com.commuto.interfacedesktop.settlement.SettlementMethod
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
 import java.math.BigInteger

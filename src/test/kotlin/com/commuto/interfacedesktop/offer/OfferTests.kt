@@ -1,6 +1,7 @@
 package com.commuto.interfacedesktop.offer
 
 import androidx.compose.runtime.mutableStateListOf
+import com.commuto.interfacedesktop.settlement.SettlementMethod
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals

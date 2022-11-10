@@ -117,6 +117,8 @@ internal class Database(databaseDriverFactory: DatabaseDriverFactory) {
             id = settlementMethod.id,
             chainID = settlementMethod.chainID,
             settlementMethod = settlementMethod.settlementMethod,
+            privateData = settlementMethod.privateData,
+            privateDataInitializationVector = settlementMethod.privateDataInitializationVector
         )
     }
 

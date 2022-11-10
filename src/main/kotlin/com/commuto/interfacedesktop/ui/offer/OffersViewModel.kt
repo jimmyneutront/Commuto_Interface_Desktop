@@ -8,6 +8,7 @@ import com.commuto.interfacedesktop.offer.validation.NewOfferDataValidationExcep
 import com.commuto.interfacedesktop.offer.validation.validateEditedSettlementMethods
 import com.commuto.interfacedesktop.offer.validation.validateNewOfferData
 import com.commuto.interfacedesktop.offer.validation.validateNewSwapData
+import com.commuto.interfacedesktop.settlement.SettlementMethod
 import com.commuto.interfacedesktop.ui.StablecoinInformation
 import com.commuto.interfacedesktop.ui.StablecoinInformationRepository
 import kotlinx.coroutines.*

@@ -1,6 +1,6 @@
 package com.commuto.interfacedesktop.offer.validation
 
-import com.commuto.interfacedesktop.offer.SettlementMethod
+import com.commuto.interfacedesktop.settlement.SettlementMethod
 
 /**
  * Validates edited settlement methods for an offer made by the user of this interface.

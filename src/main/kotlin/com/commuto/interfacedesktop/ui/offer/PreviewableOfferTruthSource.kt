@@ -6,7 +6,7 @@ import androidx.compose.runtime.snapshots.SnapshotStateMap
 import com.commuto.interfacedesktop.offer.Offer
 import com.commuto.interfacedesktop.offer.OfferDirection
 import com.commuto.interfacedesktop.offer.OpeningOfferState
-import com.commuto.interfacedesktop.offer.SettlementMethod
+import com.commuto.interfacedesktop.settlement.SettlementMethod
 import com.commuto.interfacedesktop.ui.StablecoinInformation
 import java.math.BigDecimal
 import java.math.BigInteger

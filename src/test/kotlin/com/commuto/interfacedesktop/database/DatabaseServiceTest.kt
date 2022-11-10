@@ -127,36 +127,45 @@ class DatabaseServiceTest {
         val chainID = "a_chain_id"
         val differentChainID = "different_chain_id"
         val settlementMethods = listOf(
-            "settlement_method_zero",
-            "settlement_method_one",
-            "settlement_method_two",
+            Pair("settlement_method_zero", "private_data_zero"),
+            Pair("settlement_method_one", "private_data_one"),
+            Pair("settlement_method_two", "private_data_two"),
         )
         databaseService.storeSettlementMethods(offerId, chainID, settlementMethods)
         databaseService.storeSettlementMethods(offerId, differentChainID, settlementMethods)
         val receivedSettlementMethods = databaseService.getSettlementMethods(offerId, chainID)!!
-        Assert.assertEquals(receivedSettlementMethods.size, 3)
-        Assert.assertEquals(receivedSettlementMethods[0], "settlement_method_zero")
-        Assert.assertEquals(receivedSettlementMethods[1], "settlement_method_one")
-        Assert.assertEquals(receivedSettlementMethods[2], "settlement_method_two")
+        assertEquals(3, receivedSettlementMethods.size)
+        assertEquals("settlement_method_zero", receivedSettlementMethods[0].first)
+        assertEquals("private_data_zero", receivedSettlementMethods[0].second)
+        assertEquals("settlement_method_one", receivedSettlementMethods[1].first)
+        assertEquals("private_data_one", receivedSettlementMethods[1].second)
+        assertEquals("settlement_method_two", receivedSettlementMethods[2].first)
+        assertEquals("private_data_two", receivedSettlementMethods[2].second)
         val newSettlementMethods = listOf(
-            "settlement_method_three",
-            "settlement_method_four",
-            "settlement_method_five",
+            Pair("settlement_method_three", "private_data_three"),
+            Pair("settlement_method_four", "private_data_four"),
+            Pair("settlement_method_five", "private_data_five"),
         )
         databaseService.storeSettlementMethods(offerId, chainID, newSettlementMethods)
         val newReturnedSettlementMethods = databaseService.getSettlementMethods(offerId, chainID)!!
-        Assert.assertEquals(newReturnedSettlementMethods.size, 3)
-        Assert.assertEquals(newReturnedSettlementMethods[0], "settlement_method_three")
-        Assert.assertEquals(newReturnedSettlementMethods[1], "settlement_method_four")
-        Assert.assertEquals(newReturnedSettlementMethods[2], "settlement_method_five")
+        assertEquals(3, newReturnedSettlementMethods.size)
+        assertEquals("settlement_method_three", newReturnedSettlementMethods[0].first)
+        assertEquals("private_data_three", newReturnedSettlementMethods[0].second)
+        assertEquals("settlement_method_four", newReturnedSettlementMethods[1].first)
+        assertEquals("private_data_four", newReturnedSettlementMethods[1].second)
+        assertEquals("settlement_method_five", newReturnedSettlementMethods[2].first)
+        assertEquals("private_data_five", newReturnedSettlementMethods[2].second)
         databaseService.deleteSettlementMethods(offerId, chainID)
         val returnedSettlementMethodsAfterDeletion = databaseService.getSettlementMethods(offerId, chainID)
         Assert.assertEquals(null, returnedSettlementMethodsAfterDeletion)
         val differentSettlementMethods = databaseService.getSettlementMethods(offerId, differentChainID)!!
-        Assert.assertEquals(differentSettlementMethods.size, 3)
-        Assert.assertEquals(differentSettlementMethods[0], "settlement_method_zero")
-        Assert.assertEquals(differentSettlementMethods[1], "settlement_method_one")
-        Assert.assertEquals(differentSettlementMethods[2], "settlement_method_two")
+        assertEquals(3, differentSettlementMethods.size)
+        assertEquals("settlement_method_zero", differentSettlementMethods[0].first)
+        assertEquals("private_data_zero", differentSettlementMethods[0].second)
+        assertEquals("settlement_method_one", differentSettlementMethods[1].first)
+        assertEquals("private_data_one", differentSettlementMethods[1].second)
+        assertEquals("settlement_method_two", differentSettlementMethods[2].first)
+        assertEquals("private_data_two", differentSettlementMethods[2].second)
     }
 
     /**

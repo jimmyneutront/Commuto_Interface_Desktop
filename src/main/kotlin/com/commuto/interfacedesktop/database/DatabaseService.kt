@@ -3,11 +3,13 @@ package com.commuto.interfacedesktop.database
 import com.commuto.interfacedesktop.db.*
 import com.commuto.interfacedesktop.key.DatabaseKeyDeriver
 import com.commuto.interfacedesktop.key.keys.SymmetricKey
+import com.commuto.interfacedesktop.key.keys.SymmetricallyEncryptedData
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.newSingleThreadContext
 import kotlinx.coroutines.withContext
 import org.slf4j.LoggerFactory
 import org.sqlite.SQLiteException
+import java.util.*
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -186,11 +188,32 @@ open class DatabaseService(
      * @throws Exception if database insertion is unsuccessful.
      */
     @OptIn(DelicateCoroutinesApi::class)
-    suspend fun storeSettlementMethods(offerID: String, chainID: String, settlementMethods: List<String>) {
+    suspend fun storeSettlementMethods(
+        offerID: String,
+        chainID: String,
+        settlementMethods: List<Pair<String, String?>>
+    ) {
         withContext(databaseServiceContext) {
             database.deleteSettlementMethods(offerID, chainID)
+            val encoder = Base64.getEncoder()
             for (settlementMethod in settlementMethods) {
-                database.insertSettlementMethod(SettlementMethod(offerID, chainID, settlementMethod))
+                var privateDataString: String? = null
+                var initializationVectorString: String? = null
+                val privateDataBytes = settlementMethod.second?.encodeToByteArray()
+                if (privateDataBytes != null) {
+                    val encryptedData = databaseKey.encrypt(privateDataBytes)
+                    privateDataString = encoder.encodeToString(encryptedData.encryptedData)
+                    initializationVectorString = encoder.encodeToString(encryptedData.initializationVector)
+                }
+                database.insertSettlementMethod(
+                    SettlementMethod(
+                        offerID,
+                        chainID,
+                        settlementMethod.first,
+                        privateDataString,
+                        initializationVectorString
+                    )
+                )
             }
         }
         logger.info("storeSettlementMethods: stored ${settlementMethods.size} for offer with B64 ID $offerID")
@@ -216,28 +239,73 @@ open class DatabaseService(
     }
 
     /**
-     * Retrieves the persistently stored settlement methods associated with the specified offer ID and chain ID, or
-     * returns null if no such settlement methods are present.
+     * Retrieves the persistently stored settlement methods and their private data (if any) associated with the
+     * specified offer ID and chain ID, or returns `null` if no such settlement methods are present.
      *
-     * @param offerID The ID of the offer for which settlement methods should be returned, as a Base64-[String] of bytes.
+     * @param offerID The ID of the offer for which settlement methods should be returned, as a Base64-[String] of
+     * bytes.
      * @param chainID The ID of the blockchain on which the [Offer] or Swap corresponding to these settlement methods
      * exists, as a [String].
      *
-     * @return A [List] of [String]s which are settlement methods associated with [offerID] and [chainID], or null if no
-     * such settlement methods are found.
+     * @return `null` if no such settlement methods are found, or a [List] of [Pair]s containing a string and an
+     * optional string, the first of which is a settlement method associated with [offerID], the second of which is the
+     * private data associated with that settlement method, or `null` if no such data is found or if it cannot be
+     * decrypted.
      *
      * @throws Exception if database selection is unsuccessful.
      */
     @OptIn(DelicateCoroutinesApi::class)
-    suspend fun getSettlementMethods(offerID: String, chainID: String): List<String>? {
+    suspend fun getSettlementMethods(offerID: String, chainID: String): List<Pair<String, String?>>? {
         val dbSettlementMethods: List<SettlementMethod> = withContext(databaseServiceContext) {
             database.selectSettlementMethodByOfferIdAndChainID(offerID, chainID)
         }
         return if (dbSettlementMethods.isNotEmpty()) {
-            logger.info("getSettlementMethods: returning ${dbSettlementMethods.size} for offer with B64 ID $offerID")
-            dbSettlementMethods.map {
-                it.settlementMethod
+            val settlementMethodsList = mutableListOf<Pair<String, String?>>()
+            val decoder = Base64.getDecoder()
+            dbSettlementMethods.forEach {
+                var decryptedPrivateDataString: String? = null
+                val privateDataCipherString = it.privateData
+                val privateDataInitializationVectorString = it.privateDataInitializationVector
+                if (privateDataCipherString != null && privateDataInitializationVectorString != null) {
+                    val privateCipherData = try {
+                        decoder.decode(privateDataCipherString)
+                    } catch (exception: Exception) {
+                        null
+                    }
+                    val privateDataInitializationVector = try {
+                        decoder.decode(privateDataInitializationVectorString)
+                    } catch (exception: Exception) {
+                        null
+                    }
+                    if (privateCipherData != null && privateDataInitializationVector != null) {
+                        val privateDataObject = SymmetricallyEncryptedData(
+                            data = privateCipherData,
+                            iv = privateDataInitializationVector
+                        )
+                        val decryptedPrivateData = try {
+                            databaseKey.decrypt(privateDataObject)
+                        } catch (exception: Exception) {
+                            null
+                        }
+                        if (decryptedPrivateData != null) {
+                            decryptedPrivateDataString = decryptedPrivateData.decodeToString()
+                        } else {
+                            logger.error("getSettlementMethods: unable to get string from decoded private data " +
+                                    "using utf8 encoding for offer with B64 ID $offerID")
+                        }
+                    } else {
+                        logger.error("getSettlementMethods: found private data for offer with B64 ID $offerID " +
+                                "but could not decode bytes from strings")
+                    }
+                } else {
+                    logger.error("getSettlementMethods: did not find private settlement method data for " +
+                            "settlement method for offer with B64 ID $offerID")
+                }
+                settlementMethodsList.add(Pair(it.settlementMethod, decryptedPrivateDataString))
             }
+            logger.info("getSettlementMethods: returning ${dbSettlementMethods.size} for offer with B64 ID " +
+                    offerID)
+            return settlementMethodsList
         } else {
             logger.info("getSettlementMethods: none found for offer with B64 ID $offerID")
             null

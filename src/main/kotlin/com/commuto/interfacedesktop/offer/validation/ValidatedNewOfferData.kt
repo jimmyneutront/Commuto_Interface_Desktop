@@ -1,7 +1,7 @@
 package com.commuto.interfacedesktop.offer.validation
 
 import com.commuto.interfacedesktop.offer.OfferDirection
-import com.commuto.interfacedesktop.offer.SettlementMethod
+import com.commuto.interfacedesktop.settlement.SettlementMethod
 import com.commuto.interfacedesktop.ui.StablecoinInformation
 import java.math.BigInteger
 

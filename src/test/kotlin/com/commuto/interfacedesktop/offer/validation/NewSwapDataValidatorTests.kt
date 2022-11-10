@@ -4,7 +4,7 @@ import androidx.compose.runtime.mutableStateListOf
 import com.commuto.interfacedesktop.offer.Offer
 import com.commuto.interfacedesktop.offer.OfferDirection
 import com.commuto.interfacedesktop.offer.OfferState
-import com.commuto.interfacedesktop.offer.SettlementMethod
+import com.commuto.interfacedesktop.settlement.SettlementMethod
 import com.commuto.interfacedesktop.ui.StablecoinInformationRepository
 import org.junit.Assert.assertEquals
 import org.junit.Test

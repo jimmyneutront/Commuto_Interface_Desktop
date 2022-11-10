@@ -1,6 +1,6 @@
 package com.commuto.interfacedesktop.offer.validation
 
-import com.commuto.interfacedesktop.offer.SettlementMethod
+import com.commuto.interfacedesktop.settlement.SettlementMethod
 import java.math.BigInteger
 
 /**

@@ -51,7 +51,9 @@ createSettlementMethodTable:
 CREATE TABLE SettlementMethod (
 id TEXT NOT NULL,
 chainID TEXT NOT NULL,
-settlementMethod TEXT NOT NULL
+settlementMethod TEXT NOT NULL,
+privateData TEXT,
+privateDataInitializationVector TEXT
 );
 
 createKeyPairTable:
@@ -91,8 +93,14 @@ VALUES(?, ?, ?, ?, ?, ?, ?,
 ?, ?, ?, ?);
 
 insertSettlementMethod:
-INSERT INTO SettlementMethod(id, chainID, settlementMethod)
-VALUES(?, ?, ?);
+INSERT INTO SettlementMethod(
+     id,
+     chainID,
+     settlementMethod,
+     privateData,
+     privateDataInitializationVector
+)
+VALUES(?, ?, ?, ?, ?);
 
 insertKeyPair:
 INSERT INTO KeyPair(interfaceId, publicKey, privateKey)
