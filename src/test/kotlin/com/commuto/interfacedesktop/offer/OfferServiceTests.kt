@@ -1709,8 +1709,8 @@ class OfferServiceTests {
         runBlocking {
             databaseService.storeOffer(offerForDatabase)
 
-            val offerInDatabaseBeforeCancellation = databaseService.getOffer(id = offerIDB64String)
-            assertEquals(offerForDatabase, offerInDatabaseBeforeCancellation)
+            val offerInDatabaseBeforeTaking = databaseService.getOffer(id = offerIDB64String)
+            assertEquals(offerForDatabase, offerInDatabaseBeforeTaking)
 
             val swapData = ValidatedNewSwapData(
                 takenSwapAmount = BigInteger.valueOf(15_000L) * BigInteger.TEN.pow(18),
@@ -1718,6 +1718,7 @@ class OfferServiceTests {
                     currency = "EUR",
                     price = "0.98",
                     method = "SEPA",
+                    privateData = "EUR_SEPA_Private_Data"
                 ),
             )
 
@@ -1765,6 +1766,7 @@ class OfferServiceTests {
                 currency = "EUR",
                 price = "0.98",
                 method = "SEPA",
+                privateData = "EUR_SEPA_Private_Data"
             ), swapInTruthSource.settlementMethod)
             assertEquals(BigInteger.ONE, swapInTruthSource.protocolVersion)
             assertFalse(swapInTruthSource.isPaymentSent)
@@ -1773,7 +1775,7 @@ class OfferServiceTests {
             assertFalse(swapInTruthSource.hasSellerClosed)
             assertEquals(BigInteger.ZERO, swapInTruthSource.onChainDisputeRaiser)
             assertEquals(BigInteger.valueOf(31337L), swapInTruthSource.chainID)
-            assertEquals(SwapState.TAKE_OFFER_TRANSACTION_BROADCAST, swapInTruthSource.state)
+            assertEquals(SwapState.TAKE_OFFER_TRANSACTION_BROADCAST, swapInTruthSource.state.value)
 
             // Test the persistently stored swap
             val swapInDatabase = databaseService.getSwap(id = offerIDB64String)
@@ -1803,7 +1805,7 @@ class OfferServiceTests {
                 ).encodeToByteArray()),
                 makerPrivateData = null,
                 makerPrivateDataInitializationVector = null,
-                takerPrivateData = null,
+                takerPrivateData = "EUR_SEPA_Private_Data",
                 takerPrivateDataInitializationVector = null,
                 protocolVersion = swapInTruthSource.protocolVersion.toString(),
                 isPaymentSent = 0L,
@@ -1829,6 +1831,7 @@ class OfferServiceTests {
             assertEquals(expectedSwapInDatabase.serviceFeeRate, swapInDatabase.serviceFeeRate)
             assertEquals(expectedSwapInDatabase.onChainDirection, swapInDatabase.onChainDirection)
             assertEquals(expectedSwapInDatabase.settlementMethod, swapInDatabase.settlementMethod)
+            assertEquals(expectedSwapInDatabase.takerPrivateData, swapInDatabase.takerPrivateData)
             assertEquals(expectedSwapInDatabase.protocolVersion, swapInDatabase.protocolVersion)
             assertEquals(expectedSwapInDatabase.isPaymentSent, swapInDatabase.isPaymentSent)
             assertEquals(expectedSwapInDatabase.isPaymentReceived, swapInDatabase.isPaymentReceived)
@@ -1847,6 +1850,12 @@ class OfferServiceTests {
 
             // Check that the offer has been deleted from persistent storage
             assertNull(databaseService.getOffer(id = offerIDB64String))
+
+            // Check that the offer's settlement methods have been deleted from persistent storage
+            assertNull(databaseService.getSettlementMethods(
+                offerID = offerIDB64String,
+                chainID = BigInteger.valueOf(31337L).toString()),
+            )
         }
 
     }
