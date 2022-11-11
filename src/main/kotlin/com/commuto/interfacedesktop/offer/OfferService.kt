@@ -895,15 +895,16 @@ class OfferService (
 
     /**
      * The method called by [BlockchainService] to notify [OfferService] of an [OfferTakenEvent]. Once notified,
-     * [OfferService] saves [event] in [offerTakenEventRepository] and checks if the user of this interface is the taker
-     * of the offer. If so, then this calls [SwapService.sendTakerInformationMessage]. If not, this checks if the user
-     * of this interface is the maker of the offer. If so, this calls [SwapService.handleNewSwap]. If the user of this
-     * interface is NOT the taker of the offer, (regardless of whether the user is or is not the maker) this removes the
-     * corresponding [Offer] and its settlement methods from persistent storage, removes [event] from
-     * [offerTakenEventRepository], and then checks that the chain ID of the event matches the chain ID of the [Offer]
-     * mapped to the offer ID specified in [event] in the [OfferTruthSource.offers] list on the main coroutine
-     * dispatcher. If they do not match, this returns. If they do match, then this synchronously removes the [Offer]
-     * from said list on the main thread.
+     * [OfferService] saves [event] in [offerTakenEventRepository] and checks if a swap with the ID specified in [event]
+     * exists in persistent storage. If such a swap exists, this assumes that the user of this interface is the taker of
+     * the offer, and then calls [SwapService.sendTakerInformationMessage]. If such a swap does not exist, this searches
+     * for an [Offer] in [offerTruthSource] with an ID equal to that specified in [event]. If this finds such an
+     * [Offer], this ensures that the chain ID of the offer and the chain ID specified in [event] match, and then checks
+     * if the user of this interface is the maker of the offer. If so, this calls [SwapService.handleNewSwap]. Then,
+     * regardless of whether the user of this interface is the maker of the offer, this removes the corresponding offer
+     * and its settlement methods from persistent storage, and then synchronously removes the [Offer] from
+     * [offerTruthSource] on the main coroutine dispatcher. Finally, regardless of whether a swap with the ID specified
+     * in [event] exists in persistent storage, this removes [event] from [offerTakenEventRepository].
      *
      * @param event The [OfferTakenEvent] of which [OfferService] is being notified.
      */
@@ -920,41 +921,40 @@ class OfferService (
          and so we must send taker information.
           */
         if (databaseService.getSwap(id = offerIdString) != null) {
-            logger.info("handleOfferTakenEvent: ${event.offerID} was taken by the user of this interface, " +
-                    "sending taker info")
+            logger.info("handleOfferTakenEvent: ${event.offerID} was taken by the user of this interface, sending taker " +
+                    "info")
             swapService.sendTakerInformationMessage(swapID = event.offerID, chainID = event.chainID)
         } else {
-            val offerInDatabase = databaseService.getOffer(id = offerIdString)
-            /*
-            If we have the offer in persistent storage and we are the maker, then we update state to indicate that we
-            are waiting for taker information
-             */
-            if (offerInDatabase != null && offerInDatabase.isUserMaker == 1L) {
-                logger.info("handleOfferTakenEvent: ${event.offerID} was made by the user of this interface, " +
-                        "handling new swap")
-                swapService.handleNewSwap(
-                    swapID = event.offerID,
-                    chainID = event.chainID
-                )
+            val offer = offerTruthSource.offers[event.offerID]
+            if (offer == null) {
+                logger.info("handleOfferTakenEvent: got event for offer ${event.offerID} not found in offerTruthSource")
+                return
             }
-            /*
-            Regardless of whether we are or are not the maker of this offer, we are not the taker, so we remove the
-            offer and its settlement methods.
-             */
-            databaseService.deleteOffers(offerIdString, event.chainID.toString())
-            logger.info("handleOfferTakenEvent: deleted offer ${event.offerID} from persistent storage")
-            databaseService.deleteSettlementMethods(offerIdString, event.chainID.toString())
-            logger.info("handleOfferTakenEvent: deleted settlement methods for offer ${event.offerID} from " +
-                    "persistent storage")
-            offerTakenEventRepository.remove(event)
-            withContext(Dispatchers.Main) {
-                if (offerTruthSource.offers[event.offerID]?.chainID == event.chainID) {
-                    offerTruthSource.offers[event.offerID]?.isTaken?.value = true
+            if (offer.chainID == event.chainID) {
+                // If we have the offer and we are the maker, then we handle the new swap
+                if (offer.isUserMaker) {
+                    logger.info("handleOfferTakenEvent: ${event.offerID} was made by the user of this interface, " +
+                            "handling new swap")
+                    swapService.handleNewSwap(takenOffer = offer)
+                }
+                /*
+                Regardless of whether we are or are not the maker of this offer, we are not the taker, so we remove the
+                offer and its settlement methods.
+                 */
+                databaseService.deleteOffers(offerID = offerIdString, chainID = event.chainID.toString())
+                logger.info("handleOfferTakenEvent: deleted offer ${event.offerID} from persistent storage")
+                databaseService.deleteSettlementMethods(offerID = offerIdString, chainID = event.chainID.toString())
+                logger.info("handleOfferTakenEvent: deleted settlement methods of offer ${event.offerID} from " +
+                        "persistent storage")
+                withContext(Dispatchers.Main) {
+                    offer.isTaken.value = true
                     offerTruthSource.removeOffer(event.offerID)
                 }
+                logger.info("handleOfferTakenEvent: chain ID ${event.chainID} did not match chain ID of offer " +
+                        "${event.offerID}")
             }
-            logger.info("handleOfferTakenEvent: removed offer ${event.offerID} from offerTruthSource if present")
         }
+        offerTakenEventRepository.remove(event)
     }
 
     /**

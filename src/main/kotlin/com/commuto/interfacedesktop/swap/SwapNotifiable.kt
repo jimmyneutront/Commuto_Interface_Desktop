@@ -2,6 +2,7 @@ package com.commuto.interfacedesktop.swap
 
 import com.commuto.interfacedesktop.blockchain.BlockchainService
 import com.commuto.interfacedesktop.blockchain.events.commutoswap.*
+import com.commuto.interfacedesktop.offer.Offer
 import com.commuto.interfacedesktop.offer.OfferService
 import java.math.BigInteger
 import java.util.*
@@ -26,10 +27,10 @@ interface SwapNotifiable {
     /**
      * The function called by [OfferService] when an offer made by the user of this interface has been taken.
      *
-     * @param swapID The ID of the offer that has been taken.
-     * @param chainID The ID of the blockchain on which the taken offer exists.
+     * @param takenOffer The [Offer] made by the user of this interface that has been taken and now corresponds to a
+     * swap.
      */
-    suspend fun handleNewSwap(swapID: UUID, chainID: BigInteger)
+    suspend fun handleNewSwap(takenOffer: Offer)
 
     /**
      * The function called by [BlockchainService] in order to notify the class implementing this interface of a

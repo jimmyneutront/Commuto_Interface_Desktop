@@ -1,5 +1,6 @@
 package com.commuto.interfacedesktop.swap
 
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.snapshots.SnapshotStateMap
 import com.commuto.interfacedesktop.blockchain.BlockchainService
@@ -12,11 +13,14 @@ import com.commuto.interfacedesktop.extension.asByteArray
 import com.commuto.interfacedesktop.key.KeyManagerService
 import com.commuto.interfacedesktop.key.keys.KeyPair
 import com.commuto.interfacedesktop.key.keys.PublicKey
+import com.commuto.interfacedesktop.offer.Offer
 import com.commuto.interfacedesktop.offer.OfferDirection
+import com.commuto.interfacedesktop.offer.OfferState
 import com.commuto.interfacedesktop.offer.TestOfferService
 import com.commuto.interfacedesktop.p2p.*
 import com.commuto.interfacedesktop.p2p.messages.MakerInformationMessage
 import com.commuto.interfacedesktop.p2p.messages.TakerInformationMessage
+import com.commuto.interfacedesktop.settlement.SettlementMethod
 import io.ktor.client.*
 import io.ktor.client.call.*
 import io.ktor.client.engine.okhttp.*
@@ -224,7 +228,30 @@ class SwapServiceTests {
             commutoSwapAddress = testingServerResponse.commutoSwapAddress
         )
         swapService.setBlockchainService(blockchainService)
-        swapService.handleNewSwap(swapID = swapID, chainID = BigInteger.valueOf(31337))
+
+        val offer = Offer(
+            isCreated = true,
+            isTaken = false,
+            id = swapID,
+            maker = "0x0000000000000000000000000000000000000000",
+            interfaceId = ByteArray(0),
+            stablecoin = "0x0000000000000000000000000000000000000000",
+            amountLowerBound = BigInteger.valueOf(10000L),
+            amountUpperBound = BigInteger.valueOf(10000L),
+            securityDepositAmount = BigInteger.valueOf(1000L),
+            serviceFeeRate = BigInteger.valueOf(100L),
+            direction = OfferDirection.BUY,
+            settlementMethods = mutableStateListOf(
+                SettlementMethod(currency = "USD", price = "1.00", method = "SWIFT", privateData = "SWIFT_private_data")
+            ),
+            protocolVersion = BigInteger.valueOf(1),
+            chainID = BigInteger.valueOf(31337L),
+            havePublicKey = true,
+            isUserMaker = true,
+            state = OfferState.OFFER_OPENED
+        )
+
+        swapService.handleNewSwap(takenOffer = offer)
 
         assertEquals(swapID, swapTruthSource.addedSwap!!.id)
 

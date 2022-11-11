@@ -672,7 +672,7 @@ class OfferServiceTests {
                 swapIDChannel.send(swapID)
                 chainIDChannel.send(chainID)
             }
-            override suspend fun handleNewSwap(swapID: UUID, chainID: BigInteger) {}
+            override suspend fun handleNewSwap(takenOffer: Offer) {}
             override suspend fun handleSwapFilledEvent(event: SwapFilledEvent) {}
             override suspend fun handlePaymentSentEvent(event: PaymentSentEvent) {}
             override suspend fun handlePaymentReceivedEvent(event: PaymentReceivedEvent) {}
@@ -792,14 +792,13 @@ class OfferServiceTests {
 
         val offerTruthSource = TestOfferTruthSource()
 
-        // OfferService should call the handleNewSwap method of this class, passing a UUID equal to offerID
+        // OfferService should call the handleNewSwap method of this class, passing an offer with an ID equal to
+        // offerID. We need this new TestSwapService declaration to track when handleNewSwap is called.
         class TestSwapService: SwapNotifiable {
-            val swapIDChannel = Channel<UUID>()
-            val chainIDChannel = Channel<BigInteger>()
+            val offerChannel = Channel<Offer>()
             override suspend fun sendTakerInformationMessage(swapID: UUID, chainID: BigInteger) {}
-            override suspend fun handleNewSwap(swapID: UUID, chainID: BigInteger) {
-                swapIDChannel.send(swapID)
-                chainIDChannel.send(chainID)
+            override suspend fun handleNewSwap(takenOffer: Offer) {
+                offerChannel.send(takenOffer)
             }
             override suspend fun handleSwapFilledEvent(event: SwapFilledEvent) {}
             override suspend fun handlePaymentSentEvent(event: PaymentSentEvent) {}
@@ -883,10 +882,9 @@ class OfferServiceTests {
         blockchainService.listen()
 
         withTimeout(60_000) {
-            val receivedSwapID = swapService.swapIDChannel.receive()
-            val receivedChainID = swapService.chainIDChannel.receive()
-            assertEquals(newOfferID, receivedSwapID)
-            assertEquals(BigInteger.valueOf(31337L), receivedChainID)
+            val receivedOffer = swapService.offerChannel.receive()
+            assertEquals(newOfferID, receivedOffer.id)
+            assertEquals(BigInteger.valueOf(31337L), receivedOffer.chainID)
             assertFalse(exceptionHandler.gotError)
         }
 

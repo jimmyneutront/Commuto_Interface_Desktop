@@ -4,10 +4,7 @@ import com.commuto.interfacedesktop.blockchain.events.commutoswap.*
 import com.commuto.interfacedesktop.database.DatabaseDriverFactory
 import com.commuto.interfacedesktop.database.DatabaseService
 import com.commuto.interfacedesktop.key.KeyManagerService
-import com.commuto.interfacedesktop.offer.OfferNotifiable
-import com.commuto.interfacedesktop.offer.OfferService
-import com.commuto.interfacedesktop.offer.OfferServiceTests
-import com.commuto.interfacedesktop.offer.TestOfferService
+import com.commuto.interfacedesktop.offer.*
 import com.commuto.interfacedesktop.swap.SwapNotifiable
 import com.commuto.interfacedesktop.swap.SwapServiceTests
 import com.commuto.interfacedesktop.swap.TestSwapService
@@ -407,7 +404,7 @@ class BlockchainServiceTest {
         class TestSwapService: SwapNotifiable {
             val swapFilledEventChannel = Channel<SwapFilledEvent>()
             override suspend fun sendTakerInformationMessage(swapID: UUID, chainID: BigInteger) {}
-            override suspend fun handleNewSwap(swapID: UUID, chainID: BigInteger) {}
+            override suspend fun handleNewSwap(takenOffer: Offer) {}
             override suspend fun handleSwapFilledEvent(event: SwapFilledEvent) {
                 swapFilledEventChannel.send(event)
             }
@@ -470,7 +467,7 @@ class BlockchainServiceTest {
         class TestSwapService: SwapNotifiable {
             val paymentSentEventChannel = Channel<PaymentSentEvent>()
             override suspend fun sendTakerInformationMessage(swapID: UUID, chainID: BigInteger) {}
-            override suspend fun handleNewSwap(swapID: UUID, chainID: BigInteger) {}
+            override suspend fun handleNewSwap(takenOffer: Offer) {}
             override suspend fun handleSwapFilledEvent(event: SwapFilledEvent) {}
             override suspend fun handlePaymentSentEvent(event: PaymentSentEvent) {
                 paymentSentEventChannel.send(event)
@@ -533,7 +530,7 @@ class BlockchainServiceTest {
         class TestSwapService: SwapNotifiable {
             val paymentReceivedEventChannel = Channel<PaymentReceivedEvent>()
             override suspend fun sendTakerInformationMessage(swapID: UUID, chainID: BigInteger) {}
-            override suspend fun handleNewSwap(swapID: UUID, chainID: BigInteger) {}
+            override suspend fun handleNewSwap(takenOffer: Offer) {}
             override suspend fun handleSwapFilledEvent(event: SwapFilledEvent) {}
             override suspend fun handlePaymentSentEvent(event: PaymentSentEvent) {}
             override suspend fun handlePaymentReceivedEvent(event: PaymentReceivedEvent) {
@@ -599,7 +596,7 @@ class BlockchainServiceTest {
         class TestSwapService: SwapNotifiable {
             val buyerClosedEventChannel = Channel<BuyerClosedEvent>()
             override suspend fun sendTakerInformationMessage(swapID: UUID, chainID: BigInteger) {}
-            override suspend fun handleNewSwap(swapID: UUID, chainID: BigInteger) {}
+            override suspend fun handleNewSwap(takenOffer: Offer) {}
             override suspend fun handleSwapFilledEvent(event: SwapFilledEvent) {}
             override suspend fun handlePaymentSentEvent(event: PaymentSentEvent) {}
             override suspend fun handlePaymentReceivedEvent(event: PaymentReceivedEvent) {}
@@ -665,7 +662,7 @@ class BlockchainServiceTest {
         class TestSwapService: SwapNotifiable {
             val sellerClosedEventChannel = Channel<SellerClosedEvent>()
             override suspend fun sendTakerInformationMessage(swapID: UUID, chainID: BigInteger) {}
-            override suspend fun handleNewSwap(swapID: UUID, chainID: BigInteger) {}
+            override suspend fun handleNewSwap(takenOffer: Offer) {}
             override suspend fun handleSwapFilledEvent(event: SwapFilledEvent) {}
             override suspend fun handlePaymentSentEvent(event: PaymentSentEvent) {}
             override suspend fun handlePaymentReceivedEvent(event: PaymentReceivedEvent) {}

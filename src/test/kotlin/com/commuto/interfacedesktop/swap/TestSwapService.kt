@@ -1,6 +1,7 @@
 package com.commuto.interfacedesktop.swap
 
 import com.commuto.interfacedesktop.blockchain.events.commutoswap.*
+import com.commuto.interfacedesktop.offer.Offer
 import com.commuto.interfacedesktop.offer.OfferService
 import java.math.BigInteger
 import java.util.*
@@ -17,7 +18,7 @@ class TestSwapService: SwapNotifiable {
     /**
      * Does nothing, required to adopt [SwapNotifiable]. Should not be used.
      */
-    override suspend fun handleNewSwap(swapID: UUID, chainID: BigInteger) {}
+    override suspend fun handleNewSwap(takenOffer: Offer) {}
     /**
      * Does nothing, required to adopt [SwapNotifiable]. Should not be used.
      */

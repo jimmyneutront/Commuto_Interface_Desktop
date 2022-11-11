@@ -6,14 +6,18 @@ import com.commuto.interfacedesktop.database.DatabaseService
 import com.commuto.interfacedesktop.db.Swap as DatabaseSwap
 import com.commuto.interfacedesktop.extension.asByteArray
 import com.commuto.interfacedesktop.key.KeyManagerService
+import com.commuto.interfacedesktop.offer.Offer
 import com.commuto.interfacedesktop.offer.OfferDirection
 import com.commuto.interfacedesktop.offer.OfferService
 import com.commuto.interfacedesktop.p2p.P2PService
 import com.commuto.interfacedesktop.p2p.SwapMessageNotifiable
 import com.commuto.interfacedesktop.p2p.messages.MakerInformationMessage
 import com.commuto.interfacedesktop.p2p.messages.TakerInformationMessage
+import com.commuto.interfacedesktop.settlement.SettlementMethod
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.json.Json
 import org.slf4j.LoggerFactory
 import java.math.BigInteger
 import java.util.*
@@ -386,21 +390,27 @@ class SwapService @Inject constructor(
     }
 
     /**
-     * Gets the on-chain [Swap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#swap) with the specified
-     * swap ID, creates and persistently stores a new [Swap] with state [SwapState.AWAITING_TAKER_INFORMATION] using the
-     * on chain swap, and maps [swapID] to the new [Swap] on the main coroutine dispatcher.
+     * Gets the on-chain [Swap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#swap) corresponding to
+     * [takenOffer], determines which one of [takenOffer]'s settlement methods the offer taker has selected, gets the
+     * user's (maker's) private settlement method data for this settlement method, and creates and persistently stores a
+     * new [Swap] with state [SwapState.AWAITING_TAKER_INFORMATION] using the on-chain swap and the user's (maker's)
+     * private settlement method data, and maps [takenOffer]'s ID to the new [Swap] on the main coroutine dispatcher.
+     * This should only be called for swaps made by the user of this interface.
+     *
+     * @param takenOffer The [Offer] made by the user of this interface that has been taken and now corresponds to a
+     * swap.
      */
-    override suspend fun handleNewSwap(swapID: UUID, chainID: BigInteger) {
-        logger.info("handleNewSwap: getting on-chain struct for $swapID")
-        val swapOnChain = blockchainService.getSwap(id = swapID)
+    override suspend fun handleNewSwap(takenOffer: Offer) {
+        logger.info("handleNewSwap: getting on-chain struct for ${takenOffer.id}")
+        val swapOnChain = blockchainService.getSwap(id = takenOffer.id)
         if (swapOnChain == null) {
-            logger.error("handleNewSwap: could not find $swapID on chain, throwing exception")
-            throw SwapServiceException("Could not find $swapID on chain")
+            logger.error("handleNewSwap: could not find ${takenOffer.id} on chain, throwing exception")
+            throw SwapServiceException("Could not find ${takenOffer.id} on chain")
         }
         val direction: OfferDirection = when (swapOnChain.direction) {
             BigInteger.ZERO -> OfferDirection.BUY
             BigInteger.ONE -> OfferDirection.SELL
-            else -> throw SwapServiceException("Swap $swapID has invalid direction: ${swapOnChain.direction}")
+            else -> throw SwapServiceException("Swap ${takenOffer.id} has invalid direction: ${swapOnChain.direction}")
         }
         val swapRole = when (direction) {
             OfferDirection.BUY -> SwapRole.MAKER_AND_BUYER
@@ -409,7 +419,7 @@ class SwapService @Inject constructor(
         val newSwap = Swap(
             isCreated = swapOnChain.isCreated,
             requiresFill = swapOnChain.requiresFill,
-            id = swapID,
+            id = takenOffer.id,
             maker = swapOnChain.maker,
             makerInterfaceID = swapOnChain.makerInterfaceID,
             taker = swapOnChain.taker,
@@ -433,12 +443,33 @@ class SwapService @Inject constructor(
             state = SwapState.AWAITING_TAKER_INFORMATION,
             role = swapRole,
         )
-        // TODO: check for taker information once SettlementMethodService is implemented
-        logger.info("handleNewSwap: persistently storing $swapID")
+        val deserializedSelectedSettlementMethod = try {
+            Json.decodeFromString<SettlementMethod>(swapOnChain.settlementMethod.decodeToString())
+        } catch (exception: Exception) {
+            null
+        }
         val encoder = Base64.getEncoder()
+        if (deserializedSelectedSettlementMethod != null) {
+            val selectedSettlementMethod = takenOffer.settlementMethods.firstOrNull {
+                deserializedSelectedSettlementMethod.currency == it.currency &&
+                        deserializedSelectedSettlementMethod.price == it.price &&
+                        deserializedSelectedSettlementMethod.method == it.method
+            }
+            if (selectedSettlementMethod != null) {
+                newSwap.makerPrivateSettlementMethodData = selectedSettlementMethod.privateData
+            } else {
+                logger.warn("handleNewSwap: unable to find settlement for offer ${takenOffer.id} matching " +
+                        "that selected by taker: ${encoder.encodeToString(swapOnChain.settlementMethod)}")
+            }
+        } else {
+            logger.warn("handleNewSwap: unable to deserialize selected settlement method ${encoder
+                .encodeToString(swapOnChain.settlementMethod)} for ${takenOffer.id}")
+        }
+        // TODO: check for taker information once SettlementMethodService is implemented
+        logger.info("handleNewSwap: persistently storing ${takenOffer.id}")
         // TODO: get actual maker private data here
         val swapForDatabase = DatabaseSwap(
-            id = encoder.encodeToString(swapID.asByteArray()),
+            id = encoder.encodeToString(takenOffer.id.asByteArray()),
             isCreated = if (newSwap.isCreated) 1L else 0L,
             requiresFill = if (newSwap.requiresFill) 1L else 0L,
             maker = newSwap.maker,
@@ -473,7 +504,7 @@ class SwapService @Inject constructor(
         withContext(Dispatchers.Main) {
             swapTruthSource.addSwap(newSwap)
         }
-        logger.info("handleNewSwap: successfully handled $swapID")
+        logger.info("handleNewSwap: successfully handled ${takenOffer.id}")
     }
 
     /**

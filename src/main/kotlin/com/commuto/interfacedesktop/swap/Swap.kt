@@ -68,6 +68,8 @@ import java.util.*
  * swap-closing process we are in.
  * @property closingSwapException The [Exception] that we encountered during the swap closing process, or `null` if no
  * such exception has occurred.
+ * @property makerPrivateSettlementMethodData The private settlement method data belonging to the maker of this swap for
+ * this swap's settlement method, or `null` if such data does not exist.
  */
 class Swap(
     val isCreated: Boolean,
@@ -113,6 +115,8 @@ class Swap(
 
     val closingSwapState = mutableStateOf(ClosingSwapState.NONE)
     var closingSwapException: Exception? = null
+
+    var makerPrivateSettlementMethodData: String? = null
 
     init {
         when (this.direction) {
