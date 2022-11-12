@@ -18,13 +18,14 @@ import java.util.*
  * @param makerPublicKey The [PublicKey] of the swap maker, to which the message will be sent.
  * @param takerKeyPair The [KeyPair] of the taker, with which the message will be signed.
  * @param swapID The ID of the swap for which the taker is sending information.
- * @param settlementMethodDetails The taker's settlement method details to be used for the swap.
+ * @param settlementMethodDetails The taker's settlement method details to be used for the swap, as an optional string.
+ * If this is `null`, the `paymentDetails` field of the payload of the resulting message will be the empty string.
  */
 fun createTakerInformationMessage(
     makerPublicKey: PublicKey,
     takerKeyPair: KeyPair,
     swapID: UUID,
-    settlementMethodDetails: String,
+    settlementMethodDetails: String?,
 ): String {
     // Setup encoder
     val encoder = Base64.getEncoder()
@@ -38,7 +39,7 @@ fun createTakerInformationMessage(
         msgType = "takerInfo",
         pubKey = takerPublicKeyString,
         swapId = swapID.toString(),
-        paymentDetails = settlementMethodDetails,
+        paymentDetails = settlementMethodDetails ?: "",
     )
 
     // Create payload UTF-8 bytes

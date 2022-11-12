@@ -9,6 +9,6 @@ import java.util.*
  *
  * @property swapID The ID of the swap for which taker information is being sent.
  * @property publicKey The taker's public key.
- * @property settlementMethodDetails The taker's settlement method details.
+ * @property settlementMethodDetails The taker's settlement method details, or `null` if no such data exists.
  */
-data class TakerInformationMessage(val swapID: UUID, val publicKey: PublicKey, val settlementMethodDetails: String)
+data class TakerInformationMessage(val swapID: UUID, val publicKey: PublicKey, val settlementMethodDetails: String?)

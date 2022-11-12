@@ -336,19 +336,19 @@ open class P2PService constructor(
     /**
      * Creates a
      * [Taker Information Message](https://github.com/jimmyneutront/commuto-whitepaper/blob/main/commuto-interface-specification.txt)
-     * using the supplied maker's public key, taker's/user's key pair, swap ID and taker's payment details, and sends it
-     * using the [sendMessage] function.
+     * using the supplied maker's public key, taker's/user's key pair, swap ID and taker's settlement method details as
+     * an optional string, and sends it using the [sendMessage] function.
      *
      * @param makerPublicKey The public key of the swap maker, to whom information is being sent.
      * @param takerKeyPair The taker's/user's key pair, which will be used to sign this message.
      * @param swapID The ID of the swap for which information is being sent.
-     * @param settlementMethodDetails The settlement method details being sent.
+     * @param settlementMethodDetails The settlement method details being sent, as an optional string.
      */
     open suspend fun sendTakerInformation(
         makerPublicKey: PublicKey,
         takerKeyPair: KeyPair,
         swapID: UUID,
-        settlementMethodDetails: String,
+        settlementMethodDetails: String?,
     ) {
         logger.info("sendTakerInformation: creating for $swapID")
         val messageString = createTakerInformationMessage(

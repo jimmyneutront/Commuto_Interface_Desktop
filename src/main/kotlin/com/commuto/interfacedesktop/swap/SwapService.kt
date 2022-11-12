@@ -138,14 +138,15 @@ class SwapService @Inject constructor(
          */
         val takerKeyPair = keyManagerService.getKeyPair(swap.takerInterfaceID)
             ?: throw SwapServiceException("Could not find taker's (user's) key pair for $swapID")
-        // TODO: get actual payment details once settlementMethodService is implemented
-        val settlementMethodDetailsString = "TEMPORARY"
+        if (swap.takerPrivateSettlementMethodData == null) {
+            logger.warn("sendTakerInformationMessage: taker info is null for $swapID")
+        }
         logger.info("sendTakerInformationMessage: sending for $swapID")
         p2pService.sendTakerInformation(
             makerPublicKey = makerPublicKey,
             takerKeyPair = takerKeyPair,
             swapID = swapID,
-            settlementMethodDetails = settlementMethodDetailsString
+            settlementMethodDetails = swap.takerPrivateSettlementMethodData
         )
         logger.info("sendTakerInformationMessage: sent for $swapID")
         databaseService.updateSwapState(

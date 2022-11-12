@@ -179,7 +179,7 @@ class SwapServiceTests {
                 makerPublicKey: PublicKey,
                 takerKeyPair: KeyPair,
                 swapID: UUID,
-                settlementMethodDetails: String
+                settlementMethodDetails: String?
             ) {
                 this.makerPublicKey = makerPublicKey
                 this.takerKeyPair = takerKeyPair

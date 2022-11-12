@@ -20,7 +20,9 @@ import java.util.*
  * vector.
  *
  * @return An optional [TakerInformationMessage] that will be `null` if [message] does not contain a valid Taker
- * Information Message encrypted with the public key of [keyPair], and will be non-`null` if it does.
+ * Information Message encrypted with the public key of [keyPair], and will be non-`null` if it does. If it does, the
+ * [TakerInformationMessage.settlementMethodDetails] field will be `null` if the `paymentDetails` field of `message`'s
+ * payload contains an empty string, and will be non-`null` otherwise.
  */
 fun parseTakerInformationMessage(
     message: SerializableEncryptedMessage?,
@@ -103,6 +105,11 @@ fun parseTakerInformationMessage(
     }
     // Get settlement method details
     val settlementMethodDetails = payload.paymentDetails
+    val optionalSettlementMethodDetails = if (settlementMethodDetails == "") {
+        null
+    } else {
+        settlementMethodDetails
+    }
     // Get swap ID
     val swapID = try {
         UUID.fromString(payload.swapId)
@@ -112,6 +119,6 @@ fun parseTakerInformationMessage(
     return TakerInformationMessage(
         swapID = swapID,
         publicKey = publicKey,
-        settlementMethodDetails = settlementMethodDetails,
+        settlementMethodDetails = optionalSettlementMethodDetails,
     )
 }
