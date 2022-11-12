@@ -1764,8 +1764,8 @@ class OfferServiceTests {
                 currency = "EUR",
                 price = "0.98",
                 method = "SEPA",
-                privateData = "EUR_SEPA_Private_Data"
             ), swapInTruthSource.settlementMethod)
+            assertEquals("EUR_SEPA_Private_Data", swapInTruthSource.takerPrivateSettlementMethodData)
             assertEquals(BigInteger.ONE, swapInTruthSource.protocolVersion)
             assertFalse(swapInTruthSource.isPaymentSent)
             assertFalse(swapInTruthSource.isPaymentReceived)
