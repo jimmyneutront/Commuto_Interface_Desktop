@@ -226,6 +226,28 @@ internal class Database(databaseDriverFactory: DatabaseDriverFactory) {
     }
 
     /**
+     * Updates the [Swap.makerPrivateData] and [Swap.makerPrivateDataInitializationVector] properties of the [Swap] with
+     * the specified [swapID] and [chainID].
+     * @param swapID The ID of the [Swap] to be updated.
+     * @param chainID The ID of the blockchain on which the [Swap] to be updated exists.
+     * @param encryptedData The new value of the [Swap.makerPrivateData] property.
+     * @param initializationVector The new value of the [Swap.makerPrivateDataInitializationVector] property.
+     */
+    internal fun updateSwapMakerPrivateSettlementMethodData(
+        swapID: String,
+        chainID: String,
+        encryptedData: String?,
+        initializationVector: String?
+    ) {
+        dbQuery.updateSwapMakerPrivateSettlementMethodData(
+            makerPrivateData = encryptedData,
+            makerPrivateDataInitializationVector = initializationVector,
+            id = swapID,
+            chainID = chainID,
+        )
+    }
+
+    /**
      * Updates the [Swap.takerPrivateData] and [Swap.takerPrivateDataInitializationVector] properties of the [Swap] with
      * the specified [swapID] and [chainID].
      * @param swapID The ID of the [Swap] to be updated.
@@ -237,7 +259,8 @@ internal class Database(databaseDriverFactory: DatabaseDriverFactory) {
         swapID: String,
         chainID: String,
         encryptedData: String?,
-        initializationVector: String?) {
+        initializationVector: String?
+    ) {
         dbQuery.updateSwapTakerPrivateSettlementMethodData(
             takerPrivateData = encryptedData,
             takerPrivateDataInitializationVector = initializationVector,

@@ -168,6 +168,11 @@ UPDATE Swap
 SET requiresFill = ?
 WHERE id = ? AND chainID = ?;
 
+updateSwapMakerPrivateSettlementMethodData:
+UPDATE Swap
+SET makerPrivateData = ?, makerPrivateDataInitializationVector = ?
+WHERE id = ? AND chainID = ?;
+
 updateSwapTakerPrivateSettlementMethodData:
 UPDATE Swap
 SET takerPrivateData = ?, takerPrivateDataInitializationVector = ?

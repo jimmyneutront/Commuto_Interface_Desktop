@@ -543,6 +543,29 @@ open class DatabaseService(
     }
 
     /**
+     * Updates a persistently stored [Swap]'s [Swap.makerPrivateData] and [Swap.makerPrivateDataInitializationVector]
+     * fields with the results of encrypting [data].
+     *
+     * @param swapID The ID of the swap to be updated, as a Base64-[String] of bytes.
+     * @param chainID The chain ID of the swap to be updated, as a [String].
+     * @param data New private settlement method data belonging to the maker of the swap with the specified ID and chain
+     * ID, to be encrypted and stored.
+     */
+    @OptIn(DelicateCoroutinesApi::class)
+    suspend fun updateSwapMakerPrivateSettlementMethodData(swapID: String, chainID: String, data: String?) {
+        val encryptedData = encryptPrivateSwapSettlementMethodData(privateSettlementMethodData = data)
+        withContext(databaseServiceContext) {
+            database.updateSwapMakerPrivateSettlementMethodData(
+                swapID,
+                chainID,
+                encryptedData.first,
+                encryptedData.second
+            )
+        }
+        logger.info("updateSwapMakerPrivateSettlementMethodData: updated for $swapID, if present")
+    }
+
+    /**
      * Updates a persistently stored [Swap]'s [Swap.takerPrivateData] and [Swap.takerPrivateDataInitializationVector]
      * fields with the results of encrypting [data].
      *
@@ -562,7 +585,7 @@ open class DatabaseService(
                 encryptedData.second
             )
         }
-        logger.info("updateSwapTakerPrivateSettlementMethodData: updated for \\(swapID), if present")
+        logger.info("updateSwapTakerPrivateSettlementMethodData: updated for $swapID, if present")
     }
 
     /**
