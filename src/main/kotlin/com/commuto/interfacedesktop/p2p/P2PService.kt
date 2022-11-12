@@ -370,13 +370,13 @@ open class P2PService constructor(
      * @param takerPublicKey The public key of the swap taker, to whom information is being sent.
      * @param makerKeyPair The maker's/user's key pair, which will be used to sign this message.
      * @param swapID The ID of the swap for which information is being sent.
-     * @param settlementMethodDetails The settlement method details being sent.
+     * @param settlementMethodDetails The settlement method details being sent, as an optional string.
      */
     open suspend fun sendMakerInformation(
         takerPublicKey: PublicKey,
         makerKeyPair: KeyPair,
         swapID: UUID,
-        settlementMethodDetails: String,
+        settlementMethodDetails: String?,
     ) {
         logger.info("sendMakerInformation: creating for $swapID")
         val messageString = createMakerInformationMessage(

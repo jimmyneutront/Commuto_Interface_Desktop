@@ -23,7 +23,9 @@ import java.util.*
  * this public key should be that specified in the message's "sender" field.
  *
  * @return An optional [MakerInformationMessage] that will be `null` if [message] does not contain a valid Maker
- * Information Message encrypted with the public key of [keyPair], and will be non-`null` if it does.
+ * Information Message encrypted with the public key of [keyPair], and will be non-`null` if it does. If it does, the
+ * [MakerInformationMessage.settlementMethodDetails] field will be `nil` if the `paymentDetails` field of `message`'s
+ * payload contains an empty string, and will be non-`nil` otherwise.
  */
 fun parseMakerInformationMessage(
     message: SerializableEncryptedMessage?,
@@ -101,6 +103,11 @@ fun parseMakerInformationMessage(
     }
     // Get settlement method details
     val settlementMethodDetails = payload.paymentDetails
+    val optionalSettlementMethodDetails = if (settlementMethodDetails == "") {
+        null
+    } else {
+        settlementMethodDetails
+    }
     // Get swap ID
     val swapID = try {
         UUID.fromString(payload.swapId)
@@ -109,6 +116,6 @@ fun parseMakerInformationMessage(
     }
     return MakerInformationMessage(
         swapID = swapID,
-        settlementMethodDetails = settlementMethodDetails,
+        settlementMethodDetails = optionalSettlementMethodDetails,
     )
 }

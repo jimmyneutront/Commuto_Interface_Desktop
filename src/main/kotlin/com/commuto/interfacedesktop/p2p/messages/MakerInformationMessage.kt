@@ -7,6 +7,6 @@ import java.util.*
  * [Interface Specification](https://github.com/jimmyneutront/commuto-whitepaper/blob/main/commuto-interface-specification.txt).
  *
  * @property swapID The ID of the swap for which maker information is being sent.
- * @property settlementMethodDetails The maker's settlement method details.
+ * @property settlementMethodDetails The maker's settlement method details, or `null` if no such data exists.
  */
-data class MakerInformationMessage(val swapID: UUID, val settlementMethodDetails: String)
+data class MakerInformationMessage(val swapID: UUID, val settlementMethodDetails: String?)

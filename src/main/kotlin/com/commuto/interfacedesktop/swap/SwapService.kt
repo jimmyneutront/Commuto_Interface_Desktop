@@ -564,17 +564,18 @@ class SwapService @Inject constructor(
                     withContext(Dispatchers.Main) {
                         swap.state.value = SwapState.AWAITING_MAKER_INFORMATION
                     }
-                    // TODO: get actual settlement method details once SettlementMethodService is implemented
                     val makerKeyPair = keyManagerService.getKeyPair(swap.makerInterfaceID)
                         ?: throw SwapServiceException("Could not find key pair for ${message.swapID} while handling " +
                                 "Taker Information Message")
-                    val settlementMethodDetailsString = "TEMPORARY"
                     logger.info("handleTakerInformationMessage: sending for ${message.swapID}")
+                    if (swap.makerPrivateSettlementMethodData == null) {
+                        logger.warn("handleTakerInformationMessage: maker info is null for ${swap.id}")
+                    }
                     p2pService.sendMakerInformation(
                         takerPublicKey = message.publicKey,
                         makerKeyPair = makerKeyPair,
                         swapID = message.swapID,
-                        settlementMethodDetails = settlementMethodDetailsString
+                        settlementMethodDetails = swap.makerPrivateSettlementMethodData
                     )
                     logger.info("handleTakerInformationMessage: sent for ${message.swapID}")
                     when (swap.direction) {

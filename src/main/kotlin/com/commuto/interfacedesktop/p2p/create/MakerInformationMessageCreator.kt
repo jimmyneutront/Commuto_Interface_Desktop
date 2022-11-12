@@ -18,13 +18,14 @@ import java.util.*
  * @param takerPublicKey The [PublicKey] of the swap taker, to which the message will be sent.
  * @param makerKeyPair The [KeyPair] of the maker, with which the message will be signed.
  * @param swapID The ID of the swap for which the maker is sending information.
- * @param settlementMethodDetails The maker's settlement method details to be used for the swap.
+ * @param settlementMethodDetails The maker's settlement method details to be used for the swap, as an optional string.
+ * If this is `null`, the `paymentDetails` field of the payload of the resulting message will be the empty string.
  */
 fun createMakerInformationMessage(
     takerPublicKey: PublicKey,
     makerKeyPair: KeyPair,
     swapID: UUID,
-    settlementMethodDetails: String
+    settlementMethodDetails: String?
 ): String {
 // Setup encoder
     val encoder = Base64.getEncoder()
@@ -34,7 +35,7 @@ fun createMakerInformationMessage(
     val payload = SerializableMakerInformationMessagePayload(
         msgType = "makerInfo",
         swapId = swapID.toString(),
-        paymentDetails = settlementMethodDetails,
+        paymentDetails = settlementMethodDetails ?: "",
     )
 
     // Create payload UTF-8 bytes

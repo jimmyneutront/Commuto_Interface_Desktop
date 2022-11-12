@@ -345,7 +345,7 @@ class SwapServiceTests {
                 takerPublicKey: PublicKey,
                 makerKeyPair: KeyPair,
                 swapID: UUID,
-                settlementMethodDetails: String
+                settlementMethodDetails: String?
             ) {
                 this.takerPublicKey = takerPublicKey
                 this.makerKeyPair = makerKeyPair
@@ -393,6 +393,7 @@ class SwapServiceTests {
             state = SwapState.AWAITING_TAKER_INFORMATION,
             role = SwapRole.MAKER_AND_SELLER,
         )
+        swap.makerPrivateSettlementMethodData = "maker_settlement_method_details"
         swapTruthSource.addSwap(swap)
         val encoder = Base64.getEncoder()
         val swapForDatabase = DatabaseSwap(
@@ -412,7 +413,7 @@ class SwapServiceTests {
             serviceFeeRate = swap.serviceFeeRate.toString(),
             onChainDirection = swap.onChainDirection.toString(),
             settlementMethod = encoder.encodeToString(swap.onChainSettlementMethod),
-            makerPrivateData = null,
+            makerPrivateData = swap.makerPrivateSettlementMethodData,
             makerPrivateDataInitializationVector = null,
             takerPrivateData = null,
             takerPrivateDataInitializationVector = null,
@@ -433,8 +434,7 @@ class SwapServiceTests {
         assert(takerKeyPair.interfaceId.contentEquals(p2pService.takerPublicKey!!.interfaceId))
         assert(makerKeyPair.interfaceId.contentEquals(p2pService.makerKeyPair!!.interfaceId))
         assertEquals(swapID, p2pService.swapID!!)
-        // TODO: update this once SettlementMethodService is implemented
-        assertEquals("TEMPORARY", p2pService.settlementMethodDetails)
+        assertEquals("maker_settlement_method_details", p2pService.settlementMethodDetails)
 
         // Ensure that SwapService updates swap state and taker private data in swapTruthSource
         assertEquals(SwapState.AWAITING_FILLING, swap.state.value)
