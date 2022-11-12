@@ -288,6 +288,53 @@ class DatabaseServiceTest {
     }
 
     /**
+     * Ensures that code to update a persistently stored swap's taker private settlement method data related properties
+     * works properly.
+     */
+    @Test
+    fun testUpdateSwapTakerPrivateSettlementMethodData() = runBlocking {
+        val swapToStore = Swap(
+            id = "a_uuid",
+            isCreated = 1L,
+            requiresFill = 1L,
+            maker = "maker_address",
+            makerInterfaceID = "maker_interface_id",
+            taker = "taker_address",
+            takerInterfaceID = "taker_interface_id",
+            stablecoin = "stablecoin_address",
+            amountLowerBound = "lower_bound_amount",
+            amountUpperBound = "upper_bound_amount",
+            securityDepositAmount = "security_deposit_amount",
+            takenSwapAmount = "taken_swap_amount",
+            serviceFeeAmount = "service_fee_amount",
+            serviceFeeRate = "service_fee_rate",
+            onChainDirection = "direction",
+            settlementMethod = "settlement_method",
+            makerPrivateData = "maker_private_data",
+            makerPrivateDataInitializationVector = "maker_init_vector",
+            takerPrivateData = "taker_private_data",
+            takerPrivateDataInitializationVector = "taker_private_data",
+            protocolVersion = "some_version",
+            isPaymentSent = 0L,
+            isPaymentReceived = 0L,
+            hasBuyerClosed = 0L,
+            hasSellerClosed = 0L,
+            disputeRaiser = "dispute_raiser",
+            chainID = "a_chain_id",
+            state = "a_state_here",
+            role = "a_role_here"
+        )
+        databaseService.storeSwap(swapToStore)
+        databaseService.updateSwapTakerPrivateSettlementMethodData(
+            swapID = "a_uuid",
+            chainID = "a_chain_id",
+            data = "new_taker_private_data"
+        )
+        val returnedSwap = databaseService.getSwap("a_uuid")
+        assertEquals("new_taker_private_data", returnedSwap!!.takerPrivateData)
+    }
+
+    /**
      * Ensures that code to update a persistently stored [Swap.isPaymentSent] property works properly.
      */
     @Test

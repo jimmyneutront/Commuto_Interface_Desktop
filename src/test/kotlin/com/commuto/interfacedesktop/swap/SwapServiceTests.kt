@@ -436,12 +436,14 @@ class SwapServiceTests {
         // TODO: update this once SettlementMethodService is implemented
         assertEquals("TEMPORARY", p2pService.settlementMethodDetails)
 
-        // Ensure that SwapService updates swap state in swapTruthSource
+        // Ensure that SwapService updates swap state and taker private data in swapTruthSource
         assertEquals(SwapState.AWAITING_FILLING, swap.state.value)
+        assertEquals("taker_settlement_method_details", swap.takerPrivateSettlementMethodData)
 
-        // Ensure that SwapService persistently updates swap state
+        // Ensure that SwapService persistently updates swap state and taker private data
         val swapInDatabase = databaseService.getSwap(encoder.encodeToString(swapID.asByteArray()))
         assertEquals(SwapState.AWAITING_FILLING.asString, swapInDatabase!!.state)
+        assertEquals("taker_settlement_method_details", swapInDatabase.takerPrivateData)
     }
 
     /**

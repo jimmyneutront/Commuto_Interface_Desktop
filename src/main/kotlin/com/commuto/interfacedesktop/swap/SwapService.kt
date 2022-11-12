@@ -511,9 +511,10 @@ class SwapService @Inject constructor(
      *
      * Once notified, this checks that there exists in [swapTruthSource] a [Swap] with the ID specified in [message]. If
      * there is, this checks that the interface ID of the public key contained in [message] is equal to the interface ID
-     * of the swap taker. If it is, this persistently stores the public key in [message], securely persistently stores
-     * the payment information in [message], updates the state of the swap to [SwapState.AWAITING_MAKER_INFORMATION]
-     * (both persistently and in [swapTruthSource] on the main coroutine dispatcher), and creates and sends a Maker
+     * of the swap taker, and that the user is the maker of the swap. If these conditions are met, this persistently
+     * stores the public key in [message], securely persistently stores the taker's private settlement method data
+     * contained in [message], updates the state of the swap to [SwapState.AWAITING_MAKER_INFORMATION] (both
+     * persistently and in [swapTruthSource] on the main coroutine dispatcher), and creates and sends a Maker
      * Information Message. Then, if the swap is a maker-as-seller swap, this updates the state of the swap to
      * [SwapState.AWAITING_FILLING]. Otherwise, the swap is a maker-as-buyer swap, and this updates the state of the
      * swap to [SwapState.AWAITING_PAYMENT_SENT]. The state is updated both persistently and in [swapTruthSource].
@@ -524,72 +525,93 @@ class SwapService @Inject constructor(
      * [message].
      */
     override suspend fun handleTakerInformationMessage(message: TakerInformationMessage) {
-        logger.info("handleTakerInformationMessage: handling for ${message.swapID}")
+       logger.info("handleTakerInformationMessage: handling for ${message.swapID}")
         val swap = swapTruthSource.swaps[message.swapID]
         if (swap != null) {
             if (message.publicKey.interfaceId.contentEquals(swap.takerInterfaceID)) {
-                val encoder = Base64.getEncoder()
-                logger.info("handleTakerInformationMessage: persistently storing public key " +
-                        "${encoder.encodeToString(message.publicKey.interfaceId)} for ${message.swapID}")
-                keyManagerService.storePublicKey(message.publicKey)
-                // TODO: securely store taker settlement method information once SettlementMethodService is implemented
-                logger.info("handleTakerInformationMessage: updating ${message.swapID} to " +
-                        SwapState.AWAITING_MAKER_INFORMATION.asString)
-                val swapIDB64String = encoder.encodeToString(message.swapID.asByteArray())
-                databaseService.updateSwapState(
-                    swapID = swapIDB64String,
-                    chainID = swap.chainID.toString(),
-                    state = SwapState.AWAITING_MAKER_INFORMATION.asString,
-                )
-                withContext(Dispatchers.Main) {
-                    swap.state.value = SwapState.AWAITING_MAKER_INFORMATION
-                }
-                // TODO: get actual settlement method details once SettlementMethodService is implemented
-                val makerKeyPair = keyManagerService.getKeyPair(swap.makerInterfaceID)
-                    ?: throw SwapServiceException("Could not find key pair for ${message.swapID} while handling " +
-                            "Taker Information Message")
-                val settlementMethodDetailsString = "TEMPORARY"
-                logger.info("handleTakerInformationMessage: sending for ${message.swapID}")
-                p2pService.sendMakerInformation(
-                    takerPublicKey = message.publicKey,
-                    makerKeyPair = makerKeyPair,
-                    swapID = message.swapID,
-                    settlementMethodDetails = settlementMethodDetailsString
-                )
-                logger.info("handleTakerInformationMessage: sent for ${message.swapID}")
-                when (swap.direction) {
-                    OfferDirection.BUY -> {
-                        logger.info("handleTakerInformationMessage: updating state of BUY swap " +
-                                "${message.swapID} to ${SwapState.AWAITING_PAYMENT_SENT.asString}")
-                        databaseService.updateSwapState(
-                            swapID = swapIDB64String,
-                            chainID = swap.chainID.toString(),
-                            state = SwapState.AWAITING_PAYMENT_SENT.asString,
-                        )
-                        withContext(Dispatchers.Main) {
-                            swap.state.value = SwapState.AWAITING_PAYMENT_SENT
+                /*
+                We should only handle this message if we are the maker of the swap; otherwise, we are the taker and we
+                would be handling our own message
+                 */
+                if (swap.role == SwapRole.MAKER_AND_BUYER || swap.role == SwapRole.MAKER_AND_SELLER) {
+                    val encoder = Base64.getEncoder()
+                    logger.info("handleTakerInformationMessage: persistently storing public key " +
+                            "${encoder.encodeToString(message.publicKey.interfaceId)} for ${message.swapID}")
+                    keyManagerService.storePublicKey(pubKey = message.publicKey)
+                    if (message.settlementMethodDetails == null) {
+                        logger.warn("handleTakerInformationMessage: private data in message was null for " +
+                                "${message.swapID}")
+                    }
+                    logger.info("handleTakerInformationMessage: persistently storing private data in message " +
+                            "for ${message.swapID}")
+                    val swapIDB64String = encoder.encodeToString(message.swapID.asByteArray())
+                    databaseService.updateSwapTakerPrivateSettlementMethodData(
+                        swapID = swapIDB64String,
+                        chainID = swap.chainID.toString(),
+                        data = message.settlementMethodDetails
+                    )
+                    logger.info("handleTakerInformationMessage: updating ${swap.id} with private data")
+                    withContext(Dispatchers.Main) {
+                        swap.takerPrivateSettlementMethodData = message.settlementMethodDetails
+                    }
+                    logger.info("handleTakerInformationMessage: updating ${swap.id} to " +
+                            SwapState.AWAITING_MAKER_INFORMATION.asString)
+                    databaseService.updateSwapState(
+                        swapID = swapIDB64String,
+                        chainID = swap.chainID.toString(),
+                        state = SwapState.AWAITING_MAKER_INFORMATION.asString,
+                    )
+                    withContext(Dispatchers.Main) {
+                        swap.state.value = SwapState.AWAITING_MAKER_INFORMATION
+                    }
+                    // TODO: get actual settlement method details once SettlementMethodService is implemented
+                    val makerKeyPair = keyManagerService.getKeyPair(swap.makerInterfaceID)
+                        ?: throw SwapServiceException("Could not find key pair for ${message.swapID} while handling " +
+                                "Taker Information Message")
+                    val settlementMethodDetailsString = "TEMPORARY"
+                    logger.info("handleTakerInformationMessage: sending for ${message.swapID}")
+                    p2pService.sendMakerInformation(
+                        takerPublicKey = message.publicKey,
+                        makerKeyPair = makerKeyPair,
+                        swapID = message.swapID,
+                        settlementMethodDetails = settlementMethodDetailsString
+                    )
+                    logger.info("handleTakerInformationMessage: sent for ${message.swapID}")
+                    when (swap.direction) {
+                        OfferDirection.BUY -> {
+                            logger.info("handleTakerInformationMessage: updating state of BUY swap " +
+                                    "${message.swapID} to ${SwapState.AWAITING_PAYMENT_SENT.asString}")
+                            databaseService.updateSwapState(
+                                swapID = swapIDB64String,
+                                chainID = swap.chainID.toString(),
+                                state = SwapState.AWAITING_PAYMENT_SENT.asString,
+                            )
+                            withContext(Dispatchers.Main) {
+                                swap.state.value = SwapState.AWAITING_PAYMENT_SENT
+                            }
+                        }
+                        OfferDirection.SELL -> {
+                            logger.info("handleTakerInformationMessage: updating state of SELL swap " +
+                                    "${message.swapID} to ${SwapState.AWAITING_FILLING.asString}")
+                            databaseService.updateSwapState(
+                                swapID = swapIDB64String,
+                                chainID = swap.chainID.toString(),
+                                state = SwapState.AWAITING_FILLING.asString,
+                            )
+                            withContext(Dispatchers.Main) {
+                                swap.state.value = SwapState.AWAITING_FILLING
+                            }
                         }
                     }
-                    OfferDirection.SELL -> {
-                        logger.info("handleTakerInformationMessage: updating state of SELL swap " +
-                                "${message.swapID} to ${SwapState.AWAITING_FILLING.asString}")
-                        databaseService.updateSwapState(
-                            swapID = swapIDB64String,
-                            chainID = swap.chainID.toString(),
-                            state = SwapState.AWAITING_FILLING.asString,
-                        )
-                        withContext(Dispatchers.Main) {
-                            swap.state.value = SwapState.AWAITING_FILLING
-                        }
-                    }
+                    logger.info("handleTakerInformation: detected own message for ${message.swapID}")
                 }
             } else {
-                logger.warn("handleTakerInformationMessage: got message for ${message.swapID} that was not " +
-                        "sent by swap taker")
+                logger.warn("handleTakerInformationMessage: got message for ${message.swapID} that was not sent by " +
+                        "swap taker")
             }
         } else {
-            logger.warn("handleTakerInformationMessage: got message for ${message.swapID} which was not found " +
-                    "in swapTruthSource")
+            logger.warn("handleTakerInformationMessage: got message for ${message.swapID} which was not found in " +
+                    "swapTruthSource")
         }
     }
 

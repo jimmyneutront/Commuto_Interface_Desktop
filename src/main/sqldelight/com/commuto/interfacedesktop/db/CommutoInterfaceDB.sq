@@ -168,6 +168,11 @@ UPDATE Swap
 SET requiresFill = ?
 WHERE id = ? AND chainID = ?;
 
+updateSwapTakerPrivateSettlementMethodData:
+UPDATE Swap
+SET takerPrivateData = ?, takerPrivateDataInitializationVector = ?
+WHERE id = ? AND chainID = ?;
+
 updateSwapIsPaymentSentBySwapIDAndChainID:
 UPDATE Swap
 SET isPaymentSent = ?

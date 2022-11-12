@@ -543,6 +543,29 @@ open class DatabaseService(
     }
 
     /**
+     * Updates a persistently stored [Swap]'s [Swap.takerPrivateData] and [Swap.takerPrivateDataInitializationVector]
+     * fields with the results of encrypting [data].
+     *
+     * @param swapID The ID of the swap to be updated, as a Base64-[String] of bytes.
+     * @param chainID The chain ID of the swap to be updated, as a [String].
+     * @param data New private settlement method data belonging to the taker of the swap with the specified ID and chain
+     * ID, to be encrypted and stored.
+     */
+    @OptIn(DelicateCoroutinesApi::class)
+    suspend fun updateSwapTakerPrivateSettlementMethodData(swapID: String, chainID: String, data: String?) {
+        val encryptedData = encryptPrivateSwapSettlementMethodData(privateSettlementMethodData = data)
+        withContext(databaseServiceContext) {
+            database.updateSwapTakerPrivateSettlementMethodData(
+                swapID,
+                chainID,
+                encryptedData.first,
+                encryptedData.second
+            )
+        }
+        logger.info("updateSwapTakerPrivateSettlementMethodData: updated for \\(swapID), if present")
+    }
+
+    /**
      * Updates the [Swap.isPaymentSent] property of a persistently stored
      * [Swap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#swap) with the specified [swapID] and
      * [chainID].
