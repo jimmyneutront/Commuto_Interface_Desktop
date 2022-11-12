@@ -16,13 +16,17 @@ import javax.inject.Singleton
 interface SwapNotifiable {
     /**
      * The function called by [OfferService] in order to send a taker information message for an offer that has been
-     * taken by the user of this interface.
+     * taken by the user of this interface. If [swapID] and [chainID] correspond to an offer that has been taken by the
+     * user of this interface, this should send a taker information message and return true. Otherwise, it should not
+     * send a message and should return false.
      *
      * @param swapID The ID of the swap for which the structure or class adopting this protocol should announce taker
      * information.
      * @param chainID The ID of the blockchain on which the taken offer exists.
+     *
+     * @return A [Boolean] indicating whether this sent a taker information message.
      */
-    suspend fun sendTakerInformationMessage(swapID: UUID, chainID: BigInteger)
+    suspend fun sendTakerInformationMessage(swapID: UUID, chainID: BigInteger): Boolean
 
     /**
      * The function called by [OfferService] when an offer made by the user of this interface has been taken.

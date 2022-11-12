@@ -403,7 +403,8 @@ class BlockchainServiceTest {
         // We need this TestSwapService to track handling of SwapFilled events
         class TestSwapService: SwapNotifiable {
             val swapFilledEventChannel = Channel<SwapFilledEvent>()
-            override suspend fun sendTakerInformationMessage(swapID: UUID, chainID: BigInteger) {}
+            override suspend fun sendTakerInformationMessage(swapID: UUID, chainID: BigInteger): Boolean
+            { return false }
             override suspend fun handleNewSwap(takenOffer: Offer) {}
             override suspend fun handleSwapFilledEvent(event: SwapFilledEvent) {
                 swapFilledEventChannel.send(event)
@@ -466,7 +467,8 @@ class BlockchainServiceTest {
         // We need this TestSwapService to track handling of SwapFilled events
         class TestSwapService: SwapNotifiable {
             val paymentSentEventChannel = Channel<PaymentSentEvent>()
-            override suspend fun sendTakerInformationMessage(swapID: UUID, chainID: BigInteger) {}
+            override suspend fun sendTakerInformationMessage(swapID: UUID, chainID: BigInteger): Boolean
+            { return false }
             override suspend fun handleNewSwap(takenOffer: Offer) {}
             override suspend fun handleSwapFilledEvent(event: SwapFilledEvent) {}
             override suspend fun handlePaymentSentEvent(event: PaymentSentEvent) {
@@ -529,7 +531,8 @@ class BlockchainServiceTest {
         // We need this TestSwapService to track handling of PaymentReceived events
         class TestSwapService: SwapNotifiable {
             val paymentReceivedEventChannel = Channel<PaymentReceivedEvent>()
-            override suspend fun sendTakerInformationMessage(swapID: UUID, chainID: BigInteger) {}
+            override suspend fun sendTakerInformationMessage(swapID: UUID, chainID: BigInteger): Boolean
+            { return false }
             override suspend fun handleNewSwap(takenOffer: Offer) {}
             override suspend fun handleSwapFilledEvent(event: SwapFilledEvent) {}
             override suspend fun handlePaymentSentEvent(event: PaymentSentEvent) {}
@@ -595,7 +598,8 @@ class BlockchainServiceTest {
         // We need this TestSwapService to track handling of BuyerClosed events
         class TestSwapService: SwapNotifiable {
             val buyerClosedEventChannel = Channel<BuyerClosedEvent>()
-            override suspend fun sendTakerInformationMessage(swapID: UUID, chainID: BigInteger) {}
+            override suspend fun sendTakerInformationMessage(swapID: UUID, chainID: BigInteger): Boolean
+            { return false }
             override suspend fun handleNewSwap(takenOffer: Offer) {}
             override suspend fun handleSwapFilledEvent(event: SwapFilledEvent) {}
             override suspend fun handlePaymentSentEvent(event: PaymentSentEvent) {}
@@ -661,7 +665,8 @@ class BlockchainServiceTest {
         // We need this TestSwapService to track handling of BuyerClosed events
         class TestSwapService: SwapNotifiable {
             val sellerClosedEventChannel = Channel<SellerClosedEvent>()
-            override suspend fun sendTakerInformationMessage(swapID: UUID, chainID: BigInteger) {}
+            override suspend fun sendTakerInformationMessage(swapID: UUID, chainID: BigInteger): Boolean
+            { return false }
             override suspend fun handleNewSwap(takenOffer: Offer) {}
             override suspend fun handleSwapFilledEvent(event: SwapFilledEvent) {}
             override suspend fun handlePaymentSentEvent(event: PaymentSentEvent) {}

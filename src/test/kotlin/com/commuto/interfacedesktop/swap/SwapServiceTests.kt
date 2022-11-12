@@ -70,6 +70,8 @@ class SwapServiceTests {
             databaseService = databaseService,
             keyManagerService = keyManagerService,
         )
+        val swapTruthSource = TestSwapTruthSource()
+        swapService.setSwapTruthSource(swapTruthSource)
 
         // The ID of the swap for which taker information will be sent
         val swapID = UUID.randomUUID()
@@ -84,6 +86,42 @@ class SwapServiceTests {
         // This is the taker's (user's) key pair, so we do want to store it persistently
         val takerKeyPair = keyManagerService.generateKeyPair(storeResult = true)
 
+        val swap = Swap(
+            isCreated = true,
+            requiresFill = true,
+            id = swapID,
+            maker = "",
+            makerInterfaceID = makerKeyPair.interfaceId,
+            taker = "",
+            takerInterfaceID = takerKeyPair.interfaceId,
+            stablecoin = "",
+            amountLowerBound = BigInteger.ZERO,
+            amountUpperBound = BigInteger.ZERO,
+            securityDepositAmount = BigInteger.ZERO,
+            takenSwapAmount = BigInteger.ZERO,
+            serviceFeeAmount = BigInteger.ZERO,
+            serviceFeeRate = BigInteger.ZERO,
+            direction = OfferDirection.SELL,
+            onChainSettlementMethod =
+            """
+                 {
+                     "f": "USD",
+                     "p": "1.00",
+                     "m": "SWIFT"
+                 }
+                 """.trimIndent().encodeToByteArray(),
+            protocolVersion = BigInteger.ZERO,
+            isPaymentSent = false,
+            isPaymentReceived = false,
+            hasBuyerClosed = false,
+            hasSellerClosed = false,
+            onChainDisputeRaiser = BigInteger.ZERO,
+            chainID = BigInteger.valueOf(31337L),
+            state = SwapState.AWAITING_TAKER_INFORMATION,
+            role = SwapRole.TAKER_AND_SELLER,
+        )
+        swapTruthSource.swaps[swapID] = swap
+
         /*
         We must persistently store a swap with an ID equal to swapID and the maker and taker interface IDs from the keys
         created above, otherwise SwapService won't be able to get the keys necessary to make the taker info message
@@ -92,33 +130,33 @@ class SwapServiceTests {
         val swapForDatabase = DatabaseSwap(
             id = encoder.encodeToString(swapID.asByteArray()),
             isCreated = 1L,
-            requiresFill = 0L,
-            maker = "",
-            makerInterfaceID = encoder.encodeToString(makerKeyPair.interfaceId),
-            taker = "",
-            takerInterfaceID = encoder.encodeToString(takerKeyPair.interfaceId),
-            stablecoin = "",
-            amountLowerBound = "",
-            amountUpperBound = "",
-            securityDepositAmount = "",
-            takenSwapAmount = "",
-            serviceFeeAmount = "",
-            serviceFeeRate = "",
-            onChainDirection = "",
-            settlementMethod = "",
+            requiresFill = 1L,
+            maker = swap.maker,
+            makerInterfaceID = encoder.encodeToString(swap.makerInterfaceID),
+            taker = swap.taker,
+            takerInterfaceID = encoder.encodeToString(swap.takerInterfaceID),
+            stablecoin = swap.stablecoin,
+            amountLowerBound = swap.amountLowerBound.toString(),
+            amountUpperBound = swap.amountUpperBound.toString(),
+            securityDepositAmount = swap.securityDepositAmount.toString(),
+            takenSwapAmount = swap.takenSwapAmount.toString(),
+            serviceFeeAmount = swap.serviceFeeAmount.toString(),
+            serviceFeeRate = swap.serviceFeeRate.toString(),
+            onChainDirection = swap.onChainDirection.toString(),
+            settlementMethod = encoder.encodeToString(swap.onChainSettlementMethod),
             makerPrivateData = null,
             makerPrivateDataInitializationVector = null,
             takerPrivateData = null,
             takerPrivateDataInitializationVector = null,
-            protocolVersion = "",
+            protocolVersion = swap.protocolVersion.toString(),
             isPaymentSent = 0L,
             isPaymentReceived = 0L,
             hasBuyerClosed = 0L,
             hasSellerClosed = 0L,
-            disputeRaiser = "",
-            chainID = "31337",
-            state = "",
-            role = "",
+            disputeRaiser = swap.onChainDisputeRaiser.toString(),
+            chainID = swap.chainID.toString(),
+            state = swap.state.value.asString,
+            role = swap.role.asString
         )
         databaseService.storeSwap(swapForDatabase)
 
@@ -151,18 +189,20 @@ class SwapServiceTests {
         }
         val p2pService = TestP2PService()
         swapService.setP2PService(p2pService)
-        swapService.setSwapTruthSource(TestSwapTruthSource())
 
-        swapService.sendTakerInformationMessage(
+        val didSendTakerInfoMessage = swapService.sendTakerInformationMessage(
             swapID = swapID,
             chainID = BigInteger.valueOf(31337L)
         )
+        assert(didSendTakerInfoMessage)
 
         assert(makerKeyPair.interfaceId.contentEquals(p2pService.makerPublicKey!!.interfaceId))
         assert(takerKeyPair.interfaceId.contentEquals(p2pService.takerKeyPair!!.interfaceId))
         assertEquals(swapID, p2pService.swapID!!)
         // TODO: update this once SettlementMethodService is added
         assertEquals("TEMPORARY", p2pService.settlementMethodDetails!!)
+
+        assertEquals(SwapState.AWAITING_MAKER_INFORMATION, swap.state.value)
 
         val swapInDatabase = databaseService.getSwap(encoder.encodeToString(swapID.asByteArray()))
         assertEquals(SwapState.AWAITING_MAKER_INFORMATION.asString, swapInDatabase!!.state)

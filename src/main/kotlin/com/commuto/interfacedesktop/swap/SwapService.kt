@@ -88,21 +88,34 @@ class SwapService @Inject constructor(
     }
 
     /**
-     * Sends a
-     * [Taker Information Message](https://github.com/jimmyneutront/commuto-whitepaper/blob/main/commuto-interface-specification.txt)
-     * for an offer taken by the user of this interface, with an ID equal to [swapID] and a blockchain ID equal to
-     * [chainID].
-     *
-     * This updates the state of the swap with the specified ID (both persistently and in [swapTruthSource]) to
+     * If [swapID] and [chainID] correspond to an offer taken by the user of this interface, this sends a
+     * [Taker Information Message](https://github.com/jimmyneutront/commuto-whitepaper/blob/main/commuto-interface-specification.txt):
+     * this updates the state of the swap with the specified ID (both persistently and in [swapTruthSource]) to
      * [SwapState.AWAITING_TAKER_INFORMATION], creates and sends a Taker Information Message, and then updates the state
      * of the swap with the specified ID (both persistently and in [swapTruthSource]) to
-     * [SwapState.AWAITING_MAKER_INFORMATION].
+     * [SwapState.AWAITING_MAKER_INFORMATION], and then returns `true` to indicate that the swap was taken by the user
+     * of this interface and thus the message has been sent. If [swapID] and [chainID] do not correspond to an offer
+     * taken by the user of this interface, this returns `false`.
      *
-     * @param swapID The ID of the swap for which taker information will be sent.
+     * @param swapID The ID of the swap for which taker information should be sent.
      * @param chainID The ID of the blockchain on which the swap exists.
      */
-    override suspend fun sendTakerInformationMessage(swapID: UUID, chainID: BigInteger) {
-        logger.info("sendTakerInformationMessage: preparing to send for $swapID")
+    override suspend fun sendTakerInformationMessage(swapID: UUID, chainID: BigInteger): Boolean {
+        logger.info("sendTakerInformationMessage: checking if message should be sent for $swapID")
+        val swap = swapTruthSource.swaps[swapID]
+        if (swap == null) {
+            logger.info("sendTakerInformationMessage: could not find $swapID in swapTruthSource")
+            return false
+        }
+        if (swap.chainID != chainID) {
+            throw SwapServiceException("Passed chain ID $chainID does not match that of swap ${swap.id}: " +
+                    "${swap.chainID}")
+        }
+        if (swap.role != SwapRole.TAKER_AND_BUYER && swap.role != SwapRole.TAKER_AND_SELLER) {
+            logger.info("sendTakerInformationMessage: user is not taker in $swapID")
+            return false
+        }
+        logger.info("sendTakerInformationMessage: user is taker in ${swapID}, sending message")
         val encoder = Base64.getEncoder()
         val swapIDString = encoder.encodeToString(swapID.asByteArray())
         databaseService.updateSwapState(
@@ -111,36 +124,19 @@ class SwapService @Inject constructor(
             state = SwapState.AWAITING_TAKER_INFORMATION.asString
         )
         withContext(Dispatchers.Main) {
-            swapTruthSource.swaps[swapID]?.state?.value = SwapState.AWAITING_TAKER_INFORMATION
-        }
-        // Since we are the taker of this swap, we should have it in persistent storage
-        val swapInDatabase = databaseService.getSwap(id = swapIDString)
-            ?: throw SwapServiceException("Could not find swap $swapID in persistent storage")
-        val decoder = Base64.getDecoder()
-        val makerInterfaceID = try {
-            decoder.decode(swapInDatabase.makerInterfaceID)
-        } catch (exception: Exception) {
-            throw SwapServiceException("Unable to get maker interface ID for $swapID. makerInterfaceID string: " +
-                    swapInDatabase.makerInterfaceID
-            )
+            swap.state.value = SwapState.AWAITING_TAKER_INFORMATION
         }
         /*
         The user of this interface has taken the swap. Since taking a swap is not allowed unless we have a copy of the
         maker's public key, we should have said public key in storage.
          */
-        val makerPublicKey = keyManagerService.getPublicKey(makerInterfaceID)
+        val makerPublicKey = keyManagerService.getPublicKey(swap.makerInterfaceID)
             ?: throw SwapServiceException("Could not find maker's public key for $swapID")
-        val takerInterfaceID = try {
-            decoder.decode(swapInDatabase.takerInterfaceID)
-        } catch (exception: Exception) {
-            throw SwapServiceException("Unable to get taker interface ID for $swapID. takerInterfaceID string: " +
-                    swapInDatabase.takerInterfaceID)
-        }
         /*
         Since the user of this interface has taken the swap, we should have a key pair for the swap in persistent
         storage.
          */
-        val takerKeyPair = keyManagerService.getKeyPair(takerInterfaceID)
+        val takerKeyPair = keyManagerService.getKeyPair(swap.takerInterfaceID)
             ?: throw SwapServiceException("Could not find taker's (user's) key pair for $swapID")
         // TODO: get actual payment details once settlementMethodService is implemented
         val settlementMethodDetailsString = "TEMPORARY"
@@ -158,8 +154,10 @@ class SwapService @Inject constructor(
             state = SwapState.AWAITING_MAKER_INFORMATION.asString
         )
         withContext(Dispatchers.Main) {
-            swapTruthSource.swaps[swapID]?.state?.value = SwapState.AWAITING_MAKER_INFORMATION
+            swap.state.value = SwapState.AWAITING_MAKER_INFORMATION
         }
+        // We have sent a taker info message for this swap, so we return true
+        return true
     }
 
     /**

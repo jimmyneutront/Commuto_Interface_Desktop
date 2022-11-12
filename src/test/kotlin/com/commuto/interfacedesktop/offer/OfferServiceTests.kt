@@ -665,12 +665,15 @@ class OfferServiceTests {
         OfferService should call the sendTakerInformation method of this class, passing a UUID equal to newOfferID
         to begin the process of sending taker information
          */
-        class TestSwapService: SwapNotifiable {
-            val swapIDChannel = Channel<UUID>()
+        class TestSwapService(val expectedSwapIDForMessage: UUID): SwapNotifiable {
             val chainIDChannel = Channel<BigInteger>()
-            override suspend fun sendTakerInformationMessage(swapID: UUID, chainID: BigInteger) {
-                swapIDChannel.send(swapID)
-                chainIDChannel.send(chainID)
+            override suspend fun sendTakerInformationMessage(swapID: UUID, chainID: BigInteger): Boolean {
+                return if (swapID == expectedSwapIDForMessage) {
+                    chainIDChannel.send(chainID)
+                    true
+                } else {
+                    false
+                }
             }
             override suspend fun handleNewSwap(takenOffer: Offer) {}
             override suspend fun handleSwapFilledEvent(event: SwapFilledEvent) {}
@@ -679,7 +682,7 @@ class OfferServiceTests {
             override suspend fun handleBuyerClosedEvent(event: BuyerClosedEvent) {}
             override suspend fun handleSellerClosedEvent(event: SellerClosedEvent) {}
         }
-        val swapService = TestSwapService()
+        val swapService = TestSwapService(expectedSwapIDForMessage = newOfferID)
 
         val offerService = OfferService(
             databaseService,
@@ -688,60 +691,19 @@ class OfferServiceTests {
         )
         offerService.setOfferTruthSource(TestOfferTruthSource())
 
-        /*
-        We have to persistently store a swap with an ID equal to newOfferID and with the maker and taker interface IDs
-        created above, otherwise OfferService won't be able to tell that the offer corresponding to the emitted
-        OfferTaken event was taken by the user of this interface, and SwapService won't be able to get the keys
-        necessary to make the taker info message
-         */
-        val swapForDatabase = DatabaseSwap(
-            id = encoder.encodeToString(newOfferID.asByteArray()),
-            isCreated = 1L,
-            requiresFill = 0L,
-            maker = "",
-            makerInterfaceID = makerInterfaceIDString,
-            taker = "",
-            takerInterfaceID = takerInterfaceIDString,
-            stablecoin = "",
-            amountLowerBound = "",
-            amountUpperBound = "",
-            securityDepositAmount = "",
-            takenSwapAmount = "",
-            serviceFeeAmount = "",
-            serviceFeeRate = "",
-            onChainDirection = "",
-            settlementMethod = "",
-            makerPrivateData = null,
-            makerPrivateDataInitializationVector = null,
-            takerPrivateData = null,
-            takerPrivateDataInitializationVector = null,
-            protocolVersion = "",
-            isPaymentSent = 0L,
-            isPaymentReceived = 0L,
-            hasBuyerClosed = 0L,
-            hasSellerClosed = 0L,
-            disputeRaiser = "",
-            chainID = "",
-            state = "",
-            role = "",
-        )
-        databaseService.storeSwap(swapForDatabase)
-
         val exceptionHandler = TestBlockchainExceptionHandler()
 
         val blockchainService = BlockchainService(
             exceptionHandler = exceptionHandler,
             offerService = offerService,
-            swapService = TestSwapService(),
+            swapService = swapService,
             web3 = w3,
             commutoSwapAddress = testingServerResponse.commutoSwapAddress
         )
         blockchainService.listen()
 
         withTimeout(60_000) {
-            val receivedSwapID = swapService.swapIDChannel.receive()
             val receivedChainID = swapService.chainIDChannel.receive()
-            assertEquals(newOfferID, receivedSwapID)
             assertEquals(BigInteger.valueOf(31337L), receivedChainID)
             assertFalse(exceptionHandler.gotError)
         }
@@ -796,7 +758,8 @@ class OfferServiceTests {
         // offerID. We need this new TestSwapService declaration to track when handleNewSwap is called.
         class TestSwapService: SwapNotifiable {
             val offerChannel = Channel<Offer>()
-            override suspend fun sendTakerInformationMessage(swapID: UUID, chainID: BigInteger) {}
+            override suspend fun sendTakerInformationMessage(swapID: UUID, chainID: BigInteger): Boolean
+            { return false }
             override suspend fun handleNewSwap(takenOffer: Offer) {
                 offerChannel.send(takenOffer)
             }
