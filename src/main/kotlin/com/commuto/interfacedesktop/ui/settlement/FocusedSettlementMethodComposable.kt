@@ -7,5 +7,5 @@ import androidx.compose.runtime.Composable
  * side of the list of [SettlementMethodCardComposable]
  */
 enum class FocusedSettlementMethodComposable {
-    SettlementMethodComposable;
+    SettlementMethodComposable, AddSettlementMethodComposable;
 }
