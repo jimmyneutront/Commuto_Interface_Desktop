@@ -361,7 +361,8 @@ class OfferService (
      * Attempts to edit an [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer) made by the user
      * of this interface.
      *
-     * On the IO coroutine dispatcher, this serializes the new settlement methods and calls the CommutoSwap contract's
+     * On the IO coroutine dispatcher, this serializes the new settlement methods, saves them and their private data
+     * persistently as pending settlement methods, and calls the CommutoSwap contract's
      * [editOffer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#edit-offer) function, passing the offer
      * ID and an [OfferStruct] containing the new serialized settlement methods.
      *
@@ -378,14 +379,23 @@ class OfferService (
             }
             try {
                 logger.info("editOffer: serializing settlement methods for $offerID")
-                val onChainSettlementMethods: List<ByteArray> = try {
+                val serializedSettlementMethodsAndPrivateDetails = try {
                     newSettlementMethods.map {
-                        Json.encodeToString(it).encodeToByteArray()
+                        Pair(Json.encodeToString(it), it.privateData)
                     }
                 } catch (exception: Exception) {
-                    logger.error("editOffer: encountered error serializing settlement methods for $offerID",
-                        exception)
+                    logger.error("editOffer: encountered error serializing settlement methods for $offerID", exception)
                     throw exception
+                }
+                val encoder = Base64.getEncoder()
+                logger.info("persistently storing pending settlement methods for $offerID")
+                databaseService.storePendingSettlementMethods(
+                    offerID = encoder.encodeToString(offerID.asByteArray()),
+                    chainID = offer.chainID.toString(),
+                    pendingSettlementMethods = serializedSettlementMethodsAndPrivateDetails
+                )
+                val onChainSettlementMethods = serializedSettlementMethodsAndPrivateDetails.map {
+                    it.first.encodeToByteArray()
                 }
                 logger.info("editOffer: editing $offerID on chain")
                 /*

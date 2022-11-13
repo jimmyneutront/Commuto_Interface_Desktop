@@ -60,6 +60,15 @@ privateData TEXT,
 privateDataInitializationVector TEXT
 );
 
+createPendingSettlementMethodTable:
+CREATE TABLE PendingSettlementMethod (
+id TEXT NOT NULL,
+chainID TEXT NOT NULL,
+settlementMethod TEXT NOT NULL,
+privateData TEXT,
+privateDataInitializationVector TEXT
+);
+
 createKeyPairTable:
 CREATE TABLE KeyPair (
 interfaceId TEXT UNIQUE NOT NULL,
@@ -103,6 +112,16 @@ INSERT INTO SettlementMethod(
      settlementMethod,
      privateData,
      privateDataInitializationVector
+)
+VALUES(?, ?, ?, ?, ?);
+
+insertPendingSettlementMethod:
+INSERT INTO PendingSettlementMethod(
+    id,
+    chainID,
+    settlementMethod,
+    privateData,
+    privateDataInitializationVector
 )
 VALUES(?, ?, ?, ?, ?);
 
@@ -211,6 +230,10 @@ selectSettlementMethodByOfferIdAndChainID:
 SELECT * FROM SettlementMethod
 WHERE id = ? AND chainID = ?;
 
+selectPendingSettlementMethodByOfferIdAndChainID:
+SELECT * FROM PendingSettlementMethod
+WHERE id = ? AND chainID = ?;
+
 selectKeyPairByInterfaceId:
 SELECT * FROM KeyPair
 WHERE interfaceId = ?;
@@ -231,6 +254,10 @@ deleteSettlementMethodByOfferIdAndChainID:
 DELETE FROM SettlementMethod
 WHERE id = ? AND chainID = ?;
 
+deletePendingSettlementMethodByOfferIdAndChainID:
+DELETE FROM PendingSettlementMethod
+WHERE id = ? AND chainID = ?;
+
 deleteSwapBySwapIDAndChainID:
 DELETE FROM Swap
 WHERE id = ? AND chainID = ?;
@@ -240,6 +267,9 @@ DELETE FROM Offer;
 
 removeAllSettlementMethods:
 DELETE FROM SettlementMethod;
+
+removeAllPendingSettlementMethods:
+DELETE FROM PendingSettlementMethod;
 
 removeAllKeyPairs:
 DELETE FROM KeyPair;

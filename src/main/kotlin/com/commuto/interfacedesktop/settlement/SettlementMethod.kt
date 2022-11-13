@@ -3,6 +3,7 @@ package com.commuto.interfacedesktop.settlement
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
+import kotlinx.serialization.Transient
 import kotlinx.serialization.json.Json
 
 /**
@@ -24,7 +25,7 @@ data class SettlementMethod(
     @SerialName("f") val currency: String,
     @SerialName("m") val method: String,
     @SerialName("p") var price: String,
-    var privateData: String? = null
+    @Transient var privateData: String? = null
 ) {
 
     val onChainData: ByteArray?

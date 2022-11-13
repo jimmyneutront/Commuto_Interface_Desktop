@@ -121,6 +121,9 @@ class DatabaseServiceTest {
         assertEquals("a_new_state_here", returnedOffer!!.state)
     }
 
+    /**
+     * Ensures code to store, get and delete settlement methods works properly.
+     */
     @Test
     fun testStoreAndGetAndDeleteSettlementMethods() = runBlocking {
         val offerId = "an_offer_id"
@@ -159,6 +162,56 @@ class DatabaseServiceTest {
         val returnedSettlementMethodsAfterDeletion = databaseService.getSettlementMethods(offerId, chainID)
         Assert.assertEquals(null, returnedSettlementMethodsAfterDeletion)
         val differentSettlementMethods = databaseService.getSettlementMethods(offerId, differentChainID)!!
+        assertEquals(3, differentSettlementMethods.size)
+        assertEquals("settlement_method_zero", differentSettlementMethods[0].first)
+        assertEquals("private_data_zero", differentSettlementMethods[0].second)
+        assertEquals("settlement_method_one", differentSettlementMethods[1].first)
+        assertEquals("private_data_one", differentSettlementMethods[1].second)
+        assertEquals("settlement_method_two", differentSettlementMethods[2].first)
+        assertEquals("private_data_two", differentSettlementMethods[2].second)
+    }
+
+    /**
+     * Ensures code to store, get and delete pending settlement methods works properly.
+     */
+    @Test
+    fun testStoreAndGetAndDeletePendingSettlementMethods() = runBlocking {
+        val offerID = "an_offer_id"
+        val chainID = "a_chain_id"
+        val differentChainID = "different_chain_id"
+        val settlementMethods = listOf(
+            Pair("settlement_method_zero", "private_data_zero"),
+            Pair("settlement_method_one", "private_data_one"),
+            Pair("settlement_method_two", "private_data_two"),
+        )
+        databaseService.storePendingSettlementMethods(offerID, chainID, settlementMethods)
+        databaseService.storePendingSettlementMethods(offerID, differentChainID, settlementMethods)
+        val receivedSettlementMethods = databaseService.getPendingSettlementMethods(offerID, chainID)!!
+        assertEquals(3, receivedSettlementMethods.size)
+        assertEquals("settlement_method_zero", receivedSettlementMethods[0].first)
+        assertEquals("private_data_zero", receivedSettlementMethods[0].second)
+        assertEquals("settlement_method_one", receivedSettlementMethods[1].first)
+        assertEquals("private_data_one", receivedSettlementMethods[1].second)
+        assertEquals("settlement_method_two", receivedSettlementMethods[2].first)
+        assertEquals("private_data_two", receivedSettlementMethods[2].second)
+        val newSettlementMethods = listOf(
+            Pair("settlement_method_three", "private_data_three"),
+            Pair("settlement_method_four", "private_data_four"),
+            Pair("settlement_method_five", "private_data_five"),
+        )
+        databaseService.storePendingSettlementMethods(offerID, chainID, newSettlementMethods)
+        val newReturnedSettlementMethods = databaseService.getPendingSettlementMethods(offerID, chainID)!!
+        assertEquals(3, newReturnedSettlementMethods.size)
+        assertEquals("settlement_method_three", newReturnedSettlementMethods[0].first)
+        assertEquals("private_data_three", newReturnedSettlementMethods[0].second)
+        assertEquals("settlement_method_four", newReturnedSettlementMethods[1].first)
+        assertEquals("private_data_four", newReturnedSettlementMethods[1].second)
+        assertEquals("settlement_method_five", newReturnedSettlementMethods[2].first)
+        assertEquals("private_data_five", newReturnedSettlementMethods[2].second)
+        databaseService.deletePendingSettlementMethods(offerID, chainID)
+        val returnedSettlementMethodsAfterDeletion = databaseService.getPendingSettlementMethods(offerID, chainID)
+        assertEquals(null, returnedSettlementMethodsAfterDeletion)
+        val differentSettlementMethods = databaseService.getPendingSettlementMethods(offerID, differentChainID)!!
         assertEquals(3, differentSettlementMethods.size)
         assertEquals("settlement_method_zero", differentSettlementMethods[0].first)
         assertEquals("private_data_zero", differentSettlementMethods[0].second)

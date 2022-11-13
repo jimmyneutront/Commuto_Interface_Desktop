@@ -179,85 +179,95 @@ open class DatabaseService(
     }
 
     /**
-     * Deletes all persistently stored settlement methods associated with the specified ID, and then persistently stores
-     * each settlement method in the supplied [List], associating each one with the supplied ID.
+     * Deletes all persistently stored settlement methods, their private data and corresponding initialization vectors
+     * (if any) associated with the specified offer ID and chain ID in a database table via [deletionLambda], and then
+     * persistently stores each settlement method and private data string tuples in the supplied [List] into the same
+     * database table via [insertionLambda], associating each one with the supplied offer ID and chain ID. Private
+     * settlement method data is encrypted with [databaseKey] and a new initialization vector.
      *
      * @param offerID The ID of the offer or swap to be associated with the settlement methods.
-     * @param settlementMethods The settlement methods to be persistently stored.
-     *
-     * @throws Exception if database insertion is unsuccessful.
+     * @param chainID The ID of the blockchain on which the [Offer] or [Swap] corresponding to these settlement methods
+     * exists, as a [String].
+     * @param settlementMethods The settlement methods to be persistently stored, as a [List] of [Pair], each of which
+     * contains a string and an optional string, in that order. The first element in a [Pair] is the public settlement
+     * method data, including price, currency and type. The second element element in a [Pair] is private data (such as
+     * an address or bank account number) for the settlement method, if any.
+     * @param deletionLambda A lambda that can be executed to delete all settlement methods with a given offer ID and
+     * chainID from the same database table into which this will insert new settlement methods. This lambda will be
+     * executed on the [databaseServiceContext] coroutine dispatcher.
+     * @param insertionLambda A lambda that can be executed to insert a new row, containing an offer ID, a chain ID,
+     * public settlement method data, encrypted private settlement method data, and an initialization vector, into the
+     * same table from which [deletionLambda] deletes settlement methods. This lambda will be executed on the
+     * [databaseServiceContext] coroutine dispatcher.
      */
     @OptIn(DelicateCoroutinesApi::class)
-    suspend fun storeSettlementMethods(
+    private suspend fun insertSettlementMethodsIntoTable(
         offerID: String,
         chainID: String,
-        settlementMethods: List<Pair<String, String?>>
+        settlementMethods: List<Pair<String, String?>>,
+        deletionLambda: (String, String) -> Unit,
+        insertionLambda: (String, String, String, String?, String?) -> Unit
     ) {
+        val encoder = Base64.getEncoder()
         withContext(databaseServiceContext) {
-            database.deleteSettlementMethods(offerID, chainID)
-            val encoder = Base64.getEncoder()
+            deletionLambda(offerID, chainID)
             for (settlementMethod in settlementMethods) {
                 var privateDataString: String? = null
                 var initializationVectorString: String? = null
-                val privateDataBytes = settlementMethod.second?.encodeToByteArray()
-                if (privateDataBytes != null) {
-                    val encryptedData = databaseKey.encrypt(privateDataBytes)
+                val privateData = settlementMethod.second?.toByteArray()
+                if (privateData != null) {
+                    val encryptedData = databaseKey.encrypt(data = privateData)
                     privateDataString = encoder.encodeToString(encryptedData.encryptedData)
                     initializationVectorString = encoder.encodeToString(encryptedData.initializationVector)
                 }
-                database.insertSettlementMethod(
-                    SettlementMethod(
-                        offerID,
-                        chainID,
-                        settlementMethod.first,
-                        privateDataString,
-                        initializationVectorString
-                    )
-                )
+                insertionLambda(offerID, chainID, settlementMethod.first, privateDataString, initializationVectorString)
             }
         }
-        logger.info("storeSettlementMethods: stored ${settlementMethods.size} for offer with B64 ID $offerID")
     }
 
     /**
-     * Removes every persistently stored settlement method associated with an offer ID equal to [offerID] and a
-     * blockchain ID equalt to [chainID].
+     * Removes every persistently stored settlement method associated with an offer ID equal to [offerID] and a chain ID
+     * equal to [chainID] from a database table of settlement methods via [deletionLambda].
      *
-     * @param offerID The ID of the offer for which associated settlement methods should be removed, as a
-     * Base64-[String] of bytes.
-     * @param chainID The ID of the blockchain on which the [Offer] or `Swap` corresponding to these settlement methods
+     * @param offerID The ID of the offer or swap for which associated settlement methods should be removed.
+     * @param chainID The ID of the blockchain on which the [Offer] or [Swap] corresponding to these settlement methods
      * exists, as a [String].
-     *
-     * @throws Exception If deletion is unsuccessful.
+     * @param deletionLambda A lambda that can be executed to delete all settlement methods with a given offer ID and
+     * chain ID from the same database table containing settlement methods. This lambda will be executed on the
+     * [databaseServiceContext] coroutine dispatcher.
      */
     @OptIn(DelicateCoroutinesApi::class)
-    suspend fun deleteSettlementMethods(offerID: String, chainID: String) {
+    private suspend fun deleteSettlementMethodsFromTable(
+        offerID: String,
+        chainID: String,
+        deletionLambda: (String, String) -> Unit
+    ) {
         withContext(databaseServiceContext) {
-            database.deleteSettlementMethods(offerID, chainID)
+            deletionLambda(offerID, chainID)
         }
-        logger.info("deleteSettlementMethods: deleted for offer with B64 ID $offerID")
     }
 
     /**
-     * Retrieves the persistently stored settlement methods and their private data (if any) associated with the
-     * specified offer ID and chain ID, or returns `null` if no such settlement methods are present.
+     * Retrieves the persistently stored settlement methods their private data (if any) associated with the specified
+     * offer ID and chain ID from a database table containing settlement methods via [selectionLambda], or returns
+     * `null` if no such settlement methods are present.
      *
      * @param offerID The ID of the offer for which settlement methods should be returned, as a Base64-[String] of
      * bytes.
-     * @param chainID The ID of the blockchain on which the [Offer] or Swap corresponding to these settlement methods
+     * @param chainID The ID of the blockchain on which the [Offer] or [Swap] corresponding to these settlement methods
      * exists, as a [String].
-     *
-     * @return `null` if no such settlement methods are found, or a [List] of [Pair]s containing a string and an
-     * optional string, the first of which is a settlement method associated with [offerID], the second of which is the
-     * private data associated with that settlement method, or `null` if no such data is found or if it cannot be
-     * decrypted.
-     *
-     * @throws Exception if database selection is unsuccessful.
+     * @param selectionLambda A lambda that can be executed to select all settlement methods with a given offer ID and
+     * chain ID from a database table containing settlement methods. This lambda will be executed on the
+     * [databaseServiceContext] coroutine dispatcher.
      */
     @OptIn(DelicateCoroutinesApi::class)
-    suspend fun getSettlementMethods(offerID: String, chainID: String): List<Pair<String, String?>>? {
+    private suspend fun getAndDecryptSettlementMethodsFromTable(
+        offerID: String,
+        chainID: String,
+        selectionLambda: (String, String) -> List<SettlementMethod>
+    ): List<Pair<String, String?>>? {
         val dbSettlementMethods: List<SettlementMethod> = withContext(databaseServiceContext) {
-            database.selectSettlementMethodByOfferIdAndChainID(offerID, chainID)
+            selectionLambda(offerID, chainID)
         }
         return if (dbSettlementMethods.isNotEmpty()) {
             val settlementMethodsList = mutableListOf<Pair<String, String?>>()
@@ -290,26 +300,193 @@ open class DatabaseService(
                         if (decryptedPrivateData != null) {
                             decryptedPrivateDataString = decryptedPrivateData.decodeToString()
                         } else {
-                            logger.error("getSettlementMethods: unable to get string from decoded private data " +
-                                    "using utf8 encoding for offer with B64 ID $offerID")
+                            logger.error("getAndDecryptSettlementMethodsFromTable: unable to get string from " +
+                                    "decoded private data using utf8 encoding for offer with B64 ID $offerID")
                         }
                     } else {
-                        logger.error("getSettlementMethods: found private data for offer with B64 ID $offerID " +
-                                "but could not decode bytes from strings")
+                        logger.error("getAndDecryptSettlementMethodsFromTable: found private data for offer " +
+                                "with B64 ID $offerID  could not decode bytes from strings")
                     }
                 } else {
-                    logger.error("getSettlementMethods: did not find private settlement method data for " +
-                            "settlement method for offer with B64 ID $offerID")
+                    logger.error("getAndDecryptSettlementMethodsFromTable: did not find private settlement " +
+                            "method data for settlement method for offer with B64 ID $offerID")
                 }
                 settlementMethodsList.add(Pair(it.settlementMethod, decryptedPrivateDataString))
             }
-            logger.info("getSettlementMethods: returning ${dbSettlementMethods.size} for offer with B64 ID " +
-                    offerID)
+            logger.info("getAndDecryptSettlementMethodsFromTable: returning ${settlementMethodsList.size} for " +
+                    "offer with B64 ID $offerID")
             return settlementMethodsList
         } else {
-            logger.info("getSettlementMethods: none found for offer with B64 ID $offerID")
+            logger.info("getAndDecryptSettlementMethodsFromTable: none found for offer with B64 ID $offerID")
             null
         }
+    }
+
+    /**
+     * Calls [DatabaseService.insertSettlementMethodsIntoTable], passing all parameters passed to this function and a
+     * lambda that performs insertion into the database table of offers' settlement methods.
+     *
+     * @param offerID The ID of the offer or swap to be associated with the settlement methods.
+     * @param chainID The ID of the blockchain on which the [Offer] or [Swap] corresponding to these settlement methods
+     * exists, as a [String].
+     * @param settlementMethods The settlement methods to be persistently stored, as [Pair]s containing a string and an
+     * optional string, in that order. The first element in a [Pair] is the public settlement method data, including
+     * price, currency and type. The second element element in a [Pair] is private data (such as an address or bank
+     * account number) for the settlement method, if any.
+     *
+     * @throws Exception if database insertion is unsuccessful.
+     */
+    @OptIn(DelicateCoroutinesApi::class)
+    suspend fun storeSettlementMethods(
+        offerID: String,
+        chainID: String,
+        settlementMethods: List<Pair<String, String?>>
+    ) {
+        insertSettlementMethodsIntoTable(
+            offerID = offerID,
+            chainID = chainID,
+            settlementMethods = settlementMethods,
+            deletionLambda = { _offerID, _chainID ->
+                database.deleteSettlementMethods(_offerID, _chainID)
+            },
+            insertionLambda = { _offerID, _chainID, publicData, encryptedPrivateData, initializationVector ->
+                database.insertSettlementMethod(
+                    SettlementMethod(
+                        _offerID,
+                        _chainID,
+                        publicData,
+                        encryptedPrivateData,
+                        initializationVector
+                    )
+                )
+            }
+        )
+        logger.info("storeSettlementMethods: stored ${settlementMethods.size} for offer with B64 ID $offerID")
+    }
+
+    /**
+     * Calls [DatabaseService.deleteSettlementMethodsFromTable], passing all parameters passed to this function and a
+     * lambda that performs deletion on the database table of offers' current settlement methods.
+     *
+     * @param offerID The ID of the offer for which associated settlement methods should be removed, as a
+     * Base64-[String] of bytes.
+     * @param chainID The ID of the blockchain on which the [Offer] or `Swap` corresponding to these settlement methods
+     * exists, as a [String].
+     */
+    @OptIn(DelicateCoroutinesApi::class)
+    suspend fun deleteSettlementMethods(offerID: String, chainID: String) {
+        deleteSettlementMethodsFromTable(
+            offerID = offerID,
+            chainID = chainID,
+            deletionLambda = { _offerID, _chainID ->
+                database.deleteSettlementMethods(offerID = _offerID, chainID = _chainID)
+            }
+        )
+        logger.info("deleteSettlementMethods: deleted for offer with B64 ID $offerID")
+    }
+
+    /**
+     * Calls [DatabaseService.getAndDecryptSettlementMethodsFromTable], passing all parameters passed to this function
+     * and a table that performs selection on the database table containing offers' current settlement methods.
+     *
+     * @param offerID The ID of the offer for which settlement methods should be returned, as a Base64-[String] of
+     * bytes.
+     * @param chainID The ID of the blockchain on which the [Offer] or [Swap] corresponding to these settlement methods
+     * exists, as a [String].
+     *
+     * @return The value returned by [DatabaseService.getAndDecryptSettlementMethodsFromTable].
+     */
+    @OptIn(DelicateCoroutinesApi::class)
+    suspend fun getSettlementMethods(offerID: String, chainID: String): List<Pair<String, String?>>? {
+        logger.info("getSettlementMethods: getting for offer with B64 ID $offerID")
+        return getAndDecryptSettlementMethodsFromTable(
+            offerID = offerID,
+            chainID = chainID,
+            selectionLambda = { _offerID, _chainID ->
+                database.selectSettlementMethodByOfferIdAndChainID(_offerID, _chainID)
+            }
+        )
+    }
+
+    /**
+     * Calls [DatabaseService.insertSettlementMethodsIntoTable], passing all parameters passed to this function and a
+     * lambda that performs insertion into the database table of offers' pending settlement methods.
+     *
+     * @param offerID The ID of the offer or swap to be associated with the pending settlement methods.
+     * @param chainID The ID of the blockchain on which the [Offer] or [Swap] corresponding to these settlement methods
+     * exists, as a [String].
+     * @param pendingSettlementMethods The pending settlement methods to be persistently stored, as pairs containing a
+     * string and an optional string, in that order. The first element in each pair is the public settlement method
+     * data, including price, currency and type. The second element element in each pair is private data (such as an
+     * address or bank account number) for the settlement method, if any.
+     */
+    @OptIn(DelicateCoroutinesApi::class)
+    suspend fun storePendingSettlementMethods(
+        offerID: String,
+        chainID: String,
+        pendingSettlementMethods: List<Pair<String, String?>>
+    ) {
+        insertSettlementMethodsIntoTable(
+            offerID = offerID,
+            chainID = chainID,
+            settlementMethods = pendingSettlementMethods,
+            deletionLambda = { _offerID, _chainID ->
+                database.deletePendingSettlementMethods(_offerID, _chainID)
+            },
+            insertionLambda = { _offerID, _chainID, publicData, encryptedPrivateData, initializationVector ->
+                database.insertPendingSettlementMethod(
+                    SettlementMethod(
+                        _offerID,
+                        _chainID,
+                        publicData,
+                        encryptedPrivateData,
+                        initializationVector
+                    )
+                )
+            }
+        )
+        logger.info("storePendingSettlementMethods: stored ${pendingSettlementMethods.size} for offer with " +
+                "B64 ID $offerID")
+    }
+
+    /**
+     * Calls [DatabaseService.deleteSettlementMethodsFromTable], passing all parameters passed to this function and a
+     * lambda that performs deletion on the database table containing pending settlement methods.
+     *
+     * @param offerID The ID of the offer for which associated pending settlement methods should be removed.
+     * @param chainID The ID of the blockchain on which the [Offer] or [Swap] corresponding to these pending settlement
+     * methods exists, as a [String].
+     */
+    suspend fun deletePendingSettlementMethods(offerID: String, chainID: String) {
+        deleteSettlementMethodsFromTable(
+            offerID = offerID,
+            chainID = chainID,
+            deletionLambda = { _offerID, _chainID ->
+                database.deletePendingSettlementMethods(offerID = _offerID, chainID = _chainID)
+            }
+        )
+        logger.info("deletePendingSettlementMethods: deleted for offer with B64 ID $offerID")
+    }
+
+    /**
+     * Calls [DatabaseService.getAndDecryptSettlementMethodsFromTable], passing all parameters passed to this function
+     * and a lambda that performs selection on the database table of offers' pending settlement methods.
+     *
+     * @param offerID The ID of the offer for which pending settlement methods should be returned, as a Base64-[String]
+     * of bytes.
+     * @param chainID The ID of the blockchain on which the [Offer] or [Swap] corresponding to these pending settlement
+     * methods exists, as a [String].
+     */
+    @OptIn(DelicateCoroutinesApi::class)
+    suspend fun getPendingSettlementMethods(offerID: String, chainID: String): List<Pair<String, String?>>? {
+        logger.info("getPendingSettlementMethods: getting for offer with B64 ID $offerID")
+        return getAndDecryptSettlementMethodsFromTable(
+            offerID = offerID,
+            chainID = chainID,
+            selectionLambda = { _offerID, _chainID ->
+                database.selectPendingSettlementMethodByOfferIdAndChainID(_offerID, _chainID)
+            }
+        )
     }
 
     /**

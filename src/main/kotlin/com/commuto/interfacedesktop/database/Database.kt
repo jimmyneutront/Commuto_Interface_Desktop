@@ -18,6 +18,7 @@ internal class Database(databaseDriverFactory: DatabaseDriverFactory) {
     internal fun createTables() {
         dbQuery.createOfferTable()
         dbQuery.createSettlementMethodTable()
+        dbQuery.createPendingSettlementMethodTable()
         dbQuery.createPublicKeyTable()
         dbQuery.createKeyPairTable()
         dbQuery.createSwapTable()
@@ -30,6 +31,7 @@ internal class Database(databaseDriverFactory: DatabaseDriverFactory) {
         dbQuery.transaction {
             dbQuery.removeAllOffers()
             dbQuery.removeAllSettlementMethods()
+            dbQuery.removeAllPendingSettlementMethods()
             dbQuery.removeAllKeyPairs()
             dbQuery.removeAllPublicKeys()
             dbQuery.removeAllSwaps()
@@ -54,6 +56,21 @@ internal class Database(databaseDriverFactory: DatabaseDriverFactory) {
      */
     internal fun selectSettlementMethodByOfferIdAndChainID(offerID: String, chainID: String): List<SettlementMethod> {
         return dbQuery.selectSettlementMethodByOfferIdAndChainID(offerID, chainID).executeAsList()
+    }
+
+    internal fun selectPendingSettlementMethodByOfferIdAndChainID(
+        offerID: String,
+        chainID: String
+    ): List<SettlementMethod> {
+        return dbQuery.selectPendingSettlementMethodByOfferIdAndChainID(offerID, chainID).executeAsList().map {
+            SettlementMethod(
+                id = it.id,
+                chainID = it.chainID,
+                settlementMethod = it.settlementMethod,
+                privateData = it.privateData,
+                privateDataInitializationVector = it.privateDataInitializationVector
+            )
+        }
     }
 
     /**
@@ -109,7 +126,7 @@ internal class Database(databaseDriverFactory: DatabaseDriverFactory) {
     }
 
     /**
-     * Inserts a [SettlementMethod] into the database.
+     * Inserts a [SettlementMethod] into the database table of offers' settlement methods.
      * @param settlementMethod The [SettlementMethod] to be inserted in the database.
      */
     internal fun insertSettlementMethod(settlementMethod: SettlementMethod) {
@@ -119,6 +136,20 @@ internal class Database(databaseDriverFactory: DatabaseDriverFactory) {
             settlementMethod = settlementMethod.settlementMethod,
             privateData = settlementMethod.privateData,
             privateDataInitializationVector = settlementMethod.privateDataInitializationVector
+        )
+    }
+
+    /**
+     * Inserts a [SettlementMethod] into the database table of offers' pending settlement methods.
+     * @param pendingSettlementMethod The [SettlementMethod] to be inserted into the database.
+     */
+    internal fun insertPendingSettlementMethod(pendingSettlementMethod: SettlementMethod) {
+        dbQuery.insertPendingSettlementMethod(
+            id = pendingSettlementMethod.id,
+            chainID = pendingSettlementMethod.chainID,
+            settlementMethod = pendingSettlementMethod.settlementMethod,
+            privateData = pendingSettlementMethod.privateData,
+            privateDataInitializationVector = pendingSettlementMethod.privateDataInitializationVector
         )
     }
 
@@ -352,7 +383,8 @@ internal class Database(databaseDriverFactory: DatabaseDriverFactory) {
     }
 
     /**
-     * Deletes all [SettlementMethod]s with the specified offer ID and specified blockchain ID from the database.
+     * Deletes all [SettlementMethod]s with the specified offer ID and specified blockchain ID from the database table
+     * of offers' current settlement methods.
      * @param offerID The offer ID of the [SettlementMethod]s to be deleted.
      * @param chainID The blockchain ID of the [SettlementMethod]s to be deleted.
      */
@@ -360,6 +392,19 @@ internal class Database(databaseDriverFactory: DatabaseDriverFactory) {
         dbQuery.deleteSettlementMethodByOfferIdAndChainID(
             id = offerID,
             chainID = chainID
+        )
+    }
+
+    /**
+     * Deletes all [SettlementMethod]s with the specified offer ID and specified blockchain ID from the database table
+     * of offers' pending settlement methods.
+     * @param offerID The offer ID of the [SettlementMethod]s to be deleted.
+     * @param chainID The blockchain ID of the [SettlementMethod]s to be deleted.
+     */
+    internal fun deletePendingSettlementMethods(offerID: String, chainID: String) {
+        dbQuery.deletePendingSettlementMethodByOfferIdAndChainID(
+            id = offerID,
+            chainID = chainID,
         )
     }
 

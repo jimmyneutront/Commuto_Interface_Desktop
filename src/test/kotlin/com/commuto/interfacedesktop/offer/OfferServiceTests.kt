@@ -1507,6 +1507,33 @@ class OfferServiceTests {
         val offerTruthSource = TestOfferTruthSource()
         offerService.setOfferTruthSource(offerTruthSource)
 
+        val offer = Offer(
+            isCreated = true,
+            isTaken = false,
+            id = offerID,
+            maker = "0x0000000000000000000000000000000000000000",
+            interfaceId = ByteArray(0),
+            stablecoin = "0x0000000000000000000000000000000000000000",
+            amountLowerBound = BigInteger.valueOf(10_000L) * BigInteger.TEN.pow(18),
+            amountUpperBound = BigInteger.valueOf(20_000L) * BigInteger.TEN.pow(18),
+            securityDepositAmount = BigInteger.valueOf(2_000L) * BigInteger.TEN.pow(18),
+            serviceFeeRate = BigInteger.valueOf(100L),
+            direction = OfferDirection.BUY,
+            settlementMethods = mutableStateListOf(
+                SettlementMethod(
+                    currency = "EUR",
+                    price = "0.98",
+                    method = "SEPA"
+                )
+            ),
+            protocolVersion = BigInteger.ONE,
+            chainID = BigInteger.valueOf(31337L), // Hardhat blockchain ID
+            havePublicKey = true,
+            isUserMaker = true,
+            state = OfferState.OFFER_OPENED
+        )
+        offerTruthSource.offers[offerID] = offer
+
         val exceptionHandler = TestBlockchainExceptionHandler()
 
         val blockchainService = BlockchainService(
@@ -1524,19 +1551,18 @@ class OfferServiceTests {
                     SettlementMethod(
                         currency = "USD",
                         method = "a_method",
-                        price = "1.23"
+                        price = "1.23",
+                        privateData = "some_private_data"
                     )
                 )
             )
 
             val expectedSettlementMethods = listOf(
-                Json.encodeToString(
-                    SettlementMethod(
-                        currency = "USD",
-                        method = "a_method",
-                        price = "1.23"
-                    )
-                ).encodeToByteArray()
+                SettlementMethod(
+                    currency = "USD",
+                    method = "a_method",
+                    price = "1.23"
+                ).onChainData
             )
 
             val offerStruct = blockchainService.getOffer(offerID)
@@ -1544,6 +1570,13 @@ class OfferServiceTests {
             offerStruct.settlementMethods.indices.forEach {
                 assert(expectedSettlementMethods[it].contentEquals(offerStruct.settlementMethods[it]))
             }
+            val encoder = Base64.getEncoder()
+            val pendingSettlementMethodsInDatabase = databaseService.getPendingSettlementMethods(
+                offerID = encoder.encodeToString(offerID.asByteArray()),
+                chainID = BigInteger.valueOf(31337L).toString()
+            )
+            assertEquals(1, pendingSettlementMethodsInDatabase!!.size)
+            assertEquals("some_private_data", pendingSettlementMethodsInDatabase[0].second)
         }
     }
 
