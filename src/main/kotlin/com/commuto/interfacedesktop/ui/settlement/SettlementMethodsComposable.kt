@@ -8,10 +8,12 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.commuto.interfacedesktop.settlement.SettlementMethod
 import com.commuto.interfacedesktop.settlement.privatedata.PrivateData
@@ -28,11 +30,25 @@ import kotlinx.serialization.json.Json
 @Composable
 fun SettlementMethodsComposable() {
 
+    /**
+     * Indicates which composable should be shown on the trailing side of the list of [SettlementMethodCardComposable]s
+     */
     val focusedSettlementMethodComposable = remember {
         mutableStateOf(FocusedSettlementMethodComposable.SettlementMethodComposable)
     }
 
+    /**
+     * The settlement method to show in the settlement method detail composable.
+     */
     val focusedSettlementMethod = remember { mutableStateOf<SettlementMethod?>(null) }
+
+    val settlementMethods = remember {
+        mutableStateListOf<SettlementMethod>().also { mutableStateList ->
+            SettlementMethod.sampleSettlementMethodsEmptyPrices.map {
+                mutableStateList.add(it)
+            }
+        }
+    }
 
     Row {
         Column(
@@ -69,7 +85,7 @@ fun SettlementMethodsComposable() {
                 color = MaterialTheme.colors.onSurface.copy(alpha = 0.2f),
             )
             LazyColumn {
-                for (entry in SettlementMethod.sampleSettlementMethodsEmptyPrices) {
+                for (entry in settlementMethods) {
                     item {
                         Button(
                             onClick = {
@@ -98,7 +114,9 @@ fun SettlementMethodsComposable() {
             FocusedSettlementMethodComposable.SettlementMethodComposable -> {
                 if (focusedSettlementMethod.value != null) {
                     SettlementMethodDetailComposable(
-                        settlementMethod = focusedSettlementMethod.value
+                        settlementMethod = focusedSettlementMethod.value,
+                        settlementMethods = settlementMethods,
+                        focusedSettlementMethod = focusedSettlementMethod
                     )
                 } else {
                     Row(
@@ -172,10 +190,17 @@ fun SettlementMethodCardComposable(settlementMethod: SettlementMethod) {
 
 /**
  * Displays all information, including private information, about a given [SettlementMethod].
+ *
+ * @param settlementMethod The [SettlementMethod] containing the information to be displayed.
+ * @param settlementMethods A [SnapshotStateList] of the user's current [SettlementMethod]s.
+ * @param focusedSettlementMethod A [MutableState] wrapped around the currently focused settlement method, the value of
+ * which this will set to null if the user deletes the settlement method
  */
 @Composable
 fun SettlementMethodDetailComposable(
-    settlementMethod: SettlementMethod?
+    settlementMethod: SettlementMethod?,
+    settlementMethods: SnapshotStateList<SettlementMethod>,
+    focusedSettlementMethod: MutableState<SettlementMethod?>,
 ) {
 
     val privateData = remember { mutableStateOf<PrivateData?>(null) }
@@ -240,6 +265,31 @@ fun SettlementMethodDetailComposable(
                     fontWeight = FontWeight.Bold
                 )
             }
+            Button(
+                onClick = {
+                    settlementMethods.removeAll {
+                        it.method == settlementMethod.method
+                                && it.currency == settlementMethod.currency
+                                && it.privateData == settlementMethod.privateData
+                    }
+                    focusedSettlementMethod.value = null
+                },
+                content = {
+                    Text(
+                        text = "Delete",
+                        style = MaterialTheme.typography.h4,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center
+                    )
+                },
+                border = BorderStroke(3.dp, Color.Red),
+                colors = ButtonDefaults.buttonColors(
+                    backgroundColor =  Color.Transparent,
+                    contentColor = Color.Red,
+                ),
+                elevation = null,
+                modifier = Modifier.fillMaxWidth(),
+            )
         }
     } else {
         Row(
@@ -350,7 +400,11 @@ suspend fun createDetailString(
                     finishedParsingData.value = true
                 }
                 return@withContext
-            } catch (_: Exception) {}
+            } catch (_: Exception) {
+                withContext(Dispatchers.Main) {
+                    privateData.value = null
+                }
+            }
             try {
                 val privateSWIFTData = Json.decodeFromString<PrivateSWIFTData>(privateDataString)
                 withContext(Dispatchers.Main) {
@@ -358,7 +412,11 @@ suspend fun createDetailString(
                     finishedParsingData.value = true
                 }
                 return@withContext
-            } catch (_: Exception) {}
+            } catch (_: Exception) {
+                withContext(Dispatchers.Main) {
+                    privateData.value = null
+                }
+            }
         }
         finishedParsingData.value = true
         return@withContext
