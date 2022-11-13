@@ -538,18 +538,23 @@ class SwapService @Inject constructor(
                     logger.info("handleTakerInformationMessage: persistently storing public key " +
                             "${encoder.encodeToString(message.publicKey.interfaceId)} for ${message.swapID}")
                     keyManagerService.storePublicKey(pubKey = message.publicKey)
+                    val swapIDB64String = encoder.encodeToString(message.swapID.asByteArray())
                     if (message.settlementMethodDetails == null) {
                         logger.warn("handleTakerInformationMessage: private data in message was null for " +
                                 "${message.swapID}")
+                    } else {
+                        logger.info("handleTakerInformationMessage: persistently storing private data in message " +
+                                "for ${message.swapID}")
+                        databaseService.updateSwapTakerPrivateSettlementMethodData(
+                            swapID = swapIDB64String,
+                            chainID = swap.chainID.toString(),
+                            data = message.settlementMethodDetails
+                        )
+                        logger.info("handleTakerInformationMessage: updating ${swap.id} with private data")
+                        withContext(Dispatchers.Main) {
+                            swap.takerPrivateSettlementMethodData = message.settlementMethodDetails
+                        }
                     }
-                    logger.info("handleTakerInformationMessage: persistently storing private data in message " +
-                            "for ${message.swapID}")
-                    val swapIDB64String = encoder.encodeToString(message.swapID.asByteArray())
-                    databaseService.updateSwapTakerPrivateSettlementMethodData(
-                        swapID = swapIDB64String,
-                        chainID = swap.chainID.toString(),
-                        data = message.settlementMethodDetails
-                    )
                     logger.info("handleTakerInformationMessage: updating ${swap.id} with private data")
                     withContext(Dispatchers.Main) {
                         swap.takerPrivateSettlementMethodData = message.settlementMethodDetails
