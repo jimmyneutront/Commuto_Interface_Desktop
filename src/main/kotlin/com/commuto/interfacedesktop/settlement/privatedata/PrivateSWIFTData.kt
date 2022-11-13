@@ -14,4 +14,4 @@ data class PrivateSWIFTData(
     val accountHolder: String,
     val bic: String,
     val accountNumber: String,
-)
+): PrivateData

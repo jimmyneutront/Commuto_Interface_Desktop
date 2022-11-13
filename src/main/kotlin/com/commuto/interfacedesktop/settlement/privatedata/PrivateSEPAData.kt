@@ -16,4 +16,4 @@ data class PrivateSEPAData(
     val bic: String,
     val iban: String,
     val address: String,
-)
+): PrivateData
