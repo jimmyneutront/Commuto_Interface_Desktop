@@ -40,6 +40,12 @@ fun TabSidebarComposable(
                 currentTab.value = CurrentTab.SWAPS
             },
         )
+        TabButton(
+            label = "Settlement Methods",
+            onClick = {
+                currentTab.value = CurrentTab.SETTLEMENT_METHODS
+            }
+        )
     }
 }
 
