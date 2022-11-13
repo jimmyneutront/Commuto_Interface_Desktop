@@ -804,18 +804,20 @@ class OfferService (
      * this checks if the user of the interface is the maker of the offer being edited. If so, then the new settlement
      * methods for the offer and their associated private data should be stored in the pending settlement methods
      * database table. So this gets that data from [databaseService], and then deserializes the data to
-     * [SettlementMethod] objects which are added to a list, logging warnings when such a [SettlementMethod] has no
-     * associated private data. Then this creates another list of [SettlementMethod] objects by deserializing the
-     * settlement method data in the new on-chain offer data. Then this iterates through the latter list of
-     * [SettlementMethod] objects, searching for matching [SettlementMethod] objects in the former list (matching
-     * meaning that price, currency, and fiat currency values are equal; obviously on-chain settlement methods will have
-     * no private data). If, for a given [SettlementMethod] in the latter list, a matching [SettlementMethod] (which
-     * definitely has associated private data) is found in the former list, it is added to a third list of
-     * [SettlementMethod]s. Once this iteration task is complete, this persistently stores the third list of new
-     * [SettlementMethod]s, and associates the third list with the corresponding `Offer` on the main coroutine
-     * dispatcher. If the user of this interface is not the maker of the offer being edited, this simply deserializes
-     * the new settlement methods from on-chain offer data and associates them with the corresponding [Offer] on the
-     * main coroutine dispatcher. Finally, this removes [event] from [offerEditedEventRepository].
+     * [SettlementMethod] objects and adds them to a list, logging warnings when such a [SettlementMethod] has no
+     * associated private data. Then this creates another list of [SettlementMethod] objects that it creates by
+     * deserializing the settlement method data in the new on-chain offer data. Then this iterates through the latter
+     * list of [SettlementMethod] objects, searching for matching [SettlementMethod] objects in the former list
+     * (matching meaning that price, currency, and fiat currency values are equal; obviously on-chain settlement methods
+     * will have no private data). If, for a given [SettlementMethod] in the latter list, a matching [SettlementMethod]
+     * (which definitely has associated private data) is found in the former list, the matching element in the former
+     * list is added to a third list of [SettlementMethod]s. Once this iteration task is complete, this persistently
+     * stores the third list of new [SettlementMethod]s as the offer's settlement methods, and sets the corresponding
+     * [Offer]'s settlement methods equal to the contents of this list on the main coroutine dispatcher. If the user of
+     * this interface is not the maker of the offer being edited, this creates a new list of [SettlementMethod]s by
+     * deserializing the settlement method data in the new on-chain offer data, persistently stores the list of new
+     * [SettlementMethod]`s as the offer's settlement methods, and sets the corresponding [Offer]'s settlement methods
+     * equal to the contents of this list on the main coroutine dispatcher.
      *
      * @param event The [OfferEditedEvent] of which [OfferService] is being notified.
      *
