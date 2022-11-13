@@ -120,6 +120,7 @@ class SwapServiceTests {
             state = SwapState.AWAITING_TAKER_INFORMATION,
             role = SwapRole.TAKER_AND_SELLER,
         )
+        swap.takerPrivateSettlementMethodData = "some_SWIFT_data"
         swapTruthSource.swaps[swapID] = swap
 
         /*
@@ -199,8 +200,7 @@ class SwapServiceTests {
         assert(makerKeyPair.interfaceId.contentEquals(p2pService.makerPublicKey!!.interfaceId))
         assert(takerKeyPair.interfaceId.contentEquals(p2pService.takerKeyPair!!.interfaceId))
         assertEquals(swapID, p2pService.swapID!!)
-        // TODO: update this once SettlementMethodService is added
-        assertEquals("TEMPORARY", p2pService.settlementMethodDetails!!)
+        assertEquals("some_SWIFT_data", p2pService.settlementMethodDetails!!)
 
         assertEquals(SwapState.AWAITING_MAKER_INFORMATION, swap.state.value)
 

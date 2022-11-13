@@ -23,7 +23,7 @@ class NewSwapDataValidatorTests {
             currency = "a_currency",
             price = "a_price",
             method = "a_settlement_method",
-            privateData = "private_data"
+            privateData = "some_private_data"
         )
         val offer = Offer(
             isCreated = true,
