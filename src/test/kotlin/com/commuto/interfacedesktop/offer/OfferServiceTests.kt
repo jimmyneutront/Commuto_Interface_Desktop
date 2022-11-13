@@ -880,10 +880,6 @@ class OfferServiceTests {
             }.body()
         }
         val expectedOfferId = UUID.fromString(testingServerResponse.offerId)
-        val expectedOfferIdByteBuffer = ByteBuffer.wrap(ByteArray(16))
-        expectedOfferIdByteBuffer.putLong(expectedOfferId.mostSignificantBits)
-        expectedOfferIdByteBuffer.putLong(expectedOfferId.leastSignificantBits)
-        val expectedOfferIdByteArray = expectedOfferIdByteBuffer.array()
 
         val w3 = Web3j.build(HttpService(System.getenv("BLOCKCHAIN_NODE")))
 
@@ -928,44 +924,131 @@ class OfferServiceTests {
         val offerTruthSource = TestOfferTruthSource()
         offerService.setOfferTruthSource(offerTruthSource)
 
+        val offer = Offer.fromOnChainData(
+            isCreated = true,
+            isTaken = false,
+            id = expectedOfferId,
+            maker = "0x0000000000000000000000000000000000000000",
+            interfaceId = ByteArray(0),
+            stablecoin = "0x0000000000000000000000000000000000000000",
+            amountLowerBound = BigInteger.ZERO,
+            amountUpperBound = BigInteger.ZERO,
+            securityDepositAmount = BigInteger.ZERO,
+            serviceFeeRate = BigInteger.ZERO,
+            onChainDirection = BigInteger.ZERO,
+            onChainSettlementMethods = listOf(),
+            protocolVersion = BigInteger.ZERO,
+            chainID = BigInteger.valueOf(31337L),
+            havePublicKey = true,
+            isUserMaker = true,
+            state = OfferState.AWAITING_PUBLIC_KEY_ANNOUNCEMENT
+        )
+        offer.updateSettlementMethods(listOf(
+            SettlementMethod(currency = "USD", price = "1.00", method = "SWIFT", privateData = "some_swift_data")
+        ))
+        offerTruthSource.addOffer(offer)
+        val encoder = Base64.getEncoder()
+        val offerIDB64String = encoder.encodeToString(offer.id.asByteArray())
+        val offerForDatabase = DatabaseOffer(
+            id = offerIDB64String,
+            isCreated = 1L,
+            isTaken = 0L,
+            maker = offer.maker,
+            interfaceId = encoder.encodeToString(offer.interfaceId),
+            stablecoin = offer.stablecoin,
+            amountLowerBound = offer.amountLowerBound.toString(),
+            amountUpperBound = offer.amountUpperBound.toString(),
+            securityDepositAmount = offer.securityDepositAmount.toString(),
+            serviceFeeRate = offer.serviceFeeRate.toString(),
+            onChainDirection = offer.onChainDirection.toString(),
+            protocolVersion = offer.protocolVersion.toString(),
+            chainID = offer.chainID.toString(),
+            havePublicKey = 1L,
+            isUserMaker = 1L,
+            state = offer.state.asString,
+        )
+        runBlocking {
+            databaseService.storeOffer(offerForDatabase)
+        }
+        val serializedSettlementMethodsAndPrivateDetails = offer.settlementMethods.map {
+            Pair(Json.encodeToString(it), it.privateData)
+        }
+        runBlocking {
+            databaseService.storeSettlementMethods(
+                offerID = encoder.encodeToString(expectedOfferId.asByteArray()),
+                chainID = offerForDatabase.chainID,
+                settlementMethods = serializedSettlementMethodsAndPrivateDetails
+            )
+        }
+
+        val pendingSettlementMethods = listOf(
+            SettlementMethod(
+                currency = "EUR",
+                price = "0.98",
+                method = "SEPA",
+                privateData = "some_sepa_data"
+            ),
+            SettlementMethod(
+                currency = "BSD",
+                price = "1.00",
+                method = "SANDDOLLAR",
+                privateData = "some_sanddollar_data"
+            ),
+        )
+        val serializedPendingSettlementMethodsAndPrivateDetails = pendingSettlementMethods.map {
+            Pair(Json.encodeToString(it), it.privateData)
+        }
+        runBlocking {
+            databaseService.storePendingSettlementMethods(
+                offerID = offerIDB64String,
+                chainID = offerForDatabase.chainID,
+                pendingSettlementMethods = serializedPendingSettlementMethodsAndPrivateDetails
+            )
+        }
+
         val exceptionHandler = TestBlockchainExceptionHandler()
 
-        val blockchainService = BlockchainService(
+        BlockchainService(
             exceptionHandler = exceptionHandler,
             offerService = offerService,
             swapService = TestSwapService(),
             web3 = w3,
             commutoSwapAddress = testingServerResponse.commutoSwapAddress
         )
-        blockchainService.listen()
-        val encoder = Base64.getEncoder()
+
+        val event = OfferEditedEvent(offerID = expectedOfferId, chainID = BigInteger.valueOf(31337L))
+
         runBlocking {
+            launch {
+                offerService.handleOfferEditedEvent(event)
+            }
             withTimeout(60_000) {
                 offerEditedEventRepository.removedEventChannel.receive()
                 assertFalse(exceptionHandler.gotError)
-                assert(offerTruthSource.offers.size == 1)
-                assertEquals(offerTruthSource.offers[expectedOfferId]!!.id, expectedOfferId)
-                assertEquals(offerEditedEventRepository.appendedEvent!!.offerID, expectedOfferId)
-                assertEquals(offerEditedEventRepository.removedEvent!!.offerID, expectedOfferId)
-                val offerInDatabase = databaseService.getOffer(encoder.encodeToString(expectedOfferIdByteArray))
-                assert(offerInDatabase!!.isCreated == 1L)
-                assert(offerInDatabase.isTaken == 0L)
-                assertEquals(offerInDatabase.interfaceId, encoder.encodeToString("maker interface Id here"
-                    .encodeToByteArray()))
-                assertEquals(offerInDatabase.amountLowerBound, "10000")
-                assertEquals(offerInDatabase.amountUpperBound, "10000")
-                assertEquals(offerInDatabase.securityDepositAmount, "1000")
-                assertEquals(offerInDatabase.serviceFeeRate, "100")
-                assertEquals(offerInDatabase.onChainDirection, "1")
-                assertEquals(offerInDatabase.protocolVersion, "1")
-                assertEquals(offerInDatabase.havePublicKey, 0L)
-                assertEquals(offerInDatabase.isUserMaker, 0L)
-                assertEquals(offerInDatabase.state, OfferState.AWAITING_PUBLIC_KEY_ANNOUNCEMENT.asString)
-                val settlementMethodsInDatabase = databaseService.getSettlementMethods(encoder
-                    .encodeToString(expectedOfferIdByteArray), offerInDatabase.chainID)
-                assertEquals(settlementMethodsInDatabase!!.size, 1)
-                assertEquals(settlementMethodsInDatabase[0].first, encoder.encodeToString(("{\"f\":\"EUR\",\"p\":\"" +
-                        "SEPA\",\"m\":\"0.98\"}").encodeToByteArray()))
+                assertEquals(1, offerTruthSource.offers.size)
+                assertEquals(expectedOfferId, offerTruthSource.offers[expectedOfferId]!!.id)
+                assertEquals(expectedOfferId, offerEditedEventRepository.appendedEvent!!.offerID)
+                assertEquals(expectedOfferId, offerEditedEventRepository.removedEvent!!.offerID)
+
+                val settlementMethodsInDatabase = databaseService.getSettlementMethods(
+                    offerID = offerIDB64String,
+                    chainID = offerForDatabase.chainID
+                )
+                assertEquals(settlementMethodsInDatabase!!.size, 2)
+                assertEquals("{\"f\":\"EUR\",\"m\":\"SEPA\",\"p\":\"0.98\"}",
+                    settlementMethodsInDatabase[0].first)
+                assertEquals("some_sepa_data",
+                    settlementMethodsInDatabase[0].second)
+                assertEquals("{\"f\":\"BSD\",\"m\":\"SANDDOLLAR\",\"p\":\"1.00\"}",
+                    settlementMethodsInDatabase[1].first)
+                assertEquals("some_sanddollar_data",
+                    settlementMethodsInDatabase[1].second)
+
+                val pendingSettlementMethodsInDatabase = databaseService.getPendingSettlementMethods(
+                    offerID = offerIDB64String,
+                    chainID = offerForDatabase.chainID
+                )
+                assertNull(pendingSettlementMethodsInDatabase)
             }
         }
     }
