@@ -43,6 +43,8 @@ fun SettlementMethodsComposable() {
      */
     val focusedSettlementMethod = remember { mutableStateOf<SettlementMethod?>(null) }
 
+    val privateData = remember { mutableStateOf<PrivateData?>(null) }
+
     /**
      * The list of the user's current settlement methods.
      */
@@ -59,7 +61,9 @@ fun SettlementMethodsComposable() {
             modifier = Modifier.widthIn(100.dp, 300.dp),
         ) {
             Row(
-                modifier = Modifier.padding(PaddingValues(start = 10.dp)).fillMaxWidth(),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(PaddingValues(start = 10.dp)),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
@@ -123,7 +127,8 @@ fun SettlementMethodsComposable() {
                     SettlementMethodDetailComposable(
                         settlementMethod = focusedSettlementMethod.value,
                         settlementMethods = settlementMethods,
-                        focusedSettlementMethod = focusedSettlementMethod
+                        focusedSettlementMethod = focusedSettlementMethod,
+                        focusedSettlementMethodComposable = focusedSettlementMethodComposable
                     )
                 } else {
                     Row(
@@ -142,6 +147,13 @@ fun SettlementMethodsComposable() {
                     focusedSettlementMethodComposable = focusedSettlementMethodComposable,
                     focusedSettlementMethod = focusedSettlementMethod,
                     settlementMethods = settlementMethods
+                )
+            }
+            FocusedSettlementMethodComposable.EditSettlementMethodComposable -> {
+                EditSettlementMethodComposable(
+                    focusedSettlementMethod = focusedSettlementMethod,
+                    privateData = privateData,
+                    focusedSettlementMethodComposable = focusedSettlementMethodComposable,
                 )
             }
         }
@@ -468,8 +480,14 @@ fun EditableSWIFTDetailComposable(
  */
 @Composable
 fun SettlementMethodCardComposable(settlementMethod: SettlementMethod) {
-
+    /**
+     * An object implementing [PrivateData] containing private data for [settlementMethod].
+     */
     val privateData = remember { mutableStateOf<PrivateData?>(null) }
+
+    /**
+     * Indicates whether we have finished attempting to parse the private data associated with [settlementMethod].
+     */
     val finishedParsingData = remember { mutableStateOf(false) }
 
     LaunchedEffect(true) {
@@ -528,9 +546,15 @@ fun SettlementMethodDetailComposable(
     settlementMethod: SettlementMethod?,
     settlementMethods: SnapshotStateList<SettlementMethod>,
     focusedSettlementMethod: MutableState<SettlementMethod?>,
+    focusedSettlementMethodComposable: MutableState<FocusedSettlementMethodComposable>,
 ) {
-
+    /**
+     * An object implementing [PrivateData] containing private data for [settlementMethod].
+     */
     val privateData = remember { mutableStateOf<PrivateData?>(null) }
+    /**
+     * Indicates whether we have finished attempting to parse the private data associated with [settlementMethod].
+     */
     val finishedParsingData = remember { mutableStateOf(false) }
 
     if (settlementMethod != null) {
@@ -594,6 +618,29 @@ fun SettlementMethodDetailComposable(
             }
             Button(
                 onClick = {
+                    focusedSettlementMethodComposable.value = FocusedSettlementMethodComposable
+                        .EditSettlementMethodComposable
+                },
+                content = {
+                    Text(
+                        text = "Edit",
+                        style = MaterialTheme.typography.h4,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center
+                    )
+                },
+                border = BorderStroke(3.dp, Color.Black),
+                colors = ButtonDefaults.buttonColors(
+                    backgroundColor =  Color.Transparent,
+                    contentColor = Color.Black,
+                ),
+                elevation = null,
+                modifier = Modifier
+                    .padding(vertical = 3.dp)
+                    .fillMaxWidth(),
+            )
+            Button(
+                onClick = {
                     settlementMethods.removeAll {
                         it.method == settlementMethod.method
                                 && it.currency == settlementMethod.currency
@@ -615,7 +662,9 @@ fun SettlementMethodDetailComposable(
                     contentColor = Color.Red,
                 ),
                 elevation = null,
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier
+                    .padding(vertical = 3.dp)
+                    .fillMaxWidth(),
             )
         }
     } else {
@@ -748,6 +797,77 @@ suspend fun createDetailString(
         }
         finishedParsingData.value = true
         return@withContext
+    }
+}
+
+@Composable
+fun EditSettlementMethodComposable(
+    focusedSettlementMethod: MutableState<SettlementMethod?>,
+    privateData: MutableState<PrivateData?>,
+    focusedSettlementMethodComposable: MutableState<FocusedSettlementMethodComposable>
+) {
+    Column(
+        modifier = Modifier
+            .padding(10.dp)
+            .verticalScroll(rememberScrollState()),
+    ) {
+        Row(
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(
+                text = "Edit ${focusedSettlementMethod.value?.method ?: "Unown"} Details",
+                style = MaterialTheme.typography.h4,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.weight(0.75f)
+            )
+            Button(
+                onClick = {
+                    focusedSettlementMethodComposable.value = FocusedSettlementMethodComposable
+                        .SettlementMethodComposable
+                },
+                content = {
+                    Text(
+                        text = "Cancel",
+                        fontWeight = FontWeight.Bold,
+                    )
+                },
+                colors = ButtonDefaults.buttonColors(
+                    backgroundColor =  Color.Transparent,
+                    contentColor = Color.Black,
+                ),
+                border = BorderStroke(1.dp, Color.Black),
+                elevation = null,
+            )
+        }
+        when (focusedSettlementMethod.value?.method ?: "") {
+            "SEPA" -> {
+                EditableSEPADetailComposable(
+                    buttonText = "Done",
+                    buttonAction = { newPrivateData ->
+                        privateData.value = newPrivateData
+                        focusedSettlementMethodComposable.value = FocusedSettlementMethodComposable
+                            .SettlementMethodComposable
+                    }
+                )
+            }
+            "SWIFT" -> {
+                EditableSWIFTDetailComposable(
+                    buttonText = "Done",
+                    buttonAction = { newPrivateData ->
+                        privateData.value = newPrivateData
+                        focusedSettlementMethodComposable.value = FocusedSettlementMethodComposable
+                            .SettlementMethodComposable
+                    }
+                )
+            }
+            else -> {
+                Text(
+                    text = "Unable to edit details"
+                )
+            }
+        }
     }
 }
 
