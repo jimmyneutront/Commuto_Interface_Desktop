@@ -43,6 +43,12 @@ fun SettlementMethodsComposable() {
      */
     val focusedSettlementMethod = remember { mutableStateOf<SettlementMethod?>(null) }
 
+    /**
+     * Private data of a [SettlementMethod] that is or was the focused settlement method, or `null` if no such
+     * [PrivateData] exists. (Note that this may not necessarily contain the private data of `focusedSettlementMethod`,
+     * but it will be updated with the private data of `focusedSettlementMethod` every time the
+     * settlement-method-editing Composable is displayed.
+     */
     val privateData = remember { mutableStateOf<PrivateData?>(null) }
 
     /**
@@ -800,73 +806,100 @@ suspend fun createDetailString(
     }
 }
 
+/**
+ * Displays a [Composable] allowing the user to edit the private data of the [SettlementMethod] around which
+ * [focusedSettlementMethod] is wrapped, or displays an error * message if the details cannot be edited.
+ * @param focusedSettlementMethod A [MutableState] wrapped around a [SettlementMethod], the private data of which this
+ * edits.
+ * @param privateData A [MutableState] containing an object implementing [PrivateData] for [focusedSettlementMethod].
+ * @param focusedSettlementMethodComposable A [MutableState] wrapped around an enum representing the currently focused
+ * settlement method Composable
+ */
 @Composable
 fun EditSettlementMethodComposable(
     focusedSettlementMethod: MutableState<SettlementMethod?>,
     privateData: MutableState<PrivateData?>,
     focusedSettlementMethodComposable: MutableState<FocusedSettlementMethodComposable>
 ) {
-    Column(
-        modifier = Modifier
-            .padding(10.dp)
-            .verticalScroll(rememberScrollState()),
-    ) {
+    if (focusedSettlementMethod.value != null) {
+        Column(
+            modifier = Modifier
+                .padding(10.dp)
+                .verticalScroll(rememberScrollState()),
+        ) {
+            Row(
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = "Edit ${focusedSettlementMethod.value?.method ?: ""} Details",
+                    style = MaterialTheme.typography.h4,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.weight(0.75f)
+                )
+                Button(
+                    onClick = {
+                        focusedSettlementMethodComposable.value = FocusedSettlementMethodComposable
+                            .SettlementMethodComposable
+                    },
+                    content = {
+                        Text(
+                            text = "Cancel",
+                            fontWeight = FontWeight.Bold,
+                        )
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        backgroundColor =  Color.Transparent,
+                        contentColor = Color.Black,
+                    ),
+                    border = BorderStroke(1.dp, Color.Black),
+                    elevation = null,
+                )
+            }
+            when (focusedSettlementMethod.value?.method ?: "") {
+                "SEPA" -> {
+                    EditableSEPADetailComposable(
+                        buttonText = "Done",
+                        buttonAction = { newPrivateData ->
+                            privateData.value = newPrivateData
+                            focusedSettlementMethod.value?.privateData = Json.encodeToString(
+                                newPrivateData as PrivateSEPAData
+                            )
+                            focusedSettlementMethodComposable.value = FocusedSettlementMethodComposable
+                                .SettlementMethodComposable
+                        }
+                    )
+                }
+                "SWIFT" -> {
+                    EditableSWIFTDetailComposable(
+                        buttonText = "Done",
+                        buttonAction = { newPrivateData ->
+                            privateData.value = newPrivateData
+                            focusedSettlementMethod.value?.privateData = Json.encodeToString(
+                                newPrivateData as PrivateSWIFTData
+                            )
+                            focusedSettlementMethodComposable.value = FocusedSettlementMethodComposable
+                                .SettlementMethodComposable
+                        }
+                    )
+                }
+                else -> {
+                    Text(
+                        text = "Unable to edit details"
+                    )
+                }
+            }
+        }
+    } else {
         Row(
-            horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
-            modifier = Modifier.fillMaxWidth()
+            horizontalArrangement = Arrangement.SpaceEvenly,
+            modifier = Modifier.fillMaxSize()
         ) {
             Text(
-                text = "Edit ${focusedSettlementMethod.value?.method ?: "Unown"} Details",
-                style = MaterialTheme.typography.h4,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.weight(0.75f)
+                text = "No Settlement Method Selected.",
             )
-            Button(
-                onClick = {
-                    focusedSettlementMethodComposable.value = FocusedSettlementMethodComposable
-                        .SettlementMethodComposable
-                },
-                content = {
-                    Text(
-                        text = "Cancel",
-                        fontWeight = FontWeight.Bold,
-                    )
-                },
-                colors = ButtonDefaults.buttonColors(
-                    backgroundColor =  Color.Transparent,
-                    contentColor = Color.Black,
-                ),
-                border = BorderStroke(1.dp, Color.Black),
-                elevation = null,
-            )
-        }
-        when (focusedSettlementMethod.value?.method ?: "") {
-            "SEPA" -> {
-                EditableSEPADetailComposable(
-                    buttonText = "Done",
-                    buttonAction = { newPrivateData ->
-                        privateData.value = newPrivateData
-                        focusedSettlementMethodComposable.value = FocusedSettlementMethodComposable
-                            .SettlementMethodComposable
-                    }
-                )
-            }
-            "SWIFT" -> {
-                EditableSWIFTDetailComposable(
-                    buttonText = "Done",
-                    buttonAction = { newPrivateData ->
-                        privateData.value = newPrivateData
-                        focusedSettlementMethodComposable.value = FocusedSettlementMethodComposable
-                            .SettlementMethodComposable
-                    }
-                )
-            }
-            else -> {
-                Text(
-                    text = "Unable to edit details"
-                )
-            }
         }
     }
 }
