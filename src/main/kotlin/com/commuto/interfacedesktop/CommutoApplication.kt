@@ -16,6 +16,8 @@ import com.commuto.interfacedesktop.ui.CurrentTab
 import com.commuto.interfacedesktop.ui.offer.OffersViewModel
 import com.commuto.interfacedesktop.ui.TabSidebarComposable
 import com.commuto.interfacedesktop.ui.offer.OffersComposable
+import com.commuto.interfacedesktop.ui.settlement.SettlementMethodViewModel
+import com.commuto.interfacedesktop.ui.settlement.SettlementMethodsComposable
 import com.commuto.interfacedesktop.ui.swap.SwapViewModel
 import com.commuto.interfacedesktop.ui.swap.SwapsComposable
 import javax.inject.Inject
@@ -34,6 +36,7 @@ class CommutoApplication @Inject constructor(
     val p2pService: P2PService,
     val offersViewModel: OffersViewModel,
     val swapViewModel: SwapViewModel,
+    val settlementMethodViewModel: SettlementMethodViewModel
 ) {
     /**
      * Called at app startup. This begins background activities and displays the user interface.
@@ -69,6 +72,11 @@ class CommutoApplication @Inject constructor(
                         CurrentTab.SWAPS -> {
                             SwapsComposable(
                                 swapTruthSource = swapViewModel
+                            )
+                        }
+                        CurrentTab.SETTLEMENT_METHODS -> {
+                            SettlementMethodsComposable(
+                                settlementMethodViewModel = settlementMethodViewModel
                             )
                         }
                     }
