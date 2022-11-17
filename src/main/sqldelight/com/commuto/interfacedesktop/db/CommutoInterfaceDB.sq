@@ -82,6 +82,14 @@ interfaceId TEXT UNIQUE NOT NULL,
 publicKey TEXT NOT NULL
 );
 
+createUserSettlementMethodTable:
+CREATE TABLE UserSettlementMethod(
+settlementMethodID TEXT UNIQUE NOT NULL,
+settlementMethod TEXT NOT NULL,
+privateData TEXT,
+privateDataInitializationVector TEXT
+);
+
 insertOffer:
 INSERT INTO Offer(
     id,
@@ -171,6 +179,15 @@ VALUES(?, ?, ?, ?, ?, ?, ?,
 ?, ?, ?, ?,
 ?, ?,?, ?, ?, ?,
 ?, ?);
+
+insertUserSettlementMethod:
+INSERT INTO UserSettlementMethod(
+    settlementMethodID,
+    settlementMethod,
+    privateData,
+    privateDataInitializationVector
+)
+VALUES(?, ?, ?, ?);
 
 updateOfferHavePublicKeyByOfferIDAndChainID:
 UPDATE Offer
@@ -262,6 +279,10 @@ deleteSwapBySwapIDAndChainID:
 DELETE FROM Swap
 WHERE id = ? AND chainID = ?;
 
+selectUserSettlementMethodByID:
+SELECT * FROM UserSettlementMethod
+WHERE settlementMethodID = ?;
+
 removeAllOffers:
 DELETE FROM Offer;
 
@@ -279,3 +300,6 @@ DELETE FROM PublicKey;
 
 removeAllSwaps:
 DELETE FROM Swap;
+
+removeAllUserSettlementMethods:
+DELETE FROM UserSettlementMethod;

@@ -66,6 +66,8 @@ class SettlementMethodServiceTests {
         assertEquals("SEPA", addedSettlementMethod.method)
         assertEquals(Json.encodeToString(privateData), addedSettlementMethod.privateData)
 
+        //TODO: test persistent storage of settlement methods once ID property is added
+
     }
 
 }

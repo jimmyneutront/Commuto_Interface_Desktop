@@ -248,9 +248,101 @@ open class DatabaseService(
     }
 
     /**
-     * Retrieves the persistently stored settlement methods their private data (if any) associated with the specified
-     * offer ID and chain ID from a database table containing settlement methods via [selectionLambda], or returns
-     * `null` if no such settlement methods are present.
+     * Decrypts [privateSettlementMethodData] with [databaseKey] and [privateSettlementMethodDataInitializationVector]
+     * and then returns the result as a UTF-8 string, or returns `null` if [privateSettlementMethodData] or
+     * [privateSettlementMethodDataInitializationVector] is `null` or if decryption is unsuccessful.
+     *
+     * @param privateSettlementMethodData The private data to be decrypted, as a Base64 encoded string of bytes.
+     * @param privateSettlementMethodDataInitializationVector The initialization vector that will be used to decrypt
+     * [privateSettlementMethodData], as a Base64 encoded string of bytes.
+     *
+     * @return An optional string that will either be a UTF-8 string made from the results of the decryption, or `null`
+     * if either of the parameters are `null` or if decryption is unsuccessful.
+     */
+    private fun decryptPrivateSwapSettlementMethodData(
+        privateSettlementMethodData: String?,
+        privateSettlementMethodDataInitializationVector: String?
+    ): String? {
+        var decryptedPrivateDataString: String? = null
+        if (privateSettlementMethodData != null && privateSettlementMethodDataInitializationVector != null) {
+            val decoder = Base64.getDecoder()
+            val privateCipherData = try {
+                decoder.decode(privateSettlementMethodData)
+            } catch (exception: Exception) {
+                null
+            }
+            val privateDataInitializationVector = try {
+                decoder.decode(privateSettlementMethodDataInitializationVector)
+            } catch (exception: Exception) {
+                null
+            }
+            if (privateCipherData != null && privateDataInitializationVector != null) {
+                val privateDataObject = SymmetricallyEncryptedData(
+                    data = privateCipherData,
+                    iv = privateDataInitializationVector
+                )
+                try {
+                    databaseKey.decrypt(privateDataObject)
+                } catch(exception: Exception) {
+                    return null
+                }.let {
+                    decryptedPrivateDataString = it.decodeToString()
+                }
+            }
+        }
+        return decryptedPrivateDataString
+    }
+
+    /**
+     * Attempts to decrypt the supplied cipher data using [databaseKey] and the supplied initialization vector string.
+     *
+     * @param privateDataCipherString The cipher data to be decrypted, as a Base64-encoded string.
+     * @param privateDataInitializationVectorString The initialization vector with which to decrypt
+     * [privateDataCipherString].
+     * @param decryptionFailureHandler A closure that will be executed if decryption fails.
+     * @param decodingFailureHandler A closure that will be executed if decoding the cipher string or initialization
+     * vector fails.
+     *
+     * @return [privateDataCipherString] as a decrypted string, or `null` if the decoding and decryption process fails.
+     */
+    private fun decryptSettlementMethodFromTable(
+        privateDataCipherString: String,
+        privateDataInitializationVectorString: String,
+        decryptionFailureHandler: () -> Unit,
+        decodingFailureHandler: () -> Unit
+    ): String? {
+        val decoder = Base64.getDecoder()
+        val privateCipherData = try {
+            decoder.decode(privateDataCipherString)
+        } catch (exception: Exception) {
+            null
+        }
+        val privateDataInitializationVector = try {
+            decoder.decode(privateDataInitializationVectorString)
+        } catch (exception: Exception) {
+            null
+        }
+        return if (privateCipherData != null && privateDataInitializationVector != null) {
+            val privateDataObject = SymmetricallyEncryptedData(
+                data = privateCipherData,
+                iv = privateDataInitializationVector
+            )
+            try {
+                databaseKey.decrypt(privateDataObject).decodeToString()
+            } catch (exception: Exception) {
+                decryptionFailureHandler.invoke()
+                null
+            }
+        } else {
+            decodingFailureHandler.invoke()
+            null
+        }
+    }
+
+    /**
+     * Retrieves and decrupts the persistently stored settlement methods their private data (if any) associated with the
+     * specified offer ID and chain ID from a database table containing settlement methods via [selectionLambda], or
+     * returns `null` if no such settlement methods are present.
      *
      * @param offerID The ID of the offer for which settlement methods should be returned, as a Base64-[String] of
      * bytes.
@@ -271,42 +363,23 @@ open class DatabaseService(
         }
         return if (dbSettlementMethods.isNotEmpty()) {
             val settlementMethodsList = mutableListOf<Pair<String, String?>>()
-            val decoder = Base64.getDecoder()
             dbSettlementMethods.forEach {
                 var decryptedPrivateDataString: String? = null
                 val privateDataCipherString = it.privateData
                 val privateDataInitializationVectorString = it.privateDataInitializationVector
                 if (privateDataCipherString != null && privateDataInitializationVectorString != null) {
-                    val privateCipherData = try {
-                        decoder.decode(privateDataCipherString)
-                    } catch (exception: Exception) {
-                        null
-                    }
-                    val privateDataInitializationVector = try {
-                        decoder.decode(privateDataInitializationVectorString)
-                    } catch (exception: Exception) {
-                        null
-                    }
-                    if (privateCipherData != null && privateDataInitializationVector != null) {
-                        val privateDataObject = SymmetricallyEncryptedData(
-                            data = privateCipherData,
-                            iv = privateDataInitializationVector
-                        )
-                        val decryptedPrivateData = try {
-                            databaseKey.decrypt(privateDataObject)
-                        } catch (exception: Exception) {
-                            null
-                        }
-                        if (decryptedPrivateData != null) {
-                            decryptedPrivateDataString = decryptedPrivateData.decodeToString()
-                        } else {
+                    decryptedPrivateDataString = decryptSettlementMethodFromTable(
+                        privateDataCipherString = privateDataCipherString,
+                        privateDataInitializationVectorString = privateDataInitializationVectorString,
+                        decryptionFailureHandler = {
                             logger.error("getAndDecryptSettlementMethodsFromTable: unable to get string from " +
                                     "decoded private data using utf8 encoding for offer with B64 ID $offerID")
+                        },
+                        decodingFailureHandler = {
+                            logger.error("getAndDecryptSettlementMethodsFromTable: found private data for " +
+                                    "offer with B64 ID $offerID but could not decode bytes from strings")
                         }
-                    } else {
-                        logger.error("getAndDecryptSettlementMethodsFromTable: found private data for offer " +
-                                "with B64 ID $offerID  could not decode bytes from strings")
-                    }
+                    )
                 } else {
                     logger.error("getAndDecryptSettlementMethodsFromTable: did not find private settlement " +
                             "method data for settlement method for offer with B64 ID $offerID")
@@ -942,49 +1015,87 @@ open class DatabaseService(
     }
 
     /**
-     * Decrypts [privateSettlementMethodData] with [databaseKey] and [privateSettlementMethodDataInitializationVector]
-     * and then returns the result as a UTF-8 string, or returns `null` if [privateSettlementMethodData] or
-     * [privateSettlementMethodDataInitializationVector] is `null` or if decryption is unsuccessful.
+     * Persistently stores the settlement method string and private data string, associating them with the given UUID
+     * string. The private settlement method data is encrypted with [databaseKey] and a new initialization vector.
      *
-     * @param privateSettlementMethodData The private data to be decrypted, as a Base64 encoded string of bytes.
-     * @param privateSettlementMethodDataInitializationVector The initialization vector that will be used to decrypt
-     * [privateSettlementMethodData], as a Base64 encoded string of bytes.
-     *
-     * @return An optional string that will either be a UTF-8 string made from the results of the decryption, or `null`
-     * if either of the parameters are `null` or if decryption is unsuccessful.
+     * @param id The ID of the settlement method to be stored, as a Type 4 UUID string.
+     * @param settlementMethod The public data of the settlement method to be persistently stored, including currency
+     * and type.
+     * @param privateData The private data of the settlement method, such as an address or bank account number for the
+     * settlement method, if any.
      */
-    private fun decryptPrivateSwapSettlementMethodData(
-        privateSettlementMethodData: String?,
-        privateSettlementMethodDataInitializationVector: String?
-    ): String? {
-        var decryptedPrivateDataString: String? = null
-        if (privateSettlementMethodData != null && privateSettlementMethodDataInitializationVector != null) {
-            val decoder = Base64.getDecoder()
-            val privateCipherData = try {
-                decoder.decode(privateSettlementMethodData)
-            } catch (exception: Exception) {
-                null
-            }
-            val privateDataInitializationVector = try {
-                decoder.decode(privateSettlementMethodDataInitializationVector)
-            } catch (exception: Exception) {
-                null
-            }
-            if (privateCipherData != null && privateDataInitializationVector != null) {
-                val privateDataObject = SymmetricallyEncryptedData(
-                    data = privateCipherData,
-                    iv = privateDataInitializationVector
-                )
-                try {
-                    databaseKey.decrypt(privateDataObject)
-                } catch(exception: Exception) {
-                    return null
-                }.let {
-                    decryptedPrivateDataString = it.decodeToString()
-                }
-            }
+    @OptIn(DelicateCoroutinesApi::class)
+    suspend fun storeUserSettlementMethod(
+        id: String,
+        settlementMethod: String,
+        privateData: String?
+    ) {
+        val encoder = Base64.getEncoder()
+        var privateDataString: String? = null
+        var initializationVectorString: String? = null
+        val privateBytes = privateData?.toByteArray()
+        if (privateBytes != null) {
+            val encryptedData = databaseKey.encrypt(data = privateBytes)
+            privateDataString = encoder.encodeToString(encryptedData.encryptedData)
+            initializationVectorString = encoder.encodeToString(encryptedData.initializationVector)
         }
-        return decryptedPrivateDataString
+        withContext(databaseServiceContext) {
+            database.insertUserSettlementMethod(
+                UserSettlementMethod(
+                    settlementMethodID = id,
+                    settlementMethod = settlementMethod,
+                    privateData = privateDataString,
+                    privateDataInitializationVector = initializationVectorString
+                )
+            )
+        }
+        logger.info("storeUserSettlementMethod: stored $id")
+    }
+
+    /**
+     * Retrieves and decrypts the persistently stored settlement method and its private data (if any) associated with
+     * the specified settlement method ID from the table of the user's settlement methods, or returns `nil` if no such
+     * settlement method is found.
+     *
+     * @param id The ID of the settlement method to be retrieved, as a Type 4 UUID string.
+     *
+     * @return `null` if no such settlement method is found, or a [Pair] containing a string and an optional string, the
+     * first of which is the settlement method associated with [id], the second of which is the private data associated
+     * with that settlement method, or `null` if no such data is found or if it cannot be decrypted.
+     */
+    @OptIn(DelicateCoroutinesApi::class)
+    suspend fun getUserSettlementMethod(id: String): Pair<String, String?>? {
+        val dbSettlementMethods: List<UserSettlementMethod> = withContext(databaseServiceContext) {
+            database.selectUserSettlementMethodByID(
+                id = id
+            )
+        }
+        if (dbSettlementMethods.size == 1) {
+            val element = dbSettlementMethods.first()
+            var decryptedPrivateDataString: String? = null
+            val privateDataCipherString = element.privateData
+            val privateDataInitializationVectorString = element.privateDataInitializationVector
+            if (privateDataCipherString != null && privateDataInitializationVectorString != null) {
+                decryptedPrivateDataString = decryptSettlementMethodFromTable(
+                    privateDataCipherString = privateDataCipherString,
+                    privateDataInitializationVectorString = privateDataInitializationVectorString,
+                    decryptionFailureHandler = {
+                        logger.error("getUserSettlementMethod: unable to get string from decoded private data " +
+                                "using utf8 encoding for $id")
+                    },
+                    decodingFailureHandler = {
+                        logger.error("getUserSettlementMethod: unable to get string from decoded private data " +
+                                "using utf8 encoding for $id")
+                    }
+                )
+            } else {
+                logger.info("getUserSettlementMethod: did not find private settlement method data for $id")
+            }
+            return Pair(element.settlementMethod, decryptedPrivateDataString)
+        } else {
+            logger.info("getUserSettlementMethod: $id not found")
+            return null
+        }
     }
 
 }

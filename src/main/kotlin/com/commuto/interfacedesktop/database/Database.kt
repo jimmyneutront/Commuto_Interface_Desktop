@@ -22,6 +22,7 @@ internal class Database(databaseDriverFactory: DatabaseDriverFactory) {
         dbQuery.createPublicKeyTable()
         dbQuery.createKeyPairTable()
         dbQuery.createSwapTable()
+        dbQuery.createUserSettlementMethodTable()
     }
 
     /**
@@ -35,6 +36,7 @@ internal class Database(databaseDriverFactory: DatabaseDriverFactory) {
             dbQuery.removeAllKeyPairs()
             dbQuery.removeAllPublicKeys()
             dbQuery.removeAllSwaps()
+            dbQuery.removeAllUserSettlementMethods()
         }
     }
 
@@ -58,6 +60,12 @@ internal class Database(databaseDriverFactory: DatabaseDriverFactory) {
         return dbQuery.selectSettlementMethodByOfferIdAndChainID(offerID, chainID).executeAsList()
     }
 
+    /**
+     * Returns pending [SettlementMethod]s with the specified offer ID and blockchain ID.
+     * @param offerID The offer ID associated with the pending settlement methods to be returned.
+     * @param chainID The blockchain ID associated with the pending settlement methods to be returned.
+     * @return A [List] of [SettlementMethod]s
+     */
     internal fun selectPendingSettlementMethodByOfferIdAndChainID(
         offerID: String,
         chainID: String
@@ -98,6 +106,15 @@ internal class Database(databaseDriverFactory: DatabaseDriverFactory) {
      */
     internal fun selectSwapBySwapID(id: String): List<Swap> {
         return dbQuery.selectSwapBySwapID(id).executeAsList()
+    }
+
+    /**
+     * Returns the user's [SettlementMethod]s with the specified ID.
+     * @param id The ID of the settlement methods to be returned.
+     * @return A [List] of [SettlementMethod]s
+     */
+    internal fun selectUserSettlementMethodByID(id: String): List<UserSettlementMethod> {
+        return dbQuery.selectUserSettlementMethodByID(id).executeAsList()
     }
 
     /**
@@ -211,6 +228,19 @@ internal class Database(databaseDriverFactory: DatabaseDriverFactory) {
             chainID = swap.chainID,
             state = swap.state,
             role = swap.role
+        )
+    }
+
+    /**
+     * Inserts a [UserSettlementMethod] into the database table of the user's settlement methods.
+     * @param settlementMethod The [UserSettlementMethod] to be inserted in the database.
+     */
+    internal fun insertUserSettlementMethod(settlementMethod: UserSettlementMethod) {
+        dbQuery.insertUserSettlementMethod(
+            settlementMethodID = settlementMethod.settlementMethodID,
+            settlementMethod = settlementMethod.settlementMethod,
+            privateData = settlementMethod.privateData,
+            privateDataInitializationVector = settlementMethod.privateDataInitializationVector
         )
     }
 

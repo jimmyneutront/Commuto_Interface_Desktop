@@ -7,6 +7,7 @@ import kotlin.test.BeforeTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import org.junit.Assert.assertNull
+import java.util.*
 
 class DatabaseServiceTest {
     private var driver = DatabaseDriverFactory()
@@ -642,6 +643,27 @@ class DatabaseServiceTest {
         databaseService.updateSwapState("a_uuid", "a_chain_id", "a_new_state_here")
         val returnedSwap = databaseService.getSwap("a_uuid")
         assertEquals("a_new_state_here", returnedSwap!!.state)
+    }
+
+    /**
+     * Ensures code to store and get settlement methods works properly.
+     */
+    @Test
+    fun testStoreAndGetUserSettlementMethods() = runBlocking {
+        val settlementMethodID = UUID.randomUUID()
+        val settlementMethod = "settlement_method"
+        val privateData = "some_private_data"
+
+        databaseService.storeUserSettlementMethod(
+            id = settlementMethodID.toString(),
+            settlementMethod = settlementMethod,
+            privateData = privateData
+        )
+
+        val returnedSettlementMethod = databaseService.getUserSettlementMethod(id = settlementMethodID.toString())
+
+        assertEquals(settlementMethod, returnedSettlementMethod?.first)
+        assertEquals(privateData, returnedSettlementMethod?.second)
     }
 
     @Test
