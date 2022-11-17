@@ -7,12 +7,14 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.Transient
 import kotlinx.serialization.json.Json
+import java.util.*
 
 /**
  * A settlement method specified by the maker of an
  * [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer) by which they are willing to
  * send/receive payment.
  *
+ * @property id An ID that uniquely identifies this settlement method.
  * @property currency The human readable symbol of the currency that the maker is willing to send/receive.
  * @property method The method my which the currency specified in [currency] should be sent.
  * @property price The amount of currency specified in [currency] that the maker is willing to exchange for one
@@ -24,6 +26,7 @@ import kotlinx.serialization.json.Json
  */
 @Serializable
 data class SettlementMethod(
+    @Transient val id: UUID = UUID.randomUUID(),
     @SerialName("f") val currency: String,
     @SerialName("m") val method: String,
     @SerialName("p") var price: String,

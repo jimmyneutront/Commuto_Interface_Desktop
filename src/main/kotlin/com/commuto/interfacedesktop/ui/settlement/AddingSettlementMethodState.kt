@@ -15,6 +15,7 @@ import com.commuto.interfacedesktop.settlement.SettlementMethod
  * settlement method truth source.
  * @property COMPLETED Indicates that the settlement-method-adding process finished successfully.
  * @property EXCEPTION Indicates that we encountered an exception while adding the settlement method.
+ * @property description A human-readable string describing the current state.
  */
 enum class AddingSettlementMethodState {
     NONE,

@@ -26,4 +26,16 @@ class PreviewableSettlementMethodTruthSource: UISettlementMethodTruthSource {
         stateOfAdding: MutableState<AddingSettlementMethodState>,
         addSettlementMethodException: MutableState<Exception?>
     ) {}
+
+    /**
+     * Not used since this class is for previewing user interfaces, but required for adoption of
+     * [UISettlementMethodTruthSource].
+     */
+    override fun editSettlementMethod(
+        settlementMethod: SettlementMethod,
+        newPrivateData: PrivateData,
+        stateOfEditing: MutableState<EditingSettlementMethodState>,
+        editSettlementMethodException: MutableState<Exception?>,
+        privateDataMutableState: MutableState<PrivateData?>
+    ) {}
 }

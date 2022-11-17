@@ -55,6 +55,18 @@ class SettlementMethodViewModel
     }
 
     /**
+     * Sets the value of [stateToSet] equal to [state] on the main coroutine dispatcher.
+     */
+    private suspend fun setEditingSettlementMethodState(
+        state: EditingSettlementMethodState,
+        stateToSet: MutableState<EditingSettlementMethodState>
+    ) {
+        withContext(Dispatchers.Main) {
+            stateToSet.value = state
+        }
+    }
+
+    /**
      * Adds a given [SettlementMethod] with corresponding [PrivateData] to the collection of the user's settlement
      * methods, by passing them to [SettlementMethodService.addSettlementMethod]. This also passes several closures to
      * [SettlementMethodService.addSettlementMethod] which will call [setAddingSettlementMethodState] with the current
@@ -112,6 +124,71 @@ class SettlementMethodViewModel
                 setAddingSettlementMethodState(
                     state = AddingSettlementMethodState.EXCEPTION,
                     stateToSet = stateOfAdding
+                )
+            }
+        }
+    }
+
+    /**
+     * Edits a given [SettlementMethod], replacing its current private data with the supplied [PrivateData] in the
+     * collection of the user's settlement methods, via a call to [SettlementMethodService.editSettlementMethod]. This
+     * also passes several lambdas to [SettlementMethodService.editSettlementMethod] which will call
+     * [setEditingSettlementMethodState] with the current state of the settlement-method-editing process.
+     *
+     * @param settlementMethod The user's [SettlementMethod] that they want to edit.
+     * @param newPrivateData Some [PrivateData], with which the current private data of the given settlement method will
+     * be replaced.
+     * @param stateOfEditing A [MutableState] wrapped around an [EditingSettlementMethodState] value, describing the
+     * current state of the settlement-method-editing process.
+     * @param editSettlementMethodException A [MutableState] around an optional [Exception], the wrapped value of which
+     * this will set equal to the exception that occurs in the settlement-method-editing process, if any.
+     * @param privateDataMutableState A [MutableState] around an optional [PrivateData], with which this will update
+     * with [newPrivateData] once the settlement-method-editing process is complete.
+     */
+    override fun editSettlementMethod(
+        settlementMethod: SettlementMethod,
+        newPrivateData: PrivateData,
+        stateOfEditing: MutableState<EditingSettlementMethodState>,
+        editSettlementMethodException: MutableState<Exception?>,
+        privateDataMutableState: MutableState<PrivateData?>
+    ) {
+        viewModelScope.launch {
+            try {
+                setEditingSettlementMethodState(
+                    state = EditingSettlementMethodState.SERIALIZING,
+                    stateToSet = stateOfEditing,
+                )
+                settlementMethodService.editSettlementMethod(
+                    settlementMethod = settlementMethod,
+                    newPrivateData = newPrivateData,
+                    afterSerialization = {
+                        setEditingSettlementMethodState(
+                            state = EditingSettlementMethodState.STORING,
+                            stateToSet = stateOfEditing
+                        )
+                    },
+                    afterPersistentStorage = {
+                        setEditingSettlementMethodState(
+                            state = EditingSettlementMethodState.EDITING,
+                            stateToSet = stateOfEditing
+                        )
+                    }
+                )
+                privateDataMutableState.value = newPrivateData
+                logger.info("editSettlementMethod: edited settlement method ${settlementMethod.id}")
+                setEditingSettlementMethodState(
+                    state = EditingSettlementMethodState.COMPLETED,
+                    stateToSet = stateOfEditing
+                )
+            } catch (exception: Exception) {
+                logger.error("editSettlementMethod: got exception during editSettlementMethod call for " +
+                        "${settlementMethod.id}", exception)
+                withContext(Dispatchers.Main) {
+                    editSettlementMethodException.value = exception
+                }
+                setEditingSettlementMethodState(
+                    state = EditingSettlementMethodState.EXCEPTION,
+                    stateToSet = stateOfEditing
                 )
             }
         }
