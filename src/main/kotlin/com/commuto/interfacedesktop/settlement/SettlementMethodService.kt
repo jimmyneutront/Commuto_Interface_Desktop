@@ -139,7 +139,10 @@ class SettlementMethodService @Inject constructor(
                 }
                 logger.info("editSettlementMethod: persistently storing edited private data for " +
                         "${settlementMethod.id}")
-                // TODO: update in database here
+                databaseService.updateUserSettlementMethod(
+                    id = settlementMethod.id.toString(),
+                    privateData = settlementMethodWithPrivateData.privateData
+                )
                 afterPersistentStorage?.invoke()
                 logger.info("editSettlementMethod: editing ${settlementMethod.id} in " +
                         "settlementMethodTruthSource")

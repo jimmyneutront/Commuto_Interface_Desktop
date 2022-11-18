@@ -387,6 +387,26 @@ internal class Database(databaseDriverFactory: DatabaseDriverFactory) {
     }
 
     /**
+     * Updates the [UserSettlementMethod.privateData] and [UserSettlementMethod.privateDataInitializationVector]
+     * properties of the [UserSettlementMethod] with the specified [id].
+     * @param id The ID of the [UserSettlementMethod] to be updated.
+     * @param privateData The new value of the [UserSettlementMethod.privateData] property.
+     * @param privateDataInitializationVector The new value of the
+     * [UserSettlementMethod.privateDataInitializationVector] property.
+     */
+    internal fun updateUserSettlementMethod(
+        id: String,
+        privateData: String?,
+        privateDataInitializationVector: String?
+    ) {
+        dbQuery.updateUserSettlementMethodByID(
+            privateData = privateData,
+            privateDataInitializationVector = privateDataInitializationVector,
+            settlementMethodID = id
+        )
+    }
+
+    /**
      * Deletes all [Offer]s with the specified offer ID and chain ID from the database.
      * @param offerID The offer ID of the [Offer]s to be deleted.
      * @param chainID The blockchain ID of the [Offer]s to be deleted.

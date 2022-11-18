@@ -1052,6 +1052,26 @@ open class DatabaseService(
         logger.info("storeUserSettlementMethod: stored $id")
     }
 
+    @OptIn(DelicateCoroutinesApi::class)
+    suspend fun updateUserSettlementMethod(
+        id: String,
+        privateData: String?
+    ) {
+        // TODO: this is exactly the same as what is in storeUserSettlementMethod, don't duplicate code
+        val encoder = Base64.getEncoder()
+        var privateDataString: String? = null
+        var initializationVectorString: String? = null
+        val privateBytes = privateData?.toByteArray()
+        if (privateBytes != null) {
+            val encryptedData = databaseKey.encrypt(data = privateBytes)
+            privateDataString = encoder.encodeToString(encryptedData.encryptedData)
+            initializationVectorString = encoder.encodeToString(encryptedData.initializationVector)
+        }
+        withContext(databaseServiceContext) {
+            database.updateUserSettlementMethod(id, privateDataString, initializationVectorString)
+        }
+    }
+
     /**
      * Retrieves and decrypts the persistently stored settlement method and its private data (if any) associated with
      * the specified settlement method ID from the table of the user's settlement methods, or returns `nil` if no such

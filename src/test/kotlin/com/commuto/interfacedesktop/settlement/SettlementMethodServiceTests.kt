@@ -67,13 +67,13 @@ class SettlementMethodServiceTests {
         assertEquals("SEPA", addedSettlementMethod.method)
         assertEquals(Json.encodeToString(privateData), addedSettlementMethod.privateData)
 
-        val encodedSettlementMethodsInDatabase = databaseService.getUserSettlementMethod(
+        val encodedSettlementMethodInDatabase = databaseService.getUserSettlementMethod(
             id = settlementMethodToAdd.id.toString()
         )
         val settlementMethodInDatabase = Json.decodeFromString<SettlementMethod>(
-            encodedSettlementMethodsInDatabase!!.first)
+            encodedSettlementMethodInDatabase!!.first)
         val privateDataInDatabase = Json.decodeFromString<PrivateSEPAData>(
-            encodedSettlementMethodsInDatabase.second!!)
+            encodedSettlementMethodInDatabase.second!!)
 
         assertEquals("EUR", settlementMethodInDatabase.currency)
         assertEquals("SEPA", settlementMethodInDatabase.method)
@@ -131,6 +131,17 @@ class SettlementMethodServiceTests {
         val editedSettlementMethod = settlementMethodTruthSource.settlementMethods.first()
 
         assertEquals(Json.encodeToString(editedPrivateData), editedSettlementMethod.privateData)
+
+        val editedSettlementMethodInDatabase = databaseService.getUserSettlementMethod(
+            id = settlementMethodToAdd.id.toString()
+        )
+        val privateDataInDatabase = Json.decodeFromString<PrivateSEPAData>(
+            editedSettlementMethodInDatabase!!.second!!)
+
+        assertEquals("different_account_holder", privateDataInDatabase.accountHolder)
+        assertEquals("different_bic", privateDataInDatabase.bic)
+        assertEquals("different_iban", privateDataInDatabase.iban)
+        assertEquals("different_address", privateDataInDatabase.address)
 
     }
 

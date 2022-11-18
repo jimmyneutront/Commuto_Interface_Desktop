@@ -239,6 +239,11 @@ UPDATE Swap
 SET state = ?
 WHERE id = ? AND chainID = ?;
 
+updateUserSettlementMethodByID:
+UPDATE UserSettlementMethod
+SET privateData = ?, privateDataInitializationVector = ?
+WHERE settlementMethodID = ?;
+
 selectOfferByOfferId:
 SELECT * FROM Offer
 WHERE id = ?;
