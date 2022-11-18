@@ -38,4 +38,14 @@ class PreviewableSettlementMethodTruthSource: UISettlementMethodTruthSource {
         editSettlementMethodException: MutableState<Exception?>,
         privateDataMutableState: MutableState<PrivateData?>
     ) {}
+
+    /**
+     * Not used since this class is for previewing user interfaces, but required for adoption of
+     * [UISettlementMethodTruthSource].
+     */
+    override fun deleteSettlementMethod(
+        settlementMethod: SettlementMethod,
+        stateOfDeleting: MutableState<DeletingSettlementMethodState>,
+        deleteSettlementMethodException: MutableState<Exception?>
+    ) {}
 }

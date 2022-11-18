@@ -49,4 +49,19 @@ interface UISettlementMethodTruthSource {
         privateDataMutableState: MutableState<PrivateData?>
     )
 
+    /**
+     * Deletes a given [SettlementMethod].
+     *
+     * @param settlementMethod The user's [SettlementMethod] that they want to delete.
+     * @param stateOfDeleting A [MutableState] wrapped around a [DeletingSettlementMethodState] value, describing the
+     * current state of the settlement-method-deleting process.
+     * @param deleteSettlementMethodException A [MutableState] around an optional [Exception], the wrapped value of
+     * which this will set equal to the exception that occurs in the settlement-method-deleting process, if any.
+     */
+    fun deleteSettlementMethod(
+        settlementMethod: SettlementMethod,
+        stateOfDeleting: MutableState<DeletingSettlementMethodState>,
+        deleteSettlementMethodException: MutableState<Exception?>,
+    ) {}
+
 }

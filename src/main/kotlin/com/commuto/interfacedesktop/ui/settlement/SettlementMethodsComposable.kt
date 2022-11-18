@@ -50,7 +50,7 @@ fun SettlementMethodsComposable(
      * Private data of a [SettlementMethod] that is or was the focused settlement method, or `null` if no such
      * [PrivateData] exists. (Note that this may not necessarily contain the private data of `focusedSettlementMethod`,
      * but it will be updated with the private data of `focusedSettlementMethod` every time the
-     * settlement-method-editing Composable is displayed.
+     * settlement-method-editing Composable is displayed.)
      */
     val privateData = remember { mutableStateOf<PrivateData?>(null) }
 
@@ -125,7 +125,6 @@ fun SettlementMethodsComposable(
                     SettlementMethodDetailComposable(
                         settlementMethod = focusedSettlementMethod.value,
                         settlementMethodViewModel = settlementMethodViewModel,
-                        focusedSettlementMethod = focusedSettlementMethod,
                         focusedSettlementMethodComposable = focusedSettlementMethodComposable
                     )
                 } else {
@@ -613,14 +612,14 @@ fun SettlementMethodCardComposable(settlementMethod: SettlementMethod) {
  * @param settlementMethod The [SettlementMethod] containing the information to be displayed.
  * @param settlementMethodViewModel An object implementing [UISettlementMethodTruthSource] that acts as a single source
  * of truth for all settlement-method-related data.
- * @param focusedSettlementMethod A [MutableState] wrapped around the currently focused settlement method, the value of
- * which this will set to null if the user deletes the settlement method
+ * @param focusedSettlementMethodComposable A [MutableState] wrapped around an enum representing the currently focused
+ * settlement method Composable, the value of which this will set to
+ * [FocusedSettlementMethodComposable.EditSettlementMethodComposable] if the user presses the "Edit" button.
  */
 @Composable
 fun SettlementMethodDetailComposable(
     settlementMethod: SettlementMethod?,
     settlementMethodViewModel: UISettlementMethodTruthSource,
-    focusedSettlementMethod: MutableState<SettlementMethod?>,
     focusedSettlementMethodComposable: MutableState<FocusedSettlementMethodComposable>,
 ) {
     /**
@@ -631,6 +630,30 @@ fun SettlementMethodDetailComposable(
      * Indicates whether we have finished attempting to parse the private data associated with [settlementMethod].
      */
     val finishedParsingData = remember { mutableStateOf(false) }
+    /**
+     * Indicates whether we are currently deleting a settlement method from the collection of the user's settlement
+     * methods, and if so, what part of the settlement-method-deleting process we are in.
+     */
+    val deletingSettlementMethodState = remember { mutableStateOf(DeletingSettlementMethodState.NONE) }
+    /**
+     * The [Exception] that occurred during the settlement method deleting process, or `null` if no such exception has
+     * occurred.
+     */
+    val deletingSettlementMethodException = remember { mutableStateOf<Exception?>(null) }
+    /**
+     * The text to be displayed on the button that begins the settlement method deleting process.
+     */
+    val buttonText = when(deletingSettlementMethodState.value) {
+        DeletingSettlementMethodState.NONE, DeletingSettlementMethodState.EXCEPTION -> {
+            "Delete"
+        }
+        DeletingSettlementMethodState.COMPLETED -> {
+            "Done"
+        }
+        else -> {
+            "Deleting..."
+        }
+    }
 
     if (settlementMethod != null) {
         LaunchedEffect(settlementMethod) {
@@ -716,16 +739,15 @@ fun SettlementMethodDetailComposable(
             )
             Button(
                 onClick = {
-                    settlementMethodViewModel.settlementMethods.removeAll {
-                        it.method == settlementMethod.method
-                                && it.currency == settlementMethod.currency
-                                && it.privateData == settlementMethod.privateData
-                    }
-                    focusedSettlementMethod.value = null
+                    settlementMethodViewModel.deleteSettlementMethod(
+                        settlementMethod = settlementMethod,
+                        stateOfDeleting = deletingSettlementMethodState,
+                        deleteSettlementMethodException = deletingSettlementMethodException
+                    )
                 },
                 content = {
                     Text(
-                        text = "Delete",
+                        text = buttonText,
                         style = MaterialTheme.typography.h4,
                         fontWeight = FontWeight.Bold,
                         textAlign = TextAlign.Center
@@ -902,7 +924,8 @@ fun EditSettlementMethodComposable(
         val editingSettlementMethodState = remember { mutableStateOf(EditingSettlementMethodState.NONE) }
 
         /**
-         * The [Error] that occured during the settlement method adding process, or `null` if no such error has occurred.
+         * The [Exception] that occurred during the settlement method adding process, or `null` if no such exception has
+         * occurred.
          */
         val editingSettlementMethodException = remember { mutableStateOf<Exception?>(null) }
 

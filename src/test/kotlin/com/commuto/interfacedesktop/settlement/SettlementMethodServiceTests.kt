@@ -28,10 +28,11 @@ class SettlementMethodServiceTests {
     }
 
     /**
-     * Ensures [SettlementMethodService.addSettlementMethod] functions properly.
+     * Ensures [SettlementMethodService.addSettlementMethod] and [SettlementMethodService.deleteSettlementMethod]
+     * functions properly.
      */
     @Test
-    fun testAddSettlementMethod() = runBlocking {
+    fun testAddSettlementMethodAndDeleteSettlementMethod() = runBlocking {
 
         val databaseService = DatabaseService(DatabaseDriverFactory())
         databaseService.createTables()
@@ -82,6 +83,10 @@ class SettlementMethodServiceTests {
         assertEquals("bic", privateDataInDatabase.bic)
         assertEquals("iban", privateDataInDatabase.iban)
         assertEquals("address", privateDataInDatabase.address)
+
+        settlementMethodService.deleteSettlementMethod(settlementMethod = settlementMethodToAdd)
+
+        assertEquals(0, settlementMethodTruthSource.settlementMethods.size)
 
     }
 
