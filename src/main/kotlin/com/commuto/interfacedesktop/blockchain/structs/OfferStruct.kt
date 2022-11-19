@@ -9,7 +9,7 @@ import java.math.BigInteger
  * @param isCreated Corresponds to an on-chain Offer's `isCreated` property.
  * @param isTaken Corresponds to an on-chain Offer's `isTaken` property.
  * @param maker Corresponds to an on-chain Offer's `maker` property.
- * @param interfaceID Corresponds ot an on-chain Offer's `interfaceId` property.
+ * @param interfaceID Corresponds ot an on-chain Offer's `interfaceID` property.
  * @param stablecoin Corresponds to an on-chain Offer's `stablecoin` property.
  * @param amountLowerBound Corresponds to an on-chain Offer's `amountLowerBound` property.
  * @param amountUpperBound Corresponds to an on-chain Offer's `amountUpperBound` property.

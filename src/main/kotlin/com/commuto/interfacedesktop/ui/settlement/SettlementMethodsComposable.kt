@@ -126,7 +126,7 @@ fun SettlementMethodsComposable(
         when (focusedSettlementMethodComposable.value) {
             FocusedSettlementMethodComposable.SettlementMethodComposable -> {
                 if (focusedSettlementMethod.value != null) {
-                    SettlementMethodDetailComposable(
+                    UserSettlementMethodDetailComposable(
                         settlementMethod = focusedSettlementMethod.value,
                         settlementMethodViewModel = settlementMethodViewModel,
                         focusedSettlementMethodComposable = focusedSettlementMethodComposable
@@ -625,7 +625,8 @@ fun SettlementMethodCardComposable(settlementMethod: SettlementMethod) {
 }
 
 /**
- * Displays all information, including private information, about a given [SettlementMethod].
+ * Displays all information, including private information, about a given [SettlementMethod] that belongs to the user of
+ * this interface.
  *
  * @param settlementMethod The [SettlementMethod] containing the information to be displayed.
  * @param settlementMethodViewModel An object implementing [UISettlementMethodTruthSource] that acts as a single source
@@ -635,7 +636,7 @@ fun SettlementMethodCardComposable(settlementMethod: SettlementMethod) {
  * [FocusedSettlementMethodComposable.EditSettlementMethodComposable] if the user presses the "Edit" button.
  */
 @Composable
-fun SettlementMethodDetailComposable(
+fun UserSettlementMethodDetailComposable(
     settlementMethod: SettlementMethod?,
     settlementMethodViewModel: UISettlementMethodTruthSource,
     focusedSettlementMethodComposable: MutableState<FocusedSettlementMethodComposable>,
@@ -711,27 +712,9 @@ fun SettlementMethodDetailComposable(
                 style = MaterialTheme.typography.h4,
                 fontWeight = FontWeight.Bold
             )
-            if (privateData.value != null) {
-                when (privateData.value) {
-                    is PrivateSEPAData -> {
-                        SEPADetailComposable(privateData.value as PrivateSEPAData)
-                    }
-                    is PrivateSWIFTData -> {
-                        SWIFTDetailComposable(privateData.value as PrivateSWIFTData)
-                    }
-                    else -> {
-                        Text(
-                            text = "Unknown Settlement Method Type"
-                        )
-                    }
-                }
-            } else if (finishedParsingData.value) {
-                Text(
-                    text = "Unable to parse data",
-                    style = MaterialTheme.typography.h4,
-                    fontWeight = FontWeight.Bold
-                )
-            }
+            SettlementMethodPrivateDetailComposable(
+                settlementMethod = settlementMethod
+            )
             Button(
                 onClick = {
                     focusedSettlementMethodComposable.value = FocusedSettlementMethodComposable
@@ -793,6 +776,56 @@ fun SettlementMethodDetailComposable(
             )
         }
     }
+}
+
+/**
+ * Displays private information of a [SettlementMethod] that does not necessarily belong to the user of this interface.
+ *
+ * @param settlementMethod The [SettlementMethod] for which this displays private details.
+ */
+@Composable
+fun SettlementMethodPrivateDetailComposable(
+    settlementMethod: SettlementMethod
+) {
+    /**
+     * An object implementing [PrivateData] containing private data for [settlementMethod].
+     */
+    val privateData = remember { mutableStateOf<PrivateData?>(null) }
+    /**
+     * Indicates whether we have finished attempting to parse the private data associated with [settlementMethod].
+     */
+    val finishedParsingData = remember { mutableStateOf(false) }
+
+    LaunchedEffect(true) {
+        createPrivateDataObject(
+            settlementMethod = settlementMethod,
+            privateData = privateData,
+            finishedParsingData = finishedParsingData
+        )
+    }
+
+    if (privateData.value != null) {
+        when (privateData.value) {
+            is PrivateSEPAData -> {
+                SEPADetailComposable(privateData.value as PrivateSEPAData)
+            }
+            is PrivateSWIFTData -> {
+                SWIFTDetailComposable(privateData.value as PrivateSWIFTData)
+            }
+            else -> {
+                Text(
+                    text = "Unable to deserialize settlement method details."
+                )
+            }
+        }
+    } else if (finishedParsingData.value) {
+        Text(
+            text = "No details found.",
+            style = MaterialTheme.typography.h4,
+            fontWeight = FontWeight.Bold
+        )
+    }
+
 }
 
 /**

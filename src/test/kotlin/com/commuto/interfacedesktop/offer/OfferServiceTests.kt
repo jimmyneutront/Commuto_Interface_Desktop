@@ -290,7 +290,7 @@ class OfferServiceTests {
             isTaken = false,
             id = newOfferID,
             maker = "0x0000000000000000000000000000000000000000",
-            interfaceId = keyPairForOffer.interfaceId,
+            interfaceID = keyPairForOffer.interfaceId,
             stablecoin = "0x0000000000000000000000000000000000000000",
             amountLowerBound = BigInteger.ZERO,
             amountUpperBound = BigInteger.ZERO,
@@ -315,7 +315,7 @@ class OfferServiceTests {
             isCreated = 1L,
             isTaken = 0L,
             maker = offer.maker,
-            interfaceId = encoder.encodeToString(offer.interfaceId),
+            interfaceId = encoder.encodeToString(offer.interfaceID),
             stablecoin = offer.stablecoin,
             amountLowerBound = offer.amountLowerBound.toString(),
             amountUpperBound = offer.amountUpperBound.toString(),
@@ -798,7 +798,7 @@ class OfferServiceTests {
             isTaken = false,
             id = newOfferID,
             maker = "0x0000000000000000000000000000000000000000",
-            interfaceId = keyPair.interfaceId,
+            interfaceID = keyPair.interfaceId,
             stablecoin = "0x0000000000000000000000000000000000000000",
             amountLowerBound = BigInteger.ZERO,
             amountUpperBound = BigInteger.ZERO,
@@ -818,7 +818,7 @@ class OfferServiceTests {
             isCreated = 1L,
             isTaken = 0L,
             maker = offer.maker,
-            interfaceId = encoder.encodeToString(offer.interfaceId),
+            interfaceId = encoder.encodeToString(offer.interfaceID),
             stablecoin = offer.stablecoin,
             amountLowerBound = offer.amountLowerBound.toString(),
             amountUpperBound = offer.amountUpperBound.toString(),
@@ -954,7 +954,7 @@ class OfferServiceTests {
             isCreated = 1L,
             isTaken = 0L,
             maker = offer.maker,
-            interfaceId = encoder.encodeToString(offer.interfaceId),
+            interfaceId = encoder.encodeToString(offer.interfaceID),
             stablecoin = offer.stablecoin,
             amountLowerBound = offer.amountLowerBound.toString(),
             amountUpperBound = offer.amountUpperBound.toString(),
@@ -1118,7 +1118,7 @@ class OfferServiceTests {
             isTaken = isTaken,
             id = encoder.encodeToString(offerIDByteArray),
             maker = offer.maker,
-            interfaceId = encoder.encodeToString(offer.interfaceId),
+            interfaceId = encoder.encodeToString(offer.interfaceID),
             stablecoin = offer.stablecoin,
             amountLowerBound = offer.amountLowerBound.toString(),
             amountUpperBound = offer.amountUpperBound.toString(),
@@ -1358,7 +1358,7 @@ class OfferServiceTests {
                     assertEquals(addedOffer.protocolVersion, BigInteger.ZERO)
                     assert(addedOffer.havePublicKey)
 
-                    assertNotNull(keyManagerService.getKeyPair(addedOffer.interfaceId))
+                    assertNotNull(keyManagerService.getKeyPair(addedOffer.interfaceID))
 
                     val encoder = Base64.getEncoder()
                     val offerIDByteBuffer = ByteBuffer.wrap(ByteArray(16))
@@ -1372,7 +1372,7 @@ class OfferServiceTests {
                         isCreated = 1L,
                         isTaken = 0L,
                         maker = "0x0000000000000000000000000000000000000000",
-                        interfaceId = encoder.encodeToString(addedOffer.interfaceId),
+                        interfaceId = encoder.encodeToString(addedOffer.interfaceID),
                         stablecoin = addedOffer.stablecoin,
                         amountLowerBound = addedOffer.amountLowerBound.toString(),
                         amountUpperBound = addedOffer.amountUpperBound.toString(),
@@ -1405,7 +1405,7 @@ class OfferServiceTests {
                     assert(offerStructOnChain.isCreated)
                     assertFalse(offerStructOnChain.isTaken)
                     // TODO: check proper maker address once WalletService is implemented
-                    assert(addedOffer.interfaceId.contentEquals(offerStructOnChain.interfaceID))
+                    assert(addedOffer.interfaceID.contentEquals(offerStructOnChain.interfaceID))
                     assertEquals(addedOffer.stablecoin.lowercase(), offerStructOnChain.stablecoin.lowercase())
                     assertEquals(addedOffer.amountLowerBound, offerStructOnChain.amountLowerBound)
                     assertEquals(addedOffer.amountUpperBound, offerStructOnChain.amountUpperBound)
@@ -1488,7 +1488,7 @@ class OfferServiceTests {
             isTaken = false,
             id = offerID,
             maker = "0x0000000000000000000000000000000000000000",
-            interfaceId = ByteArray(0),
+            interfaceID = ByteArray(0),
             stablecoin = "0x0000000000000000000000000000000000000000",
             amountLowerBound = BigInteger.valueOf(10000L),
             amountUpperBound = BigInteger.valueOf(10000L),
@@ -1514,7 +1514,7 @@ class OfferServiceTests {
             isCreated = 1L,
             isTaken = 0L,
             maker = offer.maker,
-            interfaceId = encoder.encodeToString(offer.interfaceId),
+            interfaceId = encoder.encodeToString(offer.interfaceID),
             stablecoin = offer.stablecoin,
             amountLowerBound = offer.amountLowerBound.toString(),
             amountUpperBound = offer.amountUpperBound.toString(),
@@ -1595,7 +1595,7 @@ class OfferServiceTests {
             isTaken = false,
             id = offerID,
             maker = "0x0000000000000000000000000000000000000000",
-            interfaceId = ByteArray(0),
+            interfaceID = ByteArray(0),
             stablecoin = "0x0000000000000000000000000000000000000000",
             amountLowerBound = BigInteger.valueOf(10_000L) * BigInteger.TEN.pow(18),
             amountUpperBound = BigInteger.valueOf(20_000L) * BigInteger.TEN.pow(18),
@@ -1741,7 +1741,7 @@ class OfferServiceTests {
             isTaken = false,
             id = offerID,
             maker = "0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266",
-            interfaceId = ByteArray(0),
+            interfaceID = ByteArray(0),
             stablecoin = testingServerResponse.stablecoinAddress,
             amountLowerBound = BigInteger.valueOf(10_000L) * BigInteger.TEN.pow(18),
             amountUpperBound = BigInteger.valueOf(20_000L) * BigInteger.TEN.pow(18),
@@ -1770,7 +1770,7 @@ class OfferServiceTests {
             isCreated = 1L,
             isTaken = 0L,
             maker = offer.maker,
-            interfaceId = encoder.encodeToString(offer.interfaceId),
+            interfaceId = encoder.encodeToString(offer.interfaceID),
             stablecoin = offer.stablecoin,
             amountLowerBound = offer.amountLowerBound.toString(),
             amountUpperBound = offer.amountUpperBound.toString(),

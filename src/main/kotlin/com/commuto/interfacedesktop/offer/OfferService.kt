@@ -202,7 +202,7 @@ class OfferService (
                     of the function caller by CommutoSwap
                      */
                     maker = "0x0000000000000000000000000000000000000000",
-                    interfaceId = newKeyPairForOffer.interfaceId,
+                    interfaceID = newKeyPairForOffer.interfaceId,
                     stablecoin = offerData.stablecoin,
                     amountLowerBound = offerData.minimumAmount,
                     amountUpperBound = offerData.maximumAmount,
@@ -234,7 +234,7 @@ class OfferService (
                     isTaken = 0L,
                     id = offerIDString,
                     maker = newOffer.maker,
-                    interfaceId = encoder.encodeToString(newOffer.interfaceId),
+                    interfaceId = encoder.encodeToString(newOffer.interfaceID),
                     stablecoin = newOffer.stablecoin,
                     amountLowerBound = newOffer.amountLowerBound.toString(),
                     amountUpperBound = newOffer.amountUpperBound.toString(),
@@ -515,7 +515,7 @@ class OfferService (
                     requiresFill = requiresFill,
                     id = offerToTake.id,
                     maker = offerToTake.maker,
-                    makerInterfaceID = offerToTake.interfaceId,
+                    makerInterfaceID = offerToTake.interfaceID,
                     taker = "0x0000000000000000000000000000000000000000",
                     takerInterfaceID = newKeyPairForSwap.interfaceId,
                     stablecoin = offerToTake.stablecoin,
@@ -765,7 +765,7 @@ class OfferService (
                 isTaken = isTaken,
                 id = encoder.encodeToString(offerIDByteArray),
                 maker = offer.maker,
-                interfaceId = encoder.encodeToString(offer.interfaceId),
+                interfaceId = encoder.encodeToString(offer.interfaceID),
                 stablecoin = offer.stablecoin,
                 amountLowerBound = offer.amountLowerBound.toString(),
                 amountUpperBound = offer.amountUpperBound.toString(),
@@ -1116,7 +1116,7 @@ class OfferService (
             logger.info("handlePublicKeyAnnouncement: got announcement for offer for which public key was " +
                     "already obtained: ${offer.id}")
             return
-        } else if (offer.interfaceId.contentEquals(message.publicKey.interfaceId)) {
+        } else if (offer.interfaceID.contentEquals(message.publicKey.interfaceId)) {
             withContext(Dispatchers.Main) {
                 offerTruthSource.offers[message.id]?.havePublicKey = true
                 val stateNumberIndex = offerTruthSource.offers[message.id]?.state?.indexNumber
@@ -1144,7 +1144,7 @@ class OfferService (
         } else {
             logger.info("handlePublicKeyAnnouncement: interface ID of public key did not match that of offer " +
                     "${offer.id} specified in announcement. Offer interface ID: ${encoder.encodeToString(offer
-                        .interfaceId)}, announcement interface id: ${encoder.encodeToString(message.publicKey
+                        .interfaceID)}, announcement interface id: ${encoder.encodeToString(message.publicKey
                         .interfaceId)}")
             return
         }

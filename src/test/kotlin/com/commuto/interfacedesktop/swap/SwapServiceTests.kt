@@ -274,7 +274,7 @@ class SwapServiceTests {
             isTaken = false,
             id = swapID,
             maker = "0x0000000000000000000000000000000000000000",
-            interfaceId = ByteArray(0),
+            interfaceID = ByteArray(0),
             stablecoin = "0x0000000000000000000000000000000000000000",
             amountLowerBound = BigInteger.valueOf(10000L),
             amountUpperBound = BigInteger.valueOf(10000L),

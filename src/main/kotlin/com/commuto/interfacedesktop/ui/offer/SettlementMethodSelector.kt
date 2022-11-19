@@ -12,16 +12,10 @@ import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.commuto.interfacedesktop.settlement.SettlementMethod
 import com.commuto.interfacedesktop.settlement.privatedata.PrivateData
-import com.commuto.interfacedesktop.settlement.privatedata.PrivateSEPAData
-import com.commuto.interfacedesktop.settlement.privatedata.PrivateSWIFTData
-import com.commuto.interfacedesktop.ui.settlement.SEPADetailComposable
-import com.commuto.interfacedesktop.ui.settlement.SWIFTDetailComposable
-import com.commuto.interfacedesktop.ui.settlement.UISettlementMethodTruthSource
-import com.commuto.interfacedesktop.ui.settlement.createPrivateDataObject
+import com.commuto.interfacedesktop.ui.settlement.*
 import java.lang.NumberFormatException
 import java.math.BigDecimal
 
@@ -218,27 +212,7 @@ fun SettlementMethodCardComposable(
                     }
                 )
             }
-            if (privateData.value != null) {
-                when (privateData.value) {
-                    is PrivateSEPAData -> {
-                        SEPADetailComposable(privateData.value as PrivateSEPAData)
-                    }
-                    is PrivateSWIFTData -> {
-                        SWIFTDetailComposable(privateData.value as PrivateSWIFTData)
-                    }
-                    else -> {
-                        Text(
-                            text = "Unable to deserialize settlement method details."
-                        )
-                    }
-                }
-            } else if (finishedParsingData.value) {
-                Text(
-                    text = "No details found.",
-                    style = MaterialTheme.typography.h4,
-                    fontWeight = FontWeight.Bold
-                )
-            }
+            SettlementMethodPrivateDetailComposable(settlementMethod = settlementMethod)
         }
         Switch(
             checked = isSelected.value,

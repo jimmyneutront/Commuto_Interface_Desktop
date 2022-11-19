@@ -6,6 +6,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import com.commuto.interfacedesktop.blockchain.structs.OfferStruct
 import com.commuto.interfacedesktop.settlement.SettlementMethod
+import com.commuto.interfacedesktop.settlement.privatedata.PrivateSEPAData
+import com.commuto.interfacedesktop.settlement.privatedata.PrivateSWIFTData
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -21,8 +23,8 @@ import java.util.*
  * @param isTaken The initial value of [isTaken].
  * @param maker Corresponds to an on-chain
  * [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer)'s maker property.
- * @param interfaceId Corresponds to an on-chain
- * [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer)'s interfaceId property.
+ * @param interfaceID Corresponds to an on-chain
+ * [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer)'s interfaceID property.
  * @param stablecoin Corresponds to an on-chain
  * [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer)'s stablecoin property.
  * @param amountLowerBound Corresponds to an on-chain
@@ -39,7 +41,7 @@ import java.util.*
  * @param protocolVersion Corresponds to an on-chain
  * [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer)'s protocolVersion property.
  * @param chainID The ID of the blockchain on which this Offer exists.
- * @param havePublicKey Indicates whether this interface has a copy of the public key specified by the [interfaceId]
+ * @param havePublicKey Indicates whether this interface has a copy of the public key specified by the [interfaceID]
  * property.
  * @param isUserMaker Indicates whether the user of this interface is the maker of this offer.
  * @param state Indicates the current state of this offer, as described in the
@@ -87,7 +89,7 @@ class Offer(
     isTaken: Boolean,
     val id: UUID,
     val maker: String,
-    val interfaceId: ByteArray,
+    val interfaceID: ByteArray,
     val stablecoin: String,
     val amountLowerBound: BigInteger,
     val amountUpperBound: BigInteger,
@@ -109,7 +111,7 @@ class Offer(
         isTaken: Boolean,
         id: UUID,
         maker: String,
-        interfaceId: ByteArray,
+        interfaceID: ByteArray,
         stablecoin: String,
         amountLowerBound: BigInteger,
         amountUpperBound: BigInteger,
@@ -127,7 +129,7 @@ class Offer(
         isTaken = isTaken,
         id = id,
         maker = maker,
-        interfaceId = interfaceId,
+        interfaceID = interfaceID,
         stablecoin = stablecoin,
         amountLowerBound = amountLowerBound,
         amountUpperBound = amountUpperBound,
@@ -213,7 +215,7 @@ class Offer(
             isCreated = this.isCreated.value,
             isTaken = this.isTaken.value,
             maker = this.maker,
-            interfaceID = this.interfaceId,
+            interfaceID = this.interfaceID,
             stablecoin = this.stablecoin,
             amountLowerBound = this.amountLowerBound,
             amountUpperBound = this.amountUpperBound,
@@ -278,7 +280,7 @@ class Offer(
         if (isTaken != other.isTaken) return false
         if (id != other.id) return false
         if (maker != other.maker) return false
-        if (!interfaceId.contentEquals(other.interfaceId)) return false
+        if (!interfaceID.contentEquals(other.interfaceID)) return false
         if (stablecoin != other.stablecoin) return false
         if (amountLowerBound != other.amountLowerBound) return false
         if (amountUpperBound != other.amountUpperBound) return false
@@ -311,7 +313,7 @@ class Offer(
         result = 31 * result + isTaken.hashCode()
         result = 31 * result + id.hashCode()
         result = 31 * result + maker.hashCode()
-        result = 31 * result + interfaceId.contentHashCode()
+        result = 31 * result + interfaceID.contentHashCode()
         result = 31 * result + stablecoin.hashCode()
         result = 31 * result + amountLowerBound.hashCode()
         result = 31 * result + amountUpperBound.hashCode()
@@ -343,59 +345,70 @@ class Offer(
          * A [List] of sample [Offer]s. Used for previewing offer-related Composable functions.
          */
         val sampleOffers = listOf(
-            fromOnChainData(
+            Offer(
                 isCreated = true,
                 isTaken = false,
                 id = UUID.randomUUID(),
                 maker = "0x0000000000000000000000000000000000000000",
-                interfaceId = ByteArray(0),
+                interfaceID = ByteArray(0),
                 stablecoin = "0x663F3ad617193148711d28f5334eE4Ed07016602", // DAI on Hardhat
                 amountLowerBound = BigInteger.valueOf(10_000) * BigInteger.TEN.pow(18),
                 amountUpperBound = BigInteger.valueOf(20_000) * BigInteger.TEN.pow(18),
                 securityDepositAmount = BigInteger.valueOf(1_000) * BigInteger.TEN.pow(18),
                 serviceFeeRate = BigInteger.valueOf(100),
-                onChainDirection = BigInteger.ZERO,
-                onChainSettlementMethods = listOf(
-                    """
-                    {
-                        "f": "EUR",
-                        "p": "0.94",
-                        "m": "SEPA"
-                    }
-                    """.trimIndent().encodeToByteArray()
+                direction = OfferDirection.BUY,
+                settlementMethods = mutableStateListOf(
+                    SettlementMethod(
+                        currency = "EUR",
+                        method = "SEPA",
+                        price = "0.94",
+                        privateData = Json.encodeToString(
+                            PrivateSEPAData(
+                                accountHolder = "account_holder",
+                                bic = "bic",
+                                iban = "iban",
+                                address = "address"
+                            )
+                        ),
+                    )
                 ),
                 protocolVersion = BigInteger.ZERO,
                 chainID = BigInteger.valueOf(31337L), // Hardhat blockchain ID
                 havePublicKey = false,
                 isUserMaker = true,
-                state = OfferState.OFFER_OPENED,
+                state = OfferState.OFFER_OPENED
             ),
-            fromOnChainData(
+            Offer(
                 isCreated = true,
                 isTaken = false,
                 id = UUID.randomUUID(),
                 maker = "0x0000000000000000000000000000000000000000",
-                interfaceId = ByteArray(0),
+                interfaceID = ByteArray(0),
                 stablecoin = "0x2E983A1Ba5e8b38AAAeC4B440B9dDcFBf72E15d1", // USDC on Hardhat
                 amountLowerBound = BigInteger.valueOf(10_000) * BigInteger.TEN.pow(6),
                 amountUpperBound = BigInteger.valueOf(20_000) * BigInteger.TEN.pow(6),
                 securityDepositAmount = BigInteger.valueOf(1_000) * BigInteger.TEN.pow(6),
                 serviceFeeRate = BigInteger.valueOf(10),
-                onChainDirection = BigInteger.ONE,
-                onChainSettlementMethods = listOf(
-                    """
-                    {
-                        "f": "USD",
-                        "p": "1.00",
-                        "m": "SWIFT"
-                    }
-                    """.trimIndent().encodeToByteArray()
+                direction = OfferDirection.SELL,
+                settlementMethods = mutableStateListOf(
+                    SettlementMethod(
+                        currency = "USD",
+                        method = "SWIFT",
+                        price = "1.00",
+                        privateData = Json.encodeToString(
+                            PrivateSWIFTData(
+                                accountHolder = "account_holder",
+                                bic = "bic",
+                                accountNumber = "account_number"
+                            )
+                        ),
+                    )
                 ),
                 protocolVersion = BigInteger.ZERO,
                 chainID = BigInteger.valueOf(31337L), // Hardhat blockchain ID
                 havePublicKey = false,
                 isUserMaker = true,
-                state = OfferState.OFFER_OPENED,
+                state = OfferState.OFFER_OPENED
             ),
             fromOnChainData(
                 isCreated = true,
@@ -411,18 +424,18 @@ class Offer(
                 onChainDirection = BigInteger.ONE,
                 onChainSettlementMethods = listOf(
                     """
-                     {
-                         "f": "BSD",
-                         "p": "1.00",
-                         "m": "SANDDOLLAR"
-                     }
-                     """.trimIndent().encodeToByteArray()
+                    {
+                        "f": "BSD",
+                        "p": "1.00",
+                        "m": "SANDDOLLAR"
+                    }
+                    """.trimIndent().encodeToByteArray()
                 ),
                 protocolVersion = BigInteger.ZERO,
                 chainID = BigInteger.valueOf(31337L), // Hardhat blockchain ID
                 havePublicKey = true,
                 isUserMaker = false,
-                state = OfferState.OFFER_OPENED,
+                state = OfferState.OFFER_OPENED
             ),
             fromOnChainData(
                 isCreated = true,
@@ -444,7 +457,7 @@ class Offer(
                 chainID = BigInteger.ONE, // Ethereum Mainnet blockchain ID
                 havePublicKey = false,
                 isUserMaker = false,
-                state = OfferState.OFFER_OPENED,
+                state = OfferState.OFFER_OPENED
             ),
         )
 
@@ -455,7 +468,7 @@ class Offer(
          * @param isTaken: The desired value of the [Offer.isTaken] property.
          * @param id: The offer's ID.
          * @param maker: The desired value of the [Offer.maker] property.
-         * @param interfaceId: The desired value of the [Offer.interfaceId] property.
+         * @param interfaceId: The desired value of the [Offer.interfaceID] property.
          * @param stablecoin The desired value of the [Offer.stablecoin] property.
          * @param amountLowerBound The desired value of the [Offer.amountLowerBound] property.
          * @param amountUpperBound The desired value of the [Offer.amountUpperBound] property.
@@ -528,7 +541,7 @@ class Offer(
                 isTaken = isTaken,
                 id = id,
                 maker = maker,
-                interfaceId = interfaceId,
+                interfaceID = interfaceId,
                 stablecoin = stablecoin,
                 amountLowerBound = amountLowerBound,
                 amountUpperBound = amountUpperBound,

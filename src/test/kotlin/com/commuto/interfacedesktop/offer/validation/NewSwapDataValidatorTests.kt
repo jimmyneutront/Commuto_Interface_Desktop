@@ -30,7 +30,7 @@ class NewSwapDataValidatorTests {
             isTaken = false,
             id = UUID.randomUUID(),
             maker = "0x0000000000000000000000000000000000000000",
-            interfaceId = ByteArray(0),
+            interfaceID = ByteArray(0),
             stablecoin = "0x8438Ad1C834623CfF278AB6829a248E37C2D7E3f", // BUSD on Hardhat,
             amountLowerBound = BigInteger.valueOf(10) * BigInteger.TEN.pow(18),
             amountUpperBound = BigInteger.valueOf(20) * BigInteger.TEN.pow(18),
