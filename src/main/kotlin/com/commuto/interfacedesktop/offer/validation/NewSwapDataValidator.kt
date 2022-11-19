@@ -2,6 +2,9 @@ package com.commuto.interfacedesktop.offer.validation
 
 import com.commuto.interfacedesktop.offer.Offer
 import com.commuto.interfacedesktop.settlement.SettlementMethod
+import com.commuto.interfacedesktop.settlement.privatedata.PrivateSEPAData
+import com.commuto.interfacedesktop.settlement.privatedata.PrivateSWIFTData
+import com.commuto.interfacedesktop.settlement.privatedata.createPrivateDataObject
 import com.commuto.interfacedesktop.ui.StablecoinInformationRepository
 import java.math.BigDecimal
 
@@ -14,14 +17,18 @@ import java.math.BigDecimal
  *  - the havePublicKey field is true (meaning this interface has a copy of the maker's public key).
  *  - (if the offer's lower and upper bound amounts are not equal) the takenSwapAmount is within the bounds specified by
  *  the offer maker.
- *  - the user has selected a settlement method.
- *  - the settlement method selected by the user is accepted by the offer maker.
- *  - the user has supplied their information for the selected settlement method.
+ *  - the user has selected a settlement method accepted by the maker.
+ *  - the user has selected one of their own settlement methods that is compatible with the maker's settlement method
+ *  that the user has selected
+ *  - the user has supplied their information for the selected settlement method, and the information is valid.
  *
  *  @param offer The [Offer] that is being taken.
  *  @param takenSwapAmount (If the lower and upper bound amounts of [offer] are equal, this will not be used.) The
  *  stablecoin amount that the user wants to buy/sell as a [BigDecimal]
- *  @param selectedSettlementMethod The settlement method by which the user wants to send/receive payment to/from the
+ *  @param selectedMakerSettlementMethod One of the settlement methods specified by the maker, by which the user wants
+ *  to send/receive payment to/from the maker.
+ *  @param selectedTakerSettlementMethod One of the user's settlement methods, that has the same method and currency
+ *  properties as [selectedMakerSettlementMethod], and contains the user's private information that will be sent to the
  *  maker.
  *  @param stablecoinInformationRepository The [StablecoinInformationRepository] that this will use to convert
  *  [takenSwapAmount] to ERC20 base units.
@@ -35,7 +42,8 @@ import java.math.BigDecimal
 fun validateNewSwapData(
     offer: Offer,
     takenSwapAmount: BigDecimal,
-    selectedSettlementMethod: SettlementMethod?,
+    selectedMakerSettlementMethod: SettlementMethod?,
+    selectedTakerSettlementMethod: SettlementMethod?,
     stablecoinInformationRepository: StablecoinInformationRepository
 ): ValidatedNewSwapData {
     if (offer.isUserMaker) {
@@ -58,18 +66,38 @@ fun validateNewSwapData(
         throw NewSwapDataValidationException("You must specify a stablecoin amount that is not greater than the " +
                 "maximum amount.")
     }
-    if (selectedSettlementMethod == null) {
-        throw NewSwapDataValidationException("You must select a settlement method.")
+    if (selectedMakerSettlementMethod == null) {
+        throw NewSwapDataValidationException("You must select a settlement method accepted by the offer maker.")
     }
-    if (selectedSettlementMethod.privateData == null) {
-        throw NewSwapDataValidationException("You must supply your information for the settlement method you select.")
+    if (selectedTakerSettlementMethod == null) {
+        throw NewSwapDataValidationException("You must select one of your settlement methods.")
     }
-    val selectedSettlementMethodInArray = offer.settlementMethods.firstOrNull {
-        it.currency == selectedSettlementMethod.currency && it.price == selectedSettlementMethod.price &&
-                it.method == selectedSettlementMethod.method
+    if (selectedMakerSettlementMethod.method != selectedTakerSettlementMethod.method ||
+        selectedMakerSettlementMethod.currency != selectedTakerSettlementMethod.currency) {
+        throw NewSwapDataValidationException("You must select a settlement method accepted by the offer maker.")
+    }
+    val privateData = selectedTakerSettlementMethod.privateData
+        ?: throw NewSwapDataValidationException("You must supply your information for your settlement method.")
+    val privateDataObject = createPrivateDataObject(privateData = privateData)
+        ?: throw NewSwapDataValidationException("Your settlement method has invalid details")
+    if (privateDataObject is PrivateSEPAData) {
+        if (selectedMakerSettlementMethod.method != "SEPA") {
+            throw NewSwapDataValidationException("You must select a settlement method accepted by the offer maker.")
+        }
+    } else if (privateDataObject is PrivateSWIFTData) {
+        if (selectedMakerSettlementMethod.method != "SWIFT") {
+            throw NewSwapDataValidationException("You must select a settlement method accepted by the offer maker.")
+        }
+    } else {
+        throw NewSwapDataValidationException("You must select a supported settlement method")
+    }
+    val selectedMakerSettlementMethodInArray = offer.settlementMethods.firstOrNull {
+        it.currency == selectedMakerSettlementMethod.currency && it.price == selectedMakerSettlementMethod.price &&
+                it.method == selectedMakerSettlementMethod.method
     } ?: throw NewSwapDataValidationException("The user does not use the settlement method you selected.")
     return ValidatedNewSwapData(
         takenSwapAmount = takenSwapAmountBaseUnits,
-        settlementMethod = selectedSettlementMethodInArray
+        makerSettlementMethod = selectedMakerSettlementMethodInArray,
+        takerSettlementMethod = selectedTakerSettlementMethod,
     )
 }

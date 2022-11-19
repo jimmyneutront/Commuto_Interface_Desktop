@@ -237,7 +237,8 @@ fun TakeOfferComposable(
                         offerTruthSource.takeOffer(
                             offer = offer,
                             takenSwapAmount = specifiedStablecoinAmount.value,
-                            settlementMethod = selectedMakerSettlementMethod.value
+                            makerSettlementMethod = selectedMakerSettlementMethod.value,
+                            takerSettlementMethod = selectedTakerSettlementMethod.value,
                         )
                     }
                 },

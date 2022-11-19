@@ -77,14 +77,19 @@ interface UIOfferTruthSource: OfferTruthSource {
      * Attempts to take an [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer).
      *
      * @param offer The [Offer] to be taken.
-     * @param takenSwapAmount The [BigDecimal] amount of stablecoin that the user wants to buy/sell.
-     * @param settlementMethod The [SettlementMethod] that the user has selected to send/receive traditional currency
-     * payment.
+     * @param takenSwapAmount The [BigDecimal] amount of stablecoin that the user wants to buy/sell. If the offer has
+     * lower and upper bound amounts that ARE equal, this parameter will be ignored.
+     * @param makerSettlementMethod The [SettlementMethod], belonging to the maker, that the user/taker has selected to
+     * send/receive traditional currency payment.
+     * @param takerSettlementMethod The [SettlementMethod], belonging to the user/taker, that the user has selected to
+     * send/receive traditional currency payment. This must contain the user's valid private settlement method data, and
+     * must have method and currency fields matching [makerSettlementMethod].
      */
     fun takeOffer(
         offer: Offer,
         takenSwapAmount: BigDecimal,
-        settlementMethod: SettlementMethod?
+        makerSettlementMethod: SettlementMethod?,
+        takerSettlementMethod: SettlementMethod?,
     )
 
 }

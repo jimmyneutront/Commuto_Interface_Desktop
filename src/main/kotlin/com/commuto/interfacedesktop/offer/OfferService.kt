@@ -492,9 +492,9 @@ class OfferService (
                 val selectedOnChainSettlementMethod = offerToTake.onChainSettlementMethods.firstOrNull {
                     try {
                         val settlementMethod = Json.decodeFromString<SettlementMethod>(it.decodeToString())
-                        settlementMethod.currency == swapData.settlementMethod.currency &&
-                                settlementMethod.method ==  swapData.settlementMethod.method &&
-                                settlementMethod.price ==  swapData.settlementMethod.price
+                        settlementMethod.currency == swapData.makerSettlementMethod.currency &&
+                                settlementMethod.method ==  swapData.makerSettlementMethod.method &&
+                                settlementMethod.price ==  swapData.makerSettlementMethod.price
                     } catch (exception: Exception) {
                         logger.warn("takeOffer: got exception while deserializing settlement method " +
                                 "${encoder.encodeToString(it)} for ${offerToTake.id}")
@@ -537,7 +537,7 @@ class OfferService (
                     state = SwapState.TAKING,
                     role = swapRole
                 )
-                newSwap.takerPrivateSettlementMethodData = swapData.settlementMethod.privateData
+                newSwap.takerPrivateSettlementMethodData = swapData.takerSettlementMethod.privateData
                 afterObjectCreation?.invoke()
                 logger.info("takeOffer: persistently storing ${offerToTake.id}")
                 // Persistently store the new swap

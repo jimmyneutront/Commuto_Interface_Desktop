@@ -111,7 +111,7 @@ fun SettlementMethodCardComposable(
     var actualSettlementMethod = settlementMethod
 
     LaunchedEffect(true) {
-        createPrivateDataObject(
+        createPrivateDataObjectForUI(
             settlementMethod = settlementMethod,
             privateData = privateData,
             finishedParsingData = finishedParsingData
