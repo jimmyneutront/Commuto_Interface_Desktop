@@ -24,6 +24,7 @@ import com.commuto.interfacedesktop.settlement.SettlementMethod
 import com.commuto.interfacedesktop.swap.*
 import com.commuto.interfacedesktop.ui.StablecoinInformation
 import com.commuto.interfacedesktop.ui.StablecoinInformationRepository
+import com.commuto.interfacedesktop.ui.settlement.SettlementMethodPrivateDetailComposable
 import java.math.BigDecimal
 import java.math.BigInteger
 import java.util.*
@@ -72,6 +73,36 @@ fun SwapComposable(
                 SwapRole.MAKER_AND_SELLER, SwapRole.TAKER_AND_SELLER -> "Buyer"
             }
         }
+
+        /**
+         * The settlement method of `swap`, but with the private data belonging to the user of this interface.
+         */
+        val settlementMethodOfUser = SettlementMethod(
+            currency = swap.settlementMethod.currency,
+            method = swap.settlementMethod.method,
+            price = swap.settlementMethod.price,
+        )
+
+        /**
+         * The settlement method of `swap`, but with the private data of the counterparty, if any.
+         */
+        val settlementMethodOfCounterparty = SettlementMethod(
+            currency = swap.settlementMethod.currency,
+            method = swap.settlementMethod.method,
+            price = swap.settlementMethod.price,
+        )
+
+        when (swap.role) {
+            SwapRole.MAKER_AND_BUYER, SwapRole.MAKER_AND_SELLER -> {
+                settlementMethodOfUser.privateData = swap.makerPrivateSettlementMethodData
+                settlementMethodOfCounterparty.privateData = swap.takerPrivateSettlementMethodData
+            }
+            SwapRole.TAKER_AND_BUYER, SwapRole.TAKER_AND_SELLER -> {
+                settlementMethodOfUser.privateData = swap.takerPrivateSettlementMethodData
+                settlementMethodOfCounterparty.privateData = swap.makerPrivateSettlementMethodData
+            }
+        }
+
         Column(
             modifier = Modifier
                 .verticalScroll(rememberScrollState())
@@ -109,20 +140,18 @@ fun SwapComposable(
                 text = "$counterpartyDirection's Details:",
                 style =  MaterialTheme.typography.h6,
             )
-            Text(
-                text = "TEMPORARY",
-                style =  MaterialTheme.typography.h6,
-                fontWeight = FontWeight.Bold
-            )
+            if (settlementMethodOfCounterparty.privateData != null) {
+                SettlementMethodPrivateDetailComposable(settlementMethod = settlementMethodOfCounterparty)
+            } else {
+                Text(
+                    text = "Not yet received."
+                )
+            }
             Text(
                 text = "Your Details:",
                 style =  MaterialTheme.typography.h6,
             )
-            Text(
-                text = "TEMPORARY",
-                style =  MaterialTheme.typography.h6,
-                fontWeight = FontWeight.Bold
-            )
+            SettlementMethodPrivateDetailComposable(settlementMethod = settlementMethodOfUser)
             Text(
                 text = "State:",
                 style =  MaterialTheme.typography.h6,
