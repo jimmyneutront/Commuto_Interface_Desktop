@@ -55,6 +55,7 @@ fun OffersComposable(
                     OfferComposable(
                         offerTruthSource = offerTruthSource,
                         id = focusedOffer.value?.id,
+                        settlementMethodTruthSource = settlementMethodTruthSource,
                         focusedOfferComposable = focusedOfferComposable,
                     )
                 } else {

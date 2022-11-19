@@ -24,6 +24,9 @@ import com.commuto.interfacedesktop.offer.*
 import com.commuto.interfacedesktop.settlement.SettlementMethod
 import com.commuto.interfacedesktop.ui.StablecoinInformation
 import com.commuto.interfacedesktop.ui.StablecoinInformationRepository
+import com.commuto.interfacedesktop.ui.settlement.PreviewableSettlementMethodTruthSource
+import com.commuto.interfacedesktop.ui.settlement.SettlementMethodPrivateDetailComposable
+import com.commuto.interfacedesktop.ui.settlement.UISettlementMethodTruthSource
 import java.math.BigDecimal
 import java.util.*
 
@@ -35,6 +38,8 @@ import java.util.*
  * @param closeDialog The lambda that can close the dialog in which this [Composable] is displayed.
  * @param offerTruthSource The OffersViewModel that acts as a single source of truth for all offer-related data.
  * @param id The ID of the offer about which this [TakeOfferComposable] displays information.
+ * @param settlementMethodTruthSource An object implementing [UISettlementMethodTruthSource] that acts as a single
+ * source of truth for all settlement-method-related data.
  * @param stablecoinInfoRepo The [StablecoinInformationRepository] that this [Composable] uses to get stablecoin name
  * and currency code information. Defaults to [StablecoinInformationRepository.hardhatStablecoinInfoRepo] if no
  * other value is passed.
@@ -44,6 +49,7 @@ fun TakeOfferComposable(
     closeDialog: () -> Unit,
     offerTruthSource: UIOfferTruthSource,
     id: UUID?,
+    settlementMethodTruthSource: UISettlementMethodTruthSource,
     stablecoinInfoRepo: StablecoinInformationRepository = StablecoinInformationRepository.hardhatStablecoinInfoRepo
 ) {
 
@@ -61,10 +67,17 @@ fun TakeOfferComposable(
     val specifiedStablecoinAmountString = remember { mutableStateOf("0.00") }
 
     /**
-     * The settlement method by which the user has chosen to send/receive traditional currency payment, or `null` if the
-     * user has not made such a selection.
+     * The settlement method (created by the offer maker) by which the user has chosen to send/receive traditional
+     * currency payment, or `null` if the user has not made such a selection.
      */
-    val selectedSettlementMethod = remember { mutableStateOf<SettlementMethod?>(null) }
+    val selectedMakerSettlementMethod = remember { mutableStateOf<SettlementMethod?>(null) }
+
+    /**
+     * The user's/taker's settlement method corresponding to `selectedMakerSettlementMethod`, containing the
+     * user's/taker's private data which will be sent to the maker. Must have the same currency and method value as
+     * `selectedMakerSettlementMethod`.
+     */
+    val selectedTakerSettlementMethod = remember { mutableStateOf<SettlementMethod?>(null) }
 
     if (offer == null) {
         TakeOfferUnavailableComposable(
@@ -138,7 +151,7 @@ fun TakeOfferComposable(
                 text = createRoleDescription(
                     offerDirection = offer.direction,
                     stablecoinInformation = stablecoinInformation,
-                    selectedSettlementMethod = selectedSettlementMethod.value
+                    selectedSettlementMethod = selectedMakerSettlementMethod.value
                 ),
                 style = MaterialTheme.typography.h5,
                 fontWeight = FontWeight.Bold,
@@ -179,20 +192,26 @@ fun TakeOfferComposable(
                     serviceFeeRate = offer.serviceFeeRate
                 )
             }
-            val settlementMethodHeader = if (offer.settlementMethods.size == 1) {
-                "Settlement Method"
-            } else {
-                "Settlement Methods"
-            }
             Text(
-                text = settlementMethodHeader,
+                text = "Select Settlement Method:",
                 style =  MaterialTheme.typography.h6,
             )
             ImmutableSettlementMethodSelector(
                 settlementMethods = offer.settlementMethods,
-                selectedSettlementMethod = selectedSettlementMethod,
+                selectedSettlementMethod = selectedMakerSettlementMethod,
                 stablecoinCurrencyCode = stablecoinInformation?.currencyCode ?: "Unknown Stablecoin"
             )
+            if (selectedMakerSettlementMethod.value != null) {
+                Text(
+                    text = "Select Your Settlement Method:",
+                    style =  MaterialTheme.typography.h6,
+                )
+                FilterableSettlementMethodSelector(
+                    settlementMethodTruthSource = settlementMethodTruthSource,
+                    selectedMakerSettlementMethod = selectedMakerSettlementMethod,
+                    selectedTakerSettlementMethod = selectedTakerSettlementMethod,
+                )
+            }
             if (offer.takingOfferState.value != TakingOfferState.NONE &&
                 offer.takingOfferState.value != TakingOfferState.EXCEPTION) {
                 Text(
@@ -218,7 +237,7 @@ fun TakeOfferComposable(
                         offerTruthSource.takeOffer(
                             offer = offer,
                             takenSwapAmount = specifiedStablecoinAmount.value,
-                            settlementMethod = selectedSettlementMethod.value
+                            settlementMethod = selectedMakerSettlementMethod.value
                         )
                     }
                 },
@@ -289,6 +308,78 @@ fun createRoleDescription(
         ""
     }
     return "$direction $stablecoinCurrencyCode$currencyPhrase"
+}
+
+/**
+ * Displays all of the user's settlement methods in the given truth source that have the same currency and method
+ * properties as the given maker settlement method.
+ *
+ * @param settlementMethodTruthSource An object adopting [UISettlementMethodTruthSource] that acts as a single source of
+ * truth for all settlement-method-related data.
+ * @param selectedMakerSettlementMethod A [MutableState] wrapping the currently selected [SettlementMethod] belonging to
+ * the maker, or `null` if no [SettlementMethod] is currently selected.
+ * @param selectedTakerSettlementMethod The currently selected [SettlementMethod] belonging to the taker, which must
+ * have method and currency values equal to those of [selectedMakerSettlementMethod].
+ */
+@Composable
+fun FilterableSettlementMethodSelector(
+    settlementMethodTruthSource: UISettlementMethodTruthSource,
+    selectedMakerSettlementMethod: MutableState<SettlementMethod?>,
+    selectedTakerSettlementMethod: MutableState<SettlementMethod?>
+) {
+    /**
+     * All settlement methods belonging to the user with method and currency properties equal to that of
+     * [selectedMakerSettlementMethod], or none if [selectedMakerSettlementMethod] is `null`.
+     */
+    val matchingSettlementMethods = if (selectedMakerSettlementMethod.value != null) {
+        settlementMethodTruthSource.settlementMethods.filter {
+            if (selectedMakerSettlementMethod.value != null) {
+                (selectedMakerSettlementMethod.value?.method == it.method &&
+                        selectedMakerSettlementMethod.value?.currency == it.currency)
+            } else {
+                false
+            }
+        }
+    } else {
+        listOf()
+    }
+
+    if (matchingSettlementMethods.isNotEmpty()) {
+        for (settlementMethod in matchingSettlementMethods) {
+            val color = if (selectedTakerSettlementMethod.value?.id == settlementMethod.id) {
+                Color.Green
+            } else {
+                Color.Black
+            }
+            Button(
+                onClick = {
+                    selectedTakerSettlementMethod.value = settlementMethod
+                },
+                content = {
+                    Column(
+                        horizontalAlignment = Alignment.Start
+                    ) {
+                        Text(
+                            text = buildCurrencyDescription(settlementMethod = settlementMethod),
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(1.dp)
+                        )
+                        SettlementMethodPrivateDetailComposable(
+                            settlementMethod = settlementMethod
+                        )
+                    }
+                },
+                border = BorderStroke(3.dp, color),
+                colors = ButtonDefaults.buttonColors(
+                    backgroundColor = Color.Transparent,
+                    contentColor = Color.Black
+                ),
+                elevation = null,
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+    }
+
 }
 
 /**
@@ -406,7 +497,7 @@ fun ImmutableSettlementMethodCard(
             .fillMaxWidth()
     ) {
         Text(
-            text = buildCurrencyDescription(settlementMethod),
+            text = buildCurrencyDescription(settlementMethod = settlementMethod),
             style =  MaterialTheme.typography.h6,
             color = color,
             modifier = Modifier.padding(PaddingValues(top = 10.dp))
@@ -432,6 +523,7 @@ fun PreviewTakeOfferComposable() {
     TakeOfferComposable(
         closeDialog = {},
         offerTruthSource = PreviewableOfferTruthSource(),
-        id = Offer.sampleOffers[2].id
+        id = Offer.sampleOffers[2].id,
+        settlementMethodTruthSource = PreviewableSettlementMethodTruthSource(),
     )
 }

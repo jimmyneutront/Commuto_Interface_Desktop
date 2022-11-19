@@ -27,7 +27,9 @@ import com.commuto.interfacedesktop.offer.*
 import com.commuto.interfacedesktop.settlement.SettlementMethod
 import com.commuto.interfacedesktop.ui.StablecoinInformation
 import com.commuto.interfacedesktop.ui.StablecoinInformationRepository
+import com.commuto.interfacedesktop.ui.settlement.PreviewableSettlementMethodTruthSource
 import com.commuto.interfacedesktop.ui.settlement.SettlementMethodPrivateDetailComposable
+import com.commuto.interfacedesktop.ui.settlement.UISettlementMethodTruthSource
 import java.util.*
 
 /**
@@ -35,6 +37,8 @@ import java.util.*
  *
  * @param offerTruthSource The OffersViewModel that acts as a single source of truth for all offer-related data.
  * @param id The ID of the offer about which this [OfferComposable] is displaying information.
+ * @param settlementMethodTruthSource An object implementing [UISettlementMethodTruthSource] that acts as a single
+ * source of truth for all settlement-method-related data.
  * @param stablecoinInfoRepo The [StablecoinInformationRepository] that this [Composable] uses to get stablecoin name
  * and currency code information. Defaults to [StablecoinInformationRepository.hardhatStablecoinInfoRepo] if no other
  * value is passed.
@@ -43,6 +47,7 @@ import java.util.*
 fun OfferComposable(
     offerTruthSource: UIOfferTruthSource,
     id: UUID?,
+    settlementMethodTruthSource: UISettlementMethodTruthSource,
     stablecoinInfoRepo: StablecoinInformationRepository =
         StablecoinInformationRepository.hardhatStablecoinInfoRepo,
     focusedOfferComposable: MutableState<FocusedOfferComposable>,
@@ -338,6 +343,7 @@ fun OfferComposable(
                             closeDialog = { isShowingTakeOfferDialog.value = false },
                             offerTruthSource = offerTruthSource,
                             id = id,
+                            settlementMethodTruthSource = settlementMethodTruthSource,
                         )
                     }
                 },
@@ -553,8 +559,9 @@ fun DisclosureComposable(header: @Composable () -> Unit, content: @Composable ()
 @Composable
 fun PreviewOfferComposableWithDaiOffer() {
     OfferComposable(
-        PreviewableOfferTruthSource(),
-        Offer.sampleOffers[0].id,
+        offerTruthSource = PreviewableOfferTruthSource(),
+        id = Offer.sampleOffers[0].id,
+        settlementMethodTruthSource = PreviewableSettlementMethodTruthSource(),
         focusedOfferComposable = mutableStateOf(FocusedOfferComposable.EditOfferComposable),
     )
 }
@@ -566,8 +573,9 @@ fun PreviewOfferComposableWithDaiOffer() {
 @Composable
 fun PreviewOfferComposableWithUnknownStablecoinOffer() {
     OfferComposable(
-        PreviewableOfferTruthSource(),
-        Offer.sampleOffers[3].id,
+        offerTruthSource = PreviewableOfferTruthSource(),
+        id = Offer.sampleOffers[3].id,
+        settlementMethodTruthSource = PreviewableSettlementMethodTruthSource(),
         focusedOfferComposable = mutableStateOf(FocusedOfferComposable.EditOfferComposable),
     )
 }
@@ -579,8 +587,9 @@ fun PreviewOfferComposableWithUnknownStablecoinOffer() {
 @Composable
 fun PreviewOfferComposableWithRandomUUID() {
     OfferComposable(
-        PreviewableOfferTruthSource(),
-        UUID.randomUUID(),
+        offerTruthSource = PreviewableOfferTruthSource(),
+        id = UUID.randomUUID(),
+        settlementMethodTruthSource = PreviewableSettlementMethodTruthSource(),
         focusedOfferComposable = mutableStateOf(FocusedOfferComposable.EditOfferComposable),
     )
 }
@@ -592,8 +601,9 @@ fun PreviewOfferComposableWithRandomUUID() {
 @Composable
 fun PreviewOfferComposableWithNull() {
     OfferComposable(
-        PreviewableOfferTruthSource(),
-        null,
+        offerTruthSource = PreviewableOfferTruthSource(),
+        id = null,
+        settlementMethodTruthSource = PreviewableSettlementMethodTruthSource(),
         focusedOfferComposable = mutableStateOf(FocusedOfferComposable.EditOfferComposable),
     )
 }
