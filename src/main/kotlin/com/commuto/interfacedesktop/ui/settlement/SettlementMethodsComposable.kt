@@ -93,27 +93,31 @@ fun SettlementMethodsComposable(
                 modifier = Modifier.padding(horizontal = 10.dp),
                 color = MaterialTheme.colors.onSurface.copy(alpha = 0.2f),
             )
-            LazyColumn {
-                for (entry in settlementMethodViewModel.settlementMethods) {
-                    item {
-                        Button(
-                            onClick = {
-                                focusedSettlementMethod.value = entry
-                                focusedSettlementMethodComposable.value = FocusedSettlementMethodComposable
-                                    .SettlementMethodComposable
-                            },
-                            border = BorderStroke(1.dp, Color.Black),
-                            colors = ButtonDefaults.buttonColors(
-                                backgroundColor = Color.Transparent
-                            ),
-                            modifier = Modifier
-                                .padding(PaddingValues(top = 5.dp, start = 5.dp)),
-                            contentPadding = PaddingValues(10.dp),
-                            elevation = null,
-                        ) {
-                            SettlementMethodCardComposable(
-                                settlementMethod = entry
-                            )
+            if (settlementMethodViewModel.settlementMethods.size == 0) {
+                SettlementMethodsNoneFoundComposable()
+            } else {
+                LazyColumn {
+                    for (entry in settlementMethodViewModel.settlementMethods) {
+                        item {
+                            Button(
+                                onClick = {
+                                    focusedSettlementMethod.value = entry
+                                    focusedSettlementMethodComposable.value = FocusedSettlementMethodComposable
+                                        .SettlementMethodComposable
+                                },
+                                border = BorderStroke(1.dp, Color.Black),
+                                colors = ButtonDefaults.buttonColors(
+                                    backgroundColor = Color.Transparent
+                                ),
+                                modifier = Modifier
+                                    .padding(PaddingValues(top = 5.dp, start = 5.dp)),
+                                contentPadding = PaddingValues(10.dp),
+                                elevation = null,
+                            ) {
+                                SettlementMethodCardComposable(
+                                    settlementMethod = entry
+                                )
+                            }
                         }
                     }
                 }
@@ -155,6 +159,20 @@ fun SettlementMethodsComposable(
                 )
             }
         }
+    }
+}
+
+@Composable
+private fun SettlementMethodsNoneFoundComposable() {
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = Modifier.fillMaxSize()
+    ) {
+        Text(
+            text = "You have not added any settlement methods.",
+            style = MaterialTheme.typography.body1,
+            modifier = Modifier.padding(horizontal = 10.dp)
+        )
     }
 }
 
