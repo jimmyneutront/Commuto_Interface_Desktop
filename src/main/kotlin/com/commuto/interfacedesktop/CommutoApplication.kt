@@ -67,7 +67,10 @@ class CommutoApplication @Inject constructor(
                     )
                     when (currentTab.value) {
                         CurrentTab.OFFERS -> {
-                            OffersComposable(offersViewModel)
+                            OffersComposable(
+                                offerTruthSource = offersViewModel,
+                                settlementMethodTruthSource = settlementMethodViewModel
+                            )
                         }
                         CurrentTab.SWAPS -> {
                             SwapsComposable(

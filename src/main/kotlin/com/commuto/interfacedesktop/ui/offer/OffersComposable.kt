@@ -14,6 +14,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.commuto.interfacedesktop.i18n.I18n
 import com.commuto.interfacedesktop.offer.Offer
+import com.commuto.interfacedesktop.ui.settlement.PreviewableSettlementMethodTruthSource
+import com.commuto.interfacedesktop.ui.settlement.UISettlementMethodTruthSource
 import java.math.BigInteger
 
 /**
@@ -21,9 +23,14 @@ import java.math.BigInteger
  *
  * @param offerTruthSource An object implementing [UIOfferTruthSource] that acts as a single source of truth for all
  * offer-related data.
+ * @param settlementMethodTruthSource An object implementing [UISettlementMethodTruthSource] that acts as a single
+ * source of truth for all settlement-method-related data.
  */
 @Composable
-fun OffersComposable(offerTruthSource: UIOfferTruthSource) {
+fun OffersComposable(
+    offerTruthSource: UIOfferTruthSource,
+    settlementMethodTruthSource: UISettlementMethodTruthSource,
+) {
 
     /**
      * Indicates which composable should be shown on the trailing side of [OffersListComposable]
@@ -64,6 +71,7 @@ fun OffersComposable(offerTruthSource: UIOfferTruthSource) {
             FocusedOfferComposable.OpenOfferComposable -> {
                 OpenOfferComposable(
                     offerTruthSource = offerTruthSource,
+                    settlementMethodTruthSource = settlementMethodTruthSource,
                     chainID = BigInteger.valueOf(31337L)
                 )
             }
@@ -85,5 +93,8 @@ fun OffersComposable(offerTruthSource: UIOfferTruthSource) {
 @Preview
 @Composable
 fun PreviewOffersComposable() {
-    OffersComposable(PreviewableOfferTruthSource())
+    OffersComposable(
+        PreviewableOfferTruthSource(),
+        PreviewableSettlementMethodTruthSource(),
+    )
 }

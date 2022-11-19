@@ -5,14 +5,23 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.snapshots.SnapshotStateList
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.commuto.interfacedesktop.settlement.SettlementMethod
+import com.commuto.interfacedesktop.settlement.privatedata.PrivateData
+import com.commuto.interfacedesktop.settlement.privatedata.PrivateSEPAData
+import com.commuto.interfacedesktop.settlement.privatedata.PrivateSWIFTData
+import com.commuto.interfacedesktop.ui.settlement.SEPADetailComposable
+import com.commuto.interfacedesktop.ui.settlement.SWIFTDetailComposable
+import com.commuto.interfacedesktop.ui.settlement.UISettlementMethodTruthSource
+import com.commuto.interfacedesktop.ui.settlement.createPrivateDataObject
 import java.lang.NumberFormatException
 import java.math.BigDecimal
 
@@ -21,27 +30,34 @@ import java.math.BigDecimal
  * cards can be tapped to indicate that the user is willing to use them to send/receive payment for the offer being
  * opened.
  *
- * @param settlementMethods A [List] of [SettlementMethod]s to be displayed.
+ * @param settlementMethodTruthSource An object implementing [UISettlementMethodTruthSource] that acts as a single
+ * source of truth for all settlement-method-related data.
  * @param stablecoinCurrencyCode The currency code of the currently selected stablecoin.
  * @param selectedSettlementMethods A [SnapshotStateList] of [SettlementMethod]s that the user has selected.
  */
 @Composable
 fun SettlementMethodSelector(
-    settlementMethods: List<SettlementMethod>,
+    settlementMethodTruthSource: UISettlementMethodTruthSource,
     stablecoinCurrencyCode: String,
     selectedSettlementMethods: SnapshotStateList<SettlementMethod>
 ) {
-    Column {
-        for (settlementMethod in settlementMethods) {
-            SettlementMethodCardComposable(
-                settlementMethod = settlementMethod,
-                stablecoinCurrencyCode = stablecoinCurrencyCode,
-                selectedSettlementMethods = selectedSettlementMethods
-            )
-            Spacer(
-                modifier = Modifier.height(5.dp)
-            )
+    if (settlementMethodTruthSource.settlementMethods.size > 0) {
+        Column {
+            for (settlementMethod in settlementMethodTruthSource.settlementMethods) {
+                SettlementMethodCardComposable(
+                    settlementMethod = settlementMethod,
+                    stablecoinCurrencyCode = stablecoinCurrencyCode,
+                    selectedSettlementMethods = selectedSettlementMethods
+                )
+                Spacer(
+                    modifier = Modifier.height(5.dp)
+                )
+            }
         }
+    } else {
+        Text(
+            text = "You haven't added any settlement methods."
+        )
     }
 }
 
@@ -62,12 +78,34 @@ fun SettlementMethodCardComposable(
     selectedSettlementMethods: SnapshotStateList<SettlementMethod>,
 ) {
 
+    /**
+     * An object implementing [PrivateData] containing private data for [settlementMethod].
+     */
+    val privateData = remember { mutableStateOf<PrivateData?>(null) }
+    /**
+     * Indicates whether we have finished attempting to parse the private data associated with [settlementMethod].
+     */
+    val finishedParsingData = remember { mutableStateOf(false) }
+    /**
+     * Indicates whether the  user has selected the [SettlementMethod] that this  card represents.
+     */
     val isSelected = remember { mutableStateOf(false) }
-
+    /**
+     * The color of the outline of this card. If this card is selected, it should be outlined in green. Otherwise, it
+     * should be outlined in black.
+     */
+    val color = if (isSelected.value) Color.Green else Color.Black
+    /**
+     * Indicates whether the user is currently editing this [SettlementMethod]'s price.
+     */
     val isEditingPrice = remember { mutableStateOf(false) }
-
+    /**
+     * The current price for this settlement method, as a string.
+     */
     val priceString = remember { mutableStateOf(settlementMethod.price) }
-
+    /**
+     * The current price for this settlement method, as a [BigDecimal].
+     */
     val price = remember { mutableStateOf(BigDecimal.ZERO) }
 
     /**
@@ -77,6 +115,14 @@ fun SettlementMethodCardComposable(
      * is updated to point to that [SettlementMethod] object.
      */
     var actualSettlementMethod = settlementMethod
+
+    LaunchedEffect(true) {
+        createPrivateDataObject(
+            settlementMethod = settlementMethod,
+            privateData = privateData,
+            finishedParsingData = finishedParsingData
+        )
+    }
 
     selectedSettlementMethods.firstOrNull {
         it.method == settlementMethod.method && it.currency == settlementMethod.currency
@@ -112,8 +158,6 @@ fun SettlementMethodCardComposable(
         }
         isSelected.value = true
     }
-
-    val color = if (isSelected.value) Color.Green else Color.Black
 
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -172,6 +216,27 @@ fun SettlementMethodCardComposable(
                             }
                         }
                     }
+                )
+            }
+            if (privateData.value != null) {
+                when (privateData.value) {
+                    is PrivateSEPAData -> {
+                        SEPADetailComposable(privateData.value as PrivateSEPAData)
+                    }
+                    is PrivateSWIFTData -> {
+                        SWIFTDetailComposable(privateData.value as PrivateSWIFTData)
+                    }
+                    else -> {
+                        Text(
+                            text = "Unable to deserialize settlement method details."
+                        )
+                    }
+                }
+            } else if (finishedParsingData.value) {
+                Text(
+                    text = "No details found.",
+                    style = MaterialTheme.typography.h4,
+                    fontWeight = FontWeight.Bold
                 )
             }
         }
