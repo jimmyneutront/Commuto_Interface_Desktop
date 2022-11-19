@@ -288,6 +288,10 @@ selectUserSettlementMethodByID:
 SELECT * FROM UserSettlementMethod
 WHERE settlementMethodID = ?;
 
+deleteUserSettlementMethodByID:
+DELETE FROM UserSettlementMethod
+WHERE settlementMethodID = ?;
+
 removeAllOffers:
 DELETE FROM Offer;
 

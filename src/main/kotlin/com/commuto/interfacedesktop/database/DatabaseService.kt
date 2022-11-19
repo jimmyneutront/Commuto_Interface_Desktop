@@ -1052,12 +1052,21 @@ open class DatabaseService(
         logger.info("storeUserSettlementMethod: stored $id")
     }
 
+    /**
+     * Updates the private settlement method data of a persistently stored settlement method with the given ID. The new
+     * private settlement method data is encrypted with [databaseKey] and a new initialization vector.
+     *
+     * @param id The ID of the settlement method, the private data of which this will update.
+     * @param privateData The new private settlement method data with which this will replace the current private
+     * settlement method data of the settlement method with the ID [id].
+     */
     @OptIn(DelicateCoroutinesApi::class)
     suspend fun updateUserSettlementMethod(
         id: String,
         privateData: String?
     ) {
         // TODO: this is exactly the same as what is in storeUserSettlementMethod, don't duplicate code
+        logger.info("updateUserSettlementMethod: updating $id")
         val encoder = Base64.getEncoder()
         var privateDataString: String? = null
         var initializationVectorString: String? = null
@@ -1069,6 +1078,22 @@ open class DatabaseService(
         }
         withContext(databaseServiceContext) {
             database.updateUserSettlementMethod(id, privateDataString, initializationVectorString)
+        }
+    }
+
+    /**
+     * Removes every persistently stored settlement method with an ID equal to [id] from the table of the user's
+     * settlement methods.
+     *
+     * @param id The ID of the settlement method(s) to be deleted.
+     */
+    @OptIn(DelicateCoroutinesApi::class)
+    suspend fun deleteUserSettlementMethod(
+        id: String,
+    ) {
+        logger.info("deleteUserSettlementMethod: deleting $id")
+        withContext(databaseServiceContext) {
+            database.deleteUserSettlementMethod(id)
         }
     }
 
@@ -1085,6 +1110,7 @@ open class DatabaseService(
      */
     @OptIn(DelicateCoroutinesApi::class)
     suspend fun getUserSettlementMethod(id: String): Pair<String, String?>? {
+        logger.info("getUserSettlementMethod: getting $id")
         val dbSettlementMethods: List<UserSettlementMethod> = withContext(databaseServiceContext) {
             database.selectUserSettlementMethodByID(
                 id = id

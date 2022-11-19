@@ -470,4 +470,14 @@ internal class Database(databaseDriverFactory: DatabaseDriverFactory) {
         )
     }
 
+    /**
+     * Deletes all [UserSettlementMethod]s with the specified ID from the database.
+     * @param id The ID of the [UserSettlementMethod]s to be deleted.
+     */
+    internal fun deleteUserSettlementMethod(id: String) {
+        dbQuery.deleteUserSettlementMethodByID(
+            settlementMethodID = id
+        )
+    }
+
 }

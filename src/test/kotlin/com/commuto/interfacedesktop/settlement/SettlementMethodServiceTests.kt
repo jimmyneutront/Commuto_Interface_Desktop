@@ -13,6 +13,7 @@ import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Before
 import org.junit.Test
 
@@ -87,6 +88,10 @@ class SettlementMethodServiceTests {
         settlementMethodService.deleteSettlementMethod(settlementMethod = settlementMethodToAdd)
 
         assertEquals(0, settlementMethodTruthSource.settlementMethods.size)
+        val encodedSettlementMethodInDatabaseAfterDeletion = databaseService.getUserSettlementMethod(
+            id = settlementMethodToAdd.id.toString()
+        )
+        assertNull(encodedSettlementMethodInDatabaseAfterDeletion)
 
     }
 
