@@ -79,6 +79,7 @@ fun OffersComposable(
                 EditOfferComposable(
                     offer = focusedOffer.value,
                     offerTruthSource = offerTruthSource,
+                    settlementMethodTruthSource = settlementMethodTruthSource,
                     stablecoinCurrencyCode = "STBL",
                     focusedOfferComposable = focusedOfferComposable
                 )
