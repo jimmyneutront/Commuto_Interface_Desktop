@@ -1791,12 +1791,18 @@ class OfferServiceTests {
 
             val swapData = ValidatedNewSwapData(
                 takenSwapAmount = BigInteger.valueOf(15_000L) * BigInteger.TEN.pow(18),
-                settlementMethod = SettlementMethod(
+                makerSettlementMethod = SettlementMethod(
                     currency = "EUR",
                     price = "0.98",
                     method = "SEPA",
                     privateData = "EUR_SEPA_Private_Data"
                 ),
+                takerSettlementMethod = SettlementMethod(
+                    currency = "EUR",
+                    price = "0.98",
+                    method = "SEPA",
+                    privateData = "Taker_EUR_SEPA_Private_Data"
+                )
             )
 
             offerService.takeOffer(
@@ -1838,13 +1844,10 @@ class OfferServiceTests {
                     method = "SEPA",
                 )
             ).encodeToByteArray().contentEquals(swapInTruthSource.onChainSettlementMethod))
-            assertEquals(
-                SettlementMethod(
-                currency = "EUR",
-                price = "0.98",
-                method = "SEPA",
-            ), swapInTruthSource.settlementMethod)
-            assertEquals("EUR_SEPA_Private_Data", swapInTruthSource.takerPrivateSettlementMethodData)
+            assertEquals("EUR", swapInTruthSource.settlementMethod.currency)
+            assertEquals("0.98", swapInTruthSource.settlementMethod.price)
+            assertEquals("SEPA", swapInTruthSource.settlementMethod.method)
+            assertEquals("Taker_EUR_SEPA_Private_Data", swapInTruthSource.takerPrivateSettlementMethodData)
             assertEquals(BigInteger.ONE, swapInTruthSource.protocolVersion)
             assertFalse(swapInTruthSource.isPaymentSent)
             assertFalse(swapInTruthSource.isPaymentReceived)
@@ -1882,7 +1885,7 @@ class OfferServiceTests {
                 ).encodeToByteArray()),
                 makerPrivateData = null,
                 makerPrivateDataInitializationVector = null,
-                takerPrivateData = "EUR_SEPA_Private_Data",
+                takerPrivateData = "Taker_EUR_SEPA_Private_Data",
                 takerPrivateDataInitializationVector = null,
                 protocolVersion = swapInTruthSource.protocolVersion.toString(),
                 isPaymentSent = 0L,

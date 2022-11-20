@@ -12,7 +12,10 @@ import kotlinx.serialization.json.Json
  * @return An object implementing [PrivateData] derived by deserializing [privateData], or `null` if deserialization
  * fails.
  */
-fun createPrivateDataObject(privateData: String): PrivateData? {
+fun createPrivateDataObject(privateData: String?): PrivateData? {
+    if (privateData == null) {
+        return null
+    }
     var privateDataObject: PrivateData? = try {
         Json.decodeFromString<PrivateSEPAData>(string = privateData)
     } catch (e: Exception) {

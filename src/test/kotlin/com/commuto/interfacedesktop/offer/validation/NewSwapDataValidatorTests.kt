@@ -5,7 +5,10 @@ import com.commuto.interfacedesktop.offer.Offer
 import com.commuto.interfacedesktop.offer.OfferDirection
 import com.commuto.interfacedesktop.offer.OfferState
 import com.commuto.interfacedesktop.settlement.SettlementMethod
+import com.commuto.interfacedesktop.settlement.privatedata.PrivateSWIFTData
 import com.commuto.interfacedesktop.ui.StablecoinInformationRepository
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import java.math.BigDecimal
@@ -19,11 +22,25 @@ class NewSwapDataValidatorTests {
      */
     @Test
     fun testValidateNewSwapData() {
-        val settlementMethod = SettlementMethod(
-            currency = "a_currency",
-            price = "a_price",
-            method = "a_settlement_method",
-            privateData = "some_private_data"
+        val makerSettlementMethod = SettlementMethod(
+            currency = "USD",
+            price = "1.00",
+            method = "SWIFT",
+            privateData = Json.encodeToString(PrivateSWIFTData(
+                accountHolder = "account_holder",
+                bic = "bic",
+                accountNumber = "account_number"
+            ))
+        )
+        val takerSettlementMethod = SettlementMethod(
+            currency = "USD",
+            price = "",
+            method = "SWIFT",
+            privateData = Json.encodeToString(PrivateSWIFTData(
+                accountHolder = "account_holder",
+                bic = "bic",
+                accountNumber = "account_number"
+            ))
         )
         val offer = Offer(
             isCreated = true,
@@ -37,7 +54,7 @@ class NewSwapDataValidatorTests {
             securityDepositAmount = BigInteger.valueOf(2) * BigInteger.TEN.pow(18),
             serviceFeeRate = BigInteger.valueOf(100),
             direction = OfferDirection.BUY,
-            settlementMethods = mutableStateListOf(settlementMethod),
+            settlementMethods = mutableStateListOf(makerSettlementMethod),
             protocolVersion = BigInteger.valueOf(1),
             chainID = BigInteger.valueOf(31337),
             havePublicKey = true,
@@ -47,12 +64,14 @@ class NewSwapDataValidatorTests {
         val validatedSwapData = validateNewSwapData(
             offer = offer,
             takenSwapAmount = BigDecimal(15),
-            selectedSettlementMethod = settlementMethod,
+            selectedMakerSettlementMethod = makerSettlementMethod,
+            selectedTakerSettlementMethod = takerSettlementMethod,
             stablecoinInformationRepository = StablecoinInformationRepository.hardhatStablecoinInfoRepo
         )
         val expectedValidatedSwapData = ValidatedNewSwapData(
             takenSwapAmount = BigInteger.valueOf(15) * BigInteger.TEN.pow(18),
-            settlementMethod = settlementMethod
+            makerSettlementMethod = makerSettlementMethod,
+            takerSettlementMethod = takerSettlementMethod
         )
         assertEquals(expectedValidatedSwapData, validatedSwapData)
     }

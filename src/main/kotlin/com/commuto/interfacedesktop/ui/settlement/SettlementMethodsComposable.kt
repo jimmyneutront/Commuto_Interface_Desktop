@@ -18,10 +18,9 @@ import com.commuto.interfacedesktop.settlement.SettlementMethod
 import com.commuto.interfacedesktop.settlement.privatedata.PrivateData
 import com.commuto.interfacedesktop.settlement.privatedata.PrivateSEPAData
 import com.commuto.interfacedesktop.settlement.privatedata.PrivateSWIFTData
+import com.commuto.interfacedesktop.settlement.privatedata.createPrivateDataObject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import kotlinx.serialization.decodeFromString
-import kotlinx.serialization.json.Json
 
 /**
  * Displays the list of the user's settlement methods as [SettlementMethodCardComposable]s in a [LazyColumn].
@@ -906,49 +905,6 @@ fun SWIFTDetailComposable(privateData: PrivateSWIFTData) {
 }
 
 /**
- * Attempts to create a private data structure by deserializing the private data of [settlementMethod], and then on the
- * main coroutine dispatcher, sets the value of [privateData] equal to the result and sets the value of
- * [finishedParsingData] to true.
- */
-suspend fun createPrivateDataObjectForUI(
-    settlementMethod: SettlementMethod,
-    privateData: MutableState<PrivateData?>,
-    finishedParsingData: MutableState<Boolean>,
-) {
-    withContext(Dispatchers.IO) {
-        val privateDataString = settlementMethod.privateData
-        if (privateDataString != null) {
-            try {
-                val privateSEPAData = Json.decodeFromString<PrivateSEPAData>(privateDataString)
-                withContext(Dispatchers.Main) {
-                    privateData.value = privateSEPAData
-                    finishedParsingData.value = true
-                }
-                return@withContext
-            } catch (_: Exception) {
-                withContext(Dispatchers.Main) {
-                    privateData.value = null
-                }
-            }
-            try {
-                val privateSWIFTData = Json.decodeFromString<PrivateSWIFTData>(privateDataString)
-                withContext(Dispatchers.Main) {
-                    privateData.value = privateSWIFTData
-                    finishedParsingData.value = true
-                }
-                return@withContext
-            } catch (_: Exception) {
-                withContext(Dispatchers.Main) {
-                    privateData.value = null
-                }
-            }
-        }
-        finishedParsingData.value = true
-        return@withContext
-    }
-}
-
-/**
  * Displays a [Composable] allowing the user to edit the private data of the [SettlementMethod] around which
  * [focusedSettlementMethod] is wrapped, or displays an error * message if the details cannot be edited.
  * @param settlementMethodViewModel An object implementing [UISettlementMethodTruthSource] that acts as a single source
@@ -1122,6 +1078,24 @@ fun EditSettlementMethodComposable(
             Text(
                 text = "No Settlement Method Selected.",
             )
+        }
+    }
+}
+
+/**
+ * Attempts to create a private data structure via [createPrivateDataObject]. Then, on the main coroutine dispatcher,
+ * sets the value of [privateData] equal to the result and sets the value of [finishedParsingData] to true.
+ */
+suspend fun createPrivateDataObjectForUI(
+    settlementMethod: SettlementMethod,
+    privateData: MutableState<PrivateData?>,
+    finishedParsingData: MutableState<Boolean>,
+) {
+    withContext(Dispatchers.IO) {
+        val createdPrivateData = createPrivateDataObject(settlementMethod.privateData)
+        withContext(Dispatchers.Main) {
+            privateData.value = createdPrivateData
+            finishedParsingData.value = true
         }
     }
 }
