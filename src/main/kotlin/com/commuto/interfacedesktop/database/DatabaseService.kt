@@ -376,9 +376,9 @@ open class DatabaseService(
     private suspend fun getAndDecryptSettlementMethodsFromTable(
         offerID: String,
         chainID: String,
-        selectionLambda: (String, String) -> List<SettlementMethod>
+        selectionLambda: (String, String) -> List<OfferSettlementMethod>
     ): List<Pair<String, String?>>? {
-        val dbSettlementMethods: List<SettlementMethod> = withContext(databaseServiceContext) {
+        val dbSettlementMethods: List<OfferSettlementMethod> = withContext(databaseServiceContext) {
             selectionLambda(offerID, chainID)
         }
         return if (dbSettlementMethods.isNotEmpty()) {
@@ -430,7 +430,7 @@ open class DatabaseService(
      * @throws Exception if database insertion is unsuccessful.
      */
     @OptIn(DelicateCoroutinesApi::class)
-    suspend fun storeSettlementMethods(
+    suspend fun storeOfferSettlementMethods(
         offerID: String,
         chainID: String,
         settlementMethods: List<Pair<String, String?>>
@@ -440,11 +440,11 @@ open class DatabaseService(
             chainID = chainID,
             settlementMethods = settlementMethods,
             deletionLambda = { _offerID, _chainID ->
-                database.deleteSettlementMethods(_offerID, _chainID)
+                database.deleteOfferSettlementMethods(_offerID, _chainID)
             },
             insertionLambda = { _offerID, _chainID, publicData, encryptedPrivateData, initializationVector ->
-                database.insertSettlementMethod(
-                    SettlementMethod(
+                database.insertOfferSettlementMethod(
+                    OfferSettlementMethod(
                         _offerID,
                         _chainID,
                         publicData,
@@ -454,7 +454,7 @@ open class DatabaseService(
                 )
             }
         )
-        logger.info("storeSettlementMethods: stored ${settlementMethods.size} for offer with B64 ID $offerID")
+        logger.info( "storeOfferSettlementMethods: stored ${settlementMethods.size} for offer with B64 ID $offerID")
     }
 
     /**
@@ -467,15 +467,15 @@ open class DatabaseService(
      * exists, as a [String].
      */
     @OptIn(DelicateCoroutinesApi::class)
-    suspend fun deleteSettlementMethods(offerID: String, chainID: String) {
+    suspend fun deleteOfferSettlementMethods(offerID: String, chainID: String) {
         deleteSettlementMethodsFromTable(
             offerID = offerID,
             chainID = chainID,
             deletionLambda = { _offerID, _chainID ->
-                database.deleteSettlementMethods(offerID = _offerID, chainID = _chainID)
+                database.deleteOfferSettlementMethods(offerID = _offerID, chainID = _chainID)
             }
         )
-        logger.info("deleteSettlementMethods: deleted for offer with B64 ID $offerID")
+        logger.info("deleteOfferSettlementMethods: deleted for offer with B64 ID $offerID")
     }
 
     /**
@@ -490,13 +490,13 @@ open class DatabaseService(
      * @return The value returned by [DatabaseService.getAndDecryptSettlementMethodsFromTable].
      */
     @OptIn(DelicateCoroutinesApi::class)
-    suspend fun getSettlementMethods(offerID: String, chainID: String): List<Pair<String, String?>>? {
-        logger.info("getSettlementMethods: getting for offer with B64 ID $offerID")
+    suspend fun getOfferSettlementMethods(offerID: String, chainID: String): List<Pair<String, String?>>? {
+        logger.info("getOfferSettlementMethods: getting for offer with B64 ID $offerID")
         return getAndDecryptSettlementMethodsFromTable(
             offerID = offerID,
             chainID = chainID,
             selectionLambda = { _offerID, _chainID ->
-                database.selectSettlementMethodByOfferIdAndChainID(_offerID, _chainID)
+                database.selectOfferSettlementMethodByOfferIdAndChainID(_offerID, _chainID)
             }
         )
     }
@@ -514,7 +514,7 @@ open class DatabaseService(
      * address or bank account number) for the settlement method, if any.
      */
     @OptIn(DelicateCoroutinesApi::class)
-    suspend fun storePendingSettlementMethods(
+    suspend fun storePendingOfferSettlementMethods(
         offerID: String,
         chainID: String,
         pendingSettlementMethods: List<Pair<String, String?>>
@@ -524,11 +524,11 @@ open class DatabaseService(
             chainID = chainID,
             settlementMethods = pendingSettlementMethods,
             deletionLambda = { _offerID, _chainID ->
-                database.deletePendingSettlementMethods(_offerID, _chainID)
+                database.deletePendingOfferSettlementMethods(_offerID, _chainID)
             },
             insertionLambda = { _offerID, _chainID, publicData, encryptedPrivateData, initializationVector ->
-                database.insertPendingSettlementMethod(
-                    SettlementMethod(
+                database.insertPendingOfferSettlementMethod(
+                    OfferSettlementMethod(
                         _offerID,
                         _chainID,
                         publicData,
@@ -538,7 +538,7 @@ open class DatabaseService(
                 )
             }
         )
-        logger.info("storePendingSettlementMethods: stored ${pendingSettlementMethods.size} for offer with " +
+        logger.info("storePendingOfferSettlementMethods: stored ${pendingSettlementMethods.size} for offer with " +
                 "B64 ID $offerID")
     }
 
@@ -550,15 +550,15 @@ open class DatabaseService(
      * @param chainID The ID of the blockchain on which the [Offer] or [Swap] corresponding to these pending settlement
      * methods exists, as a [String].
      */
-    suspend fun deletePendingSettlementMethods(offerID: String, chainID: String) {
+    suspend fun deletePendingOfferSettlementMethods(offerID: String, chainID: String) {
         deleteSettlementMethodsFromTable(
             offerID = offerID,
             chainID = chainID,
             deletionLambda = { _offerID, _chainID ->
-                database.deletePendingSettlementMethods(offerID = _offerID, chainID = _chainID)
+                database.deletePendingOfferSettlementMethods(offerID = _offerID, chainID = _chainID)
             }
         )
-        logger.info("deletePendingSettlementMethods: deleted for offer with B64 ID $offerID")
+        logger.info("deletePendingOfferSettlementMethods: deleted for offer with B64 ID $offerID")
     }
 
     /**
@@ -571,13 +571,13 @@ open class DatabaseService(
      * methods exists, as a [String].
      */
     @OptIn(DelicateCoroutinesApi::class)
-    suspend fun getPendingSettlementMethods(offerID: String, chainID: String): List<Pair<String, String?>>? {
-        logger.info("getPendingSettlementMethods: getting for offer with B64 ID $offerID")
+    suspend fun getPendingOfferSettlementMethods(offerID: String, chainID: String): List<Pair<String, String?>>? {
+        logger.info("getPendingOfferSettlementMethods: getting for offer with B64 ID $offerID")
         return getAndDecryptSettlementMethodsFromTable(
             offerID = offerID,
             chainID = chainID,
             selectionLambda = { _offerID, _chainID ->
-                database.selectPendingSettlementMethodByOfferIdAndChainID(_offerID, _chainID)
+                database.selectPendingOfferSettlementMethodByOfferIdAndChainID(_offerID, _chainID)
             }
         )
     }

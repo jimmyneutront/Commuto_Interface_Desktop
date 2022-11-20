@@ -135,9 +135,9 @@ class DatabaseServiceTest {
             Pair("settlement_method_one", "private_data_one"),
             Pair("settlement_method_two", "private_data_two"),
         )
-        databaseService.storeSettlementMethods(offerId, chainID, settlementMethods)
-        databaseService.storeSettlementMethods(offerId, differentChainID, settlementMethods)
-        val receivedSettlementMethods = databaseService.getSettlementMethods(offerId, chainID)!!
+        databaseService.storeOfferSettlementMethods(offerId, chainID, settlementMethods)
+        databaseService.storeOfferSettlementMethods(offerId, differentChainID, settlementMethods)
+        val receivedSettlementMethods = databaseService.getOfferSettlementMethods(offerId, chainID)!!
         assertEquals(3, receivedSettlementMethods.size)
         assertEquals("settlement_method_zero", receivedSettlementMethods[0].first)
         assertEquals("private_data_zero", receivedSettlementMethods[0].second)
@@ -150,8 +150,8 @@ class DatabaseServiceTest {
             Pair("settlement_method_four", "private_data_four"),
             Pair("settlement_method_five", "private_data_five"),
         )
-        databaseService.storeSettlementMethods(offerId, chainID, newSettlementMethods)
-        val newReturnedSettlementMethods = databaseService.getSettlementMethods(offerId, chainID)!!
+        databaseService.storeOfferSettlementMethods(offerId, chainID, newSettlementMethods)
+        val newReturnedSettlementMethods = databaseService.getOfferSettlementMethods(offerId, chainID)!!
         assertEquals(3, newReturnedSettlementMethods.size)
         assertEquals("settlement_method_three", newReturnedSettlementMethods[0].first)
         assertEquals("private_data_three", newReturnedSettlementMethods[0].second)
@@ -159,10 +159,10 @@ class DatabaseServiceTest {
         assertEquals("private_data_four", newReturnedSettlementMethods[1].second)
         assertEquals("settlement_method_five", newReturnedSettlementMethods[2].first)
         assertEquals("private_data_five", newReturnedSettlementMethods[2].second)
-        databaseService.deleteSettlementMethods(offerId, chainID)
-        val returnedSettlementMethodsAfterDeletion = databaseService.getSettlementMethods(offerId, chainID)
+        databaseService.deleteOfferSettlementMethods(offerId, chainID)
+        val returnedSettlementMethodsAfterDeletion = databaseService.getOfferSettlementMethods(offerId, chainID)
         Assert.assertEquals(null, returnedSettlementMethodsAfterDeletion)
-        val differentSettlementMethods = databaseService.getSettlementMethods(offerId, differentChainID)!!
+        val differentSettlementMethods = databaseService.getOfferSettlementMethods(offerId, differentChainID)!!
         assertEquals(3, differentSettlementMethods.size)
         assertEquals("settlement_method_zero", differentSettlementMethods[0].first)
         assertEquals("private_data_zero", differentSettlementMethods[0].second)
@@ -185,9 +185,9 @@ class DatabaseServiceTest {
             Pair("settlement_method_one", "private_data_one"),
             Pair("settlement_method_two", "private_data_two"),
         )
-        databaseService.storePendingSettlementMethods(offerID, chainID, settlementMethods)
-        databaseService.storePendingSettlementMethods(offerID, differentChainID, settlementMethods)
-        val receivedSettlementMethods = databaseService.getPendingSettlementMethods(offerID, chainID)!!
+        databaseService.storePendingOfferSettlementMethods(offerID, chainID, settlementMethods)
+        databaseService.storePendingOfferSettlementMethods(offerID, differentChainID, settlementMethods)
+        val receivedSettlementMethods = databaseService.getPendingOfferSettlementMethods(offerID, chainID)!!
         assertEquals(3, receivedSettlementMethods.size)
         assertEquals("settlement_method_zero", receivedSettlementMethods[0].first)
         assertEquals("private_data_zero", receivedSettlementMethods[0].second)
@@ -200,8 +200,8 @@ class DatabaseServiceTest {
             Pair("settlement_method_four", "private_data_four"),
             Pair("settlement_method_five", "private_data_five"),
         )
-        databaseService.storePendingSettlementMethods(offerID, chainID, newSettlementMethods)
-        val newReturnedSettlementMethods = databaseService.getPendingSettlementMethods(offerID, chainID)!!
+        databaseService.storePendingOfferSettlementMethods(offerID, chainID, newSettlementMethods)
+        val newReturnedSettlementMethods = databaseService.getPendingOfferSettlementMethods(offerID, chainID)!!
         assertEquals(3, newReturnedSettlementMethods.size)
         assertEquals("settlement_method_three", newReturnedSettlementMethods[0].first)
         assertEquals("private_data_three", newReturnedSettlementMethods[0].second)
@@ -209,10 +209,10 @@ class DatabaseServiceTest {
         assertEquals("private_data_four", newReturnedSettlementMethods[1].second)
         assertEquals("settlement_method_five", newReturnedSettlementMethods[2].first)
         assertEquals("private_data_five", newReturnedSettlementMethods[2].second)
-        databaseService.deletePendingSettlementMethods(offerID, chainID)
-        val returnedSettlementMethodsAfterDeletion = databaseService.getPendingSettlementMethods(offerID, chainID)
+        databaseService.deletePendingOfferSettlementMethods(offerID, chainID)
+        val returnedSettlementMethodsAfterDeletion = databaseService.getPendingOfferSettlementMethods(offerID, chainID)
         assertEquals(null, returnedSettlementMethodsAfterDeletion)
-        val differentSettlementMethods = databaseService.getPendingSettlementMethods(offerID, differentChainID)!!
+        val differentSettlementMethods = databaseService.getPendingOfferSettlementMethods(offerID, differentChainID)!!
         assertEquals(3, differentSettlementMethods.size)
         assertEquals("settlement_method_zero", differentSettlementMethods[0].first)
         assertEquals("private_data_zero", differentSettlementMethods[0].second)

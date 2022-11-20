@@ -18,6 +18,37 @@ isUserMaker INTEGER NOT NULL,
 state TEXT NOT NULL
 );
 
+createSettlementMethodTable:
+CREATE TABLE OfferSettlementMethod (
+id TEXT NOT NULL,
+chainID TEXT NOT NULL,
+settlementMethod TEXT NOT NULL,
+privateData TEXT,
+privateDataInitializationVector TEXT
+);
+
+createPendingOfferSettlementMethodTable:
+CREATE TABLE PendingOfferSettlementMethod (
+id TEXT NOT NULL,
+chainID TEXT NOT NULL,
+settlementMethod TEXT NOT NULL,
+privateData TEXT,
+privateDataInitializationVector TEXT
+);
+
+createKeyPairTable:
+CREATE TABLE KeyPair (
+interfaceId TEXT UNIQUE NOT NULL,
+publicKey TEXT NOT NULL,
+privateKey TEXT NOT NULL
+);
+
+createPublicKeyTable:
+CREATE TABLE PublicKey (
+interfaceId TEXT UNIQUE NOT NULL,
+publicKey TEXT NOT NULL
+);
+
 createSwapTable:
 CREATE TABLE Swap (
 id TEXT UNIQUE NOT NULL,
@@ -51,37 +82,6 @@ state TEXT NOT NULL,
 role TEXT NOT NULL
 );
 
-createSettlementMethodTable:
-CREATE TABLE SettlementMethod (
-id TEXT NOT NULL,
-chainID TEXT NOT NULL,
-settlementMethod TEXT NOT NULL,
-privateData TEXT,
-privateDataInitializationVector TEXT
-);
-
-createPendingSettlementMethodTable:
-CREATE TABLE PendingSettlementMethod (
-id TEXT NOT NULL,
-chainID TEXT NOT NULL,
-settlementMethod TEXT NOT NULL,
-privateData TEXT,
-privateDataInitializationVector TEXT
-);
-
-createKeyPairTable:
-CREATE TABLE KeyPair (
-interfaceId TEXT UNIQUE NOT NULL,
-publicKey TEXT NOT NULL,
-privateKey TEXT NOT NULL
-);
-
-createPublicKeyTable:
-CREATE TABLE PublicKey (
-interfaceId TEXT UNIQUE NOT NULL,
-publicKey TEXT NOT NULL
-);
-
 createUserSettlementMethodTable:
 CREATE TABLE UserSettlementMethod(
 settlementMethodID TEXT UNIQUE NOT NULL,
@@ -113,18 +113,18 @@ VALUES(?, ?, ?, ?, ?, ?, ?,
 ?, ?, ?, ?, ?,
 ?, ?, ?, ?);
 
-insertSettlementMethod:
-INSERT INTO SettlementMethod(
-     id,
-     chainID,
-     settlementMethod,
-     privateData,
-     privateDataInitializationVector
+insertOfferSettlementMethod:
+INSERT INTO OfferSettlementMethod(
+    id,
+    chainID,
+    settlementMethod,
+    privateData,
+    privateDataInitializationVector
 )
 VALUES(?, ?, ?, ?, ?);
 
-insertPendingSettlementMethod:
-INSERT INTO PendingSettlementMethod(
+insertPendingOfferSettlementMethod:
+INSERT INTO PendingOfferSettlementMethod(
     id,
     chainID,
     settlementMethod,
@@ -248,12 +248,12 @@ selectOfferByOfferId:
 SELECT * FROM Offer
 WHERE id = ?;
 
-selectSettlementMethodByOfferIdAndChainID:
-SELECT * FROM SettlementMethod
+selectOfferSettlementMethodByOfferIdAndChainID:
+SELECT * FROM OfferSettlementMethod
 WHERE id = ? AND chainID = ?;
 
-selectPendingSettlementMethodByOfferIdAndChainID:
-SELECT * FROM PendingSettlementMethod
+selectPendingOfferSettlementMethodByOfferIdAndChainID:
+SELECT * FROM PendingOfferSettlementMethod
 WHERE id = ? AND chainID = ?;
 
 selectKeyPairByInterfaceId:
@@ -268,25 +268,25 @@ selectSwapBySwapID:
 SELECT * FROM Swap
 WHERE id = ?;
 
+selectUserSettlementMethodByID:
+SELECT * FROM UserSettlementMethod
+WHERE settlementMethodID = ?;
+
 deleteOfferByOfferIdAndChainID:
 DELETE FROM Offer
 WHERE id = ? AND chainID = ?;
 
-deleteSettlementMethodByOfferIdAndChainID:
-DELETE FROM SettlementMethod
+deleteOfferSettlementMethodByOfferIdAndChainID:
+DELETE FROM OfferSettlementMethod
 WHERE id = ? AND chainID = ?;
 
-deletePendingSettlementMethodByOfferIdAndChainID:
-DELETE FROM PendingSettlementMethod
+deletePendingOfferSettlementMethodByOfferIdAndChainID:
+DELETE FROM PendingOfferSettlementMethod
 WHERE id = ? AND chainID = ?;
 
 deleteSwapBySwapIDAndChainID:
 DELETE FROM Swap
 WHERE id = ? AND chainID = ?;
-
-selectUserSettlementMethodByID:
-SELECT * FROM UserSettlementMethod
-WHERE settlementMethodID = ?;
 
 deleteUserSettlementMethodByID:
 DELETE FROM UserSettlementMethod
@@ -295,11 +295,11 @@ WHERE settlementMethodID = ?;
 removeAllOffers:
 DELETE FROM Offer;
 
-removeAllSettlementMethods:
-DELETE FROM SettlementMethod;
+removeAllOfferSettlementMethods:
+DELETE FROM OfferSettlementMethod;
 
-removeAllPendingSettlementMethods:
-DELETE FROM PendingSettlementMethod;
+removeAllPendingOfferSettlementMethods:
+DELETE FROM PendingOfferSettlementMethod;
 
 removeAllKeyPairs:
 DELETE FROM KeyPair;

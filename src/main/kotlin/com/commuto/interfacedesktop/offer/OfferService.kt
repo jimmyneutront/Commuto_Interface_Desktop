@@ -256,7 +256,7 @@ class OfferService (
                 }
                 logger.info("openOffer: persistently storing ${settlementMethodStrings.size} settlement " +
                         "methods for offer ${newOffer.id}")
-                databaseService.storeSettlementMethods(offerForDatabase.id, offerForDatabase.chainID,
+                databaseService.storeOfferSettlementMethods(offerForDatabase.id, offerForDatabase.chainID,
                     settlementMethodStrings)
                 afterPersistentStorage?.invoke()
                 afterPersistentStorage?.invoke()
@@ -389,7 +389,7 @@ class OfferService (
                 }
                 val encoder = Base64.getEncoder()
                 logger.info("persistently storing pending settlement methods for $offerID")
-                databaseService.storePendingSettlementMethods(
+                databaseService.storePendingOfferSettlementMethods(
                     offerID = encoder.encodeToString(offerID.asByteArray()),
                     chainID = offer.chainID.toString(),
                     pendingSettlementMethods = serializedSettlementMethodsAndPrivateDetails
@@ -629,7 +629,7 @@ class OfferService (
                     offerID = offerIDB64String,
                     chainID = offerToTake.chainID.toString()
                 )
-                databaseService.deleteSettlementMethods(
+                databaseService.deleteOfferSettlementMethods(
                     offerID = offerIDB64String,
                     chainID = offerToTake.chainID.toString()
                 )
@@ -852,7 +852,7 @@ class OfferService (
             The user of this interface is the maker of this offer, and therefore we should have pending settlement
             methods for this offer in persistent storage.
              */
-            val pendingSettlementMethods = databaseService.getPendingSettlementMethods(
+            val pendingSettlementMethods = databaseService.getPendingOfferSettlementMethods(
                 offerID = offerIDB64String,
                 chainID = chainIDString,
             )
@@ -918,14 +918,14 @@ class OfferService (
                  */
                 Pair(Json.encodeToString(it), it.privateData)
             }
-            databaseService.storeSettlementMethods(
+            databaseService.storeOfferSettlementMethods(
                 offerID = offerIDB64String,
                 chainID = chainIDString,
                 settlementMethods = newSerializedSettlementMethods
             )
             logger.info("handleOfferEditedEvent: persistently stored ${newSerializedSettlementMethods.size} " +
                     "settlement methods for ${event.offerID}")
-            databaseService.deletePendingSettlementMethods(offerID = offerIDB64String, chainID = chainIDString)
+            databaseService.deletePendingOfferSettlementMethods(offerID = offerIDB64String, chainID = chainIDString)
             logger.info("handleOfferEditedEvent: removed pending settlement methods from persistent storage " +
                     "for ${event.offerID}")
             if (offer != null) {
@@ -941,7 +941,7 @@ class OfferService (
             val settlementMethodStrings = offerStruct.settlementMethods.map {
                 Pair<String, String?>(it.decodeToString(), null)
             }
-            databaseService.storeSettlementMethods(
+            databaseService.storeOfferSettlementMethods(
                 offerID = offerIDB64String,
                 chainID = chainIDString,
                 settlementMethods = settlementMethodStrings
@@ -983,7 +983,7 @@ class OfferService (
         offerCanceledEventRepository.append(event)
         databaseService.deleteOffers(offerIdString, event.chainID.toString())
         logger.info("handleOfferCanceledEvent: deleted offer ${event.offerID} from persistent storage")
-        databaseService.deleteSettlementMethods(offerIdString, event.chainID.toString())
+        databaseService.deleteOfferSettlementMethods(offerIdString, event.chainID.toString())
         logger.info("handleOfferCanceledEvent: deleted settlement methods for offer ${event.offerID} from " +
                 "persistent storage")
         offerCanceledEventRepository.remove(event)
@@ -1049,7 +1049,10 @@ class OfferService (
                  */
                 databaseService.deleteOffers(offerID = offerIdString, chainID = event.chainID.toString())
                 logger.info("handleOfferTakenEvent: deleted offer ${event.offerID} from persistent storage")
-                databaseService.deleteSettlementMethods(offerID = offerIdString, chainID = event.chainID.toString())
+                databaseService.deleteOfferSettlementMethods(
+                    offerID = offerIdString,
+                    chainID = event.chainID.toString()
+                )
                 logger.info("handleOfferTakenEvent: deleted settlement methods of offer ${event.offerID} from " +
                         "persistent storage")
                 withContext(Dispatchers.Main) {
