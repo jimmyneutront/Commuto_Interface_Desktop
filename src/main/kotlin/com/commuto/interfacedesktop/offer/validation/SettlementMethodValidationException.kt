@@ -5,4 +5,4 @@ package com.commuto.interfacedesktop.offer.validation
  *
  * @param desc A description providing information about the context in which the exception was thrown.
  */
-class EditedSettlementMethodValidationException(desc: String): Exception(desc)
+class SettlementMethodValidationException(desc: String): Exception(desc)

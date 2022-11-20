@@ -4,10 +4,7 @@ import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import com.commuto.interfacedesktop.offer.*
-import com.commuto.interfacedesktop.offer.validation.NewOfferDataValidationException
-import com.commuto.interfacedesktop.offer.validation.validateEditedSettlementMethods
-import com.commuto.interfacedesktop.offer.validation.validateNewOfferData
-import com.commuto.interfacedesktop.offer.validation.validateNewSwapData
+import com.commuto.interfacedesktop.offer.validation.*
 import com.commuto.interfacedesktop.settlement.SettlementMethod
 import com.commuto.interfacedesktop.ui.StablecoinInformation
 import com.commuto.interfacedesktop.ui.StablecoinInformationRepository
@@ -269,7 +266,7 @@ class OffersViewModel @Inject constructor(private val offerService: OfferService
             logger.info("editOffer: editing ${offer.id}")
             try {
                 logger.info("editOffer: validating edited settlement methods for ${offer.id}")
-                val validatedSettlementmethods = validateEditedSettlementMethods(newSettlementMethods)
+                val validatedSettlementmethods = validateSettlementMethods(newSettlementMethods)
                 logger.info("editOffer: editing ${offer.id} with validated settlement methods")
                 offerService.editOffer(
                     offerID = offer.id,

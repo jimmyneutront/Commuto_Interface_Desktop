@@ -2,9 +2,6 @@ package com.commuto.interfacedesktop.offer.validation
 
 import com.commuto.interfacedesktop.offer.OfferDirection
 import com.commuto.interfacedesktop.settlement.SettlementMethod
-import com.commuto.interfacedesktop.settlement.privatedata.PrivateSEPAData
-import com.commuto.interfacedesktop.settlement.privatedata.PrivateSWIFTData
-import com.commuto.interfacedesktop.settlement.privatedata.createPrivateDataObject
 import com.commuto.interfacedesktop.ui.StablecoinInformation
 import java.math.BigDecimal
 import java.math.BigInteger
@@ -21,12 +18,7 @@ import java.math.RoundingMode
  * - the security deposit amount is at least 10% of the maximum stablecoin amount
  * - the minimum service fee amount is greater than zero
  * - the user has specified a valid direction
- * - the user has selected at least one settlement method
- * - the user has specified a price for each selected settlement method.
- * - the user has specified their information for each selected settlement method.
- * - the information that the user has supplied for each settlement method is valid.
- * - the type of information that the user has supplied for each settlement method corresponds to that type of
- * settlement method.
+ * - the settlement methods supplied by the user are valid (determined via a call to [validateSettlementMethods])
  *
  * @param stablecoin The contract address of the stablecoin selected by the user, or `null` if the user has not selected
  * a stablecoin.
@@ -76,34 +68,10 @@ fun validateNewOfferData(
         throw NewOfferDataValidationException("The minimum service fee amount must be greater than zero.")
     }
     val serviceFeeAmountUpperBound = serviceFeeRate * (maximumAmountBaseUnits / BigInteger.valueOf(10_000L))
-    if (settlementMethods.isEmpty()) {
-        throw NewOfferDataValidationException("You must specify at least one settlement method.")
-    }
     if (direction == null) {
         throw NewOfferDataValidationException("You must specify a direction.")
     }
-    settlementMethods.forEach {
-        if (it.price == "") {
-            throw NewOfferDataValidationException("You must specify a price for each settlement method you select.")
-        }
-        val privateData = it.privateData ?: throw NewOfferDataValidationException("You must supply your information " +
-                "for each settlement method you select.")
-        val privateDataObject = createPrivateDataObject(privateData = privateData)
-            ?: throw NewOfferDataValidationException("Your ${it.currency} ${it.method} has invalid details")
-        if (privateDataObject is PrivateSEPAData) {
-            if (it.method != "SEPA") {
-                throw NewOfferDataValidationException("You cannot not supply SEPA details for a ${it.method} " +
-                        "settlement method.")
-            }
-        } else if (privateDataObject is PrivateSWIFTData) {
-            if (it.method != "SWIFT") {
-                throw NewOfferDataValidationException("You cannot not supply SWIFT details for a ${it.method} " +
-                        "settlement method.")
-            }
-        } else {
-            throw NewOfferDataValidationException("You must select a supported settlement method")
-        }
-    }
+    val validatedSettlementMethods = validateSettlementMethods(settlementMethods)
     return ValidatedNewOfferData(
         stablecoin = stablecoin,
         stablecoinInformation = stablecoinInformation,
@@ -114,7 +82,7 @@ fun validateNewOfferData(
         serviceFeeAmountLowerBound = serviceFeeAmountLowerBound,
         serviceFeeAmountUpperBound = serviceFeeAmountUpperBound,
         direction = direction,
-        settlementMethods = settlementMethods
+        settlementMethods = validatedSettlementMethods
     )
 }
 
