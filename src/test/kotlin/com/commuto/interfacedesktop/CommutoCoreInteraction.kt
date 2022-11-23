@@ -12,9 +12,6 @@ import io.ktor.http.*
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.runBlocking
 import org.web3j.codegen.SolidityFunctionWrapperGenerator
-import org.web3j.crypto.Credentials
-import org.web3j.crypto.MnemonicUtils
-import org.web3j.crypto.WalletUtils
 import org.web3j.protocol.Web3j
 import org.web3j.protocol.core.DefaultBlockParameter
 import org.web3j.protocol.core.DefaultBlockParameterName
@@ -40,10 +37,175 @@ import kotlinx.serialization.decodeFromString
 import net.folivo.trixnity.clientserverapi.client.MatrixClientServerApiClient
 import net.folivo.trixnity.core.model.RoomId
 import net.folivo.trixnity.core.model.events.m.room.RoomMessageEventContent
+import org.web3j.abi.FunctionEncoder
+import org.web3j.abi.datatypes.Address
+import org.web3j.abi.datatypes.Type
+import org.web3j.abi.datatypes.generated.Uint256
+import org.web3j.contracts.eip20.generated.ERC20
+import org.web3j.crypto.*
+import org.web3j.protocol.core.methods.request.Transaction
+import org.web3j.protocol.core.methods.response.EthBlock
+import org.web3j.protocol.core.methods.response.EthBlock.TransactionHash
+import org.web3j.service.TxSignServiceImpl
+import org.web3j.utils.Numeric
+import java.lang.Thread.sleep
 import java.nio.charset.Charset
 import java.security.MessageDigest
+import kotlin.Pair
 
 internal class CommutoCoreInteraction {
+
+    /**
+     * Demonstrate the new transaction pipeline
+     */
+    @Test
+    fun testNewTransactionPipeline() {
+        // Restore Hardhat account #1
+        val key = Credentials.create("0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d")
+
+        // The address to which we will send some ERC20 tokens (Hardhat account #2)
+        val tokenRecipientAddress = "0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc"
+        // The contract address of the tokens that we will send (Dai on Hardhat as set up by CommutoSwap test scripts)
+        val ERC20TokenAddress = "0x663F3ad617193148711d28f5334eE4Ed07016602"
+
+        // Set up web3 instance
+        val endpoint = System.getenv("BLOCKCHAIN_NODE")
+        val web3 = Web3j.build(HttpService(endpoint))
+        val chainID = 31337L
+
+        // Here we create a transaction nearly to the one that will transfer tokens to the recipient. We don't create
+        // the actual RawTransaction here because Web3j doesn't allow gas estimation on a RawTransaction, so we create a
+        // Transaction instead. We estimate the gas limit and proper nonce for the user's account. We don't estimate the
+        // maxPriorityFeePerGas or maxFeePerGas yet, because the Web3j method to do so doesn't encode the request
+        // properly. Then we show the estimated gas cost/gas limit to the user. We should wait for them to either cancel
+        // the process, continue with the default options, or specify a custom max priority fee per gas, max fee per
+        // gas, or gas limit. Note that we do NOT do anything with the transaction ID here, because if the user changes
+        // the gas limit/gas price, the actual transaction ID will be different.
+        val amount = Convert.toWei("100.0", Convert.Unit.ETHER).toBigInteger()
+        val function = org.web3j.abi.datatypes.Function(
+            "transfer",
+            listOf(Address(tokenRecipientAddress), Uint256(amount)),
+            listOf()
+        )
+        val encodedFunction = FunctionEncoder.encode(function)
+        val transactionForGasEstimate = Transaction(
+            key.address.toString(),
+            BigInteger.ZERO,
+            null, // No gasPrice because we are specifying maxFeePerGas
+            BigInteger.valueOf(30_000_000),
+            ERC20TokenAddress,
+            BigInteger.ZERO,
+            encodedFunction,
+            chainID,
+            BigInteger.valueOf(1_000_000), // maxPriorityFeePerGas
+            BigInteger.valueOf(5_000_000), // maxFeePerGas
+        )
+        val nonce = web3.ethGetTransactionCount(
+            key.address,
+            DefaultBlockParameter.valueOf("pending")
+        ).send().transactionCount
+        val gasLimit = web3.ethEstimateGas(transactionForGasEstimate).send().amountUsed
+        // TODO: Calculate maxFeePerGas and maxPriorityFeePerGas here
+        // web3j doesn't encode parameters correctly, so this doesn't work
+        /*
+        val feeHistory = web3.ethFeeHistory(
+            20,
+            DefaultBlockParameter.valueOf("latest"),
+            listOf(75.0)
+        ).send().feeHistory
+
+        val tipFeePercentiles: List<BigInteger> = listOf()
+
+        val finalGasFee = BigInteger.ZERO
+        val finalTipFee = BigInteger.ZERO
+        */
+
+        println("ERC20 Transfer Transaction:")
+        println("Estimated Gas Cost/Gas Limit: $gasLimit")
+        println("Max Fee Per Gas (Wei): TEMPORARY")
+        println("Total Cost of Gas (in Wei): TEMPORARY")
+
+        // If the user cancels the process, we stop here. Otherwise, we should create a RawTransaction using the gas
+        // limit, max priority fee per gas and max fee per gas specified by the user, if any, sign the transaction, and
+        // record and save its transaction hash.
+        val transaction = RawTransaction.createTransaction(
+            chainID,
+            nonce,
+            gasLimit,
+            transactionForGasEstimate.to,
+            BigInteger.ZERO,
+            transactionForGasEstimate.data,
+            BigInteger.valueOf(1_000_000), // maxPriorityFeePerGas
+            BigInteger.valueOf(5_000_000), // maxFeePerGas
+        )
+        val transactionSignService = TxSignServiceImpl(key)
+        val signedTransactionData = transactionSignService.sign(transaction, 31337L)
+        val signedTransactionHex = Numeric.toHexString(signedTransactionData)
+        val transactionHash = Hash.sha3(signedTransactionHex)
+        println("Transaction hash: $transactionHash")
+
+        // We add the ID of our new transaction to a list/map of transaction IDs. Whenever BlockchainService gets a new
+        // block and begins to parse transactions in that block, it should check if each transaction's id is present in
+        // transactionsOfInterest. If so, it should create the appropriate event for that transaction, and hand it off
+        // to the proper service.
+        val transactionsOfInterest = mutableMapOf<String, Boolean>(
+            transactionHash.lowercase() to false,
+        )
+
+        // Now we finally send the transaction to the blockchain node.
+        val ethSendTransaction = web3.ethSendRawTransaction(signedTransactionHex).send()
+        assertEquals(transactionHash, ethSendTransaction.transactionHash)
+
+        var transactionIsConfirmed = false
+        // Setting up the Commuto test environment requires about 40 transactions; there is no need to parse them here.
+        var lastParsedBlockNumber = BigInteger.valueOf(40)
+        var latestBlockNumber = BigInteger.ONE
+
+        // We continually try to get new blocks. Every time we do, we check every transaction in it, searching for our
+        // transaction of interest.
+        while(!transactionIsConfirmed) {
+            latestBlockNumber = web3.ethBlockNumber().send().blockNumber
+            if (latestBlockNumber > lastParsedBlockNumber) {
+                val numberOfBlockToParse = lastParsedBlockNumber + BigInteger.ONE
+                val block = web3.ethGetBlockByNumber(
+                    DefaultBlockParameter.valueOf(numberOfBlockToParse),
+                    false
+                ).send().block
+                for (transactionResult in block.transactions) {
+                    when (transactionResult) {
+                        // This call has O(n) complexity, we are using this only for demonstration purposes. In
+                        // production, transactionsOfInterest should map transaction IDs to some kind of
+                        // TransactionOfInterest object, containing the block height/time at which the tx was created,
+                        // so we can notify the user if we believe a transaction has been dropped or otherwise lost.
+                        is TransactionHash -> {
+                            val transactionHashInBlock = transactionResult.get().lowercase()
+                            if (transactionsOfInterest.containsKey(transactionHashInBlock) &&
+                                transactionHashInBlock.equals(transactionHash)
+                            ) {
+                                transactionsOfInterest[transactionHash] = true
+                                transactionIsConfirmed = true
+                            }
+                        }
+                        is EthBlock.TransactionObject -> {
+                            val transactionInBlock = transactionResult.get()
+                            if (transactionsOfInterest.containsKey(transactionInBlock.hash) &&
+                                transactionInBlock.hash.equals(transactionHash)
+                            ) {
+                                transactionsOfInterest[transactionHash] = true
+                                transactionIsConfirmed = true
+                            }
+                        }
+                    }
+                }
+                lastParsedBlockNumber = numberOfBlockToParse
+            } else {
+                sleep(3000)
+            }
+        }
+
+        print("Transaction confirmed. Hash: $transactionHash")
+
+    }
 
     @Test
     fun testTransferEth() {

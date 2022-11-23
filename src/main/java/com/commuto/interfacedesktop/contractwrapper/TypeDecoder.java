@@ -45,7 +45,7 @@ taken almost entirely from Web3j's TypeDecoder, and it is a temporary workaround
 public class TypeDecoder extends org.web3j.abi.TypeDecoder {
     static final int MAX_BYTE_LENGTH_FOR_HEX_STRING = Type.MAX_BYTE_LENGTH << 1;
 
-    static <T extends Type> T decode(String input, int offset, Class<T> type) {
+    public static <T extends Type> T decode(String input, int offset, Class<T> type) {
         if (NumericType.class.isAssignableFrom(type)) {
             return (T) decodeNumeric(input.substring(offset), (Class<NumericType>) type);
         } else if (Address.class.isAssignableFrom(type)) {
@@ -66,15 +66,15 @@ public class TypeDecoder extends org.web3j.abi.TypeDecoder {
         }
     }
 
-    static <T extends Type> T decode(String input, Class<T> type) {
+    public static <T extends Type> T decode(String input, Class<T> type) {
         return decode(input, 0, type);
     }
 
-    static Address decodeAddress(String input) {
+     public static Address decodeAddress(String input) {
         return new Address(decodeNumeric(input, Uint160.class));
     }
 
-    static <T extends NumericType> T decodeNumeric(String input, Class<T> type) {
+    public static <T extends NumericType> T decodeNumeric(String input, Class<T> type) {
         try {
             byte[] inputByteArray = Numeric.hexStringToByteArray(input);
             int typeLengthAsBytes = getTypeLengthInBytes(type);
@@ -130,18 +130,18 @@ public class TypeDecoder extends org.web3j.abi.TypeDecoder {
         return decode(input, 0, Uint.class).getValue().intValue();
     }
 
-    static Bool decodeBool(String rawInput, int offset) {
+    public static Bool decodeBool(String rawInput, int offset) {
         String input = rawInput.substring(offset, offset + MAX_BYTE_LENGTH_FOR_HEX_STRING);
         BigInteger numericValue = Numeric.toBigInt(input);
         boolean value = numericValue.equals(BigInteger.ONE);
         return new Bool(value);
     }
 
-    static <T extends Bytes> T decodeBytes(String input, Class<T> type) {
+    public static <T extends Bytes> T decodeBytes(String input, Class<T> type) {
         return decodeBytes(input, 0, type);
     }
 
-    static <T extends Bytes> T decodeBytes(String input, int offset, Class<T> type) {
+    public static <T extends Bytes> T decodeBytes(String input, int offset, Class<T> type) {
         try {
             String simpleName = type.getSimpleName();
             String[] splitName = simpleName.split(Bytes.class.getSimpleName());
@@ -162,7 +162,7 @@ public class TypeDecoder extends org.web3j.abi.TypeDecoder {
         }
     }
 
-    static DynamicBytes decodeDynamicBytes(String input, int offset) {
+    public static DynamicBytes decodeDynamicBytes(String input, int offset) {
         int encodedLength = decodeUintAsInt(input, offset);
         int hexStringEncodedLength = encodedLength << 1;
 
@@ -174,7 +174,7 @@ public class TypeDecoder extends org.web3j.abi.TypeDecoder {
         return new DynamicBytes(bytes);
     }
 
-    static <T extends Type> T decodeDynamicStruct(
+    public static <T extends Type> T decodeDynamicStruct(
             String input, int offset, TypeReference<T> typeReference) {
 
         BiFunction<List<T>, String, T> function =
@@ -190,14 +190,14 @@ public class TypeDecoder extends org.web3j.abi.TypeDecoder {
         return decodeDynamicStructElements(input, offset, typeReference, function);
     }
 
-    static Utf8String decodeUtf8String(String input, int offset) {
+    public static Utf8String decodeUtf8String(String input, int offset) {
         DynamicBytes dynamicBytesResult = decodeDynamicBytes(input, offset);
         byte[] bytes = dynamicBytesResult.getValue();
 
         return new Utf8String(new String(bytes, StandardCharsets.UTF_8));
     }
 
-    static <T extends Type> T decodeStaticArray(
+    public static <T extends Type> T decodeStaticArray(
             String input, int offset, TypeReference<T> typeReference, int length) {
 
         BiFunction<List<T>, String, T> function =
@@ -264,7 +264,7 @@ public class TypeDecoder extends org.web3j.abi.TypeDecoder {
     }
 
     @SuppressWarnings("unchecked")
-    static <T extends Type> T decodeDynamicArray(
+    public static <T extends Type> T decodeDynamicArray(
             String input, int offset, TypeReference<T> typeReference) {
 
         int length = decodeUintAsInt(input, offset);

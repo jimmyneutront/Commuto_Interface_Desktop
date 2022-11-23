@@ -70,10 +70,9 @@ dependencies {
     */
 
     // Web3J for blockchain-related operations
-    //TODO: Update these to a version with no vulnerabilities
-    implementation("org.web3j:codegen:4.8.7")
-    implementation("org.web3j:contracts:4.8.7")
-    implementation("org.web3j:core:4.8.7")
+    implementation("org.web3j:codegen:4.9.5")
+    implementation("org.web3j:contracts:4.9.5")
+    implementation("org.web3j:core:4.9.5")
     //implementation("org.bouncycastle:bcpg-jdk15on:1.69")
     testImplementation(kotlin("test"))
     // Trixnity Matrix SDK
