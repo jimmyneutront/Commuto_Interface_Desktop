@@ -1,59 +1,85 @@
 package com.commuto.interfacedesktop
 
-import com.commuto.interfacedesktop.oldcontractwrapper.CommutoERC20
-import com.commuto.interfacedesktop.oldcontractwrapper.CommutoSwap
-import com.commuto.interfacedesktop.oldcontractwrapper.CommutoTransactionManager
-import com.commuto.interfacedesktop.oldcontractwrapper.WorkingCommutoSwap
 import com.commuto.interfacedesktop.database.DatabaseDriverFactory
 import com.commuto.interfacedesktop.database.DatabaseService
 import com.commuto.interfacedesktop.key.KeyManagerService
 import com.commuto.interfacedesktop.key.keys.*
+import com.commuto.interfacedesktop.oldcontractwrapper.CommutoERC20
+import com.commuto.interfacedesktop.oldcontractwrapper.CommutoSwap
+import com.commuto.interfacedesktop.oldcontractwrapper.CommutoTransactionManager
+import com.commuto.interfacedesktop.oldcontractwrapper.WorkingCommutoSwap
 import io.ktor.http.*
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.runBlocking
-import org.web3j.codegen.SolidityFunctionWrapperGenerator
-import org.web3j.protocol.Web3j
-import org.web3j.protocol.core.DefaultBlockParameter
-import org.web3j.protocol.core.DefaultBlockParameterName
-import org.web3j.protocol.core.methods.response.TransactionReceipt
-import org.web3j.protocol.http.HttpService
-import org.web3j.tx.ChainIdLong
-import org.web3j.tx.Transfer
-import org.web3j.tx.gas.ContractGasProvider
-import org.web3j.utils.Convert
-import java.io.File
-import java.math.BigDecimal
-import java.math.BigInteger
-import java.nio.ByteBuffer
-import java.util.*
-import java.util.concurrent.CompletableFuture
-import kotlin.collections.ArrayList
-import kotlin.random.Random
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.encodeToString
 import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import net.folivo.trixnity.clientserverapi.client.MatrixClientServerApiClient
 import net.folivo.trixnity.core.model.RoomId
 import net.folivo.trixnity.core.model.events.m.room.RoomMessageEventContent
 import org.web3j.abi.FunctionEncoder
 import org.web3j.abi.datatypes.Address
-import org.web3j.abi.datatypes.Type
 import org.web3j.abi.datatypes.generated.Uint256
-import org.web3j.contracts.eip20.generated.ERC20
+import org.web3j.codegen.SolidityFunctionWrapperGenerator
 import org.web3j.crypto.*
+import org.web3j.protocol.Web3j
+import org.web3j.protocol.Web3jService
+import org.web3j.protocol.core.DefaultBlockParameter
+import org.web3j.protocol.core.DefaultBlockParameterName
+import org.web3j.protocol.core.JsonRpc2_0Web3j
+import org.web3j.protocol.core.Request
 import org.web3j.protocol.core.methods.request.Transaction
 import org.web3j.protocol.core.methods.response.EthBlock
 import org.web3j.protocol.core.methods.response.EthBlock.TransactionHash
+import org.web3j.protocol.core.methods.response.EthFeeHistory
+import org.web3j.protocol.core.methods.response.TransactionReceipt
+import org.web3j.protocol.http.HttpService
 import org.web3j.service.TxSignServiceImpl
+import org.web3j.tx.ChainIdLong
+import org.web3j.tx.Transfer
+import org.web3j.tx.gas.ContractGasProvider
+import org.web3j.utils.Convert
 import org.web3j.utils.Numeric
+import java.io.File
 import java.lang.Thread.sleep
+import java.math.BigDecimal
+import java.math.BigInteger
+import java.nio.ByteBuffer
 import java.nio.charset.Charset
 import java.security.MessageDigest
+import java.util.*
+import java.util.concurrent.CompletableFuture
 import kotlin.Pair
+import kotlin.math.floor
+import kotlin.random.Random
+import kotlin.test.Test
+import kotlin.test.assertEquals
 
 internal class CommutoCoreInteraction {
+
+    /**
+     * A [Web3jService] implementation that extends [JsonRpc2_0Web3j] but overrides [JsonRpc2_0Web3j.ethFeeHistory] in
+     * order to serialize the newest block value correctly as specified
+     * [here](https://ethereum.github.io/execution-apis/api-documentation/)
+     */
+    class TestJsonRPC20Web3j(web3jservice: Web3jService): JsonRpc2_0Web3j(web3jservice) {
+        override fun ethFeeHistory(
+            blockCount: Int,
+            newestBlock: DefaultBlockParameter?,
+            rewardPercentiles: List<Double>?
+        ): Request<*, EthFeeHistory> {
+            return Request(
+                "eth_feeHistory",
+                listOf(
+                    Numeric.encodeQuantity(BigInteger.valueOf(blockCount.toLong())),
+                    newestBlock?.value ?: "latest",
+                    rewardPercentiles
+                ),
+                this.web3jService,
+                EthFeeHistory::class.java
+            )
+        }
+    }
 
     /**
      * Demonstrate the new transaction pipeline
@@ -66,11 +92,11 @@ internal class CommutoCoreInteraction {
         // The address to which we will send some ERC20 tokens (Hardhat account #2)
         val tokenRecipientAddress = "0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc"
         // The contract address of the tokens that we will send (Dai on Hardhat as set up by CommutoSwap test scripts)
-        val ERC20TokenAddress = "0x663F3ad617193148711d28f5334eE4Ed07016602"
+        val erc20TokenAddress = "0x663F3ad617193148711d28f5334eE4Ed07016602"
 
         // Set up web3 instance
         val endpoint = System.getenv("BLOCKCHAIN_NODE")
-        val web3 = Web3j.build(HttpService(endpoint))
+        val web3 = TestJsonRPC20Web3j(HttpService(endpoint))
         val chainID = 31337L
 
         // Here we create a transaction nearly to the one that will transfer tokens to the recipient. We don't create
@@ -93,7 +119,7 @@ internal class CommutoCoreInteraction {
             BigInteger.ZERO,
             null, // No gasPrice because we are specifying maxFeePerGas
             BigInteger.valueOf(30_000_000),
-            ERC20TokenAddress,
+            erc20TokenAddress,
             BigInteger.ZERO,
             encodedFunction,
             chainID,
@@ -105,25 +131,33 @@ internal class CommutoCoreInteraction {
             DefaultBlockParameter.valueOf("pending")
         ).send().transactionCount
         val gasLimit = web3.ethEstimateGas(transactionForGasEstimate).send().amountUsed
-        // TODO: Calculate maxFeePerGas and maxPriorityFeePerGas here
-        // web3j doesn't encode parameters correctly, so this doesn't work
-        /*
+
+        // We get the fee history from the last 20 blocks, from the 75th to the 100th percentile.
+        // Web3j doesn't encode parameters correctly by default, but we are using a custom web3 so this does work.
         val feeHistory = web3.ethFeeHistory(
             20,
             DefaultBlockParameter.valueOf("latest"),
             listOf(75.0)
         ).send().feeHistory
 
-        val tipFeePercentiles: List<BigInteger> = listOf()
-
-        val finalGasFee = BigInteger.ZERO
-        val finalTipFee = BigInteger.ZERO
-        */
+        // Calculate the average of the 75th percentile reward values from the last 20 blocks and use this as the
+        // maxPriorityFeePerGas
+        val maxPriorityFeePerGas = BigInteger.ZERO.let { finalTipFee ->
+            feeHistory.reward.map { it.first() }.forEach { finalTipFee.add(it) }
+            finalTipFee.divide(BigInteger.valueOf(feeHistory.reward.count().toLong()))
+        }
+        // Calculate the 75th percentile base fee per gas value from the last 20 blocks and use this as the
+        // baseFeePerGas
+        val baseFeePerGas = BigInteger.ZERO.let {
+            val percentileIndex = floor(0.75 * feeHistory.baseFeePerGas.count()).toInt()
+            feeHistory.baseFeePerGas.sorted()[percentileIndex]
+        }
+        val maxFeePerGas = baseFeePerGas + maxPriorityFeePerGas
 
         println("ERC20 Transfer Transaction:")
         println("Estimated Gas Cost/Gas Limit: $gasLimit")
-        println("Max Fee Per Gas (Wei): TEMPORARY")
-        println("Total Cost of Gas (in Wei): TEMPORARY")
+        println("Max Fee Per Gas (Wei): $maxFeePerGas")
+        println("Total Cost of Gas (in Wei): ${gasLimit.times(maxFeePerGas)}")
 
         // If the user cancels the process, we stop here. Otherwise, we should create a RawTransaction using the gas
         // limit, max priority fee per gas and max fee per gas specified by the user, if any, sign the transaction, and
@@ -133,10 +167,10 @@ internal class CommutoCoreInteraction {
             nonce,
             gasLimit,
             transactionForGasEstimate.to,
-            BigInteger.ZERO,
+            BigInteger.ZERO, // value
             transactionForGasEstimate.data,
-            BigInteger.valueOf(1_000_000), // maxPriorityFeePerGas
-            BigInteger.valueOf(5_000_000), // maxFeePerGas
+            maxPriorityFeePerGas,
+            maxFeePerGas,
         )
         val transactionSignService = TxSignServiceImpl(key)
         val signedTransactionData = transactionSignService.sign(transaction, 31337L)
