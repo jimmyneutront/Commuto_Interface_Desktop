@@ -33,6 +33,7 @@ import org.web3j.protocol.core.methods.response.EthBlock
 import org.web3j.protocol.core.methods.response.EthBlock.TransactionHash
 import org.web3j.protocol.core.methods.response.EthFeeHistory
 import org.web3j.protocol.core.methods.response.TransactionReceipt
+import org.web3j.protocol.exceptions.TransactionException
 import org.web3j.protocol.http.HttpService
 import org.web3j.service.TxSignServiceImpl
 import org.web3j.tx.ChainIdLong
@@ -54,6 +55,7 @@ import kotlin.math.floor
 import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 
 internal class CommutoCoreInteraction {
 
@@ -238,6 +240,83 @@ internal class CommutoCoreInteraction {
         }
 
         print("Transaction confirmed. Hash: $transactionHash")
+
+    }
+
+    /**
+     * Demonstrate the handling of reverted transactions in the new transaction pipeline.
+     *
+     * Ideally, when the user does something that results in the creation and broadcasting of a "write" transaction,
+     * they stay in the app long enough and their transaction is confirmed quick enough so that, if it reverts, the
+     * send-transaction call throws an exception containing the revert string. However, if the user leaves the app
+     * before the transaction is confirmed, we will never get this revert string, since it is not stored anywhere
+     * on-chain. When we re-start the app, the best we can do is attempt to get the receipt of the transaction and check
+     * if its status is failed. If it is, then `BlockchainService` can notify the proper service object, which can
+     * display a message like "Transaction failed for unknown reason" to the user.
+     */
+    @Test
+    fun testNewTransactionPipelineRevertHandling() {
+        // Restore Hardhat account #19 (to which no test Dai should be transfered, otherwise this test will fail)
+        val key = Credentials.create("0xdf57089febbacf7ba0bc227dafbffa9fc08a93fdc68e1e42411a14efcf23656e")
+
+        // The address to which we will send some ERC20 tokens (Hardhat account #2)
+        val tokenRecipientAddress = "0x3c44cdddb6a900fa2b585dd299e03d12fa4293bc"
+        // The contract address of the tokens that we will send (Dai on Hardhat as set up by CommutoSwap test scripts)
+        val erc20TokenAddress = "0x663F3ad617193148711d28f5334eE4Ed07016602"
+
+        // Set up web3 instance
+        val endpoint = System.getenv("BLOCKCHAIN_NODE")
+        val web3 = TestJsonRPC20Web3j(HttpService(endpoint))
+        val chainID = 31337L
+
+        // Create and sign the transaction, and save its hash. We manually specify the gas limit and gas price because
+        // this test demonstrates exception handling, not transaction creation.
+        val function = org.web3j.abi.datatypes.Function(
+            "transfer",
+            listOf(
+                Address(tokenRecipientAddress),
+                Uint256(Convert.toWei("100.0", Convert.Unit.ETHER).toBigInteger())
+            ),
+            listOf()
+        )
+        val encodedFunction = FunctionEncoder.encode(function)
+        val nonce = web3.ethGetTransactionCount(
+            key.address,
+            DefaultBlockParameter.valueOf("pending")
+        ).send().transactionCount
+        val transaction = RawTransaction.createTransaction(
+            nonce,
+            BigInteger.valueOf(30000000),
+            BigInteger.valueOf(30000000),
+            erc20TokenAddress,
+            BigInteger.ZERO,
+            encodedFunction
+        )
+        val transactionSignService = TxSignServiceImpl(key)
+        val signedTransactionData = transactionSignService.sign(transaction, chainID)
+        val signedTransactionHex = Numeric.toHexString(signedTransactionData)
+        val transactionHash = Hash.sha3(signedTransactionHex)
+
+        // Send the transaction to the node. The transaction will revert because Hardhat Address #19 has zero token
+        // balance, so we throw a TransactionException with the error message, which includes the revert string. We
+        // catch that exception and check for the proper revert string.
+        try {
+            val ethSendTransaction = web3.ethSendRawTransaction(signedTransactionHex).send()
+            if (ethSendTransaction.error != null) {
+                throw TransactionException(ethSendTransaction.error.message)
+            }
+        } catch (transactionException: TransactionException) {
+            if (transactionException.message != "Error: VM Exception while processing transaction: reverted with " +
+                "reason string 'ERC20: transfer amount exceeds balance'") {
+                throw transactionException
+            }
+        }
+
+        // We get the receipt of the reverted transaction and ensure that it has the proper transaction status. In
+        // production, we should get the proper TransactionOfInterest-like object from the list/map of transaction ids,
+        // and then notify the proper service object of transaction failure.
+        val transactionReceipt = web3.ethGetTransactionReceipt(transactionHash).send()
+        assertFalse(transactionReceipt.transactionReceipt.get().isStatusOK)
 
     }
 
