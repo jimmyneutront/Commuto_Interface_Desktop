@@ -4,6 +4,7 @@ import androidx.compose.runtime.MutableState
 import com.commuto.interfacedesktop.offer.*
 import com.commuto.interfacedesktop.settlement.SettlementMethod
 import com.commuto.interfacedesktop.ui.StablecoinInformation
+import org.web3j.crypto.RawTransaction
 import java.math.BigDecimal
 import java.math.BigInteger
 
@@ -56,8 +57,23 @@ interface UIOfferTruthSource: OfferTruthSource {
      *
      * @param offer The [Offer] to be canceled.
      */
+    @Deprecated("Use the new offer pipeline with improved transaction state management")
     fun cancelOffer(
         offer: Offer
+    )
+
+    /**
+     * Attempts to create a [RawTransaction] to cancel [offer], which should be made by the user of this interface.
+     *
+     * @param offer The [Offer] to be canceled.
+     * @param createdTransactionHandler An escaping closure that will accept and handle the created [RawTransaction].
+     * @param exceptionHandler An escaping closure that will accept and handle any error that occurs during the
+     * transaction creation process.
+     */
+    fun createCancelOfferTransaction(
+        offer: Offer,
+        createdTransactionHandler: (RawTransaction) -> Unit,
+        exceptionHandler: (Exception) -> Unit
     )
 
     /**

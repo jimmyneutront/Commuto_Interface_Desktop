@@ -10,6 +10,7 @@ import com.commuto.interfacedesktop.ui.StablecoinInformation
 import com.commuto.interfacedesktop.ui.StablecoinInformationRepository
 import kotlinx.coroutines.*
 import org.slf4j.LoggerFactory
+import org.web3j.crypto.RawTransaction
 import java.math.BigDecimal
 import java.math.BigInteger
 import java.util.*
@@ -216,6 +217,7 @@ class OffersViewModel @Inject constructor(private val offerService: OfferService
      *
      * @param offer The [Offer] to be canceled.
      */
+    @Deprecated("Use the new offer pipeline with improved transaction state management")
     override fun cancelOffer(offer: Offer) {
         viewModelScope.launch {
             setCancelingOfferState(
@@ -240,6 +242,33 @@ class OffersViewModel @Inject constructor(private val offerService: OfferService
                     offerID = offer.id,
                     state = CancelingOfferState.EXCEPTION
                 )
+            }
+        }
+    }
+
+    /**
+     * Attempts to create a [RawTransaction] to cancel [offer], which should be made by the user of this interface.
+     *
+     * This passes [offer]'s ID and chain ID to [OfferService.cancelOffer] and then passes the resulting transaction to
+     * [createdTransactionHandler] or exception to [exceptionHandler].
+     *
+     * @param offer The [Offer] to be canceled.
+     * @param createdTransactionHandler An escaping closure that will accept and handle the created [RawTransaction].
+     * @param exceptionHandler An escaping closure that will accept and handle any exception that occurs during the
+     * transaction creation process.
+     */
+    override fun createCancelOfferTransaction(
+        offer: Offer,
+        createdTransactionHandler: (RawTransaction) -> Unit,
+        exceptionHandler: (Exception) -> Unit
+    ) {
+        viewModelScope.launch {
+            logger.info("createCancelOfferTransaction: creating for ${offer.id}")
+            try {
+                val createdTransaction = offerService.createCancelOfferTransaction(offer.id, offer.chainID)
+                createdTransactionHandler(createdTransaction)
+            } catch (exception: Exception) {
+                exceptionHandler(exception)
             }
         }
     }

@@ -18,7 +18,7 @@ import javax.inject.Singleton
  * settlement-method related views, which include those for adding/editing/deleting the user's settlement methods, as
  * well as those for creating/editing/taking offers.
  *
- * @property settlementMethods A [SnapshotStateList] containing all of the user's [SettlementMethod]s, each with
+ * @property settlementMethods A [SnapshotStateList] containing all the user's [SettlementMethod]s, each with
  * corresponding private data.
  * @property settlementMethodService A [SettlementMethodService] responsible for performing validating, adding, editing,
  * and removing operations on the user's settlement methods, both in persistent storage and in [settlementMethods].

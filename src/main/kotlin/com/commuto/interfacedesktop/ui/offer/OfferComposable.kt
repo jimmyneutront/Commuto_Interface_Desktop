@@ -58,7 +58,15 @@ fun OfferComposable(
      */
     val offer = offerTruthSource.offers[id]
 
+    /**
+     * Indicates whether we are showing the sheet that allows the user to take the offer, if they are not the maker.
+     */
     val isShowingTakeOfferDialog = remember { mutableStateOf(false) }
+
+    /**
+     * Indicates whether we are showing the sheet that allows the user to cancel the offer, if they are the maker.
+     */
+    val isShowingCancelOfferDialog = remember { mutableStateOf(false) }
 
     if (id == null || offer == null) {
         Row(
@@ -208,6 +216,7 @@ fun OfferComposable(
                     }
                 )
                 if (offer.isUserMaker) {
+                    // The user is the maker of this offer, so we display buttons for editing and canceling the offer
                     if (offer.editingOfferState.value == EditingOfferState.EXCEPTION) {
                         Text(
                             text = offer.editingOfferException?.message ?: "An unknown exception occurred",
@@ -249,11 +258,13 @@ fun OfferComposable(
                     }
                     Button(
                         onClick = {
+                            isShowingCancelOfferDialog.value = true
                             // Don't let the user try to cancel the offer if it is already canceled or being canceled
+                            /*
                             if (offer.cancelingOfferState.value == CancelingOfferState.NONE  ||
                                 offer.cancelingOfferState.value == CancelingOfferState.EXCEPTION) {
                                 offerTruthSource.cancelOffer(offer)
-                            }
+                            }*/
                         },
                         content = {
                             val cancelOfferButtonText: String = when (offer.cancelingOfferState.value) {
@@ -344,6 +355,32 @@ fun OfferComposable(
                             offerTruthSource = offerTruthSource,
                             id = id,
                             settlementMethodTruthSource = settlementMethodTruthSource,
+                        )
+                    }
+                },
+            )
+        }
+
+        if (isShowingCancelOfferDialog.value) {
+            Dialog(
+                onCloseRequest = {},
+                state = DialogState(
+                    width = 500.dp,
+                    height = 600.dp,
+                ),
+                title = "Cancel Offer",
+                undecorated = true,
+                resizable = false,
+                content = {
+                    Box(
+                        modifier = Modifier
+                            .width(600.dp)
+                            .height(800.dp)
+                    ) {
+                        CancelOfferComposable(
+                            offer = offer,
+                            closeDialog = { isShowingCancelOfferDialog.value = false },
+                            offerTruthSource = offerTruthSource
                         )
                     }
                 },

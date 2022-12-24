@@ -25,6 +25,7 @@ import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.slf4j.LoggerFactory
+import org.web3j.crypto.RawTransaction
 import java.math.BigInteger
 import java.nio.ByteBuffer
 import java.util.*
@@ -354,6 +355,27 @@ class OfferService (
                 logger.error("openOffer: encountered exception", exception)
                 throw exception
             }
+        }
+    }
+
+    /**
+     * Attempts to create a [RawTransaction] that will cancel an
+     * [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer) made by the user of this interface,
+     * with the ID specified by [offerID] and on the blockchain specified by [chainID].
+     *
+     * On the IO coroutine dispatcher, this calls [BlockchainService.createCancelOfferTransaction], passing [offerID]
+     * and [chainID], and returns the result.
+     *
+     * @param offerID The ID of the [Offer] to be canceled.
+     * @param chainID The ID of the blockchain on which the [Offer] exists.
+     *
+     * @return A [RawTransaction] capable of cancelling the offer specified by [offerID] on the blockchain specified by
+     * [chainID].
+     */
+    suspend fun createCancelOfferTransaction(offerID: UUID, chainID: BigInteger): RawTransaction {
+        return withContext(Dispatchers.IO) {
+            logger.info("createCancelOfferTransaction: creating for $offerID")
+            blockchainService.createCancelOfferTransaction(offerID = offerID, chainID = chainID)
         }
     }
 
@@ -844,7 +866,6 @@ class OfferService (
         val encoder = Base64.getEncoder()
         val offerIDB64String = encoder.encodeToString(event.offerID.asByteArray())
         val chainIDString = event.chainID.toString()
-        val newSettlementMethods = mutableListOf<SettlementMethod>()
         val offer = offerTruthSource.offers[event.offerID]
         if (offer?.isUserMaker ?: false) {
             logger.info("handleOfferEditedEvent: ${event.offerID} was made by interface user")
@@ -852,6 +873,7 @@ class OfferService (
             The user of this interface is the maker of this offer, and therefore we should have pending settlement
             methods for this offer in persistent storage.
              */
+            val newSettlementMethods = mutableListOf<SettlementMethod>()
             val pendingSettlementMethods = databaseService.getPendingOfferSettlementMethods(
                 offerID = offerIDB64String,
                 chainID = chainIDString,

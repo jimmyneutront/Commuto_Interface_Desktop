@@ -424,8 +424,8 @@ open class DatabaseService(
      * exists, as a [String].
      * @param settlementMethods The settlement methods to be persistently stored, as [Pair]s containing a string and an
      * optional string, in that order. The first element in a [Pair] is the public settlement method data, including
-     * price, currency and type. The second element element in a [Pair] is private data (such as an address or bank
-     * account number) for the settlement method, if any.
+     * price, currency and type. The second element in a [Pair] is private data (such as an address or bank account
+     * number) for the settlement method, if any.
      *
      * @throws Exception if database insertion is unsuccessful.
      */
