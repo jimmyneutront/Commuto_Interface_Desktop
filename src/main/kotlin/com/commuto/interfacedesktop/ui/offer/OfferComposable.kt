@@ -258,13 +258,11 @@ fun OfferComposable(
                     }
                     Button(
                         onClick = {
-                            isShowingCancelOfferDialog.value = true
                             // Don't let the user try to cancel the offer if it is already canceled or being canceled
-                            /*
                             if (offer.cancelingOfferState.value == CancelingOfferState.NONE  ||
                                 offer.cancelingOfferState.value == CancelingOfferState.EXCEPTION) {
-                                offerTruthSource.cancelOffer(offer)
-                            }*/
+                                isShowingCancelOfferDialog.value = true
+                            }
                         },
                         content = {
                             val cancelOfferButtonText: String = when (offer.cancelingOfferState.value) {

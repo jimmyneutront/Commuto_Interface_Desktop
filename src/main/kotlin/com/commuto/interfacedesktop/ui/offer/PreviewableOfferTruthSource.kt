@@ -81,6 +81,8 @@ class PreviewableOfferTruthSource: UIOfferTruthSource {
         exceptionHandler: (Exception) -> Unit
     ) {}
 
+    override fun cancelOffer(offer: Offer, offerCancellationTransaction: RawTransaction?) {}
+
     /**
      * Does nothing since this class is only used for previewing user interfaces, but is required for implementing
      * [UIOfferTruthSource]

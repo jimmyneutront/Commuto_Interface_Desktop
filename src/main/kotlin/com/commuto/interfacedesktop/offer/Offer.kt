@@ -182,6 +182,8 @@ class Offer(
     val cancelingOfferState: MutableState<CancelingOfferState> = mutableStateOf(CancelingOfferState.NONE)
     var cancelingOfferException: Exception? = null
 
+    var offerCancellationTransactionHash: String? = null
+
     val selectedSettlementMethods = mutableStateListOf<SettlementMethod>()
     val editingOfferState: MutableState<EditingOfferState> = mutableStateOf(EditingOfferState.NONE)
     var editingOfferException: Exception? = null

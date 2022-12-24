@@ -25,7 +25,9 @@ import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import org.slf4j.LoggerFactory
+import org.web3j.crypto.Hash
 import org.web3j.crypto.RawTransaction
+import org.web3j.utils.Numeric
 import java.math.BigInteger
 import java.nio.ByteBuffer
 import java.util.*
@@ -376,6 +378,66 @@ class OfferService (
         return withContext(Dispatchers.IO) {
             logger.info("createCancelOfferTransaction: creating for $offerID")
             blockchainService.createCancelOfferTransaction(offerID = offerID, chainID = chainID)
+        }
+    }
+
+    // TODO: we should be using offer cancellation state here, not offer state. Additionally, offer cancellation state
+    //  should be persistently stored
+    suspend fun cancelOffer(offer: Offer, offerCancellationTransaction: RawTransaction?) {
+        withContext(Dispatchers.IO) {
+            logger.info("cancelOffer: canceling ${offer.id}")
+            if (offer.isTaken.value) {
+                throw OfferServiceException("Offer ${offer.id} is taken and cannot be canceled.")
+            }
+            try {
+                if (offerCancellationTransaction == null) {
+                    throw OfferServiceException("Transaction was null during cancelOffer call for ${offer.id}")
+                }
+                logger.info("cancelOffer: signing transaction for ${offer.id}")
+                val signedTransactionData = blockchainService.signTransaction(
+                    transaction = offerCancellationTransaction,
+                    chainID = offer.chainID
+                )
+                val signedTransactionHex = Numeric.toHexString(signedTransactionData)
+                val transactionHash = Hash.sha3(signedTransactionHex)
+                // TODO: we should also record the current time and block hight here, store it in the offer and in
+                //  persistent storage
+                logger.info("cancelOffer: persistently storing tx hash $transactionHash for ${offer.id}")
+                // TODO: persistently store tx hash here
+                logger.info("cancelOffer: persistently updating offer ${offer.id} state to canceling")
+                val encoder = Base64.getEncoder()
+                databaseService.updateOfferState(
+                    offerID = encoder.encodeToString(offer.id.asByteArray()),
+                    chainID = offer.chainID.toString(),
+                    state = OfferState.CANCELING.asString
+                )
+                logger.info("cancelOffer: updating offer ${offer.id} state to canceling and storing tx hash " +
+                        "${transactionHash} in offer")
+                withContext(Dispatchers.Main) {
+                    offer.state = OfferState.CANCELING
+                    offer.offerCancellationTransactionHash = transactionHash
+                }
+                logger.info("cancelOffer: sending $transactionHash for ${offer.id}")
+                blockchainService.sendTransactionAsync(
+                    transaction = offerCancellationTransaction,
+                    signedRawTransactionDataAsHex = signedTransactionHex,
+                    chainID = offer.chainID
+                ).await()
+                logger.info("cancelOffer: persistently updating state of ${offer.id} to  cancelOfferTxBroadcast")
+                databaseService.updateOfferState(
+                    offerID = encoder.encodeToString(offer.id.asByteArray()),
+                    chainID = offer.chainID.toString(),
+                    state = OfferState.CANCEL_OFFER_TRANSACTION_BROADCAST.asString
+                )
+                logger.info("cancelOffer: updating offer ${offer.id} state to cancelOfferTxBroadcast")
+                withContext(Dispatchers.Main) {
+                    offer.state = OfferState.CANCEL_OFFER_TRANSACTION_BROADCAST
+                }
+            } catch (exception: Exception) {
+                // TODO: update cancelling offer state to error here
+                logger.error("cancelOffer: encountered exception while canceling ${offer.id}", exception)
+                throw exception
+            }
         }
     }
 

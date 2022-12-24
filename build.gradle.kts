@@ -79,14 +79,14 @@ dependencies {
     implementation(trixnity("clientserverapi-client"))
     // Ktor engine for Trixnity
     implementation("io.ktor:ktor-client-okhttp:2.0.2")
+    // Ktor Content negotiation plugin for Trixnity
+    implementation("io.ktor:ktor-client-content-negotiation:2.0.2")
     // Serialization Library
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.3.3")
     // Log4j 2 for logging
     implementation("org.apache.logging.log4j:log4j-api:2.18.0")
     implementation("org.apache.logging.log4j:log4j-core:2.18.0")
     implementation("org.apache.logging.log4j:log4j-slf4j-impl:2.18.0")
-    // Ktor Content negotiation plugin for interactions with TestingServer
-    testImplementation("io.ktor:ktor-client-content-negotiation:2.0.2")
     // Ktor JSON serialization plugin for interactions with TestingServer
     testImplementation("io.ktor:ktor-serialization-kotlinx-json:2.0.2")
     // Kotlin Coroutines testing utilities

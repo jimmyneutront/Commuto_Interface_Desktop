@@ -22,7 +22,9 @@ import org.web3j.protocol.core.DefaultBlockParameter
 import org.web3j.protocol.core.methods.request.Transaction
 import org.web3j.protocol.core.methods.response.*
 import org.web3j.protocol.http.HttpService
+import org.web3j.service.TxSignServiceImpl
 import org.web3j.tx.ChainIdLong
+import org.web3j.utils.Numeric
 import java.math.BigInteger
 import java.net.ConnectException
 import java.nio.ByteBuffer
@@ -274,6 +276,26 @@ class BlockchainService (private val exceptionHandler: BlockchainExceptionNotifi
      */
     fun getServiceFeeRateAsync(): Deferred<BigInteger> {
         return commutoSwap.serviceFeeRate.sendAsync().asDeferred()
+    }
+
+    // TODO: This should be MUCH more complicated. It should accept some kind of wrapper struct around a RawTransaction,
+    //  that also contains time/block height at which the transaction was created and what the transaction does, so that
+    //  the listen loop can handle transaction confirmation properly.
+    fun sendTransactionAsync(
+        transaction: RawTransaction,
+        signedRawTransactionDataAsHex: String,
+        chainID: BigInteger
+    ): Deferred<EthSendTransaction> {
+        check(signedRawTransactionDataAsHex ==
+                Numeric.toHexString(TxSignServiceImpl(creds).sign(transaction, chainID.toLong()))
+        ) {
+            "Supplied signed transaction data and actual signed transaction data do not match"
+        }
+        return web3.ethSendRawTransaction(signedRawTransactionDataAsHex).sendAsync().asDeferred()
+    }
+
+    fun signTransaction(transaction: RawTransaction, chainID: BigInteger): ByteArray {
+        return TxSignServiceImpl(creds).sign(transaction, chainID.toLong())
     }
 
     /**
