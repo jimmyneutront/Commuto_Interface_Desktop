@@ -281,6 +281,22 @@ class BlockchainService (private val exceptionHandler: BlockchainExceptionNotifi
     // TODO: This should be MUCH more complicated. It should accept some kind of wrapper struct around a RawTransaction,
     //  that also contains time/block height at which the transaction was created and what the transaction does, so that
     //  the listen loop can handle transaction confirmation properly.
+    /**
+     * Sends [signedRawTransactionDataAsHex] to the blockchain node via a call to
+     * [eth_sendRawTransaction](https://ethereum.github.io/execution-apis/api-documentation/). This signs [transaction]
+     * with [creds] and [chainID] and then converts the result to a hex string. If this hex string is not equal to
+     * [signedRawTransactionDataAsHex], this throws an [IllegalStateException].
+     *
+     * @param transaction The [RawTransaction] from which [signedRawTransactionDataAsHex] was created.
+     * @param signedRawTransactionDataAsHex The signed raw transaction as a hexadecimal string, which will be sent to
+     * the blockchain node.
+     * @param chainID The ID of the blockchain to which this transaction should be sent.
+     *
+     * @return A [Deferred] with a [EthSendTransaction] result.
+     *
+     * @throws [IllegalStateException] if [transaction] and [chainID] do not correspond to
+     * [signedRawTransactionDataAsHex].
+     */
     fun sendTransactionAsync(
         transaction: RawTransaction,
         signedRawTransactionDataAsHex: String,
@@ -294,6 +310,15 @@ class BlockchainService (private val exceptionHandler: BlockchainExceptionNotifi
         return web3.ethSendRawTransaction(signedRawTransactionDataAsHex).sendAsync().asDeferred()
     }
 
+    /**
+     * Signs the given transaction with [creds] for the blockchain specified by [chainID], and returns the resulting
+     * [ByteArray].
+     *
+     * @param transaction The [RawTransaction] to be signed.
+     * @param chainID The ID of the blockchain for which [transaction] should be signed.
+     *
+     * @return The [ByteArray] that is the signed transaction.
+     */
     fun signTransaction(transaction: RawTransaction, chainID: BigInteger): ByteArray {
         return TxSignServiceImpl(creds).sign(transaction, chainID.toLong())
     }

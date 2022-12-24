@@ -91,6 +91,7 @@ class OffersViewModel @Inject constructor(private val offerService: OfferService
         }
     }
 
+    // TODO: Remove this once old cancelOffer method is removed
     /**
      * Sets the [Offer.cancelingOfferState] value of the [Offer] in [offers] with the specified [offerID] on the main
      * coroutine dispatcher.
@@ -220,10 +221,6 @@ class OffersViewModel @Inject constructor(private val offerService: OfferService
     @Deprecated("Use the new offer pipeline with improved transaction state management")
     override fun cancelOffer(offer: Offer) {
         viewModelScope.launch {
-            setCancelingOfferState(
-                offerID = offer.id,
-                state = CancelingOfferState.CANCELING
-            )
             logger.info("cancelOffer: canceling offer ${offer.id}")
             try {
                 offerService.cancelOffer(
@@ -273,12 +270,20 @@ class OffersViewModel @Inject constructor(private val offerService: OfferService
         }
     }
 
+    /**
+     * Attempts to cancel an [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer) made by the
+     * user of this interface.
+     *
+     * This clears any offer-canceling-related exception of [offer], and sets [offer]'s [Offer.cancelingOfferState] to
+     * [CancelingOfferState.VALIDATING].
+     *
+     * @param offer The [Offer] to be canceled.
+     * @param offerCancellationTransaction An optional [RawTransaction] that can cancel [offer].
+     */
     override fun cancelOffer(offer: Offer, offerCancellationTransaction: RawTransaction?) {
+        offer.cancelingOfferException = null
+        offer.cancelingOfferState.value = CancelingOfferState.VALIDATING
         viewModelScope.launch {
-            setCancelingOfferState(
-                offerID = offer.id,
-                state = CancelingOfferState.CANCELING
-            )
             logger.info("cancelOffer: canceling offer ${offer.id}")
             try {
                 offerService.cancelOffer(

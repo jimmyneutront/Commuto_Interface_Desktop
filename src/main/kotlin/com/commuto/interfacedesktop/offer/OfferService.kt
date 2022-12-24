@@ -383,11 +383,37 @@ class OfferService (
 
     // TODO: we should be using offer cancellation state here, not offer state. Additionally, offer cancellation state
     //  should be persistently stored
+    /**
+     * Attempts to cancel an [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer) made by the
+     * user of this interface.
+     *
+     * On the IO coroutine dispatcher, this ensures that the offer is not taken or already being canceled, and that
+     * [offerCancellationTransaction] is not `null`. Then it signs [offerCancellationTransaction], determines the
+     * transaction hash, persistently stores the transaction hash and persistently updates the
+     * [Offer.cancelingOfferState] of the offer being canceled to [CancelingOfferState.SENDING_TRANSACTION]. Then, on
+     * the main coroutine dispatcher, this stores the transaction hash in [offer] and sets [offer]'s
+     * [Offer.cancelingOfferState] property to [CancelingOfferState.SENDING_TRANSACTION]. Then, on the IO coroutine
+     * dispatcher, it sends the data derived from signing [offerCancellationTransaction] to the blockchain. Once a
+     * response is received, this persistently updates the [Offer.cancelingOfferState] of the offer being canceled to
+     * [CancelingOfferState.AWAITING_TRANSACTION_CONFIRMATION]. Then, on the main coroutine dispatcher, this sets the
+     * value of [offer]'s [Offer.cancelingOfferState] to [CancelingOfferState.AWAITING_TRANSACTION_CONFIRMATION].
+     *
+     * @param offer The [Offer] being canceled.
+     * @param offerCancellationTransaction An optional [RawTransaction] that can cancel [offer].
+     *
+     * @throws [OfferServiceException] if [offer] is taken, or if it is already being canceled, or if
+     * [offerCancellationTransaction] is `null`.
+     */
     suspend fun cancelOffer(offer: Offer, offerCancellationTransaction: RawTransaction?) {
         withContext(Dispatchers.IO) {
             logger.info("cancelOffer: canceling ${offer.id}")
             if (offer.isTaken.value) {
                 throw OfferServiceException("Offer ${offer.id} is taken and cannot be canceled.")
+            }
+            if (offer.cancelingOfferState.value != CancelingOfferState.NONE &&
+                offer.cancelingOfferState.value != CancelingOfferState.VALIDATING &&
+                offer.cancelingOfferState.value != CancelingOfferState.EXCEPTION) {
+                throw OfferServiceException("Offer ${offer.id} is already being canceled.")
             }
             try {
                 if (offerCancellationTransaction == null) {
@@ -404,17 +430,13 @@ class OfferService (
                 //  persistent storage
                 logger.info("cancelOffer: persistently storing tx hash $transactionHash for ${offer.id}")
                 // TODO: persistently store tx hash here
-                logger.info("cancelOffer: persistently updating offer ${offer.id} state to canceling")
-                val encoder = Base64.getEncoder()
-                databaseService.updateOfferState(
-                    offerID = encoder.encodeToString(offer.id.asByteArray()),
-                    chainID = offer.chainID.toString(),
-                    state = OfferState.CANCELING.asString
-                )
-                logger.info("cancelOffer: updating offer ${offer.id} state to canceling and storing tx hash " +
-                        "${transactionHash} in offer")
+                logger.info("cancelOffer: persistently cancelingOfferState for ${offer.id} state to " +
+                        "SENDING_TRANSACTION")
+                // TODO: update cancelingOfferState in persistent storage here
+                logger.info("cancelOffer: updating cancelingOfferState for ${offer.id} state to SENDING_TRANSACTION " +
+                        "and storing tx hash $transactionHash in offer")
                 withContext(Dispatchers.Main) {
-                    offer.state = OfferState.CANCELING
+                    offer.cancelingOfferState.value = CancelingOfferState.SENDING_TRANSACTION
                     offer.offerCancellationTransactionHash = transactionHash
                 }
                 logger.info("cancelOffer: sending $transactionHash for ${offer.id}")
@@ -423,19 +445,22 @@ class OfferService (
                     signedRawTransactionDataAsHex = signedTransactionHex,
                     chainID = offer.chainID
                 ).await()
-                logger.info("cancelOffer: persistently updating state of ${offer.id} to  cancelOfferTxBroadcast")
-                databaseService.updateOfferState(
-                    offerID = encoder.encodeToString(offer.id.asByteArray()),
-                    chainID = offer.chainID.toString(),
-                    state = OfferState.CANCEL_OFFER_TRANSACTION_BROADCAST.asString
-                )
-                logger.info("cancelOffer: updating offer ${offer.id} state to cancelOfferTxBroadcast")
+                logger.info("cancelOffer: persistently updating cancelingOfferState of ${offer.id} to " +
+                        "AWAITING_TRANSACTION_CONFIRMATION")
+                // TODO: update cancelingOfferState in persistent storage here
+                logger.info("cancelOffer: updating cancelingOfferState for ${offer.id} to " +
+                        "AWAITING_TRANSACTION_CONFIRMATION")
                 withContext(Dispatchers.Main) {
-                    offer.state = OfferState.CANCEL_OFFER_TRANSACTION_BROADCAST
+                    offer.cancelingOfferState.value = CancelingOfferState.AWAITING_TRANSACTION_CONFIRMATION
                 }
             } catch (exception: Exception) {
                 // TODO: update cancelling offer state to error here
-                logger.error("cancelOffer: encountered exception while canceling ${offer.id}", exception)
+                logger.error("cancelOffer: encountered exception while canceling ${offer.id}, setting " +
+                        "cancelingOfferState to EXCEPTION", exception)
+                offer.cancelingOfferException = exception
+                withContext(Dispatchers.Main) {
+                    offer.cancelingOfferState.value = CancelingOfferState.EXCEPTION
+                }
                 throw exception
             }
         }

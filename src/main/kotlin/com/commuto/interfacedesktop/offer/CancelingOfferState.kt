@@ -7,13 +7,20 @@ package com.commuto.interfacedesktop.offer
  * this interface.
  *
  * @property NONE Indicates that we are NOT currently canceling the corresponding offer.
- * @property CANCELING Indicates that we are currently canceling the corresponding offer.
- * @property COMPLETED Indicates that we have canceled the corresponding offer.
+ * @property VALIDATING Indicates that we are currently checking whether the corresponding offer can be canceled.
+ * @property SENDING_TRANSACTION Indicates that we are currently sending the transaction that will cancel the
+ * corresponding offer.
+ * @property AWAITING_TRANSACTION_CONFIRMATION Indicates that we have sent the transaction that will cancel the
+ * corresponding offer, and are waiting for it to be confirmed.
+ * @property COMPLETED Indicates that we have canceled the corresponding offer, and the transaction that did so has been
+ * confirmed.
  * @property EXCEPTION Indicates that we encountered an exception while canceling the corresponding offer.
  */
 enum class CancelingOfferState {
     NONE,
-    CANCELING,
+    VALIDATING,
+    SENDING_TRANSACTION,
+    AWAITING_TRANSACTION_CONFIRMATION,
     COMPLETED,
     EXCEPTION;
 }

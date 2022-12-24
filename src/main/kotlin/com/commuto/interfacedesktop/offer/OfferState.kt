@@ -36,8 +36,7 @@ enum class OfferState {
     OFFER_OPENED,
     TAKEN,
 
-    // TODO: we should probably remove this state and just use offer cancellation state instead, same for
-    //  cancelOfferTransactionBroadcast
+    // TODO: remove CANCELING and CANCEL_OFFER_TRANSACTION_BROADCAST states once old cancelOffer code is removed
     CANCELING,
     CANCEL_OFFER_TRANSACTION_BROADCAST,
     CANCELED;
