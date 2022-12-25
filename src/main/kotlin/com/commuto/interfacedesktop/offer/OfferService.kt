@@ -390,13 +390,14 @@ class OfferService (
      * user of this interface.
      *
      * On the IO coroutine dispatcher, this ensures that the offer is not taken or already being canceled, and that
-     * [offerCancellationTransaction] is not `null`. Then it signs [offerCancellationTransaction], determines the
-     * transaction hash, persistently stores the transaction hash and persistently updates the
-     * [Offer.cancelingOfferState] of the offer being canceled to [CancelingOfferState.SENDING_TRANSACTION]. Then, on
-     * the main coroutine dispatcher, this stores the transaction hash in [offer] and sets [offer]'s
-     * [Offer.cancelingOfferState] property to [CancelingOfferState.SENDING_TRANSACTION]. Then, on the IO coroutine
-     * dispatcher, it sends the data derived from signing [offerCancellationTransaction] to the blockchain. Once a
-     * response is received, this persistently updates the [Offer.cancelingOfferState] of the offer being canceled to
+     * [offerCancellationTransaction] is not `null`. Then it signs [offerCancellationTransaction], creates a
+     * [BlockchainTransaction] to wrap it, determines the transaction hash, persistently stores the transaction hash and
+     * persistently updates the [Offer.cancelingOfferState] of the offer being canceled to
+     * [CancelingOfferState.SENDING_TRANSACTION]. Then, on the main coroutine dispatcher, this stores the transaction
+     * hash in [offer] and sets [offer]'s [Offer.cancelingOfferState] property to
+     * [CancelingOfferState.SENDING_TRANSACTION]. Then, on the IO coroutine dispatcher, it sends the data derived from
+     * signing the [BlockchainTransaction]-wrapped [offerCancellationTransaction] to the blockchain. Once a response is
+     * received, this persistently updates the [Offer.cancelingOfferState] of the offer being canceled to
      * [CancelingOfferState.AWAITING_TRANSACTION_CONFIRMATION]. Then, on the main coroutine dispatcher, this sets the
      * value of [offer]'s [Offer.cancelingOfferState] to [CancelingOfferState.AWAITING_TRANSACTION_CONFIRMATION].
      *
@@ -428,14 +429,21 @@ class OfferService (
                 )
                 val signedTransactionHex = Numeric.toHexString(signedTransactionData)
                 val transactionHash = Hash.sha3(signedTransactionHex)
-                // TODO: we should also record the current time and block hight here, store it in the offer and in
+                val blockchainTransactionForOfferCancellation = BlockchainTransaction(
+                    transaction = offerCancellationTransaction,
+                    transactionHash = transactionHash,
+                    latestBlockNumberAtCreation = blockchainService.newestBlockNum,
+                    type = BlockchainTransactionType.CANCEL_OFFER,
+                )
+                // TODO: we should also record the current time and block height here, store it in the offer and in
                 //  persistent storage
-                logger.info("cancelOffer: persistently storing tx hash $transactionHash for ${offer.id}")
+                logger.info("cancelOffer: persistently storing tx hash ${blockchainTransactionForOfferCancellation
+                    .transactionHash} for ${offer.id}")
                 val encoder = Base64.getEncoder()
                 databaseService.updateOfferCancellationTransactionHash(
                     offerID = encoder.encodeToString(offer.id.asByteArray()),
                     chainID = offer.chainID.toString(),
-                    transactionHash = transactionHash,
+                    transactionHash = blockchainTransactionForOfferCancellation.transactionHash,
                 )
                 logger.info("cancelOffer: persistently cancelingOfferState for ${offer.id} state to " +
                         "SENDING_TRANSACTION")
@@ -445,19 +453,14 @@ class OfferService (
                     state = CancelingOfferState.SENDING_TRANSACTION.asString
                 )
                 logger.info("cancelOffer: updating cancelingOfferState for ${offer.id} state to SENDING_TRANSACTION " +
-                        "and storing tx hash $transactionHash in offer")
+                        "and storing tx hash ${blockchainTransactionForOfferCancellation.transactionHash} in offer")
                 withContext(Dispatchers.Main) {
                     offer.cancelingOfferState.value = CancelingOfferState.SENDING_TRANSACTION
-                    offer.offerCancellationTransactionHash = transactionHash
+                    offer.offerCancellationTransactionHash = blockchainTransactionForOfferCancellation.transactionHash
                 }
                 logger.info("cancelOffer: sending $transactionHash for ${offer.id}")
-                val blockchainTransaction = BlockchainTransaction(
-                    transaction = offerCancellationTransaction,
-                    latestBlockNumberAtCreation = blockchainService.newestBlockNum,
-                    type = BlockchainTransactionType.CANCEL_OFFER
-                )
                 blockchainService.sendTransactionAsync(
-                    transaction = blockchainTransaction,
+                    transaction = blockchainTransactionForOfferCancellation,
                     signedRawTransactionDataAsHex = signedTransactionHex,
                     chainID = offer.chainID
                 ).await()

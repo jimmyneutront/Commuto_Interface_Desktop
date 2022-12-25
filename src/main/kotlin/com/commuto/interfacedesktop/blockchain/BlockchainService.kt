@@ -308,8 +308,12 @@ class BlockchainService (private val exceptionHandler: BlockchainExceptionNotifi
         signedRawTransactionDataAsHex: String,
         chainID: BigInteger
     ): Deferred<EthSendTransaction> {
+        val wrappedTransaction = transaction.transaction
+        if (wrappedTransaction == null) {
+            throw BlockchainServiceException(message = "Wrapped transaction was nil for ${transaction.transactionHash}")
+        }
         check(signedRawTransactionDataAsHex ==
-                Numeric.toHexString(TxSignServiceImpl(creds).sign(transaction.transaction, chainID.toLong()))
+                Numeric.toHexString(TxSignServiceImpl(creds).sign(wrappedTransaction, chainID.toLong()))
         ) {
             "Supplied signed transaction data and actual signed transaction data do not match"
         }
