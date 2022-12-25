@@ -248,7 +248,8 @@ class OfferService (
                     chainID = newOffer.chainID.toString(),
                     havePublicKey = 1L,
                     isUserMaker = 1L,
-                    state = newOffer.state.asString
+                    state = newOffer.state.asString,
+                    offerCancellationTransactionHash = newOffer.offerCancellationTransactionHash,
                 )
                 databaseService.storeOffer(offerForDatabase)
                 val settlementMethodStrings = mutableListOf<Pair<String, String?>>()
@@ -429,7 +430,12 @@ class OfferService (
                 // TODO: we should also record the current time and block hight here, store it in the offer and in
                 //  persistent storage
                 logger.info("cancelOffer: persistently storing tx hash $transactionHash for ${offer.id}")
-                // TODO: persistently store tx hash here
+                val encoder = Base64.getEncoder()
+                databaseService.updateOfferCancellationTransactionHash(
+                    offerID = encoder.encodeToString(offer.id.asByteArray()),
+                    chainID = offer.chainID.toString(),
+                    transactionHash
+                )
                 logger.info("cancelOffer: persistently cancelingOfferState for ${offer.id} state to " +
                         "SENDING_TRANSACTION")
                 // TODO: update cancelingOfferState in persistent storage here
@@ -885,7 +891,8 @@ class OfferService (
                 chainID = offer.chainID.toString(),
                 havePublicKey = havePublicKeyLong,
                 isUserMaker = isUserMakerLong,
-                state = offer.state.asString
+                state = offer.state.asString,
+                offerCancellationTransactionHash = offer.offerCancellationTransactionHash
             )
             databaseService.storeOffer(offerForDatabase)
             logger.info("handleOfferOpenedEvent: persistently stored offer ${offer.id}")

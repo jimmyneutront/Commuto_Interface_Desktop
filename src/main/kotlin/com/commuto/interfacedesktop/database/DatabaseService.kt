@@ -134,6 +134,25 @@ open class DatabaseService(
     }
 
     /**
+     * Updates the [Offer.offerCancellationTransactionHash] property of a persistently stored
+     * [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer) with the specified [offerID] and
+     * [chainID].
+     *
+     * @param offerID The ID of the offer to be updated, as a Base64-[String] of bytes.
+     * @param chainID The blockchain ID of the offer to be updated, as a [String].
+     * @param transactionHash The new value of the offer's [Offer.offerCancellationTransactionHash] property, as a
+     * transaction hash as a hexadecimal string with "0x" prefix.
+     */
+    @OptIn(DelicateCoroutinesApi::class)
+    suspend fun updateOfferCancellationTransactionHash(offerID: String, chainID: String, transactionHash: String?) {
+        withContext(databaseServiceContext) {
+            database.updateOfferCancellationTransactionHash(offerID, chainID, transactionHash)
+        }
+        logger.info("updateOfferCancellationTransactionHash: set value to $transactionHash for offer with B64 ID " +
+                "$offerID, if present")
+    }
+
+    /**
      * Removes every [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer) with an offer ID equal
      * to [offerID] and a chain ID equal to [chainID] from persistent storage.
      *
@@ -429,7 +448,6 @@ open class DatabaseService(
      *
      * @throws Exception if database insertion is unsuccessful.
      */
-    @OptIn(DelicateCoroutinesApi::class)
     suspend fun storeOfferSettlementMethods(
         offerID: String,
         chainID: String,
@@ -466,7 +484,6 @@ open class DatabaseService(
      * @param chainID The ID of the blockchain on which the [Offer] or `Swap` corresponding to these settlement methods
      * exists, as a [String].
      */
-    @OptIn(DelicateCoroutinesApi::class)
     suspend fun deleteOfferSettlementMethods(offerID: String, chainID: String) {
         deleteSettlementMethodsFromTable(
             offerID = offerID,
@@ -489,7 +506,6 @@ open class DatabaseService(
      *
      * @return The value returned by [DatabaseService.getAndDecryptSettlementMethodsFromTable].
      */
-    @OptIn(DelicateCoroutinesApi::class)
     suspend fun getOfferSettlementMethods(offerID: String, chainID: String): List<Pair<String, String?>>? {
         logger.info("getOfferSettlementMethods: getting for offer with B64 ID $offerID")
         return getAndDecryptSettlementMethodsFromTable(
@@ -513,7 +529,6 @@ open class DatabaseService(
      * data, including price, currency and type. The second element element in each pair is private data (such as an
      * address or bank account number) for the settlement method, if any.
      */
-    @OptIn(DelicateCoroutinesApi::class)
     suspend fun storePendingOfferSettlementMethods(
         offerID: String,
         chainID: String,
@@ -570,7 +585,6 @@ open class DatabaseService(
      * @param chainID The ID of the blockchain on which the [Offer] or [Swap] corresponding to these pending settlement
      * methods exists, as a [String].
      */
-    @OptIn(DelicateCoroutinesApi::class)
     suspend fun getPendingOfferSettlementMethods(offerID: String, chainID: String): List<Pair<String, String?>>? {
         logger.info("getPendingOfferSettlementMethods: getting for offer with B64 ID $offerID")
         return getAndDecryptSettlementMethodsFromTable(
