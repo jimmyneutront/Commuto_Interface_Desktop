@@ -134,6 +134,23 @@ open class DatabaseService(
     }
 
     /**
+     * Updates the [Offer.cancelingOfferState] property of a persistently stored
+     * [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer) with the specified [offerID] and
+     * [chainID].
+     *
+     * @param offerID The ID of the offer to be updated, as a Base64-[String] of bytes.
+     * @param chainID The blockchain ID of the offer to be updated, as a [String].
+     * @param state The new value of the offer's [Offer.cancelingOfferState] property.
+     */
+    @OptIn(DelicateCoroutinesApi::class)
+    suspend fun updateCancelingOfferState(offerID: String, chainID: String, state: String) {
+        withContext(databaseServiceContext) {
+            database.updateCancelingOfferState(offerID, chainID, state)
+        }
+        logger.info("updateCancelingOfferState: set value to $state for offer with B64 ID $offerID, if present")
+    }
+
+    /**
      * Updates the [Offer.offerCancellationTransactionHash] property of a persistently stored
      * [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer) with the specified [offerID] and
      * [chainID].

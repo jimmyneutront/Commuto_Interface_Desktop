@@ -15,6 +15,7 @@ package com.commuto.interfacedesktop.offer
  * @property COMPLETED Indicates that we have canceled the corresponding offer, and the transaction that did so has been
  * confirmed.
  * @property EXCEPTION Indicates that we encountered an exception while canceling the corresponding offer.
+ * @property asString A [String] corresponding to a particular case of [CancelingOfferState].
  */
 enum class CancelingOfferState {
     NONE,
@@ -23,4 +24,15 @@ enum class CancelingOfferState {
     AWAITING_TRANSACTION_CONFIRMATION,
     COMPLETED,
     EXCEPTION;
+
+    val asString: String
+        get() = when (this) {
+            NONE -> "none"
+            VALIDATING -> "validating"
+            SENDING_TRANSACTION -> "sendingTransaction"
+            AWAITING_TRANSACTION_CONFIRMATION -> "awaitingTransactionConfirmation"
+            COMPLETED -> "completed"
+            EXCEPTION -> "error"
+        }
+
 }

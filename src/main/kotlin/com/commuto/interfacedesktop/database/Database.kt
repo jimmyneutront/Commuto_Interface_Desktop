@@ -142,6 +142,7 @@ internal class Database(databaseDriverFactory: DatabaseDriverFactory) {
             havePublicKey = offer.havePublicKey,
             isUserMaker = offer.isUserMaker,
             state = offer.state,
+            cancelingOfferState = offer.cancelingOfferState,
             offerCancellationTransactionHash = offer.offerCancellationTransactionHash
         )
     }
@@ -271,6 +272,20 @@ internal class Database(databaseDriverFactory: DatabaseDriverFactory) {
     internal fun updateOfferState(offerID: String, chainID: String, state: String) {
         dbQuery.updateOfferStateByOfferIDAndChainID(
             state = state,
+            id = offerID,
+            chainID = chainID
+        )
+    }
+
+    /**
+     * Updates the [Offer.cancelingOfferState] property of the [Offer] with the specified [offerID] and [chainID].
+     * @param offerID The ID of the [Offer] to be updated.
+     * @param chainID The ID of the blockchain on which the [Offer] to be updated exists.
+     * @param state The new value of the [Offer.cancelingOfferState] property.
+     */
+    internal fun updateCancelingOfferState(offerID: String, chainID: String, state: String) {
+        dbQuery.updateCancelingOfferStateByOfferIDAndChainID(
+            cancelingOfferState = state,
             id = offerID,
             chainID = chainID
         )

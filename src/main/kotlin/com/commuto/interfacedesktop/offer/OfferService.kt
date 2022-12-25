@@ -249,6 +249,7 @@ class OfferService (
                     havePublicKey = 1L,
                     isUserMaker = 1L,
                     state = newOffer.state.asString,
+                    cancelingOfferState = newOffer.cancelingOfferState.value.asString,
                     offerCancellationTransactionHash = newOffer.offerCancellationTransactionHash,
                 )
                 databaseService.storeOffer(offerForDatabase)
@@ -434,11 +435,15 @@ class OfferService (
                 databaseService.updateOfferCancellationTransactionHash(
                     offerID = encoder.encodeToString(offer.id.asByteArray()),
                     chainID = offer.chainID.toString(),
-                    transactionHash
+                    transactionHash = transactionHash,
                 )
                 logger.info("cancelOffer: persistently cancelingOfferState for ${offer.id} state to " +
                         "SENDING_TRANSACTION")
-                // TODO: update cancelingOfferState in persistent storage here
+                databaseService.updateCancelingOfferState(
+                    offerID = encoder.encodeToString(offer.id.asByteArray()),
+                    chainID = offer.chainID.toString(),
+                    state = CancelingOfferState.SENDING_TRANSACTION.asString
+                )
                 logger.info("cancelOffer: updating cancelingOfferState for ${offer.id} state to SENDING_TRANSACTION " +
                         "and storing tx hash $transactionHash in offer")
                 withContext(Dispatchers.Main) {
@@ -453,16 +458,25 @@ class OfferService (
                 ).await()
                 logger.info("cancelOffer: persistently updating cancelingOfferState of ${offer.id} to " +
                         "AWAITING_TRANSACTION_CONFIRMATION")
-                // TODO: update cancelingOfferState in persistent storage here
+                databaseService.updateCancelingOfferState(
+                    offerID = encoder.encodeToString(offer.id.asByteArray()),
+                    chainID = offer.chainID.toString(),
+                    state = CancelingOfferState.AWAITING_TRANSACTION_CONFIRMATION.asString
+                )
                 logger.info("cancelOffer: updating cancelingOfferState for ${offer.id} to " +
                         "AWAITING_TRANSACTION_CONFIRMATION")
                 withContext(Dispatchers.Main) {
                     offer.cancelingOfferState.value = CancelingOfferState.AWAITING_TRANSACTION_CONFIRMATION
                 }
             } catch (exception: Exception) {
-                // TODO: update cancelling offer state to error here
                 logger.error("cancelOffer: encountered exception while canceling ${offer.id}, setting " +
                         "cancelingOfferState to EXCEPTION", exception)
+                val encoder = Base64.getEncoder()
+                databaseService.updateCancelingOfferState(
+                    offerID = encoder.encodeToString(offer.id.asByteArray()),
+                    chainID = offer.chainID.toString(),
+                    state = CancelingOfferState.EXCEPTION.asString
+                )
                 offer.cancelingOfferException = exception
                 withContext(Dispatchers.Main) {
                     offer.cancelingOfferState.value = CancelingOfferState.EXCEPTION
@@ -892,7 +906,8 @@ class OfferService (
                 havePublicKey = havePublicKeyLong,
                 isUserMaker = isUserMakerLong,
                 state = offer.state.asString,
-                offerCancellationTransactionHash = offer.offerCancellationTransactionHash
+                cancelingOfferState = offer.cancelingOfferState.value.asString,
+                offerCancellationTransactionHash = offer.offerCancellationTransactionHash,
             )
             databaseService.storeOffer(offerForDatabase)
             logger.info("handleOfferOpenedEvent: persistently stored offer ${offer.id}")
