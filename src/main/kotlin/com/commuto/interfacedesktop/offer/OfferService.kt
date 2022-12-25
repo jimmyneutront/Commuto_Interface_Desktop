@@ -3,6 +3,8 @@ package com.commuto.interfacedesktop.offer
 import androidx.compose.runtime.mutableStateListOf
 import com.commuto.interfacedesktop.blockchain.BlockchainEventRepository
 import com.commuto.interfacedesktop.blockchain.BlockchainService
+import com.commuto.interfacedesktop.blockchain.BlockchainTransaction
+import com.commuto.interfacedesktop.blockchain.BlockchainTransactionType
 import com.commuto.interfacedesktop.blockchain.events.commutoswap.*
 import com.commuto.interfacedesktop.blockchain.structs.OfferStruct
 import com.commuto.interfacedesktop.database.DatabaseService
@@ -383,8 +385,6 @@ class OfferService (
         }
     }
 
-    // TODO: we should be using offer cancellation state here, not offer state. Additionally, offer cancellation state
-    //  should be persistently stored
     /**
      * Attempts to cancel an [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer) made by the
      * user of this interface.
@@ -451,8 +451,13 @@ class OfferService (
                     offer.offerCancellationTransactionHash = transactionHash
                 }
                 logger.info("cancelOffer: sending $transactionHash for ${offer.id}")
-                blockchainService.sendTransactionAsync(
+                val blockchainTransaction = BlockchainTransaction(
                     transaction = offerCancellationTransaction,
+                    latestBlockNumberAtCreation = blockchainService.newestBlockNum,
+                    type = BlockchainTransactionType.CANCEL_OFFER
+                )
+                blockchainService.sendTransactionAsync(
+                    transaction = blockchainTransaction,
                     signedRawTransactionDataAsHex = signedTransactionHex,
                     chainID = offer.chainID
                 ).await()

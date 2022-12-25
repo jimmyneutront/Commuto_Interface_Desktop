@@ -53,6 +53,8 @@ import kotlin.math.floor
  * @property creds Blockchain credentials used for signing transactions.
  * @property lastParsedBlockNum The block number of the most recently parsed block.
  * @property newestBlockNum The block number of the most recently confirmed block.
+ * @property transactionsToMonitor A list of [BlockchainTransaction]s created by this interface that [BlockchainService]
+ * will monitor for confirmation, transaction dropping, transaction failure and transaction success.
  * @property listenInterval The number of milliseconds that [BlockchainService] should wait after
  * parsing a block before it begins parsing another block.
  * @property listenJob The coroutine [Job] in which [BlockchainService] listens to the blockchain.
@@ -95,7 +97,13 @@ class BlockchainService (private val exceptionHandler: BlockchainExceptionNotifi
 
     private var lastParsedBlockNum: BigInteger = BigInteger.ZERO
 
-    private var newestBlockNum: BigInteger = BigInteger.ZERO
+    var newestBlockNum: BigInteger = BigInteger.ZERO
+        get() = field
+        private set(value) {
+            field = value
+        }
+
+    private var transactionsToMonitor = mutableListOf<BlockchainTransaction>()
 
     // TODO: rename this as updateLastParsedBlockNumber
     /**
@@ -278,35 +286,34 @@ class BlockchainService (private val exceptionHandler: BlockchainExceptionNotifi
         return commutoSwap.serviceFeeRate.sendAsync().asDeferred()
     }
 
-    // TODO: This should be MUCH more complicated. It should accept some kind of wrapper struct around a RawTransaction,
-    //  that also contains time/block height at which the transaction was created and what the transaction does, so that
-    //  the listen loop can handle transaction confirmation properly.
     /**
-     * Sends [signedRawTransactionDataAsHex] to the blockchain node via a call to
-     * [eth_sendRawTransaction](https://ethereum.github.io/execution-apis/api-documentation/). This signs [transaction]
-     * with [creds] and [chainID] and then converts the result to a hex string. If this hex string is not equal to
-     * [signedRawTransactionDataAsHex], this throws an [IllegalStateException].
+     * Stores [transaction] in [transactionsToMonitor] and then sends the wrapped [RawTransaction] to the blockchain
+     * node via a call to [eth_sendRawTransaction](https://ethereum.github.io/execution-apis/api-documentation/). This
+     * signs [transaction] with [creds] and [chainID] and then converts the result to a hex string. If this hex string
+     * is not equal to [signedRawTransactionDataAsHex], this throws an [IllegalStateException].
      *
-     * @param transaction The [RawTransaction] from which [signedRawTransactionDataAsHex] was created.
-     * @param signedRawTransactionDataAsHex The signed raw transaction as a hexadecimal string, which will be sent to
-     * the blockchain node.
+     * @param transaction The [BlockchainTransaction] containing the [RawTransaction] from which
+     * [signedRawTransactionDataAsHex] was created, to be sent to t he node as a raw transaction.
+     * @param signedRawTransactionDataAsHex The signed raw transaction wrapped by [BlockchainTransaction] as a
+     * hexadecimal string, which will be sent to the blockchain node.
      * @param chainID The ID of the blockchain to which this transaction should be sent.
      *
      * @return A [Deferred] with a [EthSendTransaction] result.
      *
-     * @throws [IllegalStateException] if [transaction] and [chainID] do not correspond to
+     * @throws [IllegalStateException] if the transaction wrapped by [transaction] and [chainID] do not correspond to
      * [signedRawTransactionDataAsHex].
      */
     fun sendTransactionAsync(
-        transaction: RawTransaction,
+        transaction: BlockchainTransaction,
         signedRawTransactionDataAsHex: String,
         chainID: BigInteger
     ): Deferred<EthSendTransaction> {
         check(signedRawTransactionDataAsHex ==
-                Numeric.toHexString(TxSignServiceImpl(creds).sign(transaction, chainID.toLong()))
+                Numeric.toHexString(TxSignServiceImpl(creds).sign(transaction.transaction, chainID.toLong()))
         ) {
             "Supplied signed transaction data and actual signed transaction data do not match"
         }
+        transactionsToMonitor.add(transaction)
         return web3.ethSendRawTransaction(signedRawTransactionDataAsHex).sendAsync().asDeferred()
     }
 
