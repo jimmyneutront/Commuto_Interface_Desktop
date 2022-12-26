@@ -329,25 +329,26 @@ class OfferService (
                 throw OfferServiceException(message = "Offer $offerID is taken and cannot be canceled.")
             }
             try {
-                logger.info("cancelOffer: persistently updating offer $offerID state to " +
-                        OfferState.CANCELING.asString)
+                /*logger.info("cancelOffer: persistently updating offer $offerID state to " +
+                        OfferState.CANCELING.asString)*/
                 val encoder = Base64.getEncoder()
                 val offerIDByteBuffer = ByteBuffer.wrap(ByteArray(16))
                 offerIDByteBuffer.putLong(offerID.mostSignificantBits)
                 offerIDByteBuffer.putLong(offerID.leastSignificantBits)
                 val offerIDByteArray = offerIDByteBuffer.array()
                 val offerIDString = encoder.encodeToString(offerIDByteArray)
-                databaseService.updateOfferState(
+                /*databaseService.updateOfferState(
                     offerID = offerIDString,
                     chainID = chainID.toString(),
                     state = OfferState.CANCELING.asString
-                )
-                logger.info("cancelOffer: updating offer $offerID state to ${OfferState.CANCELING.asString}")
+                )*/
+                /*logger.info("cancelOffer: updating offer $offerID state to ${OfferState.CANCELING.asString}")
                 withContext(Dispatchers.Main) {
                     offerTruthSource.offers[offerID]?.state = OfferState.CANCELING
-                }
+                }*/
                 logger.info("cancelOffer: canceling offer $offerID on chain")
                 blockchainService.cancelOfferAsync(id = offerID).await()
+                /*
                 logger.info("cancelOffer: persistently updating offer $offerID state to " +
                         OfferState.CANCEL_OFFER_TRANSACTION_BROADCAST.asString)
                 databaseService.updateOfferState(
@@ -359,7 +360,7 @@ class OfferService (
                         OfferState.CANCEL_OFFER_TRANSACTION_BROADCAST.asString)
                 withContext(Dispatchers.Main) {
                     offerTruthSource.offers[offerID]?.state = OfferState.CANCEL_OFFER_TRANSACTION_BROADCAST
-                }
+                }*/
             } catch (exception: Exception) {
                 logger.error("openOffer: encountered exception", exception)
                 throw exception
@@ -903,6 +904,12 @@ class OfferService (
             val isTaken = if (offerStruct.isTaken) 1L else 0L
             val havePublicKeyLong = if (offer.havePublicKey) 1L else 0L
             val isUserMakerLong = if (offer.isUserMaker) 1L else 0L
+            val offerCancellationTransactionCreationTime = offer.offerCancellationTransaction?.timeOfCreation
+            val offerCancellationTransactionCreationTimeString = if (offerCancellationTransactionCreationTime != null) {
+                val dateFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm'Z'")
+                dateFormat.timeZone = TimeZone.getTimeZone("UTC")
+                dateFormat.format(offerCancellationTransactionCreationTime)
+            } else { null }
             val offerForDatabase = DatabaseOffer(
                 isCreated = isCreated,
                 isTaken = isTaken,
@@ -922,8 +929,9 @@ class OfferService (
                 state = offer.state.asString,
                 cancelingOfferState = offer.cancelingOfferState.value.asString,
                 offerCancellationTransactionHash = offer.offerCancellationTransaction?.transactionHash,
-                offerCancellationTransactionCreationBlockNumber = null,
-                offerCancellationTransactionCreationTime = null,
+                offerCancellationTransactionCreationTime = offerCancellationTransactionCreationTimeString,
+                offerCancellationTransactionCreationBlockNumber =
+                offer.offerCancellationTransaction?.latestBlockNumberAtCreation?.toLong(),
             )
             databaseService.storeOffer(offerForDatabase)
             logger.info("handleOfferOpenedEvent: persistently stored offer ${offer.id}")

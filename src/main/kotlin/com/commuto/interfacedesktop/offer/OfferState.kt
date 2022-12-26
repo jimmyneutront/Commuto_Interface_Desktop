@@ -18,11 +18,6 @@ package com.commuto.interfacedesktop.offer
  * @property OFFER_OPENED Indicates that the corresponding offer has been opened on chain and the maker's public key has
  * been announced.
  * @property TAKEN Indicates that the corresponding offer has been taken.
- * @property CANCELING Indicates that the corresponding offer will be canceled, but
- * [cancelOffer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offercanceled) has not yet been called
- * for it.
- * @property CANCEL_OFFER_TRANSACTION_BROADCAST Indicates that the transaction to cancel the corresponding offer has
- * been broadcast.
  * @property CANCELED Indicates that the corresponding offer has been canceled on chain.
  * @property indexNumber An [Int] corresponding to this state's position in a list of possible offer states organized
  * according to the order in which an offer should move through them, with the earliest state at the beginning
@@ -36,9 +31,6 @@ enum class OfferState {
     OFFER_OPENED,
     TAKEN,
 
-    // TODO: remove CANCELING and CANCEL_OFFER_TRANSACTION_BROADCAST states once old cancelOffer code is removed
-    CANCELING,
-    CANCEL_OFFER_TRANSACTION_BROADCAST,
     CANCELED;
 
 
@@ -49,8 +41,6 @@ enum class OfferState {
             AWAITING_PUBLIC_KEY_ANNOUNCEMENT -> 2
             OFFER_OPENED -> 3
             TAKEN -> 4
-            CANCELING -> -1
-            CANCEL_OFFER_TRANSACTION_BROADCAST -> -1
             CANCELED -> -1
         }
 
@@ -61,8 +51,6 @@ enum class OfferState {
             AWAITING_PUBLIC_KEY_ANNOUNCEMENT -> "awaitingPKAnnouncement"
             OFFER_OPENED -> "offerOpened"
             TAKEN -> "taken"
-            CANCELING -> "canceling"
-            CANCEL_OFFER_TRANSACTION_BROADCAST -> "cancelOfferTxBroadcast"
             CANCELED -> "canceled"
         }
 
@@ -94,12 +82,6 @@ enum class OfferState {
                 }
                 "taken" -> {
                     return TAKEN
-                }
-                "canceling" -> {
-                    return CANCELING
-                }
-                "cancelOfferTxBroadcast" -> {
-                    return CANCEL_OFFER_TRANSACTION_BROADCAST
                 }
                 "canceled" -> {
                     return CANCELED
