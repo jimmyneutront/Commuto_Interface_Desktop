@@ -159,14 +159,28 @@ open class DatabaseService(
      * @param chainID The blockchain ID of the offer to be updated, as a [String].
      * @param transactionHash The new value of the offer's [Offer.offerCancellationTransactionHash] property, as a
      * transaction hash as a hexadecimal string with "0x" prefix.
+     * @param creationTime The new value of the offer's [Offer.offerCancellationTransactionCreationTime] property.
+     * @param blockNumber The new value of the offer's [Offer.offerCancellationTransactionCreationBlockNumber] property.
      */
     @OptIn(DelicateCoroutinesApi::class)
-    suspend fun updateOfferCancellationTransactionHash(offerID: String, chainID: String, transactionHash: String?) {
+    suspend fun updateOfferCancellationData(
+        offerID: String,
+        chainID: String,
+        transactionHash: String?,
+        creationTime: String?,
+        blockNumber: Long?
+    ) {
         withContext(databaseServiceContext) {
-            database.updateOfferCancellationTransactionHash(offerID, chainID, transactionHash)
+            database.updateOfferCancellationTransactionHash(
+                offerID = offerID,
+                chainID = chainID,
+                transactionHash = transactionHash,
+                creationTime = creationTime,
+                blockNumber = blockNumber,
+            )
         }
-        logger.info("updateOfferCancellationTransactionHash: set value to $transactionHash for offer with B64 ID " +
-                "$offerID, if present")
+        logger.info("updateOfferCancellationTransactionHash: set values to $transactionHash, $creationTime and " +
+                "$blockNumber for offer with B64 ID $offerID, if present")
     }
 
     /**

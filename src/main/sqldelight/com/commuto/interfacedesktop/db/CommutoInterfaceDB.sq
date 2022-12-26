@@ -17,7 +17,9 @@ havePublicKey INTEGER NOT NULL,
 isUserMaker INTEGER NOT NULL,
 state TEXT NOT NULL,
 cancelingOfferState TEXT NOT NULL,
-offerCancellationTransactionHash TEXT
+offerCancellationTransactionHash TEXT,
+offerCancellationTransactionCreationTime TEXT,
+offerCancellationTransactionCreationBlockNumber INTEGER
 );
 
 createSettlementMethodTable:
@@ -111,11 +113,13 @@ INSERT INTO Offer(
     isUserMaker,
     state,
     cancelingOfferState,
-    offerCancellationTransactionHash
+    offerCancellationTransactionHash,
+    offerCancellationTransactionCreationTime,
+    offerCancellationTransactionCreationBlockNumber
 )
 VALUES(?, ?, ?, ?, ?, ?, ?,
 ?, ?, ?, ?, ?,
-?, ?, ?, ?, ?, ?);
+?, ?, ?, ?, ?, ?, ?, ?);
 
 insertOfferSettlementMethod:
 INSERT INTO OfferSettlementMethod(
@@ -208,9 +212,11 @@ UPDATE Offer
 SET cancelingOfferState = ?
 WHERE id = ? AND chainID = ?;
 
-updateOfferCancellationTransactionHashByOfferIDAndChainID:
+updateOfferCancellationDataByOfferIDAndChainID:
 UPDATE Offer
-SET offerCancellationTransactionHash = ?
+SET offerCancellationTransactionHash = ?,
+offerCancellationTransactionCreationTime = ?,
+offerCancellationTransactionCreationBlockNumber = ?
 WHERE id = ? AND chainID = ?;
 
 updateSwapRequiresFillBySwapIDAndChainID:

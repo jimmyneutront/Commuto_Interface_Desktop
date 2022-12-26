@@ -143,7 +143,9 @@ internal class Database(databaseDriverFactory: DatabaseDriverFactory) {
             isUserMaker = offer.isUserMaker,
             state = offer.state,
             cancelingOfferState = offer.cancelingOfferState,
-            offerCancellationTransactionHash = offer.offerCancellationTransactionHash
+            offerCancellationTransactionHash = offer.offerCancellationTransactionHash,
+            offerCancellationTransactionCreationTime = offer.offerCancellationTransactionCreationTime,
+            offerCancellationTransactionCreationBlockNumber = offer.offerCancellationTransactionCreationBlockNumber,
         )
     }
 
@@ -292,15 +294,26 @@ internal class Database(databaseDriverFactory: DatabaseDriverFactory) {
     }
 
     /**
-     * Updates the [Offer.offerCancellationTransactionHash] property of the [Offer] with the specified [offerID] and
-     * [chainID].
+     * Updates the [Offer.offerCancellationTransactionHash], [Offer.offerCancellationTransactionCreationTime] and
+     * [Offer.offerCancellationTransactionCreationBlockNumber] properties of the [Offer] with the specified [offerID]
+     * and [chainID].
      * @param offerID The ID of the [Offer] to be updated.
      * @param chainID The ID of the blockchain on which the [Offer] to be updated exists.
      * @param transactionHash The new value of the [Offer.offerCancellationTransactionHash] property.
+     * @param creationTime The new value of the [Offer.offerCancellationTransactionCreationTime] property.
+     * @param blockNumber The new value of the [Offer.offerCancellationTransactionCreationBlockNumber] property.
      */
-    internal fun updateOfferCancellationTransactionHash(offerID: String, chainID: String, transactionHash: String?) {
-        dbQuery.updateOfferCancellationTransactionHashByOfferIDAndChainID(
+    internal fun updateOfferCancellationTransactionHash(
+        offerID: String,
+        chainID: String,
+        transactionHash: String?,
+        creationTime: String?,
+        blockNumber: Long?
+    ) {
+        dbQuery.updateOfferCancellationDataByOfferIDAndChainID(
             offerCancellationTransactionHash = transactionHash,
+            offerCancellationTransactionCreationTime = creationTime,
+            offerCancellationTransactionCreationBlockNumber = blockNumber,
             id = offerID,
             chainID = chainID
         )

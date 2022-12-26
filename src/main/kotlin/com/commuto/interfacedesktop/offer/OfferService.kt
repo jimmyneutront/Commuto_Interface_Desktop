@@ -32,6 +32,7 @@ import org.web3j.crypto.RawTransaction
 import org.web3j.utils.Numeric
 import java.math.BigInteger
 import java.nio.ByteBuffer
+import java.text.SimpleDateFormat
 import java.util.*
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -253,6 +254,8 @@ class OfferService (
                     state = newOffer.state.asString,
                     cancelingOfferState = newOffer.cancelingOfferState.value.asString,
                     offerCancellationTransactionHash = newOffer.offerCancellationTransaction?.transactionHash,
+                    offerCancellationTransactionCreationTime = null,
+                    offerCancellationTransactionCreationBlockNumber = null,
                 )
                 databaseService.storeOffer(offerForDatabase)
                 val settlementMethodStrings = mutableListOf<Pair<String, String?>>()
@@ -435,15 +438,18 @@ class OfferService (
                     latestBlockNumberAtCreation = blockchainService.newestBlockNum,
                     type = BlockchainTransactionType.CANCEL_OFFER,
                 )
-                // TODO: we should also record the current time and block height here, store it in the offer and in
-                //  persistent storage
+                val dateFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm'Z'")
+                dateFormat.timeZone = TimeZone.getTimeZone("UTC")
+                val dateString = dateFormat.format(blockchainTransactionForOfferCancellation.timeOfCreation)
                 logger.info("cancelOffer: persistently storing tx hash ${blockchainTransactionForOfferCancellation
                     .transactionHash} for ${offer.id}")
                 val encoder = Base64.getEncoder()
-                databaseService.updateOfferCancellationTransactionHash(
+                databaseService.updateOfferCancellationData(
                     offerID = encoder.encodeToString(offer.id.asByteArray()),
                     chainID = offer.chainID.toString(),
                     transactionHash = blockchainTransactionForOfferCancellation.transactionHash,
+                    creationTime = dateString,
+                    blockNumber = blockchainTransactionForOfferCancellation.latestBlockNumberAtCreation.toLong()
                 )
                 logger.info("cancelOffer: persistently cancelingOfferState for ${offer.id} state to " +
                         "SENDING_TRANSACTION")
@@ -916,6 +922,8 @@ class OfferService (
                 state = offer.state.asString,
                 cancelingOfferState = offer.cancelingOfferState.value.asString,
                 offerCancellationTransactionHash = offer.offerCancellationTransaction?.transactionHash,
+                offerCancellationTransactionCreationBlockNumber = null,
+                offerCancellationTransactionCreationTime = null,
             )
             databaseService.storeOffer(offerForDatabase)
             logger.info("handleOfferOpenedEvent: persistently stored offer ${offer.id}")
@@ -984,7 +992,7 @@ class OfferService (
         val offerIDB64String = encoder.encodeToString(event.offerID.asByteArray())
         val chainIDString = event.chainID.toString()
         val offer = offerTruthSource.offers[event.offerID]
-        if (offer?.isUserMaker ?: false) {
+        if (offer?.isUserMaker == true) {
             logger.info("handleOfferEditedEvent: ${event.offerID} was made by interface user")
             /*
             The user of this interface is the maker of this offer, and therefore we should have pending settlement
@@ -1067,14 +1075,10 @@ class OfferService (
             databaseService.deletePendingOfferSettlementMethods(offerID = offerIDB64String, chainID = chainIDString)
             logger.info("handleOfferEditedEvent: removed pending settlement methods from persistent storage " +
                     "for ${event.offerID}")
-            if (offer != null) {
-                withContext(Dispatchers.Main) {
-                    offer.updateSettlementMethods(settlementMethods = newSettlementMethods)
-                }
-                logger.info("handleOfferEditedEvent: updated offer ${event.offerID} in offerTruthSource")
-            } else {
-                logger.warn("handleOfferEditedEvent: could not find offer ${event.offerID} in offerTruthSource")
+            withContext(Dispatchers.Main) {
+                offer.updateSettlementMethods(settlementMethods = newSettlementMethods)
             }
+            logger.info("handleOfferEditedEvent: updated offer ${event.offerID} in offerTruthSource")
         } else {
             logger.info("handleOfferEditedEvent: ${event.offerID} was not made by interface user")
             val settlementMethodStrings = offerStruct.settlementMethods.map {
