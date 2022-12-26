@@ -1,10 +1,7 @@
 package com.commuto.interfacedesktop.offer
 
 import androidx.compose.runtime.mutableStateListOf
-import com.commuto.interfacedesktop.blockchain.BlockchainEventRepository
-import com.commuto.interfacedesktop.blockchain.BlockchainService
-import com.commuto.interfacedesktop.blockchain.BlockchainTransaction
-import com.commuto.interfacedesktop.blockchain.BlockchainTransactionType
+import com.commuto.interfacedesktop.blockchain.*
 import com.commuto.interfacedesktop.blockchain.events.commutoswap.*
 import com.commuto.interfacedesktop.blockchain.structs.OfferStruct
 import com.commuto.interfacedesktop.database.DatabaseService
@@ -780,6 +777,59 @@ class OfferService (
             } catch (exception: Exception) {
                 logger.error("takeOffer: encountered exception during call for ${offerToTake.id}", exception)
                 throw exception
+            }
+        }
+    }
+
+    /**
+     * The function called by [BlockchainService] to notify [OfferService] that a monitored offer-related
+     * [BlockchainTransaction] has failed (either has been confirmed and failed, or has been dropped.)
+     *
+     * If [transaction] is of type [BlockchainTransactionType.CANCEL_OFFER], then this finds the offer with the
+     * corresponding cancellation transaction hash, persistently updates its canceling offer state to
+     * [CancelingOfferState.EXCEPTION] and on the main coroutine dispatcher sets its [Offer.cancelingOfferException]
+     * property to [exception] updates its [Offer.cancelingOfferState] property to [CancelingOfferState.EXCEPTION].
+     *
+     * @param transaction The [BlockchainTransaction] wrapping the on-chain transaction that has failed.
+     * @param exception A [BlockchainTransactionException] describing why the on-chain transaction has failed.
+     */
+    override suspend fun handleFailedTransaction(
+        transaction: BlockchainTransaction,
+        exception: BlockchainTransactionException
+    ) {
+        logger.warn("handleFailedTransaction: handling ${transaction.transactionHash} with exception " +
+                exception.message, exception)
+        when (transaction.type) {
+            BlockchainTransactionType.CANCEL_OFFER -> {
+                logger.warn("handleFailedTransaction: ${transaction.transactionHash} is of type cancelOffer")
+                val offer = offerTruthSource.offers.firstNotNullOfOrNull { uuidOfferEntry ->
+                    if (uuidOfferEntry.value.offerCancellationTransaction?.transactionHash
+                        .equals(transaction.transactionHash)) {
+                        uuidOfferEntry.value
+                    } else {
+                        null
+                    }
+                }
+                if (offer != null) {
+                    logger.warn("handleFailedTransaction: found offer ${offer.id} on ${offer.chainID} with " +
+                            "cancellation transaction ${transaction.transactionHash} updating cancelingOfferState to " +
+                            "EXCEPTION in persistent storage")
+                    val encoder = Base64.getEncoder()
+                    databaseService.updateCancelingOfferState(
+                        offerID = encoder.encodeToString(offer.id.asByteArray()),
+                        chainID = offer.chainID.toString(),
+                        state = CancelingOfferState.EXCEPTION.asString,
+                    )
+                    logger.warn("handleFailedTransaction: setting cancelingOfferException and updating " +
+                            "cancelingOfferState to EXCEPTION for ${transaction.transactionHash}")
+                    withContext(Dispatchers.Main) {
+                        offer.cancelingOfferException = exception
+                        offer.cancelingOfferState.value = CancelingOfferState.EXCEPTION
+                    }
+                } else {
+                    logger.warn("handleFailedTransaction: offer with cancellation transaction " +
+                            "${transaction.transactionHash} not found in offerTruthSource")
+                }
             }
         }
     }

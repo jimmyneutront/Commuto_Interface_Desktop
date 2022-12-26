@@ -25,10 +25,53 @@ import java.util.Date
 data class BlockchainTransaction(
     val transaction: RawTransaction?,
     val transactionHash: String,
-    val timeOfCreation: Date = Date(),
+    val timeOfCreation: Date,
     val latestBlockNumberAtCreation: BigInteger,
     val type: BlockchainTransactionType,
-)
+) {
+
+    /**
+     * Creates a [BlockchainTransaction] wrapped around a [RawTransaction], with a hash equal to [transactionHash], of a
+     * specified [BlockchainTransactionType], created when the number of the newest block on the blockchain was
+     * [latestBlockNumberAtCreation], and using the current time as [timeOfCreation].
+     *
+     * @param transaction The [RawTransaction] that this wraps.
+     * @param transactionHash The hash of [transaction] (after it has been signed).
+     * @param latestBlockNumberAtCreation The number of the newest block on the blockchain at the time when
+     * [transaction] was created.
+     * @param type A [BlockchainTransactionType] indicating what [transaction] will do when/if it is confirmed.
+     */
+    constructor(
+        transaction: RawTransaction,
+        transactionHash: String,
+        latestBlockNumberAtCreation: BigInteger,
+        type: BlockchainTransactionType
+    ): this(
+        transaction = transaction,
+        transactionHash = transactionHash,
+        timeOfCreation = Date(),
+        latestBlockNumberAtCreation = latestBlockNumberAtCreation,
+        type = type
+    )
+
+    /**
+     * Creates a [BlockchainTransaction] with a `null` [BlockchainTransaction.transaction] property, with a hash equal
+     * to [transactionHash],  which identifies a [RawTransaction] created at [timeOfCreation], when the latest block had
+     * block number [latestBlockNumberAtCreation], and is of type [type].
+     */
+    constructor(
+        transactionHash: String,
+        timeOfCreation: Date,
+        latestBlockNumberAtCreation: BigInteger,
+        type: BlockchainTransactionType,
+    ): this(
+        transaction = null,
+        transactionHash = transactionHash,
+        timeOfCreation = timeOfCreation,
+        latestBlockNumberAtCreation = latestBlockNumberAtCreation,
+        type = type
+    )
+}
 
 /**
  * An exception thrown by [BlockchainTransaction]-related code.

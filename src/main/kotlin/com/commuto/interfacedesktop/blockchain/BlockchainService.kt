@@ -107,6 +107,14 @@ class BlockchainService (private val exceptionHandler: BlockchainExceptionNotifi
 
     private var transactionsToMonitor = HashMap<String, BlockchainTransaction>()
 
+    fun addTransactionToMonitor(transaction: BlockchainTransaction) {
+        transactionsToMonitor[transaction.transactionHash] = transaction
+    }
+
+    fun getMonitoredTransaction(transactionHash: String): BlockchainTransaction? {
+        return transactionsToMonitor.get(transactionHash)
+    }
+
     // TODO: rename this as updateLastParsedBlockNumber
     /**
      * Updates [lastParsedBlockNum]. Eventually, this function will store [blockNumber] in
@@ -604,8 +612,16 @@ class BlockchainService (private val exceptionHandler: BlockchainExceptionNotifi
     }
 
     /**
-     * Awaits the given [Deferred] and gets event responses from the resulting
-     * [EthGetTransactionReceipt].
+     * Awaits the given [Deferred] and attempts to get a [TransactionReceipt] from the resulting
+     * [EthGetTransactionReceipt]. If the [EthGetTransactionReceipt] does not contain a [TransactionReceipt], this
+     * returns an empty list, since a nonexistent transaction receipt contains no events. If this does get a
+     * [TransactionReceipt] from [EthGetTransactionReceipt], this searches for a monitored transaction with a matching
+     * transaction hash. If it finds such a transaction, it checks if the status of the corresponding
+     * [TransactionReceipt] is OK. If it is, then this parses it for the proper type of event and adds resulting events
+     * to a list of events that will be returned. If it is not OK, then this calls the appropriate failure handler. In
+     * either case, we then remove the transaction from [transactionsToMonitor]. If the hash specified in
+     * [TransactionReceipt] is not present in [transactionsToMonitor], then this parses it for events and appends any
+     * resulting events to the list of events that will be returned. Finally, this returns said list of events.
      *
      * @param deferredReceiptOptional A [Deferred] with a [EthGetTransactionReceipt] result.
      *
@@ -617,7 +633,45 @@ class BlockchainService (private val exceptionHandler: BlockchainExceptionNotifi
     ): List<BaseEventResponse> = coroutineScope {
         val receiptOptional = deferredReceiptOptional.await()
         if (receiptOptional.transactionReceipt.isPresent) {
-            getEventResponsesFromReceipt(receiptOptional.transactionReceipt.get())
+            val transactionReceipt = receiptOptional.transactionReceipt.get()
+            val eventsInReceipt = mutableListOf<BaseEventResponse>()
+            val monitoredTransaction = transactionsToMonitor.get(transactionReceipt.transactionHash)
+            if (monitoredTransaction != null) {
+                logger.info("parseDeferredReceiptOptional: ${transactionReceipt.transactionHash} is monitored, working")
+                if (transactionReceipt.isStatusOK) {
+                    logger.info("parseDeferredReceiptOptional: parsing monitored tx " +
+                            "${transactionReceipt.transactionHash} for events")
+                    // The tranaction has not failed, so we parse it for the proper event
+                    when (monitoredTransaction.type) {
+                        BlockchainTransactionType.CANCEL_OFFER -> {
+                            eventsInReceipt.addAll(commutoSwap.getOfferCanceledEvents(transactionReceipt))
+                        }
+                    }
+                } else {
+                    logger.warn("parseDeferredReceiptOptional: monitored tx ${transactionReceipt.transactionHash} " +
+                            "failed, calling failure handler")
+                    when (monitoredTransaction.type) {
+                        BlockchainTransactionType.CANCEL_OFFER -> {
+                            offerService.handleFailedTransaction(
+                                monitoredTransaction,
+                                exception = BlockchainTransactionException(
+                                    message = "Transaction ${transactionReceipt.transactionHash} is confirmed, but " +
+                                            "failed for unknown reason."
+                                )
+                            )
+                        }
+                    }
+                }
+                logger.info("parseDeferredReceiptOptional: removing ${transactionReceipt.transactionHash} from " +
+                        "transactionsToMonitor")
+                // Remove monitored transaction now that it has been handled
+                transactionsToMonitor.remove(transactionReceipt.transactionHash)
+            } else {
+                logger.info("parseDeferredReceiptOptional: tx ${transactionReceipt.transactionHash} is not " +
+                        "monitored, parsing for events")
+                eventsInReceipt.addAll(getEventResponsesFromReceipt(transactionReceipt))
+            }
+            eventsInReceipt
         } else {
             emptyList()
         }
@@ -649,6 +703,7 @@ class BlockchainService (private val exceptionHandler: BlockchainExceptionNotifi
         return eventResponses.flatten()
     }
 
+    // TODO: include transaction hash string in Event structs
     /**
      * Flattens and then iterates through [eventResponseLists] in search of relevant
      * [BaseEventResponse]s, and creates event objects and passes them to the proper service.

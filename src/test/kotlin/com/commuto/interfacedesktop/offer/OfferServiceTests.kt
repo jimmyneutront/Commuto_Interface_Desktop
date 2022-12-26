@@ -4,9 +4,7 @@ import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import com.commuto.interfacedesktop.CommutoWeb3j
-import com.commuto.interfacedesktop.blockchain.BlockchainEventRepository
-import com.commuto.interfacedesktop.blockchain.BlockchainService
-import com.commuto.interfacedesktop.blockchain.TestBlockchainExceptionHandler
+import com.commuto.interfacedesktop.blockchain.*
 import com.commuto.interfacedesktop.blockchain.events.commutoswap.*
 import com.commuto.interfacedesktop.database.DatabaseDriverFactory
 import com.commuto.interfacedesktop.database.DatabaseService
@@ -63,6 +61,92 @@ class OfferServiceTests {
     @Before
     fun setup() {
         Dispatchers.setMain(UnconfinedTestDispatcher())
+    }
+
+    /**
+     * Ensure [OfferService] handles failed offer cancellation transactions properly.
+     */
+    @Test
+    fun testHandleFailedOfferCancellationTransaction() = runBlocking {
+        val offerID = UUID.randomUUID()
+
+        val databaseService = DatabaseService(DatabaseDriverFactory())
+        databaseService.createTables()
+        val keyManagerService = KeyManagerService(databaseService)
+
+        val offerTruthSource = TestOfferTruthSource()
+
+        val offer = Offer(
+            isCreated = true,
+            isTaken = false,
+            id = offerID,
+            maker = "0x0000000000000000000000000000000000000000",
+            interfaceID = ByteArray(0),
+            stablecoin = "0x0000000000000000000000000000000000000000",
+            amountLowerBound = BigInteger.ZERO,
+            amountUpperBound = BigInteger.ZERO,
+            securityDepositAmount = BigInteger.ZERO,
+            serviceFeeRate = BigInteger.ZERO,
+            direction = OfferDirection.BUY,
+            settlementMethods = mutableStateListOf(),
+            protocolVersion = BigInteger.ZERO,
+            chainID = BigInteger.valueOf(31337L),
+            havePublicKey = true,
+            isUserMaker = true,
+            state = OfferState.OFFER_OPENED
+        )
+        offer.cancelingOfferState.value = CancelingOfferState.AWAITING_TRANSACTION_CONFIRMATION
+        val offerCancellationTransaction = BlockchainTransaction(
+            transactionHash = "a_transaction_hash_here",
+            timeOfCreation = Date(),
+            latestBlockNumberAtCreation = BigInteger.ZERO,
+            type = BlockchainTransactionType.CANCEL_OFFER
+        )
+        offer.offerCancellationTransaction = offerCancellationTransaction
+        offerTruthSource.offers[offerID] = offer
+        val encoder = Base64.getEncoder()
+        val offerForDatabase = DatabaseOffer(
+            id = encoder.encodeToString(offerID.asByteArray()),
+            isCreated = 1L,
+            isTaken = 0L,
+            maker = offer.maker,
+            interfaceId = encoder.encodeToString(offer.interfaceID),
+            stablecoin = offer.stablecoin,
+            amountLowerBound = offer.amountLowerBound.toString(),
+            amountUpperBound = offer.amountUpperBound.toString(),
+            securityDepositAmount = offer.securityDepositAmount.toString(),
+            serviceFeeRate = offer.serviceFeeRate.toString(),
+            onChainDirection = offer.direction.string,
+            protocolVersion = offer.protocolVersion.toString(),
+            chainID = offer.chainID.toString(),
+            havePublicKey = 1L,
+            isUserMaker = 1L,
+            state = offer.state.asString,
+            cancelingOfferState = offer.cancelingOfferState.value.asString,
+            offerCancellationTransactionHash = offer.offerCancellationTransaction?.transactionHash,
+            offerCancellationTransactionCreationTime = null,
+            offerCancellationTransactionCreationBlockNumber = null,
+        )
+        databaseService.storeOffer(offerForDatabase)
+
+        val offerService = OfferService(
+            databaseService,
+            keyManagerService,
+            TestSwapService(),
+        )
+        offerService.setOfferTruthSource(offerTruthSource)
+
+        offerService.handleFailedTransaction(
+            transaction = offerCancellationTransaction,
+            exception = BlockchainTransactionException(message = "tx failed")
+        )
+
+        val offerInTruthSource = offerTruthSource.offers[offerID]
+        assertEquals(CancelingOfferState.EXCEPTION, offerInTruthSource!!.cancelingOfferState.value)
+        assertNotNull(offerInTruthSource.cancelingOfferException)
+        val offerInDatabase = databaseService.getOffer(id = encoder.encodeToString(offerID.asByteArray()))
+        assertEquals(CancelingOfferState.EXCEPTION.asString, offerInDatabase!!.cancelingOfferState)
+
     }
 
     /**
