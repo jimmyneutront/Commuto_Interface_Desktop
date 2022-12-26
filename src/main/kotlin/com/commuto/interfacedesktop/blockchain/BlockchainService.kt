@@ -305,11 +305,11 @@ class BlockchainService (private val exceptionHandler: BlockchainExceptionNotifi
      * @throws [IllegalStateException] if the transaction wrapped by [transaction] and [chainID] do not correspond to
      * [signedRawTransactionDataAsHex].
      */
-    fun sendTransactionAsync(
+    suspend fun sendTransaction(
         transaction: BlockchainTransaction,
         signedRawTransactionDataAsHex: String,
         chainID: BigInteger
-    ): Deferred<EthSendTransaction> {
+    ): EthSendTransaction {
         val wrappedTransaction = transaction.transaction
             ?: throw BlockchainServiceException(message = "Wrapped transaction was nil for " +
                     transaction.transactionHash
@@ -320,7 +320,13 @@ class BlockchainService (private val exceptionHandler: BlockchainExceptionNotifi
             "Supplied signed transaction data and actual signed transaction data do not match"
         }
         transactionsToMonitor[transaction.transactionHash] = transaction
-        return web3.ethSendRawTransaction(signedRawTransactionDataAsHex).sendAsync().asDeferred()
+        try {
+            val response = web3.ethSendRawTransaction(signedRawTransactionDataAsHex).sendAsync().await()
+            return response
+        } catch (exception: Exception) {
+            transactionsToMonitor.remove(transaction.transactionHash)
+            throw exception
+        }
     }
 
     /**
