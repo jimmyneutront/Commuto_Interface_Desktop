@@ -328,7 +328,7 @@ class OfferServiceTests {
             isUserMaker = 1L,
             state = offer.state.asString,
             cancelingOfferState = offer.cancelingOfferState.value.asString,
-            offerCancellationTransactionHash = offer.offerCancellationTransactionHash,
+            offerCancellationTransactionHash = offer.offerCancellationTransaction?.transactionHash,
         )
         databaseService.storeOffer(offerForDatabase)
 
@@ -833,7 +833,7 @@ class OfferServiceTests {
             isUserMaker = 1L,
             state = offer.state.asString,
             cancelingOfferState = offer.cancelingOfferState.value.asString,
-            offerCancellationTransactionHash = offer.offerCancellationTransactionHash,
+            offerCancellationTransactionHash = offer.offerCancellationTransaction?.transactionHash,
         )
         databaseService.storeOffer(offerForDatabase)
 
@@ -971,7 +971,7 @@ class OfferServiceTests {
             isUserMaker = 1L,
             state = offer.state.asString,
             cancelingOfferState = offer.cancelingOfferState.value.asString,
-            offerCancellationTransactionHash = offer.offerCancellationTransactionHash,
+            offerCancellationTransactionHash = offer.offerCancellationTransaction?.transactionHash,
         )
         runBlocking {
             databaseService.storeOffer(offerForDatabase)
@@ -1137,7 +1137,7 @@ class OfferServiceTests {
             isUserMaker = isUserMaker,
             state = offer.state.asString,
             cancelingOfferState = offer.cancelingOfferState.value.asString,
-            offerCancellationTransactionHash = offer.offerCancellationTransactionHash,
+            offerCancellationTransactionHash = offer.offerCancellationTransaction?.transactionHash,
         )
         runBlocking {
             databaseService.storeOffer(offerForDatabase)
@@ -1393,7 +1393,7 @@ class OfferServiceTests {
                         isUserMaker = 1L,
                         state = "openOfferTxPublished",
                         cancelingOfferState = addedOffer.cancelingOfferState.value.asString,
-                        offerCancellationTransactionHash = addedOffer.offerCancellationTransactionHash,
+                        offerCancellationTransactionHash = addedOffer.offerCancellationTransaction?.transactionHash,
                     )
                     assertEquals(expectedOfferInDatabase, offerInDatabase)
 
@@ -1538,7 +1538,7 @@ class OfferServiceTests {
             isUserMaker = 1L,
             state = offer.state.asString,
             cancelingOfferState = offer.cancelingOfferState.value.asString,
-            offerCancellationTransactionHash = offer.offerCancellationTransactionHash,
+            offerCancellationTransactionHash = offer.offerCancellationTransaction?.transactionHash,
         )
 
         runBlocking {
@@ -1556,7 +1556,7 @@ class OfferServiceTests {
 
             assertEquals(CancelingOfferState.AWAITING_TRANSACTION_CONFIRMATION, offerTruthSource
                 .offers[offerID]?.cancelingOfferState?.value)
-            assertNotNull(offerTruthSource.offers[offerID]?.offerCancellationTransactionHash)
+            assertNotNull(offerTruthSource.offers[offerID]?.offerCancellationTransaction?.transactionHash)
 
             val offerInDatabase = databaseService.getOffer(offerIDString)
             assertEquals(CancelingOfferState.AWAITING_TRANSACTION_CONFIRMATION.asString, offerInDatabase!!
@@ -1807,7 +1807,7 @@ class OfferServiceTests {
             isUserMaker = 1L,
             state = offer.state.asString,
             cancelingOfferState = offer.cancelingOfferState.value.asString,
-            offerCancellationTransactionHash = offer.offerCancellationTransactionHash,
+            offerCancellationTransactionHash = offer.offerCancellationTransaction?.transactionHash,
         )
         runBlocking {
             databaseService.storeOffer(offerForDatabase)

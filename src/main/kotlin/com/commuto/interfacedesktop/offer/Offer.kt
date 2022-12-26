@@ -4,6 +4,7 @@ import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.snapshots.SnapshotStateList
+import com.commuto.interfacedesktop.blockchain.BlockchainTransaction
 import com.commuto.interfacedesktop.blockchain.structs.OfferStruct
 import com.commuto.interfacedesktop.settlement.SettlementMethod
 import com.commuto.interfacedesktop.settlement.privatedata.PrivateSEPAData
@@ -67,10 +68,10 @@ import java.util.*
  * @property cancelingOfferException (This property is used only if the maker of this offer is the user of this
  * interface.) The [Exception] that occurred during the offer cancellation process, or `null` if no such [Exception] has
  * occurred.
- * @property offerCancellationTransactionHash The hash of the transaction that has canceled this offer, if it was made
- * and canceled by the user of this interface, or `null` if the offer is not canceled or the user of this interface is
- * not the offer maker. Note that the transaction with this hash may be: not yet sent to a blockchain node, pending,
- * confirmed and successful, confirmed and failed, or dropped.
+ * @property offerCancellationTransaction The [BlockchainTransaction] that has canceled this offer, if it was made and
+ * canceled by the user of this interface, or `null` if the offer is not canceled or the user of this interface is not
+ * the offer maker. Note that this [BlockchainTransaction] may be: not yet sent to a blockchain node, pending, confirmed
+ * and successful, confirmed and failed, or dropped.
  * @property selectedSettlementMethods (This property is used only if the maker of this offer is the user of this
  * interface.) The new [SettlementMethod]s with which the user wants to replace the offer's current settlement methods
  * by editing the offer. If the user is not currently editing this offer, (or if the user is not the maker of this
@@ -186,7 +187,7 @@ class Offer(
     val cancelingOfferState: MutableState<CancelingOfferState> = mutableStateOf(CancelingOfferState.NONE)
     var cancelingOfferException: Exception? = null
 
-    var offerCancellationTransactionHash: String? = null
+    var offerCancellationTransaction: BlockchainTransaction? = null
 
     val selectedSettlementMethods = mutableStateListOf<SettlementMethod>()
     val editingOfferState: MutableState<EditingOfferState> = mutableStateOf(EditingOfferState.NONE)
@@ -274,76 +275,6 @@ class Offer(
         }
         this.settlementMethods = newSettlementMethods
         this.onChainSettlementMethods = onChainSettlementMethods
-    }
-
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (javaClass != other?.javaClass) return false
-
-        other as Offer
-
-        if (isCreated != other.isCreated) return false
-        if (isTaken != other.isTaken) return false
-        if (id != other.id) return false
-        if (maker != other.maker) return false
-        if (!interfaceID.contentEquals(other.interfaceID)) return false
-        if (stablecoin != other.stablecoin) return false
-        if (amountLowerBound != other.amountLowerBound) return false
-        if (amountUpperBound != other.amountUpperBound) return false
-        if (securityDepositAmount != other.securityDepositAmount) return false
-        if (serviceFeeRate != other.serviceFeeRate) return false
-        if (direction != other.direction) return false
-        if (protocolVersion != other.protocolVersion) return false
-        if (chainID != other.chainID) return false
-        if (havePublicKey != other.havePublicKey) return false
-        if (isUserMaker != other.isUserMaker) return false
-        if (state != other.state) return false
-        if (settlementMethods != other.settlementMethods) return false
-        if (serviceFeeAmountLowerBound != other.serviceFeeAmountLowerBound) return false
-        if (serviceFeeAmountUpperBound != other.serviceFeeAmountUpperBound) return false
-        if (onChainDirection != other.onChainDirection) return false
-        if (onChainSettlementMethods != other.onChainSettlementMethods) return false
-        if (cancelingOfferState != other.cancelingOfferState) return false
-        if (cancelingOfferException != other.cancelingOfferException) return false
-        if (selectedSettlementMethods != other.selectedSettlementMethods) return false
-        if (editingOfferState != other.editingOfferState) return false
-        if (editingOfferException != other.editingOfferException) return false
-        if (takingOfferState != other.takingOfferState) return false
-        if (takingOfferException != other.takingOfferException) return false
-
-        return true
-    }
-
-    override fun hashCode(): Int {
-        var result = isCreated.hashCode()
-        result = 31 * result + isTaken.hashCode()
-        result = 31 * result + id.hashCode()
-        result = 31 * result + maker.hashCode()
-        result = 31 * result + interfaceID.contentHashCode()
-        result = 31 * result + stablecoin.hashCode()
-        result = 31 * result + amountLowerBound.hashCode()
-        result = 31 * result + amountUpperBound.hashCode()
-        result = 31 * result + securityDepositAmount.hashCode()
-        result = 31 * result + serviceFeeRate.hashCode()
-        result = 31 * result + direction.hashCode()
-        result = 31 * result + protocolVersion.hashCode()
-        result = 31 * result + chainID.hashCode()
-        result = 31 * result + havePublicKey.hashCode()
-        result = 31 * result + isUserMaker.hashCode()
-        result = 31 * result + state.hashCode()
-        result = 31 * result + settlementMethods.hashCode()
-        result = 31 * result + serviceFeeAmountLowerBound.hashCode()
-        result = 31 * result + serviceFeeAmountUpperBound.hashCode()
-        result = 31 * result + onChainDirection.hashCode()
-        result = 31 * result + onChainSettlementMethods.hashCode()
-        result = 31 * result + cancelingOfferState.hashCode()
-        result = 31 * result + (cancelingOfferException?.hashCode() ?: 0)
-        result = 31 * result + selectedSettlementMethods.hashCode()
-        result = 31 * result + editingOfferState.hashCode()
-        result = 31 * result + (editingOfferException?.hashCode() ?: 0)
-        result = 31 * result + takingOfferState.hashCode()
-        result = 31 * result + (takingOfferException?.hashCode() ?: 0)
-        return result
     }
 
     companion object {
