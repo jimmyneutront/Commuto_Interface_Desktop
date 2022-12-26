@@ -31,6 +31,7 @@ import java.nio.ByteBuffer
 import java.util.*
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.collections.HashMap
 import kotlin.math.floor
 
 /**
@@ -53,8 +54,9 @@ import kotlin.math.floor
  * @property creds Blockchain credentials used for signing transactions.
  * @property lastParsedBlockNum The block number of the most recently parsed block.
  * @property newestBlockNum The block number of the most recently confirmed block.
- * @property transactionsToMonitor A list of [BlockchainTransaction]s created by this interface that [BlockchainService]
- * will monitor for confirmation, transaction dropping, transaction failure and transaction success.
+ * @property transactionsToMonitor A dictionary mapping transaction hashes to corresponding [BlockchainTransaction]s
+ * created by this interface that [BlockchainService] will monitor for confirmation, transaction dropping, transaction
+ * failure and transaction success.
  * @property listenInterval The number of milliseconds that [BlockchainService] should wait after
  * parsing a block before it begins parsing another block.
  * @property listenJob The coroutine [Job] in which [BlockchainService] listens to the blockchain.
@@ -103,7 +105,7 @@ class BlockchainService (private val exceptionHandler: BlockchainExceptionNotifi
             field = value
         }
 
-    private var transactionsToMonitor = mutableListOf<BlockchainTransaction>()
+    private var transactionsToMonitor = HashMap<String, BlockchainTransaction>()
 
     // TODO: rename this as updateLastParsedBlockNumber
     /**
@@ -309,15 +311,15 @@ class BlockchainService (private val exceptionHandler: BlockchainExceptionNotifi
         chainID: BigInteger
     ): Deferred<EthSendTransaction> {
         val wrappedTransaction = transaction.transaction
-        if (wrappedTransaction == null) {
-            throw BlockchainServiceException(message = "Wrapped transaction was nil for ${transaction.transactionHash}")
-        }
+            ?: throw BlockchainServiceException(message = "Wrapped transaction was nil for " +
+                    transaction.transactionHash
+            )
         check(signedRawTransactionDataAsHex ==
                 Numeric.toHexString(TxSignServiceImpl(creds).sign(wrappedTransaction, chainID.toLong()))
         ) {
             "Supplied signed transaction data and actual signed transaction data do not match"
         }
-        transactionsToMonitor.add(transaction)
+        transactionsToMonitor[transaction.transactionHash] = transaction
         return web3.ethSendRawTransaction(signedRawTransactionDataAsHex).sendAsync().asDeferred()
     }
 
