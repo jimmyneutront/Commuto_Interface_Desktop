@@ -580,9 +580,11 @@ class BlockchainService (private val exceptionHandler: BlockchainExceptionNotifi
     /**
      * Parses the given [EthBlock.Block] in search of
      * [CommutoSwap](https://github.com/jimmyneutront/commuto-protocol/blob/main/CommutoSwap.sol)
-     * events, creates a list of all such events that it finds, and then calls
-     * [handleEventResponses], passing said list of events. (Specifically, the events are
-     * [BaseEventResponse]s)
+     * events, and creates a list of all such events that it finds. Then this iterates through all remaining monitored
+     * transactions. Then this iterates through all remaining monitored transactions. If this finds transactions that
+     * have been dropped or have been pending for more than 24 hours, this removes them from [transactionsToMonitor] and
+     * calls the appropriate failure handler. Then this calls [handleEventResponses], passing said list of events.
+     * (Specifically, the events are [BaseEventResponse]s)
      *
      * @param block The [EthBlock.Block] to be parsed.
      */
@@ -605,6 +607,44 @@ class BlockchainService (private val exceptionHandler: BlockchainExceptionNotifi
         val eventResponses: MutableList<List<BaseEventResponse>> = mutableListOf()
         for (deferredReceiptOptional in deferredTxReceiptOptionals) {
             eventResponses.add(parseDeferredReceiptOptional(deferredReceiptOptional))
+        }
+        for (monitoredTransaction in transactionsToMonitor.values) {
+            logger.info("parseBlock: checking if unconfirmed tx ${monitoredTransaction.transactionHash} is dropped " +
+                    "or pending")
+            // 86_400_000 milliseconds = 24 hours
+            if (Date().time - monitoredTransaction.timeOfCreation.time > 86_400_000) {
+                logger.info("parseBlock: monitored tx ${monitoredTransaction.transactionHash} is more than 24 hours " +
+                        "old")
+                var monitoredTransactionException: BlockchainTransactionException? = null
+                val monitoredTransactionReceiptOptional = web3
+                    .ethGetTransactionReceipt(monitoredTransaction.transactionHash).sendAsync().asDeferred().await()
+                    .transactionReceipt
+                var isTransactionNotComfirmed = false
+                if (monitoredTransactionReceiptOptional.isPresent) {
+                    val monitoredTransactionReceipt = monitoredTransactionReceiptOptional.get()
+                    if (monitoredTransactionReceipt.status == null) {
+                        isTransactionNotComfirmed = true
+                    }
+                } else {
+                    isTransactionNotComfirmed = true
+                }
+                if (isTransactionNotComfirmed) {
+                    monitoredTransactionException = BlockchainTransactionException("Transaction " +
+                            "${monitoredTransaction.transactionHash} has been pending for more than 24 hours.")
+                }
+                if (monitoredTransactionException != null) {
+                    logger.info("parseBlock: removing from transactionsToMonitor and handling failed monitored tx " +
+                            "${monitoredTransaction.transactionHash} for reason: ${monitoredTransactionException
+                                .message}")
+                    transactionsToMonitor.remove(monitoredTransaction.transactionHash)
+                    when (monitoredTransaction.type) {
+                        BlockchainTransactionType.CANCEL_OFFER -> offerService.handleFailedTransaction(
+                            transaction = monitoredTransaction,
+                            exception = monitoredTransactionException
+                        )
+                    }
+                }
+            }
         }
         handleEventResponses(eventResponses, chainID)
     }
@@ -701,7 +741,6 @@ class BlockchainService (private val exceptionHandler: BlockchainExceptionNotifi
         return eventResponses.flatten()
     }
 
-    // TODO: include transaction hash string in Event structs
     /**
      * Flattens and then iterates through [eventResponseLists] in search of relevant
      * [BaseEventResponse]s, and creates event objects and passes them to the proper service.
