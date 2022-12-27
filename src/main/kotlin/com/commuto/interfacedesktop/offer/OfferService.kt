@@ -1162,13 +1162,19 @@ class OfferService (
     }
 
     /**
-     * The method called by [BlockchainService] to notify [OfferService] of an [OfferCanceledEvent].
-     *
-     * Once notified, [OfferService] saves [event] in [offerCanceledEventRepository], removes the corresponding [Offer]
-     * and its settlement methods from persistent storage, removes [event] from [offerCanceledEventRepository], and then
-     * checks that the chain ID of the event matches the chain ID of the [Offer] mapped to the offer ID specified in
-     * [event] in the [OfferTruthSource.offers] list on the main coroutine dispatcher. If they do not match, this
-     * returns. If they do match, then this synchronously removes the [Offer] from said list on the main thread.
+     * The method called by [BlockchainService] to notify [OfferService] of an [OfferCanceledEvent]. Once notified,
+     * [OfferService] saves [event] in [offerCanceledEventRepository], and checks for the corresponding [Offer] (with an
+     * ID and chain ID matching that specified in [event]) in [offerTruthSource]. If it finds such an [Offer], it checks
+     * whether the offer was made by the user of this interface. If it was, this checks whether the hash of the offer's
+     * [Offer.offerCancellationTransaction] equals that of [event]. If they do not match, then this updates the [Offer],
+     * both in [offerTruthSource] and in persistent storage, with a new [BlockchainTransaction] containing the hash
+     * specified in [event]. Then, regardless of whether the hashes match, this sets the offer's
+     * [Offer.cancelingOfferState] to [CancelingOfferState.COMPLETED] on the main coroutine dispatcher. Then, regardless
+     * of whether the [Offer] was or was not made by the user of this interface, this sets the offer's [Offer.isCreated]
+     * flag to `false` and its [Offer.state] to [OfferState.CANCELED], and then removes the offer from
+     * [offerTruthSource] on the main Dispatch Queue. Finally, regardless of whether an [Offer] was found in
+     * [offerTruthSource], this removes the offer with the ID and chain ID specified in [event] (and its settlement
+     * methods) from persistent storage. Finally, this removes [event] from [offerCanceledEventRepository].
      *
      * @param event The [OfferCanceledEvent] of which [OfferService] is being notified.
      */
@@ -1182,20 +1188,87 @@ class OfferService (
         val offerIDByteArray = offerIDByteBuffer.array()
         val offerIdString = Base64.getEncoder().encodeToString(offerIDByteArray)
         offerCanceledEventRepository.append(event)
-        databaseService.deleteOffers(offerIdString, event.chainID.toString())
-        logger.info("handleOfferCanceledEvent: deleted offer ${event.offerID} from persistent storage")
-        databaseService.deleteOfferSettlementMethods(offerIdString, event.chainID.toString())
-        logger.info("handleOfferCanceledEvent: deleted settlement methods for offer ${event.offerID} from " +
-                "persistent storage")
-        offerCanceledEventRepository.remove(event)
-        withContext(Dispatchers.Main) {
-            if (offerTruthSource.offers[event.offerID]?.chainID == event.chainID) {
-                offerTruthSource.offers[event.offerID]?.isCreated?.value = false
-                offerTruthSource.offers[event.offerID]?.state = OfferState.CANCELED
+        logger.info("handleOfferCanceledEvent: persistently updating state for ${event.offerID}")
+        databaseService.updateOfferState(
+            offerID = offerIdString,
+            chainID = event.chainID.toString(),
+            state = OfferState.CANCELED.asString
+        )
+        val offer = offerTruthSource.offers[event.offerID]
+        if (offer != null && offer.chainID == event.chainID) {
+            logger.info("handleOfferCanceledEvent: found offer ${event.offerID} in offerTruthSource")
+            if (offer.isUserMaker) {
+                var mustUpdateOfferCancellationTransaction = false
+                logger.info("handleOfferCanceledEvent: offer ${event.offerID} made by interface user")
+                val offerCancellationTransaction = offer.offerCancellationTransaction
+                if (offerCancellationTransaction != null) {
+                    if (offerCancellationTransaction.transactionHash == event.transactionHash) {
+                        logger.info("handleOfferCanceledEvent: tx hash ${event.transactionHash} of event matches " +
+                                "that for offer ${event.offerID}: ${offerCancellationTransaction.transactionHash}")
+                    } else {
+                        logger.warn("handleOfferCanceledEvent: tx hash ${event.transactionHash} of event does not " +
+                                "match that for offer ${event.offerID}: ${offerCancellationTransaction
+                                    .transactionHash}, updating with new transaction hash")
+                        mustUpdateOfferCancellationTransaction = true
+                    }
+                } else {
+                    logger.warn("handleOfferCanceledEvent: offer ${event.offerID} made by interface user has no " +
+                            "offer cancellation transaction, updating with transaction hash")
+                    mustUpdateOfferCancellationTransaction = true
+                }
+                if (mustUpdateOfferCancellationTransaction) {
+                    val updatedOfferCancellationTransaction = BlockchainTransaction(
+                        transactionHash = event.transactionHash,
+                        timeOfCreation = Date(),
+                        latestBlockNumberAtCreation = BigInteger.ZERO,
+                        type = BlockchainTransactionType.CANCEL_OFFER
+                    )
+                    withContext(Dispatchers.Main) {
+                        offer.offerCancellationTransaction = updatedOfferCancellationTransaction
+                    }
+                    logger.warn("handleOfferCanceledEvent: persistently storing tx hash ${event.transactionHash} " +
+                            "for ${event.offerID}")
+                    val dateFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm'Z'")
+                    dateFormat.timeZone = TimeZone.getTimeZone("UTC")
+                    databaseService.updateOfferCancellationData(
+                        offerID = offerIdString,
+                        chainID = event.chainID.toString(),
+                        transactionHash = updatedOfferCancellationTransaction.transactionHash,
+                        creationTime = dateFormat.format(updatedOfferCancellationTransaction.timeOfCreation),
+                        blockNumber = updatedOfferCancellationTransaction.latestBlockNumberAtCreation.toLong()
+                    )
+                }
+                logger.info("handleOfferCanceledEvent: updating cancelingOfferState of user-as-maker offer " +
+                        "${event.offerID} to ${CancelingOfferState.COMPLETED.asString}")
+                withContext(Dispatchers.Main) {
+                    offer.cancelingOfferState.value = CancelingOfferState.COMPLETED
+                }
+            }
+            logger.info("handleOfferCanceledEvent: updating state of ${event.offerID} to " +
+                    OfferState.CANCELED.asString
+            )
+            withContext(Dispatchers.Main) {
+                offer.isCreated.value = false
+                offer.state = OfferState.CANCELED
+            }
+            logger.info("handleOfferCanceledEvent: removing ${event.offerID} from offerTruthSource")
+            withContext(Dispatchers.Main) {
                 offerTruthSource.removeOffer(event.offerID)
             }
         }
-        logger.info("handleOfferCanceledEvent: removed offer ${event.offerID} from offerTruthSource if present")
+        logger.info("handleOfferCanceledEvent: removing ${event.offerID} with chain ID ${event.chainID} from " +
+                "persistent storage")
+        databaseService.deleteOffers(
+            offerID = offerIdString,
+            chainID = event.chainID.toString()
+        )
+        logger.info("handleOfferCanceledEvent: removing settlement methods for ${event.offerID} with chain ID " +
+                "${event.chainID} from persistent storage")
+        databaseService.deleteOfferSettlementMethods(
+            offerID = offerIdString,
+            chainID = event.chainID.toString()
+        )
+        offerCanceledEventRepository.remove(event)
     }
 
     /**

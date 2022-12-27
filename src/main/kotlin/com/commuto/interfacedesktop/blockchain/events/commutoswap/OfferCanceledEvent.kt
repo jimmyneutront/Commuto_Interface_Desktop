@@ -11,8 +11,20 @@ import java.util.*
  *
  * @property offerID The ID of the canceled offer, as a [UUID].
  * @property chainID The ID of the blockchain on which this event was emitted.
+ * @property transactionHash The hash of the transaction that emitted this event, as a lowercase hex string with a "0x"
+ * prefix.
  */
-data class OfferCanceledEvent(val offerID: UUID, val chainID: BigInteger) {
+class OfferCanceledEvent(val offerID: UUID, val chainID: BigInteger, transactionHash: String) {
+
+    val transactionHash: String
+
+    init {
+        this.transactionHash = if (transactionHash.startsWith("0x")) {
+            transactionHash
+        } else {
+            "0x$transactionHash"
+        }
+    }
 
     companion object {
         /**
@@ -23,13 +35,13 @@ data class OfferCanceledEvent(val offerID: UUID, val chainID: BigInteger) {
          * @param chainID: The ID of the blockchain on which this event was emitted.
          *
          * @return A new [OfferCanceledEvent] with an offer ID as a [UUID] derived from [event]'s offer ID [ByteArray]
-         * and the specified [chainID].
+         * and the specified [chainID], and the transaction hash specified by [event].
          */
         fun fromEventResponse(event: CommutoSwap.OfferCanceledEventResponse, chainID: BigInteger): OfferCanceledEvent{
             val offerIdByteBuffer = ByteBuffer.wrap(event.offerID)
             val mostSigBits = offerIdByteBuffer.long
             val leastSigBits = offerIdByteBuffer.long
-            return OfferCanceledEvent(UUID(mostSigBits, leastSigBits), chainID)
+            return OfferCanceledEvent(UUID(mostSigBits, leastSigBits), chainID, event.log.transactionHash)
         }
     }
 

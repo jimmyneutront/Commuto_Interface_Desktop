@@ -446,7 +446,8 @@ class OfferServiceTests {
 
     /**
      * Ensures that [OfferService] handles
-     * [OfferCanceled](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offercanceled) events properly.
+     * [OfferCanceled](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offercanceled) events properly,
+     * both for offers made by the user of this interface and for offers that are not.
      */
     @Test
     fun testHandleOfferCanceledEvent() {
@@ -484,17 +485,21 @@ class OfferServiceTests {
 
         class TestBlockchainEventRepository: BlockchainEventRepository<OfferCanceledEvent>() {
 
-            var appendedEvent: OfferCanceledEvent? = null
-            var removedEvent: OfferCanceledEvent? = null
+            val appendedEventChannel = Channel<OfferCanceledEvent>()
+            val removedEventChannel = Channel<OfferCanceledEvent>()
 
             override fun append(element: OfferCanceledEvent) {
-                appendedEvent = element
                 super.append(element)
+                runBlocking {
+                    appendedEventChannel.send(element)
+                }
             }
 
             override fun remove(elementToRemove: OfferCanceledEvent) {
-                removedEvent = elementToRemove
                 super.remove(elementToRemove)
+                runBlocking {
+                    removedEventChannel.send(elementToRemove)
+                }
             }
 
         }
@@ -513,9 +518,6 @@ class OfferServiceTests {
 
         // We need this TestOfferTruthSource in order to track added and removed offers
         class TestOfferTruthSource: OfferTruthSource {
-            init {
-                offerService.setOfferTruthSource(this)
-            }
             val offersChannel = Channel<Offer>()
             override var offers = mutableStateMapOf<UUID, Offer>()
             override var serviceFeeRate = mutableStateOf<BigInteger?>(null)
@@ -534,6 +536,7 @@ class OfferServiceTests {
             }
         }
         val offerTruthSource = TestOfferTruthSource()
+        offerService.setOfferTruthSource(offerTruthSource)
 
         val exceptionHandler = TestBlockchainExceptionHandler()
 
@@ -555,29 +558,143 @@ class OfferServiceTests {
 
         val openedOffer = offerTruthSource.offers[expectedOfferId]
 
-        runBlocking {
+        @Serializable
+        data class SecondTestingServerResponse(val offerCancellationTransactionHash: String)
+
+        val secondTestingServerResponse: SecondTestingServerResponse = runBlocking {
             testingServerClient.get(testingServiceUrl) {
                 url {
                     parameters.append("events", "offer-canceled")
                     parameters.append("commutoSwapAddress", testingServerResponse.commutoSwapAddress)
                 }
-            }
+            }.body()
         }
 
         runBlocking {
             withTimeout(20_000) {
                 val encoder = Base64.getEncoder()
+                val appendedEvent = offerCanceledEventRepository.appendedEventChannel.receive()
+                /*
+                Wait for offer to be removed (since TestOfferTruthSource sends an offer to this channel upon removal)
+                 */
                 offerTruthSource.offersChannel.receive()
+                val removedEvent = offerCanceledEventRepository.removedEventChannel.receive()
                 assertFalse(exceptionHandler.gotError)
                 assert(offerTruthSource.offers.isEmpty())
                 assertFalse(openedOffer!!.isCreated.value)
                 assertEquals(OfferState.CANCELED, openedOffer.state)
-                assertEquals(offerCanceledEventRepository.appendedEvent!!.offerID, expectedOfferId)
-                assertEquals(offerCanceledEventRepository.removedEvent!!.offerID, expectedOfferId)
+                assertEquals(expectedOfferId, appendedEvent.offerID)
+                assertEquals(expectedOfferId, removedEvent.offerID)
                 val offerInDatabase = databaseService.getOffer(encoder.encodeToString(expectedOfferIdByteArray))
                 assertEquals(offerInDatabase, null)
             }
         }
+
+        /*
+        Ensure handleOfferCanceledEvent properly handles the cancellation of offers made by the user of this interface
+         */
+        blockchainService.stopListening()
+        val offer = Offer(
+            isCreated = true,
+            isTaken = false,
+            id = expectedOfferId,
+            maker = "0x0000000000000000000000000000000000000000",
+            interfaceID = ByteArray(0),
+            stablecoin = "0x0000000000000000000000000000000000000000",
+            amountLowerBound = BigInteger.ZERO,
+            amountUpperBound = BigInteger.ZERO,
+            securityDepositAmount = BigInteger.ZERO,
+            serviceFeeRate = BigInteger.ZERO,
+            direction = OfferDirection.BUY,
+            settlementMethods = mutableStateListOf(),
+            protocolVersion = BigInteger.ZERO,
+            chainID = BigInteger.valueOf(31337L),
+            havePublicKey = true,
+            isUserMaker = true,
+            state = OfferState.OFFER_OPENED
+        )
+        offer.cancelingOfferState.value = CancelingOfferState.AWAITING_TRANSACTION_CONFIRMATION
+        offer.offerCancellationTransaction = BlockchainTransaction(
+            transactionHash = secondTestingServerResponse.offerCancellationTransactionHash,
+            timeOfCreation = Date(),
+            latestBlockNumberAtCreation = BigInteger.ZERO,
+            type = BlockchainTransactionType.CANCEL_OFFER
+        )
+        val encoder = Base64.getEncoder()
+        val offerForDatabase = DatabaseOffer(
+            id = encoder.encodeToString(expectedOfferId.asByteArray()),
+            isCreated = 1L,
+            isTaken = 0L,
+            maker = offer.maker,
+            interfaceId = encoder.encodeToString(offer.interfaceID),
+            stablecoin = offer.stablecoin,
+            amountLowerBound = offer.amountLowerBound.toString(),
+            amountUpperBound = offer.amountUpperBound.toString(),
+            securityDepositAmount = offer.securityDepositAmount.toString(),
+            serviceFeeRate = offer.serviceFeeRate.toString(),
+            onChainDirection = offer.direction.string,
+            protocolVersion = offer.protocolVersion.toString(),
+            chainID = offer.chainID.toString(),
+            havePublicKey = 1L,
+            isUserMaker = 1L,
+            state = offer.state.asString,
+            cancelingOfferState = offer.cancelingOfferState.value.asString,
+            offerCancellationTransactionHash = offer.offerCancellationTransaction?.transactionHash,
+            offerCancellationTransactionCreationTime = null,
+            offerCancellationTransactionCreationBlockNumber = null,
+        )
+        runBlocking {
+            databaseService.storeOffer(offerForDatabase)
+        }
+
+        val offerCanceledEventRepositoryForMonitoredTxn = TestBlockchainEventRepository()
+        val offerServiceForMonitoredTxn = OfferService(
+            databaseService,
+            keyManagerService,
+            TestSwapService(),
+            BlockchainEventRepository(),
+            BlockchainEventRepository(),
+            offerCanceledEventRepositoryForMonitoredTxn,
+            BlockchainEventRepository(),
+            BlockchainEventRepository(),
+        )
+        val offerTruthSourceForMonitoredTxn = TestOfferTruthSource()
+        offerServiceForMonitoredTxn.setOfferTruthSource(offerTruthSourceForMonitoredTxn)
+        offerTruthSourceForMonitoredTxn.offers[expectedOfferId] = offer
+        val blockchainServiceForMonitoredTxn = BlockchainService(
+            exceptionHandler = exceptionHandler,
+            offerService = offerServiceForMonitoredTxn,
+            swapService = TestSwapService(),
+            web3 = w3,
+            commutoSwapAddress = testingServerResponse.commutoSwapAddress
+        )
+        blockchainServiceForMonitoredTxn.addTransactionToMonitor(transaction = offer.offerCancellationTransaction!!)
+        blockchainServiceForMonitoredTxn.listen()
+
+        runBlocking {
+            withTimeout(20_000) {
+                val appendedEvent = offerCanceledEventRepositoryForMonitoredTxn.appendedEventChannel.receive()
+                /*
+                Wait for offer to be removed (since TestOfferTruthSource sends an offer to this channel upon removal)
+                 */
+                offerTruthSourceForMonitoredTxn.offersChannel.receive()
+                val removedEvent = offerCanceledEventRepositoryForMonitoredTxn.removedEventChannel.receive()
+                assertFalse(exceptionHandler.gotError)
+                assertTrue(offerTruthSourceForMonitoredTxn.offers.isEmpty())
+                assertNull(offerTruthSourceForMonitoredTxn.offers[expectedOfferId])
+                assertFalse(offer.isCreated.value)
+                assertEquals(OfferState.CANCELED, offer.state)
+                assertEquals(CancelingOfferState.COMPLETED, offer.cancelingOfferState.value)
+                assertNull(blockchainServiceForMonitoredTxn
+                    .getMonitoredTransaction(secondTestingServerResponse.offerCancellationTransactionHash))
+                assertEquals(secondTestingServerResponse.offerCancellationTransactionHash,
+                    offer.offerCancellationTransaction!!.transactionHash)
+                assertEquals(expectedOfferId, appendedEvent.offerID)
+                assertEquals(expectedOfferId, removedEvent.offerID)
+                assertNull(databaseService.getOffer(encoder.encodeToString(expectedOfferIdByteArray)))
+            }
+        }
+
     }
 
     /**
