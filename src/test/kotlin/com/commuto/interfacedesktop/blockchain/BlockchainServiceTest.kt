@@ -28,6 +28,7 @@ import java.math.BigInteger
 import java.net.UnknownHostException
 import java.nio.ByteBuffer
 import java.util.*
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
 
 /**
@@ -310,13 +311,19 @@ class BlockchainServiceTest {
     /**
      * Tests [BlockchainService] by ensuring it detects and handles
      * [OfferOpened](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offeropened) and
-     * [OfferTaken](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offertaken) events
-     * for a specific offer properly.
+     * [OfferCanceled](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offercanceled) events
+     * for a specific offer properly. This ensures that such events emitted by transactions not made by this interface
+     * and those emitted by monitored transactions (those that are made by this interface) are detected and handled
+     * properly.
      */
     @Test
     fun testListenOfferOpenedCanceled() {
         @Serializable
-        data class TestingServerResponse(val commutoSwapAddress: String, val offerId: String)
+        data class TestingServerResponse(
+            val commutoSwapAddress: String,
+            val offerId: String,
+            val offerCancellationTransactionHash: String
+        )
 
         val testingServiceUrl = "http://localhost:8546/test_blockchainservice_listen"
         val testingServerClient = HttpClient(OkHttp) {
@@ -339,6 +346,7 @@ class BlockchainServiceTest {
         val offerIdByteBuffer = ByteBuffer.wrap(ByteArray(16))
         offerIdByteBuffer.putLong(expectedOfferId.mostSignificantBits)
         offerIdByteBuffer.putLong(expectedOfferId.leastSignificantBits)
+        val offerCancellationTransactionHash = testingServerResponse.offerCancellationTransactionHash
 
         val w3 = CommutoWeb3j(HttpService(System.getenv("BLOCKCHAIN_NODE")))
 
@@ -369,24 +377,56 @@ class BlockchainServiceTest {
                 throw IllegalStateException("Should not be called")
             }
         }
-        val offerService = TestOfferService()
+        val offerServiceForNonMonitoredTxns = TestOfferService()
 
-        val blockchainService = BlockchainService(
+        val blockchainServiceForNonMonitoredTxns = BlockchainService(
             exceptionHandler = blockchainExceptionHandler,
-            offerService = offerService,
+            offerService = offerServiceForNonMonitoredTxns,
             swapService = TestSwapService(),
             web3 = w3,
             commutoSwapAddress = testingServerResponse.commutoSwapAddress
         )
-        blockchainService.listen()
+        blockchainServiceForNonMonitoredTxns.listen()
         runBlocking {
             withTimeout(30_000) {
-                val receivedOfferOpenedEvent = offerService.offerOpenedEventChannel.receive()
+                val receivedOfferOpenedEvent = offerServiceForNonMonitoredTxns.offerOpenedEventChannel.receive()
                 assertEquals(receivedOfferOpenedEvent.offerID, expectedOfferId)
-                val receivedOfferCanceledEvent = offerService.offerCanceledEventChannel.receive()
+                val receivedOfferCanceledEvent = offerServiceForNonMonitoredTxns.offerCanceledEventChannel.receive()
                 assertEquals(receivedOfferCanceledEvent.offerID, expectedOfferId)
+                assertFalse(blockchainExceptionHandler.gotError)
             }
         }
+        blockchainServiceForNonMonitoredTxns.stopListening()
+
+        val offerServiceForMonitoredTxns = TestOfferService()
+
+        val blockchainServiceForMonitoredTxns = BlockchainService(
+            exceptionHandler = blockchainExceptionHandler,
+            offerService = offerServiceForMonitoredTxns,
+            swapService = TestSwapService(),
+            web3 = w3,
+            commutoSwapAddress = testingServerResponse.commutoSwapAddress
+        )
+        blockchainServiceForMonitoredTxns.addTransactionToMonitor(
+            transaction = BlockchainTransaction(
+                transactionHash = offerCancellationTransactionHash,
+                timeOfCreation = Date(),
+                latestBlockNumberAtCreation = BigInteger.ZERO,
+                type = BlockchainTransactionType.CANCEL_OFFER
+            )
+        )
+        blockchainServiceForMonitoredTxns.listen()
+        runBlocking {
+            withTimeout(30_000) {
+                val receivedOfferOpenedEvent = offerServiceForMonitoredTxns.offerOpenedEventChannel.receive()
+                assertEquals(receivedOfferOpenedEvent.offerID, expectedOfferId)
+                val receivedOfferCanceledEvent = offerServiceForMonitoredTxns.offerCanceledEventChannel.receive()
+                assertEquals(receivedOfferCanceledEvent.offerID, expectedOfferId)
+                assertFalse(blockchainExceptionHandler.gotError)
+                assertNull(blockchainServiceForMonitoredTxns.getMonitoredTransaction(offerCancellationTransactionHash))
+            }
+        }
+
     }
 
     /**

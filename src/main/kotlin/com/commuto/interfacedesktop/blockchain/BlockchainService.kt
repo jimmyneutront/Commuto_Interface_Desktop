@@ -166,14 +166,12 @@ class BlockchainService (private val exceptionHandler: BlockchainExceptionNotifi
     }
 
     /**
-     * Sets [runLoop] to false to prevent the listen loop from being executed again and cancels
-     * [listenJob].
+     * Sets [runLoop] to false to prevent the listen loop from being executed again.
      */
     fun stopListening() {
-        logger.info("Stopping listen loop and canceling listen job")
+        logger.info("Stopping listen loop")
         runLoop = false
-        listenJob.cancel()
-        logger.info("Stopped listen loop and canceled listen job")
+        logger.info("Stopped listen loop")
     }
 
     /**
