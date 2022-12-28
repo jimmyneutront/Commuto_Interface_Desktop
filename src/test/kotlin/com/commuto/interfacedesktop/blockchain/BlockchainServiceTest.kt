@@ -214,6 +214,14 @@ class BlockchainServiceTest {
             web3 = w3,
             commutoSwapAddress = testingServerResponse.commutoSwapAddress
         )
+        blockchainService.addTransactionToMonitor(
+            transaction = BlockchainTransaction(
+                transactionHash = failedTransactionHash,
+                timeOfCreation = Date(),
+                latestBlockNumberAtCreation = BigInteger.ZERO,
+                type = BlockchainTransactionType.CANCEL_OFFER
+            )
+        )
         blockchainService.listen()
         runBlocking {
             withTimeout(30_000) {
@@ -221,7 +229,6 @@ class BlockchainServiceTest {
                 offerService.transactionFailureExceptionChannel.receive()
                 assertEquals(BlockchainTransactionType.CANCEL_OFFER, failedTransaction.type)
                 assertEquals(failedTransactionHash, failedTransaction.transactionHash)
-                assertNull(blockchainService.getMonitoredTransaction(failedTransactionHash))
             }
         }
     }
