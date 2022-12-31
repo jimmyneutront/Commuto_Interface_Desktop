@@ -41,6 +41,10 @@ class DatabaseServiceTest {
             "a_tx_hash_here",
             "a_time_here",
             -1,
+            "an_editingOfferState_here",
+            "a_tx_hash_here",
+            "a_time_here",
+            -1,
         )
         databaseService.storeOffer(offerToStore)
         val anotherOfferToStore = Offer(
@@ -61,6 +65,10 @@ class DatabaseServiceTest {
             0L,
             "a_state_here",
             "a_cancelingOfferState_here",
+            "a_tx_hash_here",
+            "a_time_here",
+            -1,
+            "an_editingOfferState_here",
             "a_tx_hash_here",
             "a_time_here",
             -1,
@@ -98,6 +106,10 @@ class DatabaseServiceTest {
             "a_tx_hash_here",
             "a_time_here",
             -1,
+            "an_editingOfferState_here",
+            "a_tx_hash_here",
+            "a_time_here",
+            -1,
         )
         databaseService.storeOffer(offerToStore)
         databaseService.updateOfferHavePublicKey("a_uuid", "a_chain_id", true)
@@ -128,6 +140,10 @@ class DatabaseServiceTest {
             0L,
             "a_state_here",
             "a_cancelingOfferState_here",
+            "a_tx_hash_here",
+            "a_time_here",
+            -1,
+            "an_editingOfferState_here",
             "a_tx_hash_here",
             "a_time_here",
             -1,
@@ -164,6 +180,10 @@ class DatabaseServiceTest {
             "a_tx_hash_here",
             "a_time_here",
             -1,
+            "an_editingOfferState_here",
+            "a_tx_hash_here",
+            "a_time_here",
+            -1,
         )
         databaseService.storeOffer(offerToStore)
         databaseService.updateCancelingOfferState(
@@ -176,8 +196,8 @@ class DatabaseServiceTest {
     }
 
     /**
-     * Ensures that code to update a persistently stored offer's [Offer.offerCancellationTransactionHash] property works
-     * properly.
+     * Ensures that code to update a persistently stored offer's [Offer.offerCancellationTransactionHash] and related
+     * properties works properly.
      */
     @Test
     fun testUpdateOfferCancellationData() = runBlocking {
@@ -202,6 +222,10 @@ class DatabaseServiceTest {
             null,
             null,
             null,
+            "an_editingOfferState_here",
+            "a_tx_hash_here",
+            "a_time_here",
+            -1,
         )
         databaseService.storeOffer(offerToStore)
         val returnedOfferBeforeUpdate = databaseService.getOffer(id = "a_uuid")
@@ -219,6 +243,97 @@ class DatabaseServiceTest {
         assertEquals("a_tx_hash_here", returnedOfferAfterUpdate!!.offerCancellationTransactionHash)
         assertEquals("a_creation_time", returnedOfferAfterUpdate.offerCancellationTransactionCreationTime)
         assertEquals(-1L, returnedOfferAfterUpdate.offerCancellationTransactionCreationBlockNumber)
+    }
+
+    /**
+     * Ensures that code to update a persistently stored offer's [Offer.editingOfferState] property works properly.
+     */
+    @Test
+    fun testUpdateEditingOfferState() = runBlocking {
+        val offerToStore = Offer(
+            "a_uuid",
+            1L,
+            0L,
+            "maker_address",
+            "interface_id",
+            "stablecoin_address",
+            "lower_bound_amount",
+            "upper_bound_amount",
+            "security_deposit_amount",
+            "service_fee_rate",
+            "direction",
+            "some_version",
+            "a_chain_id",
+            0L,
+            0L,
+            "a_state_here",
+            "a_cancelingOfferState_here",
+            "a_tx_hash_here",
+            "a_time_here",
+            -1,
+            "an_editingOfferState_here",
+            "a_tx_hash_here",
+            "a_time_here",
+            -1,
+        )
+        databaseService.storeOffer(offerToStore)
+        databaseService.updateEditingOfferState(
+            offerID = "a_uuid",
+            chainID = "a_chain_id",
+            state = "a_new_editingOfferState_here",
+        )
+        val returnedOffer = databaseService.getOffer(id = "a_uuid")
+        assertEquals("a_new_editingOfferState_here", returnedOffer!!.editingOfferState)
+    }
+
+    /**
+     * Ensures that code to update a persistently stored offer's [Offer.offerEditingTransactionHash] and related
+     * properties works properly.
+     */
+    @Test
+    fun testUpdateOfferEditingData() = runBlocking {
+        val offerToStore = Offer(
+            "a_uuid",
+            1L,
+            0L,
+            "maker_address",
+            "interface_id",
+            "stablecoin_address",
+            "lower_bound_amount",
+            "upper_bound_amount",
+            "security_deposit_amount",
+            "service_fee_rate",
+            "direction",
+            "some_version",
+            "a_chain_id",
+            0L,
+            0L,
+            "a_state_here",
+            "a_cancelingOfferState_here",
+            "a_tx_hash_here",
+            "a_time_here",
+            -1,
+            "an_editingOfferState_here",
+            null,
+            null,
+            null,
+        )
+        databaseService.storeOffer(offerToStore)
+        val returnedOfferBeforeUpdate = databaseService.getOffer(id = "a_uuid")
+        assertNull(returnedOfferBeforeUpdate!!.offerEditingTransactionHash)
+        assertNull(returnedOfferBeforeUpdate.offerEditingTransactionCreationTime)
+        assertNull(returnedOfferBeforeUpdate.offerEditingTransactionCreationBlockNumber)
+        databaseService.updateOfferEditingData(
+            offerID = "a_uuid",
+            chainID = "a_chain_id",
+            transactionHash = "a_tx_hash_here",
+            creationTime = "a_creation_time",
+            blockNumber = -1L
+        )
+        val returnedOfferAfterUpdate = databaseService.getOffer(id = "a_uuid")
+        assertEquals("a_tx_hash_here", returnedOfferAfterUpdate!!.offerEditingTransactionHash)
+        assertEquals("a_creation_time", returnedOfferAfterUpdate.offerEditingTransactionCreationTime)
+        assertEquals(-1L, returnedOfferAfterUpdate.offerEditingTransactionCreationBlockNumber)
     }
 
     /**

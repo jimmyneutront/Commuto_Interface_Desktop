@@ -253,6 +253,10 @@ class OfferService (
                     offerCancellationTransactionHash = newOffer.offerCancellationTransaction?.transactionHash,
                     offerCancellationTransactionCreationTime = null,
                     offerCancellationTransactionCreationBlockNumber = null,
+                    editingOfferState = newOffer.editingOfferState.value.asString,
+                    offerEditingTransactionHash = newOffer.offerEditingTransaction?.transactionHash,
+                    offerEditingTransactionCreationTime = null,
+                    offerEditingTransactionCreationBlockNumber = null,
                 )
                 databaseService.storeOffer(offerForDatabase)
                 val settlementMethodStrings = mutableListOf<Pair<String, String?>>()
@@ -436,11 +440,9 @@ class OfferService (
                     latestBlockNumberAtCreation = blockchainService.newestBlockNum,
                     type = BlockchainTransactionType.CANCEL_OFFER,
                 )
-                val dateFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm'Z'")
-                dateFormat.timeZone = TimeZone.getTimeZone("UTC")
-                val dateString = dateFormat.format(blockchainTransactionForOfferCancellation.timeOfCreation)
-                logger.info("cancelOffer: persistently storing tx hash ${blockchainTransactionForOfferCancellation
-                    .transactionHash} for ${offer.id}")
+                val dateString = createDateString(blockchainTransactionForOfferCancellation.timeOfCreation)
+                logger.info("cancelOffer: persistently storing offer cancellation data for ${offer.id}, including tx " +
+                        "hash ${blockchainTransactionForOfferCancellation.transactionHash} for ${offer.id}")
                 val encoder = Base64.getEncoder()
                 databaseService.updateOfferCancellationData(
                     offerID = encoder.encodeToString(offer.id.asByteArray()),
@@ -565,6 +567,238 @@ class OfferService (
                 logger.info("editOffer: successfully edited $offerID")
             } catch (exception: Exception) {
                 logger.error("editOffer: encountered error while editing $offerID", exception)
+                throw exception
+            }
+        }
+    }
+
+    /**
+     * Attempts to create an [RawTransaction] that will edit an
+     * [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer) made by the user of this interface
+     * with the ID specified by [offerID] and on the blockchain specified by [chainID], using the settlement methods
+     * contained in [newSettlementMethods].
+     *
+     * This serializes [newSettlementMethods] and obtains the desired on-chain data from the serialized result, creates
+     * an [OfferStruct] with these results and then calls [BlockchainService.createEditOfferTransaction], passing
+     * [offerID], [chainID] and the created [OfferStruct].
+     *
+     * @param offerID The ID of the [Offer] to be edited.
+     * @param chainID The ID of the blockchain on which the [Offer] exists.
+     * @param newSettlementMethods The new [SettlementMethod]s with which the offer will be updated.
+     *
+     * @return A [RawTransaction] capable of editing the offer specified by [offerID] on the blockchain specified by
+     * [chainID] using the settlement methods contained in [newSettlementMethods].
+     */
+    suspend fun createEditOfferTransaction(
+        offerID: UUID,
+        chainID: BigInteger,
+        newSettlementMethods: List<SettlementMethod>
+    ): RawTransaction {
+        return withContext(Dispatchers.IO) {
+            logger.info("createEditOfferTransaction: creating for $offerID")
+            logger.info("createEditOfferTransaction: serializing settlement methods for $offerID")
+            val onChainSettlementMethods = try {
+                val serializedSettlementMethodsAndPrivateDetails = newSettlementMethods.map {
+                    Pair(Json.encodeToString(it), it.privateData)
+                }
+                serializedSettlementMethodsAndPrivateDetails.map {
+                    it.first.encodeToByteArray()
+                }
+            } catch (exception: Exception) {
+                logger.error("createEditOfferTransaction: encountered exception serializing settlement methods for " +
+                        "$offerID", exception)
+                throw exception
+            }
+            /*
+            Since editOffer only uses the settlement methods of the passed Offer struct, we put meaningless values in
+            all other properties of the passed struct.
+             */
+            val offerStruct = OfferStruct(
+                isCreated = false,
+                isTaken = false,
+                maker = "0x0000000000000000000000000000000000000000",
+                interfaceID = ByteArray(0),
+                stablecoin = "0x0000000000000000000000000000000000000000",
+                amountLowerBound = BigInteger.ZERO,
+                amountUpperBound = BigInteger.ZERO,
+                securityDepositAmount = BigInteger.ZERO,
+                serviceFeeRate = BigInteger.ZERO,
+                direction = BigInteger.ZERO,
+                settlementMethods = onChainSettlementMethods,
+                protocolVersion = BigInteger.ZERO,
+                chainID = BigInteger.ZERO
+            )
+            logger.info("createEditOfferTransaction: creating for $offerID")
+            blockchainService.createEditOfferTransaction(
+                offerID = offerID,
+                chainID = chainID,
+                offerStruct = offerStruct
+            )
+        }
+    }
+
+    /**
+     * Attempts to edit an [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer) made by the user
+     * of this interface.
+     *
+     * On the IO coroutine dispatcher, this ensures that the offer is not taken, canceled, or already being edited, and
+     * that [newSettlementMethods] can be serialized. Then, this creates another [RawTransaction] to edit [offer] using
+     * the serialized settlement method data, and then ensures that the data of this transaction matches the data of
+     * [offerEditingTransaction]. (If they do not match, then [offerEditingTransaction] was not created with the
+     * settlement methods contained in [newSettlementMethods].) Then this signs [offerEditingTransaction] and creates a
+     * [BlockchainTransaction] to wrap it. Then this persistently stores the offer editing data for said
+     * [BlockchainTransaction], persistently stores the pending settlement methods, and persistently updates the editing
+     * offer state of [offer] to [EditingOfferState.SENDING_TRANSACTION]`. Then, on the main coroutine dispatcher, this
+     * updates the [Offer.editingOfferState] property of [offer] to [EditingOfferState.SENDING_TRANSACTION] and sets the
+     * [Offer.offerEditingTransaction] property of [offer] to said [BlockchainTransaction]. Then, on the IO coroutine
+     * dispatcher, this calls [BlockchainService.sendTransaction], passing said [BlockchainTransaction]. When this call
+     * returns, this persistently updates the editing offer state of [offer] to
+     * [EditingOfferState.AWAITING_TRANSACTION_CONFIRMATION], then on the main coroutine dispatcher updates the
+     * [Offer.editingOfferState] property of [offer] to [EditingOfferState.AWAITING_TRANSACTION_CONFIRMATION].
+     *
+     * @param offer The [Offer] being edited.
+     * @param newSettlementMethods The [SettlementMethod]s with which [offerEditingTransaction] should have been made,
+     * and with which [offer] will be edited.
+     * @param offerEditingTransaction An optional [RawTransaction] that can edit [offer] using the [SettlementMethod]s
+     * contained in [newSettlementMethods].
+     *
+     * @throws [OfferServiceException] if [offer] is already taken or already canceled, or already being edited, if
+     * [offerEditingTransaction] is `null` or if the data of [offerEditingTransaction] does not match that of the
+     * transaction this function creates using [newSettlementMethods].
+     */
+    suspend fun editOffer(
+        offer: Offer,
+        newSettlementMethods: List<SettlementMethod>,
+        offerEditingTransaction: RawTransaction?
+    ) {
+        withContext(Dispatchers.IO) {
+            logger.info("editOffer: editing ${offer.id}")
+            if (offer.isTaken.value) {
+                throw OfferServiceException(message = "Offer ${offer.id} is already taken.")
+            }
+            if (!offer.isCreated.value) {
+                throw OfferServiceException(message = "Offer ${offer.id} is already canceled.")
+            }
+            if (offer.editingOfferState.value != EditingOfferState.VALIDATING) {
+                throw OfferServiceException(message = "Offer ${offer.id} is already being edited.")
+            }
+            try {
+                val serializedSettlementMethodsAndPrivateDetails = try {
+                    newSettlementMethods.map {
+                        Pair(Json.encodeToString(it), it.privateData)
+                    }
+                } catch (exception: Exception) {
+                    logger.error("editOffer: encountered exception serializing settlement methods for ${offer.id}",
+                        exception)
+                    throw exception
+                }
+                logger.info("editOffer: recreating EthereumTransaction to edit ${offer.id} to ensure " +
+                        "offerEditingTransaction was created with the contents of newSettlementMethods")
+                val onChainSettlementMethods = serializedSettlementMethodsAndPrivateDetails.map {
+                    it.first.encodeToByteArray()
+                }
+                /*
+                Since editOffer only uses the settlement methods of the passed Offer struct, we put meaningless values in
+                all other properties of the passed struct.
+                 */
+                val offerStruct = OfferStruct(
+                    isCreated = false,
+                    isTaken = false,
+                    maker = "0x0000000000000000000000000000000000000000",
+                    interfaceID = ByteArray(0),
+                    stablecoin = "0x0000000000000000000000000000000000000000",
+                    amountLowerBound = BigInteger.ZERO,
+                    amountUpperBound = BigInteger.ZERO,
+                    securityDepositAmount = BigInteger.ZERO,
+                    serviceFeeRate = BigInteger.ZERO,
+                    direction = BigInteger.ZERO,
+                    settlementMethods = onChainSettlementMethods,
+                    protocolVersion = BigInteger.ZERO,
+                    chainID = BigInteger.ZERO
+                )
+                val recreatedOfferEditingTransaction = blockchainService.createEditOfferTransaction(
+                    offerID = offer.id,
+                    chainID = offer.chainID,
+                    offerStruct = offerStruct
+                )
+                if (offerEditingTransaction == null) {
+                    throw OfferServiceException(message = "Transaction was null during editOffer call for ${offer.id}")
+                }
+                if (recreatedOfferEditingTransaction.data != offerEditingTransaction.data) {
+                    throw OfferServiceException(message = "Data of offerEditingTransaction did not match that of " +
+                            "transaction created with newSettlementMethods")
+                }
+                logger.info("editOffer: signing transaction for ${offer.id}")
+                val signedTransactionData = blockchainService.signTransaction(
+                    transaction = offerEditingTransaction,
+                    chainID = offer.chainID
+                )
+                val signedTransactionHex = Numeric.toHexString(signedTransactionData)
+                val transactionHash = Hash.sha3(signedTransactionHex)
+                val blockchainTransactionForOfferEditing = BlockchainTransaction(
+                    transaction = offerEditingTransaction,
+                    transactionHash = transactionHash,
+                    latestBlockNumberAtCreation = blockchainService.newestBlockNum,
+                    type = BlockchainTransactionType.EDIT_OFFER,
+                )
+                val dateString = createDateString(blockchainTransactionForOfferEditing.timeOfCreation)
+                logger.info("editOffer: persistently storing offer editing data for ${offer.id}, including tx " +
+                        "hash ${blockchainTransactionForOfferEditing.transactionHash} for ${offer.id}")
+                val encoder = Base64.getEncoder()
+                databaseService.updateOfferEditingData(
+                    offerID = encoder.encodeToString(offer.id.asByteArray()),
+                    chainID = offer.chainID.toString(),
+                    transactionHash = blockchainTransactionForOfferEditing.transactionHash,
+                    creationTime = dateString,
+                    blockNumber = blockchainTransactionForOfferEditing.latestBlockNumberAtCreation.toLong()
+                )
+                // TODO: persistently store new settlement methods along with hash of transaction for offer editing here,
+                //  rather than offer ID and chain ID
+                databaseService.storePendingOfferSettlementMethods(
+                    offerID = encoder.encodeToString(offer.id.asByteArray()),
+                    chainID = offer.chainID.toString(),
+                    pendingSettlementMethods = serializedSettlementMethodsAndPrivateDetails
+                )
+                logger.info("editOffer: persistently updating editingOfferState for ${offer.id} to sendingTransaction")
+                databaseService.updateEditingOfferState(
+                    offerID = encoder.encodeToString(offer.id.asByteArray()),
+                    chainID = offer.chainID.toString(),
+                    state = EditingOfferState.SENDING_TRANSACTION.asString,
+                )
+                logger.info("editOffer: updating editingOfferState for ${offer.id} to sendingTransaction and storing tx " +
+                        "hash ${blockchainTransactionForOfferEditing.transactionHash} in offer")
+                withContext(Dispatchers.Main) {
+                    offer.editingOfferState.value = EditingOfferState.SENDING_TRANSACTION
+                    offer.offerEditingTransaction = blockchainTransactionForOfferEditing
+                }
+                logger.info("editOffer: sending $transactionHash for ${offer.id}")
+                blockchainService.sendTransaction(
+                    transaction = blockchainTransactionForOfferEditing,
+                    signedRawTransactionDataAsHex = signedTransactionHex,
+                    chainID = offer.chainID
+                )
+                logger.info("persistently updating editingOfferState of ${offer.id} to AWAITING_TRANSACTION_CONFIRMATION")
+                databaseService.updateEditingOfferState(
+                    offerID = encoder.encodeToString(offer.id.asByteArray()),
+                    chainID = offer.chainID.toString(),
+                    state = EditingOfferState.AWAITING_TRANSACTION_CONFIRMATION.asString
+                )
+                withContext(Dispatchers.Main) {
+                    offer.editingOfferState.value = EditingOfferState.AWAITING_TRANSACTION_CONFIRMATION
+                }
+            } catch (exception: Exception) {
+                logger.error("editOffer: encountered exception while editing ${offer.id}, setting editingOfferState " +
+                        "to EXCEPTION", exception)
+                val encoder = Base64.getEncoder()
+                databaseService.updateEditingOfferState(
+                    offerID = encoder.encodeToString(offer.id.asByteArray()),
+                    chainID = offer.chainID.toString(),
+                    state = EditingOfferState.EXCEPTION.asString
+                )
+                offer.editingOfferException = exception
+                withContext(Dispatchers.Main) {
+                    offer.editingOfferState.value = EditingOfferState.EXCEPTION
+                }
                 throw exception
             }
         }
@@ -782,6 +1016,16 @@ class OfferService (
     }
 
     /**
+     * Creates a [String] representation of [Date] in the form "yyyy-MM-dd'T'HH:mm'Z'" where Z indicates that this date
+     * and time stamp is in the UTC time zone.
+     */
+    private fun createDateString(date: Date): String {
+        val dateFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm'Z'")
+        dateFormat.timeZone = TimeZone.getTimeZone("UTC")
+        return dateFormat.format(date)
+    }
+
+    /**
      * The function called by [BlockchainService] to notify [OfferService] that a monitored offer-related
      * [BlockchainTransaction] has failed (either has been confirmed and failed, or has been dropped.)
      *
@@ -790,6 +1034,13 @@ class OfferService (
      * [CancelingOfferState.EXCEPTION] and on the main coroutine dispatcher sets its [Offer.cancelingOfferException]
      * property to [exception] updates its [Offer.cancelingOfferState] property to [CancelingOfferState.EXCEPTION].
      *
+     * If [transaction] is of type [BlockchainTransactionType.EDIT_OFFER], then this finds the offer with the
+     * corresponding editing transaction hash, persistently updates its editing offer state to
+     * [EditingOfferState.EXCEPTION] and on the main coroutine dispatcher clears its list of selected settlement
+     * methods, sets its [Offer.editingOfferException] property to [exception], and updates its
+     * [Offer.editingOfferState] property to [EditingOfferState.EXCEPTION]. Then this deletes the offer's pending
+     * settlement methods from persistent storage.
+     *
      * @param transaction The [BlockchainTransaction] wrapping the on-chain transaction that has failed.
      * @param exception A [BlockchainTransactionException] describing why the on-chain transaction has failed.
      */
@@ -797,11 +1048,11 @@ class OfferService (
         transaction: BlockchainTransaction,
         exception: BlockchainTransactionException
     ) {
-        logger.warn("handleFailedTransaction: handling ${transaction.transactionHash} with exception " +
-                exception.message, exception)
+        logger.warn("handleFailedTransaction: handling ${transaction.transactionHash} of type ${transaction.type
+            .asString} with exception ${exception.message}", exception)
+        val encoder = Base64.getEncoder()
         when (transaction.type) {
             BlockchainTransactionType.CANCEL_OFFER -> {
-                logger.warn("handleFailedTransaction: ${transaction.transactionHash} is of type cancelOffer")
                 val offer = offerTruthSource.offers.firstNotNullOfOrNull { uuidOfferEntry ->
                     if (uuidOfferEntry.value.offerCancellationTransaction?.transactionHash
                         .equals(transaction.transactionHash)) {
@@ -814,7 +1065,6 @@ class OfferService (
                     logger.warn("handleFailedTransaction: found offer ${offer.id} on ${offer.chainID} with " +
                             "cancellation transaction ${transaction.transactionHash} updating cancelingOfferState to " +
                             "EXCEPTION in persistent storage")
-                    val encoder = Base64.getEncoder()
                     databaseService.updateCancelingOfferState(
                         offerID = encoder.encodeToString(offer.id.asByteArray()),
                         chainID = offer.chainID.toString(),
@@ -829,6 +1079,41 @@ class OfferService (
                 } else {
                     logger.warn("handleFailedTransaction: offer with cancellation transaction " +
                             "${transaction.transactionHash} not found in offerTruthSource")
+                }
+            }
+            BlockchainTransactionType.EDIT_OFFER -> {
+                val offer = offerTruthSource.offers.firstNotNullOfOrNull { uuidOfferEntry ->
+                    if (uuidOfferEntry.value.offerEditingTransaction?.transactionHash
+                        .equals(transaction.transactionHash)) {
+                        uuidOfferEntry.value
+                    } else {
+                        null
+                    }
+                }
+                if (offer != null) {
+                    logger.warn("handleFailedTransaction: found offer ${offer.id} on ${offer.chainID} with editing " +
+                            "transaction ${transaction.transactionHash}, updating editingOfferState to EXCEPTION in " +
+                            "persistent storage")
+                    databaseService.updateEditingOfferState(
+                        offerID = encoder.encodeToString(offer.id.asByteArray()),
+                        chainID = offer.chainID.toString(),
+                        state = EditingOfferState.EXCEPTION.asString,
+                    )
+                    logger.warn("handleFailedTransaction: setting editingOfferException and updating " +
+                            "editingOfferState to EXCEPTION for ${offer.id} and clearing selected settlement methods")
+                    withContext(Dispatchers.Main) {
+                        offer.selectedSettlementMethods.clear()
+                        offer.editingOfferException = exception
+                        offer.editingOfferState.value = EditingOfferState.EXCEPTION
+                    }
+                    logger.warn("handleFailedTransaction: deleting pending settlement methods for ${offer.id}")
+                    databaseService.deletePendingOfferSettlementMethods(
+                        offerID = encoder.encodeToString(offer.id.asByteArray()),
+                        chainID = offer.chainID.toString()
+                    )
+                } else {
+                    logger.warn("handleFailedTransaction: offer with editing transaction ${transaction
+                        .transactionHash} not found in offerTruthSource")
                 }
             }
         }
@@ -956,9 +1241,11 @@ class OfferService (
             val isUserMakerLong = if (offer.isUserMaker) 1L else 0L
             val offerCancellationTransactionCreationTime = offer.offerCancellationTransaction?.timeOfCreation
             val offerCancellationTransactionCreationTimeString = if (offerCancellationTransactionCreationTime != null) {
-                val dateFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm'Z'")
-                dateFormat.timeZone = TimeZone.getTimeZone("UTC")
-                dateFormat.format(offerCancellationTransactionCreationTime)
+                createDateString(offerCancellationTransactionCreationTime)
+            } else { null }
+            val offerEditingTransactionCreationTime = offer.offerEditingTransaction?.timeOfCreation
+            val offerEditingTransactionCreationTimeString = if (offerEditingTransactionCreationTime != null) {
+                createDateString(offerEditingTransactionCreationTime)
             } else { null }
             val offerForDatabase = DatabaseOffer(
                 isCreated = isCreated,
@@ -982,6 +1269,11 @@ class OfferService (
                 offerCancellationTransactionCreationTime = offerCancellationTransactionCreationTimeString,
                 offerCancellationTransactionCreationBlockNumber =
                 offer.offerCancellationTransaction?.latestBlockNumberAtCreation?.toLong(),
+                editingOfferState = offer.editingOfferState.value.asString,
+                offerEditingTransactionHash = offer.offerEditingTransaction?.transactionHash,
+                offerEditingTransactionCreationTime = offerEditingTransactionCreationTimeString,
+                offerEditingTransactionCreationBlockNumber =
+                offer.offerEditingTransaction?.latestBlockNumberAtCreation?.toLong()
             )
             databaseService.storeOffer(offerForDatabase)
             logger.info("handleOfferOpenedEvent: persistently stored offer ${offer.id}")
@@ -1016,13 +1308,21 @@ class OfferService (
      * (matching meaning that price, currency, and fiat currency values are equal; obviously on-chain settlement methods
      * will have no private data). If, for a given [SettlementMethod] in the latter list, a matching [SettlementMethod]
      * (which definitely has associated private data) is found in the former list, the matching element in the former
-     * list is added to a third list of [SettlementMethod]s. Once this iteration task is complete, this persistently
-     * stores the third list of new [SettlementMethod]s as the offer's settlement methods, and sets the corresponding
-     * [Offer]'s settlement methods equal to the contents of this list on the main coroutine dispatcher. If the user of
-     * this interface is not the maker of the offer being edited, this creates a new list of [SettlementMethod]s by
-     * deserializing the settlement method data in the new on-chain offer data, persistently stores the list of new
-     * [SettlementMethod]`s as the offer's settlement methods, and sets the corresponding [Offer]'s settlement methods
-     * equal to the contents of this list on the main coroutine dispatcher.
+     * list is added to a third list of [SettlementMethod]s. Then, this persistently stores the third list of new
+     * [SettlementMethod]s as the offer's settlement methods. Then this checks whether the corresponding [Offer] has a
+     * non-`null` [Offer.offerEditingTransaction] property. If it does, then this compares the transaction hash of the
+     * value of that property to that of [event]. If they match, this sets a flag indicating that these transaction
+     * hashes match. If this flag is set, this persistently updates [Offer]s [Offer.editingOfferState] property to
+     * [EditingOfferState.COMPLETED]. Then, on the main coroutine dispatcher, if the matching transaction hash flag has
+     * been set, this updates the corresponding [Offer]'s [Offer.editingOfferState] to [EditingOfferState.COMPLETED] and
+     * clears the [Offer]'s [Offer.selectedSettlementMethods] list. Then, still on the main coroutine dispatcher,
+     * regardless of the status of the flag, this sets the corresponding [Offer]'s settlement methods equal to the
+     * contents of the third list of new [SettlementMethod]s.
+     *
+     * If the user of this interface is not the maker of the offer being edited, this creates a new list of
+     * [SettlementMethod]s by deserializing the settlement method data in the new on-chain offer data, persistently
+     * stores the list of new [SettlementMethod]`s as the offer's settlement methods, and sets the corresponding
+     * [Offer]'s settlement methods equal to the contents of this list on the main coroutine dispatcher.
      *
      * @param event The [OfferEditedEvent] of which [OfferService] is being notified.
      *
@@ -1050,7 +1350,7 @@ class OfferService (
         val offerIDB64String = encoder.encodeToString(event.offerID.asByteArray())
         val chainIDString = event.chainID.toString()
         val offer = offerTruthSource.offers[event.offerID]
-        if (offer?.isUserMaker == true) {
+        if (offer != null && offer.isUserMaker) {
             logger.info("handleOfferEditedEvent: ${event.offerID} was made by interface user")
             /*
             The user of this interface is the maker of this offer, and therefore we should have pending settlement
@@ -1133,7 +1433,36 @@ class OfferService (
             databaseService.deletePendingOfferSettlementMethods(offerID = offerIDB64String, chainID = chainIDString)
             logger.info("handleOfferEditedEvent: removed pending settlement methods from persistent storage " +
                     "for ${event.offerID}")
+            var gotExpectedOfferEditingTransaction = false
+            val offerEditingTransaction = offer.offerEditingTransaction
+            if (offerEditingTransaction != null) {
+                if (offerEditingTransaction.transactionHash == event.transactionHash) {
+                    logger.info("handleOfferEditedEvent: tx hash ${event.transactionHash} of event matches that " +
+                            "for offer ${event.offerID}: ${offerEditingTransaction.transactionHash}")
+                    gotExpectedOfferEditingTransaction = true
+                } else {
+                    logger.warn("handleOfferEditedEvent: tx hash ${event.transactionHash} does not match that for " +
+                            "offer ${event.offerID}: ${offerEditingTransaction.transactionHash}")
+                }
+            } else {
+                logger.warn("handleOfferEditedEvent: offer ${event.offerID} made by the interface user has no offer " +
+                        "editing transaction")
+            }
+            if (gotExpectedOfferEditingTransaction) {
+                logger.info("handleOfferEditedEvent: persistently updating editing offer state of " +
+                        "${event.offerID} to COMPLETED")
+                databaseService.updateEditingOfferState(
+                    offerID = encoder.encodeToString(event.offerID.asByteArray()),
+                    chainID = event.chainID.toString(),
+                    state = EditingOfferState.COMPLETED.asString
+                )
+            }
+            logger.info("handleOfferEditedEvent: updating offer ${event.offerID} to offerTruthSource")
             withContext(Dispatchers.Main) {
+                if (gotExpectedOfferEditingTransaction) {
+                    offer.editingOfferState.value = EditingOfferState.COMPLETED
+                    offer.selectedSettlementMethods.clear()
+                }
                 offer.updateSettlementMethods(settlementMethods = newSettlementMethods)
             }
             logger.info("handleOfferEditedEvent: updated offer ${event.offerID} in offerTruthSource")

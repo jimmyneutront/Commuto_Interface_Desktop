@@ -59,12 +59,12 @@ fun OfferComposable(
     val offer = offerTruthSource.offers[id]
 
     /**
-     * Indicates whether we are showing the sheet that allows the user to take the offer, if they are not the maker.
+     * Indicates whether we are showing the dialog that allows the user to take the offer, if they are not the maker.
      */
     val isShowingTakeOfferDialog = remember { mutableStateOf(false) }
 
     /**
-     * Indicates whether we are showing the sheet that allows the user to cancel the offer, if they are the maker.
+     * Indicates whether we are showing the dialog that allows the user to cancel the offer, if they are the maker.
      */
     val isShowingCancelOfferDialog = remember { mutableStateOf(false) }
 
@@ -229,8 +229,10 @@ fun OfferComposable(
                             focusedOfferComposable.value = FocusedOfferComposable.EditOfferComposable
                         },
                         content = {
-                            val editOfferButtonLabel = if (offer.editingOfferState.value != EditingOfferState.EDITING)
-                                "Edit Offer" else "Editing Offer"
+                            val editOfferButtonLabel = if (offer.editingOfferState.value == EditingOfferState.NONE ||
+                                offer.editingOfferState.value == EditingOfferState.EXCEPTION ||
+                                offer.editingOfferState.value == EditingOfferState.COMPLETED) "Edit Offer" else
+                                    "Editing Offer"
                             Text(
                                 text = editOfferButtonLabel,
                                 style = MaterialTheme.typography.h4,

@@ -93,9 +93,44 @@ interface UIOfferTruthSource: OfferTruthSource {
      * @param newSettlementMethods The new [List] of settlement methods that the maker has selected, indicating that
      * they are willing to use them to send/receive fiat currency for this offer.
      */
+    @Deprecated("Use the new offer pipeline with improved transaction state management")
     fun editOffer(
         offer: Offer,
         newSettlementMethods: List<SettlementMethod>
+    )
+
+    /**
+     * Attempts to create a [RawTransaction] to edit [offer] using validated [newSettlementMethods], which should be
+     * made by the user of this interface.
+     *
+     * @param offer The [Offer] to be edited.
+     * @param newSettlementMethods A list of [SettlementMethod]s with which [offer] will be edited after they are
+     * validated.
+     * @param createdTransactionHandler A lambda that will accept and handle the created [RawTransaction].
+     * @param exceptionHandler A lambda that will accept and handle any exception that occurs during the transaction
+     * creation process.
+     */
+    fun createEditOfferTransaction(
+        offer: Offer,
+        newSettlementMethods: List<SettlementMethod>,
+        createdTransactionHandler: (RawTransaction) -> Unit,
+        exceptionHandler: (Exception) -> Unit
+    )
+
+    /**
+     * Attempts to edit [offer] using [offerEditingTransaction], which should have been created using the
+     * [SettlementMethod]s in [newSettlementMethods].
+     *
+     * @param offer The [Offer] to be edited.
+     * @param newSettlementMethods The [SettlementMethod]s with which [offerEditingTransaction] should have been
+     * created.
+     * @param offerEditingTransaction An optional [RawTransaction] that can edit [offer] using the [SettlementMethod]s
+     * contained in [newSettlementMethods].
+     */
+    fun editOffer(
+        offer: Offer,
+        newSettlementMethods: List<SettlementMethod>,
+        offerEditingTransaction: RawTransaction?
     )
 
     /**

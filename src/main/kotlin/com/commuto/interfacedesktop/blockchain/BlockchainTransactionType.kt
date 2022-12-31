@@ -6,7 +6,18 @@ package com.commuto.interfacedesktop.blockchain
  *
  * @property CANCEL_OFFER Indicates that an [BlockchainTransaction] cancels an open
  * [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer).
+ * @property EDIT_OFFER Indicates that a [BlockchainTransaction] edits an open
+ * [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer).
+ * @property asString A human-readable string describing an instance of this type.
  */
 enum class BlockchainTransactionType {
-    CANCEL_OFFER;
+    CANCEL_OFFER,
+    EDIT_OFFER;
+
+    val asString: String
+        get() = when(this) {
+            CANCEL_OFFER -> "cancelOffer"
+            EDIT_OFFER -> "editOffer"
+        }
+
 }

@@ -112,7 +112,7 @@ class BlockchainService (private val exceptionHandler: BlockchainExceptionNotifi
     }
 
     fun getMonitoredTransaction(transactionHash: String): BlockchainTransaction? {
-        return transactionsToMonitor.get(transactionHash)
+        return transactionsToMonitor[transactionHash]
     }
 
     // TODO: rename this as updateLastParsedBlockNumber
@@ -327,8 +327,7 @@ class BlockchainService (private val exceptionHandler: BlockchainExceptionNotifi
         }
         transactionsToMonitor[transaction.transactionHash] = transaction
         try {
-            val response = web3.ethSendRawTransaction(signedRawTransactionDataAsHex).sendAsync().await()
-            return response
+            return web3.ethSendRawTransaction(signedRawTransactionDataAsHex).sendAsync().await()
         } catch (exception: Exception) {
             transactionsToMonitor.remove(transaction.transactionHash)
             throw exception
@@ -418,6 +417,93 @@ class BlockchainService (private val exceptionHandler: BlockchainExceptionNotifi
         val function = org.web3j.abi.datatypes.Function(
             "cancelOffer",
             listOf(org.web3j.abi.datatypes.generated.Bytes16(offerID.asByteArray())),
+            listOf()
+        )
+        val encodedFunction = CommutoFunctionEncoder.encode(function)
+        val transactionForGasEstimate = Transaction(
+            creds.address.toString(),
+            BigInteger.ZERO,
+            null, // No gasPrice because we are specifying maxFeePerGas
+            BigInteger.valueOf(30_000_000),
+            commutoSwap.contractAddress,
+            BigInteger.ZERO,
+            encodedFunction,
+            chainID.toLong(),
+            BigInteger.valueOf(1_000_000), // maxPriorityFeePerGas (temporary value)
+            BigInteger.valueOf(875_000_000), // maxFeePerGas (temporary value)
+        )
+        val nonce = web3.ethGetTransactionCount(
+            creds.address,
+            DefaultBlockParameter.valueOf("pending")
+        ).sendAsync().asDeferred()
+        val gasLimit = web3.ethEstimateGas(transactionForGasEstimate).sendAsync().asDeferred().await().amountUsed
+        // Get the fee history from the last 20 blocks, from the 75th to the 100th percentile.
+        val feeHistory = web3.ethFeeHistory(
+            20,
+            DefaultBlockParameter.valueOf("latest"),
+            listOf(75.0)
+        ).sendAsync().asDeferred().await().feeHistory
+        // Calculate the average of the 75th percentile reward values from the last 20 blocks and use this as the
+        // maxPriorityFeePerGas
+        val maxPriorityFeePerGas = BigInteger.ZERO.let { finalTipFee ->
+            feeHistory.reward.map { it.first() }.forEach { finalTipFee.add(it) }
+            finalTipFee.divide(BigInteger.valueOf(feeHistory.reward.count().toLong()))
+        }
+        // Calculate the 75th percentile base fee per gas value from the last 20 blocks and use this as the
+        // baseFeePerGas
+        val baseFeePerGas = BigInteger.ZERO.let {
+            val percentileIndex = floor(0.75 * feeHistory.baseFeePerGas.count()).toInt()
+            feeHistory.baseFeePerGas.sorted()[percentileIndex]
+        }
+        val maxFeePerGas = baseFeePerGas + maxPriorityFeePerGas
+        return RawTransaction.createTransaction(
+            chainID.toLong(),
+            nonce.await().transactionCount,
+            gasLimit,
+            transactionForGasEstimate.to,
+            BigInteger.ZERO, // value
+            transactionForGasEstimate.data,
+            maxPriorityFeePerGas,
+            maxFeePerGas
+        )
+    }
+
+    /**
+     * Creates and returns an EIP1559 [RawTransaction] from the users account to call CommutoSwap's
+     * [editOffer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#edit-offer) function, with
+     * estimated gas limit, max priority fee per gas, max fee per gas, and with a nonce determined from all currently
+     * known transactions, including those that are still pending.
+     *
+     * @param offerID The ID of the [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer) to be
+     * edited.
+     * @param chainID The blockchain ID on which the offer to be edited exists.
+     * @param offerStruct An [OfferStruct] containing the new data with which the offer will be updated.
+     *
+     * @return A [RawTransaction] as described above, that will edit the offer specified by [offerID] on the chain
+     * specified by [chainID] using certain data contained in [offerStruct].
+     */
+    suspend fun createEditOfferTransaction(
+        offerID: UUID,
+        chainID: BigInteger,
+        offerStruct: OfferStruct
+    ): RawTransaction {
+        val editedOffer = CommutoSwap.Offer(
+            offerStruct.isCreated,
+            offerStruct.isTaken,
+            offerStruct.maker,
+            offerStruct.interfaceID,
+            offerStruct.stablecoin,
+            offerStruct.amountLowerBound,
+            offerStruct.amountUpperBound,
+            offerStruct.securityDepositAmount,
+            offerStruct.serviceFeeRate,
+            offerStruct.direction,
+            offerStruct.settlementMethods,
+            offerStruct.protocolVersion
+        )
+        val function = org.web3j.abi.datatypes.Function(
+            "editOffer",
+            listOf(org.web3j.abi.datatypes.generated.Bytes16(offerID.asByteArray()), editedOffer),
             listOf()
         )
         val encodedFunction = CommutoFunctionEncoder.encode(function)
@@ -634,14 +720,16 @@ class BlockchainService (private val exceptionHandler: BlockchainExceptionNotifi
                 }
                 if (monitoredTransactionException != null) {
                     logger.info("parseBlock: removing from transactionsToMonitor and handling failed monitored tx " +
-                            "${monitoredTransaction.transactionHash} for reason: ${monitoredTransactionException
-                                .message}")
+                            "${monitoredTransaction.transactionHash} of type ${monitoredTransaction.type.asString} " +
+                            "for reason: ${monitoredTransactionException.message}")
                     transactionsToMonitor.remove(monitoredTransaction.transactionHash)
                     when (monitoredTransaction.type) {
-                        BlockchainTransactionType.CANCEL_OFFER -> offerService.handleFailedTransaction(
-                            transaction = monitoredTransaction,
-                            exception = monitoredTransactionException
-                        )
+                        BlockchainTransactionType.CANCEL_OFFER, BlockchainTransactionType.EDIT_OFFER -> {
+                            offerService.handleFailedTransaction(
+                                transaction = monitoredTransaction,
+                                exception = monitoredTransactionException
+                            )
+                        }
                     }
                 }
             }
@@ -673,23 +761,27 @@ class BlockchainService (private val exceptionHandler: BlockchainExceptionNotifi
         if (receiptOptional.transactionReceipt.isPresent) {
             val transactionReceipt = receiptOptional.transactionReceipt.get()
             val eventsInReceipt = mutableListOf<BaseEventResponse>()
-            val monitoredTransaction = transactionsToMonitor.get(transactionReceipt.transactionHash)
+            val monitoredTransaction = transactionsToMonitor[transactionReceipt.transactionHash]
             if (monitoredTransaction != null) {
                 logger.info("parseDeferredReceiptOptional: ${transactionReceipt.transactionHash} is monitored, working")
                 if (transactionReceipt.isStatusOK) {
                     logger.info("parseDeferredReceiptOptional: parsing monitored tx " +
-                            "${transactionReceipt.transactionHash} for events")
+                            "${transactionReceipt.transactionHash} of type ${monitoredTransaction.type.asString} for " +
+                            "events")
                     // The tranaction has not failed, so we parse it for the proper event
                     when (monitoredTransaction.type) {
                         BlockchainTransactionType.CANCEL_OFFER -> {
                             eventsInReceipt.addAll(commutoSwap.getOfferCanceledEvents(transactionReceipt))
                         }
+                        BlockchainTransactionType.EDIT_OFFER -> {
+                            eventsInReceipt.addAll(commutoSwap.getOfferEditedEvents(transactionReceipt))
+                        }
                     }
                 } else {
-                    logger.warn("parseDeferredReceiptOptional: monitored tx ${transactionReceipt.transactionHash} " +
-                            "failed, calling failure handler")
+                    logger.warn("parseDeferredReceiptOptional: monitored tx ${transactionReceipt.transactionHash} of " +
+                            "type ${monitoredTransaction.type.asString} failed, calling failure handler")
                     when (monitoredTransaction.type) {
-                        BlockchainTransactionType.CANCEL_OFFER -> {
+                        BlockchainTransactionType.CANCEL_OFFER, BlockchainTransactionType.EDIT_OFFER -> {
                             offerService.handleFailedTransaction(
                                 monitoredTransaction,
                                 exception = BlockchainTransactionException(

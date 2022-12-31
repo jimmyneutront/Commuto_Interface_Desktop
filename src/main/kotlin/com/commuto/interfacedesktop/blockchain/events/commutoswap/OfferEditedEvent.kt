@@ -11,8 +11,20 @@ import java.util.*
  *
  * @property offerID The ID of the edited offer, as a [UUID].
  * @property chainID The ID of the blockchain on which this event was emitted.
+ * @property transactionHash The hash of the transaction that emitted this event, as a lowercase hex string with a "0x"
+ * prefix.
  */
-data class OfferEditedEvent(val offerID: UUID, val chainID: BigInteger) {
+class OfferEditedEvent(val offerID: UUID, val chainID: BigInteger, transactionHash: String) {
+
+    val transactionHash: String
+
+    init {
+        this.transactionHash = if (transactionHash.startsWith("0x")) {
+            transactionHash
+        } else {
+            "0x$transactionHash"
+        }
+    }
 
     companion object {
         /**
@@ -29,7 +41,7 @@ data class OfferEditedEvent(val offerID: UUID, val chainID: BigInteger) {
             val offerIdByteBuffer = ByteBuffer.wrap(event.offerID)
             val mostSigBits = offerIdByteBuffer.long
             val leastSigBits = offerIdByteBuffer.long
-            return OfferEditedEvent(UUID(mostSigBits, leastSigBits), chainID)
+            return OfferEditedEvent(UUID(mostSigBits, leastSigBits), chainID, event.log.transactionHash)
         }
     }
 

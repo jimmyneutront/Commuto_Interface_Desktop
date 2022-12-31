@@ -70,7 +70,7 @@ public class TypeDecoder extends org.web3j.abi.TypeDecoder {
         return decode(input, 0, type);
     }
 
-     public static Address decodeAddress(String input) {
+    public static Address decodeAddress(String input) {
         return new Address(decodeNumeric(input, Uint160.class));
     }
 

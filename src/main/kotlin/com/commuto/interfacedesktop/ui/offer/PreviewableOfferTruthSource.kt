@@ -87,6 +87,25 @@ class PreviewableOfferTruthSource: UIOfferTruthSource {
     override fun cancelOffer(offer: Offer, offerCancellationTransaction: RawTransaction?) {}
 
     /**
+     * Not used since this class is for previewing user interfaces, but required for adoption of [UIOfferTruthSource].
+     */
+    override fun createEditOfferTransaction(
+        offer: Offer,
+        newSettlementMethods: List<SettlementMethod>,
+        createdTransactionHandler: (RawTransaction) -> Unit,
+        exceptionHandler: (Exception) -> Unit
+    ) {}
+
+    /**
+     * Not used since this class is for previewing user interfaces, but required for adoption of [UIOfferTruthSource].
+     */
+    override fun editOffer(
+        offer: Offer,
+        newSettlementMethods: List<SettlementMethod>,
+        offerEditingTransaction: RawTransaction?
+    ) {}
+
+    /**
      * Does nothing since this class is only used for previewing user interfaces, but is required for implementing
      * [UIOfferTruthSource]
      */

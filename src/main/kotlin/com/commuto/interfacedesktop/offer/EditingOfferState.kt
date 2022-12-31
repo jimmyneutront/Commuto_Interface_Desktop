@@ -7,13 +7,31 @@ package com.commuto.interfacedesktop.offer
  * interface.
  *
  * @property NONE Indicates that we are NOT currently editing the corresponding offer.
- * @property EDITING Indicates that we are currently editing the corresponding offer.
+ * @property VALIDATING Indicates that we are currently checking whether the corresponding offer can be edited.
+ * @property SENDING_TRANSACTION Indicates that we are currently sending the transaction that will edit the
+ * corresponding offer.
+ * @property AWAITING_TRANSACTION_CONFIRMATION Indicates that we have sent the transaction that will edit the
+ * corresponding offer, and we are waiting for it to be confirmed.
  * @property COMPLETED Indicates that we have edited the corresponding offer.
  * @property EXCEPTION Indicates that we encountered an exception while editing the corresponding offer.
+ * @property asString A [String] corresponding to a particular case of [EditingOfferState].
  */
 enum class EditingOfferState {
     NONE,
-    EDITING,
+    VALIDATING,
+    SENDING_TRANSACTION,
+    AWAITING_TRANSACTION_CONFIRMATION,
     COMPLETED,
     EXCEPTION;
+
+    val asString: String
+        get() = when (this) {
+            NONE -> "none"
+            VALIDATING -> "validating"
+            SENDING_TRANSACTION -> "sendingTransaction"
+            AWAITING_TRANSACTION_CONFIRMATION -> "awaitingTransactionConfirmation"
+            COMPLETED -> "completed"
+            EXCEPTION -> "error"
+        }
+
 }

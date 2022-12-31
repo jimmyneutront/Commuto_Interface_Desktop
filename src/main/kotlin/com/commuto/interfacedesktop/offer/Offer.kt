@@ -82,6 +82,10 @@ import java.util.*
  * @property editingOfferException (This property is used only if the maker of this offer is the user of this
  * interface.) The [Exception] that occurred during the offer editing process, or `null` if no such exception has
  * occurred.
+ * @property offerEditingTransaction The [BlockchainTransaction] that has most recently edited this offer, if it was
+ * made by the user of this interface, or `null` if the offer has not been edited or the user of this interface is not
+ * the offer maker. Note that this transaction may be: not yet sent to a blockchain node, pending, confirmed and
+ * successful, confirmed and failed, or dropped.
  * @property takingOfferState (This property is used only if the maker of this offer is NOT the user of this interface.)
  * This indicates whether we are currently taking this offer, and if so, what part of the offer taking process we are
  * in.
@@ -192,6 +196,8 @@ class Offer(
     val selectedSettlementMethods = mutableStateListOf<SettlementMethod>()
     val editingOfferState: MutableState<EditingOfferState> = mutableStateOf(EditingOfferState.NONE)
     var editingOfferException: Exception? = null
+
+    var offerEditingTransaction: BlockchainTransaction? = null
 
     val takingOfferState: MutableState<TakingOfferState> = mutableStateOf(TakingOfferState.NONE)
     var takingOfferException: Exception? = null

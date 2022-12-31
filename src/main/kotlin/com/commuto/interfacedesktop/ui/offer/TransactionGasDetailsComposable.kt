@@ -9,62 +9,49 @@ import androidx.compose.material.Button
 import androidx.compose.material.ButtonDefaults
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import com.commuto.interfacedesktop.offer.CancelingOfferState
-import com.commuto.interfacedesktop.offer.Offer
 import org.web3j.crypto.RawTransaction
 import org.web3j.crypto.transaction.type.Transaction1559
 
 /**
- * Allows the user to cancel an [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer) that they
- * have made, and displays the necessary gas and gas cost before actually cancelling the Offer. This should only be
- * presented inside a Dialog.
- *
- * @param offer The [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer) that this
- * [CancelOfferComposable] allows the user to cancel.
- * @param closeDialog The lambda that can close the dialog in which this [Composable] is displayed.
- * @param offerTruthSource The [OffersViewModel] that acts as a single source of truth for all offer-related data.
+ * Displays gas information about a [RawTransaction], or displays the localized description of the exception that
+ * occurred while creating said [RawTransaction]. When this [Composable] appears, it executes [onRunAppearance‘, passing
+ * said [RawTransaction] wrapped in a [MutableState], and a [MutableState] wrapping an optional [Exception], the
+ * localized description of the value of which will be displayed to the user. [runOnAppearance] should be a closure that
+ * creates a transaction and sets the result equal to value of said [MutableState]-wrapped [RawTransaction], or sets the
+ * value of said [MutableState]-wrapped optional [Exception] to any exception that occurs during the transaction
+ * creation process. If the value of said [MutableState]-wrapped [RawTransaction] is not `null`, the user can press the
+ * main button in this Composable which will call [buttonAction], passing said [MutableState]-wrapped [RawTransaction].
+ * This should only be presented inside a Dialog.
  */
 @Composable
-fun CancelOfferComposable(
-    offer: Offer,
+fun TransactionGasDetailsComposable(
     closeDialog: () -> Unit,
-    offerTruthSource: UIOfferTruthSource,
+    title: String,
+    buttonLabel: String,
+    buttonAction: (RawTransaction) -> Unit,
+    runOnAppearance: (MutableState<RawTransaction?>, MutableState<Exception?>) -> Unit
 ) {
 
     /**
-     * The created [RawTransaction] that will cancel the offer, or `null` if no such transaction is available.
+     * The created [RawTransaction] about which this displays details (and which will be passed to [buttonAction]) or
+     * `null` if no such transaction is available.
      */
-    val cancelOfferTransaction = remember { mutableStateOf<RawTransaction?>(null) }
+    val transaction = remember { mutableStateOf<RawTransaction?>(null) }
 
     /**
-     * The [Exception] that has occurred while creating the transaction for offer cancellation, or `null` if no such
-     * exception has occurred.
+     * The [Exception] that occurred in [runOnAppearance], or `null` if no such error has occurred.
      */
     val transactionCreationException = remember { mutableStateOf<Exception?>(null) }
 
-    LaunchedEffect(true) {
-        if (offer.cancelingOfferState.value == CancelingOfferState.NONE ||
-            offer.cancelingOfferState.value == CancelingOfferState.EXCEPTION) {
-            offerTruthSource.createCancelOfferTransaction(
-                offer = offer,
-                createdTransactionHandler = { createdTransaction ->
-                    cancelOfferTransaction.value = createdTransaction
-                },
-                exceptionHandler = { exception ->
-                    transactionCreationException.value = exception
-                }
-            )
-        }
+    LaunchedEffect(null) {
+        runOnAppearance(transaction, transactionCreationException)
     }
 
     Column(
@@ -78,7 +65,7 @@ fun CancelOfferComposable(
             modifier = Modifier.fillMaxWidth()
         ) {
             Text(
-                text = "Cancel Offer",
+                text = title,
                 style = MaterialTheme.typography.h4,
                 fontWeight = FontWeight.Bold,
             )
@@ -99,7 +86,7 @@ fun CancelOfferComposable(
                 elevation = null,
             )
         }
-        val rawTransaction = cancelOfferTransaction.value
+        val rawTransaction = transaction.value
         if (rawTransaction != null) {
             val eip1559Transaction = (rawTransaction.transaction as Transaction1559)
             Text(
@@ -137,16 +124,13 @@ fun CancelOfferComposable(
             }
             Button(
                 onClick = {
-                    // Close the sheet in which this view is presented as soon as the user begins the canceling process.
-                    offerTruthSource.cancelOffer(
-                        offer = offer,
-                        offerCancellationTransaction = cancelOfferTransaction.value
-                    )
+                    // Close the sheet in which this view is presented as soon as the user presses this button.
+                    buttonAction(rawTransaction)
                     closeDialog()
                 },
                 content = {
                     Text(
-                        text = "Cancel Offer",
+                        text = buttonLabel,
                         style = MaterialTheme.typography.h4,
                         fontWeight = FontWeight.Bold,
                         textAlign = TextAlign.Center
@@ -175,14 +159,16 @@ fun CancelOfferComposable(
 }
 
 /**
- * Displays a preview of [CancelOfferComposable]
+ * Displays a preview of [TransactionGasDetailsComposable]
  */
 @Preview
 @Composable
-fun PreviewCancelOfferComposable() {
-    CancelOfferComposable(
-        offer = Offer.sampleOffers[2],
+fun PreviewTransactionGasDetailsComposable() {
+    TransactionGasDetailsComposable(
         closeDialog = {},
-        offerTruthSource = PreviewableOfferTruthSource()
+        title = "Cancel Offer",
+        buttonLabel = "Cancel Offer",
+        buttonAction = {},
+        runOnAppearance = {_, _ ->},
     )
 }

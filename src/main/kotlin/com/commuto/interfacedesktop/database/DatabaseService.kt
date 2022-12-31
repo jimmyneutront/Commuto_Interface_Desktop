@@ -171,7 +171,7 @@ open class DatabaseService(
         blockNumber: Long?
     ) {
         withContext(databaseServiceContext) {
-            database.updateOfferCancellationTransactionHash(
+            database.updateOfferCancellationData(
                 offerID = offerID,
                 chainID = chainID,
                 transactionHash = transactionHash,
@@ -180,6 +180,56 @@ open class DatabaseService(
             )
         }
         logger.info("updateOfferCancellationTransactionHash: set values to $transactionHash, $creationTime and " +
+                "$blockNumber for offer with B64 ID $offerID, if present")
+    }
+
+    /**
+     * Updates the [Offer.editingOfferState] property of a persistently stored
+     * [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer) with the specified [offerID] and
+     * [chainID].
+     *
+     * @param offerID The ID of the offer to be updated, as a Base64-[String] of bytes.
+     * @param chainID The blockchain ID of the offer to be updated, as a [String].
+     * @param state The new value of the offer's [Offer.editingOfferState] property.
+     */
+    @OptIn(DelicateCoroutinesApi::class)
+    suspend fun updateEditingOfferState(offerID: String, chainID: String, state: String) {
+        withContext(databaseServiceContext) {
+            database.updateEditingOfferState(offerID, chainID, state)
+        }
+        logger.info("updateEditingOfferState: set value to $state for offer with B64 ID $offerID, if present")
+    }
+
+    /**
+     * Updates the [Offer.offerEditingTransactionHash] property of a persistently stored
+     * [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer) with the specified [offerID] and
+     * [chainID].
+     *
+     * @param offerID The ID of the offer to be updated, as a Base64-[String] of bytes.
+     * @param chainID The blockchain ID of the offer to be updated, as a [String].
+     * @param transactionHash The new value of the offer's [Offer.offerEditingTransactionHash] property, as a
+     * transaction hash as a hexadecimal string with "0x" prefix.
+     * @param creationTime The new value of the offer's [Offer.offerEditingTransactionCreationTime] property.
+     * @param blockNumber The new value of the offer's [Offer.offerEditingTransactionCreationBlockNumber] property.
+     */
+    @OptIn(DelicateCoroutinesApi::class)
+    suspend fun updateOfferEditingData(
+        offerID: String,
+        chainID: String,
+        transactionHash: String?,
+        creationTime: String?,
+        blockNumber: Long?
+    ) {
+        withContext(databaseServiceContext) {
+            database.updateOfferEditingData(
+                offerID = offerID,
+                chainID = chainID,
+                transactionHash = transactionHash,
+                creationTime = creationTime,
+                blockNumber = blockNumber,
+            )
+        }
+        logger.info("updateOfferEditingTransactionHash: set values to $transactionHash, $creationTime and " +
                 "$blockNumber for offer with B64 ID $offerID, if present")
     }
 

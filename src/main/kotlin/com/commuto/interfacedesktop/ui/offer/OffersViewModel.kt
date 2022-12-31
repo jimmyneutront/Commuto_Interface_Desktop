@@ -105,6 +105,7 @@ class OffersViewModel @Inject constructor(private val offerService: OfferService
         }
     }
 
+    // TODO: Remove this once old editOffer method is removed
     /**
      * Sets the [Offer.editingOfferState] value of the [Offer] in [offers] with the specified [offerID] on the main
      * coroutine dispatcher.
@@ -246,13 +247,13 @@ class OffersViewModel @Inject constructor(private val offerService: OfferService
     /**
      * Attempts to create a [RawTransaction] to cancel [offer], which should be made by the user of this interface.
      *
-     * This passes [offer]'s ID and chain ID to [OfferService.cancelOffer] and then passes the resulting transaction to
-     * [createdTransactionHandler] or exception to [exceptionHandler].
+     * This passes [offer]'s ID and chain ID to [OfferService.createCancelOfferTransaction] and then passes the
+     * resulting transaction to [createdTransactionHandler] or exception to [exceptionHandler].
      *
      * @param offer The [Offer] to be canceled.
-     * @param createdTransactionHandler An escaping closure that will accept and handle the created [RawTransaction].
-     * @param exceptionHandler An escaping closure that will accept and handle any exception that occurs during the
-     * transaction creation process.
+     * @param createdTransactionHandler A lambda that will accept and handle the created [RawTransaction].
+     * @param exceptionHandler A lambda that will accept and handle any exception that occurs during the transaction
+     * creation process.
      */
     override fun createCancelOfferTransaction(
         offer: Offer,
@@ -263,9 +264,13 @@ class OffersViewModel @Inject constructor(private val offerService: OfferService
             logger.info("createCancelOfferTransaction: creating for ${offer.id}")
             try {
                 val createdTransaction = offerService.createCancelOfferTransaction(offer.id, offer.chainID)
-                createdTransactionHandler(createdTransaction)
+                withContext(Dispatchers.Main) {
+                    createdTransactionHandler(createdTransaction)
+                }
             } catch (exception: Exception) {
-                exceptionHandler(exception)
+                withContext(Dispatchers.Main) {
+                    exceptionHandler(exception)
+                }
             }
         }
     }
@@ -274,8 +279,9 @@ class OffersViewModel @Inject constructor(private val offerService: OfferService
      * Attempts to cancel an [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer) made by the
      * user of this interface.
      *
-     * This clears any offer-canceling-related exception of [offer], and sets [offer]'s [Offer.cancelingOfferState] to
-     * [CancelingOfferState.VALIDATING].
+     * This clears the offer-canceling-related [Exception] of [offer] and sets [offer]'s [Offer.cancelingOfferState] to
+     * [CancelingOfferState.VALIDATING], and then passes all data to [offerService]'s [OfferService.cancelOffer]
+     * function.
      *
      * @param offer The [Offer] to be canceled.
      * @param offerCancellationTransaction An optional [RawTransaction] that can cancel [offer].
@@ -309,15 +315,17 @@ class OffersViewModel @Inject constructor(private val offerService: OfferService
      * @param offer The [Offer] to be edited.
      * @param newSettlementMethods A [List] of [SettlementMethod]s with which the [Offer] will be edited.
      */
+    @Deprecated("Use the new offer pipeline with improved transaction state management")
     override fun editOffer(
         offer: Offer,
         newSettlementMethods: List<SettlementMethod>
     ) {
         viewModelScope.launch {
+            /*
             setEditingOfferState(
                 offerID = offer.id,
                 state = EditingOfferState.EDITING
-            )
+            )*/
             logger.info("editOffer: editing ${offer.id}")
             try {
                 logger.info("editOffer: validating edited settlement methods for ${offer.id}")
@@ -346,6 +354,84 @@ class OffersViewModel @Inject constructor(private val offerService: OfferService
                     offerID = offer.id,
                     state = EditingOfferState.EXCEPTION
                 )
+            }
+        }
+    }
+
+    /**
+     * Attempts to create a [RawTransaction] to edit [offer] using validated [newSettlementMethods], which should be
+     * made by the user of this interface.
+     *
+     * This validates [newSettlementMethods], passes [offer]'s ID and chain ID to
+     * [OfferService.createEditOfferTransaction], and then passes the resulting transaction to
+     * [createdTransactionHandler] or exception to [exceptionHandler].
+     *
+     * @param offer The [Offer] to be edited.
+     * @param newSettlementMethods A list of [SettlementMethod]s with which [offer] will be edited after they are
+     * validated.
+     * @param createdTransactionHandler A lambda that will accept and handle the created [RawTransaction].
+     * @param exceptionHandler A lambda that will accept and handle any exception that occurs during the transaction
+     * creation process.
+     */
+    override fun createEditOfferTransaction(
+        offer: Offer,
+        newSettlementMethods: List<SettlementMethod>,
+        createdTransactionHandler: (RawTransaction) -> Unit,
+        exceptionHandler: (Exception) -> Unit
+    ) {
+        viewModelScope.launch {
+            logger.info("createEditOfferTransaction: creating for ${offer.id}, validating edited settlement methods")
+            try {
+                val validatedSettlementmethods = validateSettlementMethods(newSettlementMethods)
+                val createdTransaction = offerService.createEditOfferTransaction(
+                    offerID = offer.id,
+                    chainID = offer.chainID,
+                    newSettlementMethods = newSettlementMethods
+                )
+                withContext(Dispatchers.Main) {
+                    createdTransactionHandler(createdTransaction)
+                }
+            } catch (exception: Exception) {
+                withContext(Dispatchers.Main) {
+                    exceptionHandler(exception)
+                }
+            }
+        }
+    }
+
+    /**
+     * Attempts to edit [offer] using [offerEditingTransaction], which should have been created using the
+     * [SettlementMethod]s in [newSettlementMethods].
+     *
+     * This clears any offer-editing-related [Exception] of [offer], and sets [offer]'s [Offer.editingOfferState] to
+     * [EditingOfferState.VALIDATING], and then passes all data to [offerService]'s `[OfferService.editOffer] function.
+     *
+     * @param offer The [Offer] to be edited.
+     * @param newSettlementMethods The [SettlementMethod]s with which [offerEditingTransaction] should have been
+     * created.
+     * @param offerEditingTransaction An optional [RawTransaction] that can edit [offer] using the [SettlementMethod]s
+     * contained in [newSettlementMethods].
+     */
+    override fun editOffer(
+        offer: Offer,
+        newSettlementMethods: List<SettlementMethod>,
+        offerEditingTransaction: RawTransaction?
+    ) {
+        offer.editingOfferException = null
+        offer.editingOfferState.value = EditingOfferState.VALIDATING
+        viewModelScope.launch {
+            logger.info("editOffer: editing offer ${offer.id}")
+            try {
+                offerService.editOffer(
+                    offer = offer,
+                    newSettlementMethods = newSettlementMethods,
+                    offerEditingTransaction = offerEditingTransaction,
+                )
+                logger.info("editOffer: successfully broadcast transaction for ${offer.id}")
+            } catch (exception: Exception) {
+                logger.error("editOffer: got exception during editOffer call for ${offer.id}", exception)
+                offer.editingOfferException = exception
+                setEditingOfferState(offerID = offer.id, state = EditingOfferState.EXCEPTION)
             }
         }
     }

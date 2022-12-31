@@ -146,6 +146,10 @@ internal class Database(databaseDriverFactory: DatabaseDriverFactory) {
             offerCancellationTransactionHash = offer.offerCancellationTransactionHash,
             offerCancellationTransactionCreationTime = offer.offerCancellationTransactionCreationTime,
             offerCancellationTransactionCreationBlockNumber = offer.offerCancellationTransactionCreationBlockNumber,
+            editingOfferState = offer.editingOfferState,
+            offerEditingTransactionHash = offer.offerEditingTransactionHash,
+            offerEditingTransactionCreationTime = offer.offerEditingTransactionCreationTime,
+            offerEditingTransactionCreationBlockNumber = offer.offerEditingTransactionCreationBlockNumber,
         )
     }
 
@@ -303,7 +307,7 @@ internal class Database(databaseDriverFactory: DatabaseDriverFactory) {
      * @param creationTime The new value of the [Offer.offerCancellationTransactionCreationTime] property.
      * @param blockNumber The new value of the [Offer.offerCancellationTransactionCreationBlockNumber] property.
      */
-    internal fun updateOfferCancellationTransactionHash(
+    internal fun updateOfferCancellationData(
         offerID: String,
         chainID: String,
         transactionHash: String?,
@@ -314,6 +318,46 @@ internal class Database(databaseDriverFactory: DatabaseDriverFactory) {
             offerCancellationTransactionHash = transactionHash,
             offerCancellationTransactionCreationTime = creationTime,
             offerCancellationTransactionCreationBlockNumber = blockNumber,
+            id = offerID,
+            chainID = chainID
+        )
+    }
+
+    /**
+     * Updates the [Offer.editingOfferState] property of the [Offer] with the specified [offerID] and [chainID].
+     * @param offerID The ID of the [Offer] to be updated.
+     * @param chainID The ID of the blockchain on which the [Offer] to be updated exists.
+     * @param state The new value of the [Offer.editingOfferState] property.
+     */
+    internal fun updateEditingOfferState(offerID: String, chainID: String, state: String) {
+        dbQuery.updateEditingOfferStateByOfferIDAndChainID(
+            editingOfferState = state,
+            id = offerID,
+            chainID = chainID
+        )
+    }
+
+    /**
+     * Updates the [Offer.offerEditingTransactionHash], [Offer.offerEditingTransactionCreationTime] and
+     * [Offer.offerEditingTransactionCreationBlockNumber] properties of the [Offer] with the specified [offerID]
+     * and [chainID].
+     * @param offerID The ID of the [Offer] to be updated.
+     * @param chainID The ID of the blockchain on which the [Offer] to be updated exists.
+     * @param transactionHash The new value of the [Offer.offerEditingTransactionHash] property.
+     * @param creationTime The new value of the [Offer.offerEditingTransactionCreationTime] property.
+     * @param blockNumber The new value of the [Offer.offerEditingTransactionCreationBlockNumber] property.
+     */
+    internal fun updateOfferEditingData(
+        offerID: String,
+        chainID: String,
+        transactionHash: String?,
+        creationTime: String?,
+        blockNumber: Long?
+    ) {
+        dbQuery.updateOfferEditingDataByOfferIDAndChainID(
+            offerEditingTransactionHash = transactionHash,
+            offerEditingTransactionCreationTime = creationTime,
+            offerEditingTransactionCreationBlockNumber = blockNumber,
             id = offerID,
             chainID = chainID
         )

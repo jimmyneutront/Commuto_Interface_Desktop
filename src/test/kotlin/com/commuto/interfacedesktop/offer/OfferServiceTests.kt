@@ -126,6 +126,10 @@ class OfferServiceTests {
             offerCancellationTransactionHash = offer.offerCancellationTransaction?.transactionHash,
             offerCancellationTransactionCreationTime = null,
             offerCancellationTransactionCreationBlockNumber = null,
+            editingOfferState = offer.editingOfferState.value.asString,
+            offerEditingTransactionHash = offer.offerEditingTransaction?.transactionHash,
+            offerEditingTransactionCreationTime = null,
+            offerEditingTransactionCreationBlockNumber = null,
         )
         databaseService.storeOffer(offerForDatabase)
 
@@ -146,6 +150,125 @@ class OfferServiceTests {
         assertNotNull(offerInTruthSource.cancelingOfferException)
         val offerInDatabase = databaseService.getOffer(id = encoder.encodeToString(offerID.asByteArray()))
         assertEquals(CancelingOfferState.EXCEPTION.asString, offerInDatabase!!.cancelingOfferState)
+
+    }
+
+    /**
+     * Ensure [OfferService] handles failed offer editing transactions properly.
+     */
+    @Test
+    fun testHandleFailedOfferEditingTransaction() = runBlocking {
+        val offerID = UUID.randomUUID()
+
+        val databaseService = DatabaseService(DatabaseDriverFactory())
+        databaseService.createTables()
+        val keyManagerService = KeyManagerService(databaseService)
+
+        val offerTruthSource = TestOfferTruthSource()
+
+        val offer = Offer(
+            isCreated = true,
+            isTaken = false,
+            id = offerID,
+            maker = "0x0000000000000000000000000000000000000000",
+            interfaceID = ByteArray(0),
+            stablecoin = "0x0000000000000000000000000000000000000000",
+            amountLowerBound = BigInteger.ZERO,
+            amountUpperBound = BigInteger.ZERO,
+            securityDepositAmount = BigInteger.ZERO,
+            serviceFeeRate = BigInteger.ZERO,
+            direction = OfferDirection.BUY,
+            settlementMethods = mutableStateListOf(),
+            protocolVersion = BigInteger.ZERO,
+            chainID = BigInteger.valueOf(31337L),
+            havePublicKey = true,
+            isUserMaker = true,
+            state = OfferState.OFFER_OPENED
+        )
+        val offerEditingTransaction = BlockchainTransaction(
+            transactionHash = "a_transaction_hash_here",
+            timeOfCreation = Date(),
+            latestBlockNumberAtCreation = BigInteger.ZERO,
+            type = BlockchainTransactionType.EDIT_OFFER
+        )
+        offer.offerEditingTransaction = offerEditingTransaction
+        offerTruthSource.offers[offerID] = offer
+        val encoder = Base64.getEncoder()
+        val offerForDatabase = DatabaseOffer(
+            id = encoder.encodeToString(offerID.asByteArray()),
+            isCreated = 1L,
+            isTaken = 0L,
+            maker = offer.maker,
+            interfaceId = encoder.encodeToString(offer.interfaceID),
+            stablecoin = offer.stablecoin,
+            amountLowerBound = offer.amountLowerBound.toString(),
+            amountUpperBound = offer.amountUpperBound.toString(),
+            securityDepositAmount = offer.securityDepositAmount.toString(),
+            serviceFeeRate = offer.serviceFeeRate.toString(),
+            onChainDirection = offer.direction.string,
+            protocolVersion = offer.protocolVersion.toString(),
+            chainID = offer.chainID.toString(),
+            havePublicKey = 1L,
+            isUserMaker = 1L,
+            state = offer.state.asString,
+            cancelingOfferState = offer.cancelingOfferState.value.asString,
+            offerCancellationTransactionHash = offer.offerCancellationTransaction?.transactionHash,
+            offerCancellationTransactionCreationTime = null,
+            offerCancellationTransactionCreationBlockNumber = null,
+            editingOfferState = offer.editingOfferState.value.asString,
+            offerEditingTransactionHash = offer.offerEditingTransaction?.transactionHash,
+            offerEditingTransactionCreationTime = null,
+            offerEditingTransactionCreationBlockNumber = null,
+        )
+        databaseService.storeOffer(offerForDatabase)
+
+        val pendingSettlementMethods = listOf(
+            SettlementMethod(
+                currency = "EUR",
+                price = "0.98",
+                method = "SEPA",
+                privateData = "some_sepa_data"
+            ),
+            SettlementMethod(
+                currency = "BSD",
+                price = "1.00",
+                method = "SANDDOLLAR",
+                privateData = "some_sanddollar_data"
+            ),
+        )
+        offer.selectedSettlementMethods.addAll(pendingSettlementMethods)
+        val serializedPendingSettlementMethodsAndPrivateDetails = pendingSettlementMethods.map {
+            Pair(Json.encodeToString(it), it.privateData)
+        }
+        databaseService.storePendingOfferSettlementMethods(
+            offerID = encoder.encodeToString(offerID.asByteArray()),
+            chainID = offerForDatabase.chainID,
+            pendingSettlementMethods = serializedPendingSettlementMethodsAndPrivateDetails
+        )
+
+        val offerService = OfferService(
+            databaseService,
+            keyManagerService,
+            TestSwapService(),
+        )
+        offerService.setOfferTruthSource(offerTruthSource)
+
+        offerService.handleFailedTransaction(
+            transaction = offerEditingTransaction,
+            exception = BlockchainTransactionException(message = "tx failed")
+        )
+
+        assertEquals(EditingOfferState.EXCEPTION, offer.editingOfferState.value)
+        assertNotNull(offer.editingOfferException)
+        assertEquals(0, offer.selectedSettlementMethods.count())
+        val offerInDatabase = databaseService.getOffer(id = encoder.encodeToString(offerID.asByteArray()))
+        assertEquals(EditingOfferState.EXCEPTION.asString, offerInDatabase!!.editingOfferState)
+
+        val pendingSettlementMethodsInDatabase = databaseService.getPendingOfferSettlementMethods(
+            offerID = encoder.encodeToString(offerID.asByteArray()),
+            chainID = offerForDatabase.chainID
+        )
+        assertNull(pendingSettlementMethodsInDatabase)
 
     }
 
@@ -416,6 +539,10 @@ class OfferServiceTests {
             offerCancellationTransactionCreationTime = null,
             offerCancellationTransactionCreationBlockNumber =
             offer.offerCancellationTransaction?.latestBlockNumberAtCreation?.toLong(),
+            editingOfferState = offer.editingOfferState.value.asString,
+            offerEditingTransactionHash = offer.offerEditingTransaction?.transactionHash,
+            offerEditingTransactionCreationTime = null,
+            offerEditingTransactionCreationBlockNumber = null,
         )
         databaseService.storeOffer(offerForDatabase)
 
@@ -642,6 +769,10 @@ class OfferServiceTests {
             offerCancellationTransactionHash = offer.offerCancellationTransaction?.transactionHash,
             offerCancellationTransactionCreationTime = null,
             offerCancellationTransactionCreationBlockNumber = null,
+            editingOfferState = offer.editingOfferState.value.asString,
+            offerEditingTransactionHash = offer.offerEditingTransaction?.transactionHash,
+            offerEditingTransactionCreationTime = null,
+            offerEditingTransactionCreationBlockNumber = null,
         )
         runBlocking {
             databaseService.storeOffer(offerForDatabase)
@@ -1041,6 +1172,10 @@ class OfferServiceTests {
             offerCancellationTransactionCreationTime = null,
             offerCancellationTransactionCreationBlockNumber =
             offer.offerCancellationTransaction?.latestBlockNumberAtCreation?.toLong(),
+            editingOfferState = offer.editingOfferState.value.asString,
+            offerEditingTransactionHash = offer.offerEditingTransaction?.transactionHash,
+            offerEditingTransactionCreationTime = null,
+            offerEditingTransactionCreationBlockNumber = null,
         )
         databaseService.storeOffer(offerForDatabase)
 
@@ -1066,10 +1201,183 @@ class OfferServiceTests {
 
     /**
      * Ensures that [OfferService] handles
-     * [OfferEdited](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offeredited) events properly.
+     * [OfferEdited](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offeredited) events properly for
+     * offers not made by the interface user.
      */
     @Test
-    fun testHandleOfferEditedEvent() {
+    fun testHandleOfferEditedEventForUserIsNotMaker() {
+        @Serializable
+        data class TestingServerResponse(val commutoSwapAddress: String, val offerId: String)
+
+        val testingServiceUrl = "http://localhost:8546/test_offerservice_handleOfferEditedEvent"
+        val testingServerClient = HttpClient(OkHttp) {
+            install(ContentNegotiation) {
+                json()
+            }
+            install(HttpTimeout) {
+                socketTimeoutMillis = 90_000
+                requestTimeoutMillis = 90_000
+            }
+        }
+        val testingServerResponse: TestingServerResponse = runBlocking {
+            testingServerClient.get(testingServiceUrl) {
+                url {
+                    parameters.append("events", "offer-opened-edited")
+                }
+            }.body()
+        }
+        val expectedOfferId = UUID.fromString(testingServerResponse.offerId)
+
+        val w3 = CommutoWeb3j(HttpService(System.getenv("BLOCKCHAIN_NODE")))
+
+        val databaseService = DatabaseService(DatabaseDriverFactory())
+        databaseService.createTables()
+        val keyManagerService = KeyManagerService(databaseService)
+
+        class TestBlockchainEventRepository: BlockchainEventRepository<OfferEditedEvent>() {
+
+            var appendedEvent: OfferEditedEvent? = null
+            var removedEvent: OfferEditedEvent? = null
+
+            val removedEventChannel = Channel<OfferEditedEvent>()
+
+            override fun append(element: OfferEditedEvent) {
+                appendedEvent = element
+                super.append(element)
+            }
+
+            override fun remove(elementToRemove: OfferEditedEvent) {
+                removedEvent = elementToRemove
+                runBlocking {
+                    removedEventChannel.send(elementToRemove)
+                }
+                super.remove(elementToRemove)
+            }
+
+        }
+        val offerEditedEventRepository = TestBlockchainEventRepository()
+
+        val offerService = OfferService(
+            databaseService,
+            keyManagerService,
+            TestSwapService(),
+            BlockchainEventRepository(),
+            offerEditedEventRepository,
+            BlockchainEventRepository(),
+            BlockchainEventRepository(),
+            BlockchainEventRepository(),
+        )
+
+        val offerTruthSource = TestOfferTruthSource()
+        offerService.setOfferTruthSource(offerTruthSource)
+
+        val offer = Offer.fromOnChainData(
+            isCreated = true,
+            isTaken = false,
+            id = expectedOfferId,
+            maker = "0x0000000000000000000000000000000000000000",
+            interfaceId = ByteArray(0),
+            stablecoin = "0x0000000000000000000000000000000000000000",
+            amountLowerBound = BigInteger.ZERO,
+            amountUpperBound = BigInteger.ZERO,
+            securityDepositAmount = BigInteger.ZERO,
+            serviceFeeRate = BigInteger.ZERO,
+            onChainDirection = BigInteger.ZERO,
+            onChainSettlementMethods = listOf(),
+            protocolVersion = BigInteger.ZERO,
+            chainID = BigInteger.valueOf(31337L),
+            havePublicKey = true,
+            isUserMaker = false,
+            state = OfferState.OFFER_OPENED
+        )
+        offerTruthSource.addOffer(offer)
+        val encoder = Base64.getEncoder()
+        val offerIDB64String = encoder.encodeToString(offer.id.asByteArray())
+        val offerForDatabase = DatabaseOffer(
+            id = offerIDB64String,
+            isCreated = 1L,
+            isTaken = 0L,
+            maker = offer.maker,
+            interfaceId = encoder.encodeToString(offer.interfaceID),
+            stablecoin = offer.stablecoin,
+            amountLowerBound = offer.amountLowerBound.toString(),
+            amountUpperBound = offer.amountUpperBound.toString(),
+            securityDepositAmount = offer.securityDepositAmount.toString(),
+            serviceFeeRate = offer.serviceFeeRate.toString(),
+            onChainDirection = offer.onChainDirection.toString(),
+            protocolVersion = offer.protocolVersion.toString(),
+            chainID = offer.chainID.toString(),
+            havePublicKey = 1L,
+            isUserMaker = 1L,
+            state = offer.state.asString,
+            cancelingOfferState = offer.cancelingOfferState.value.asString,
+            offerCancellationTransactionHash = offer.offerCancellationTransaction?.transactionHash,
+            offerCancellationTransactionCreationTime = null,
+            offerCancellationTransactionCreationBlockNumber =
+            offer.offerCancellationTransaction?.latestBlockNumberAtCreation?.toLong(),
+            editingOfferState = offer.editingOfferState.value.asString,
+            offerEditingTransactionHash = offer.offerEditingTransaction?.transactionHash,
+            offerEditingTransactionCreationTime = null,
+            offerEditingTransactionCreationBlockNumber = null,
+        )
+        runBlocking {
+            databaseService.storeOffer(offerForDatabase)
+        }
+
+        val exceptionHandler = TestBlockchainExceptionHandler()
+
+        BlockchainService(
+            exceptionHandler = exceptionHandler,
+            offerService = offerService,
+            swapService = TestSwapService(),
+            web3 = w3,
+            commutoSwapAddress = testingServerResponse.commutoSwapAddress
+        )
+
+        val event = OfferEditedEvent(
+            offerID = expectedOfferId,
+            chainID = BigInteger.valueOf(31337L),
+            transactionHash = "offer_editing_tx_hash",
+        )
+
+        runBlocking {
+            launch {
+                offerService.handleOfferEditedEvent(event)
+            }
+            withTimeout(60_000) {
+                offerEditedEventRepository.removedEventChannel.receive()
+                assertFalse(exceptionHandler.gotError)
+                assertEquals(expectedOfferId, offerEditedEventRepository.appendedEvent!!.offerID)
+                assertEquals(expectedOfferId, offerEditedEventRepository.removedEvent!!.offerID)
+
+                assertEquals(2, offer.settlementMethods.count())
+                assertEquals("EUR", offer.settlementMethods[0].currency)
+                assertEquals("0.98", offer.settlementMethods[0].price)
+                assertEquals("SEPA", offer.settlementMethods[0].method)
+                assertEquals("BSD", offer.settlementMethods[1].currency)
+                assertEquals("1.00", offer.settlementMethods[1].price)
+                assertEquals("SANDDOLLAR", offer.settlementMethods[1].method)
+
+                val settlementMethodsInDatabase = databaseService.getOfferSettlementMethods(
+                    offerID = offerIDB64String,
+                    chainID = offerForDatabase.chainID
+                )
+                assertEquals(settlementMethodsInDatabase!!.size, 2)
+                assertEquals("{\"f\":\"EUR\",\"p\":\"0.98\",\"m\":\"SEPA\"}",
+                    settlementMethodsInDatabase[0].first)
+                assertEquals("{\"f\":\"BSD\",\"p\":\"1.00\",\"m\":\"SANDDOLLAR\"}",
+                    settlementMethodsInDatabase[1].first)
+            }
+        }
+    }
+
+    /**
+     * Ensures that [OfferService] handles
+     * [OfferEdited](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offeredited) events properly for
+     * offers made by the interface user.
+     */
+    @Test
+    fun testHandleOfferEditedEventForUserIsMaker() {
         @Serializable
         data class TestingServerResponse(val commutoSwapAddress: String, val offerId: String)
 
@@ -1152,11 +1460,18 @@ class OfferServiceTests {
             chainID = BigInteger.valueOf(31337L),
             havePublicKey = true,
             isUserMaker = true,
-            state = OfferState.AWAITING_PUBLIC_KEY_ANNOUNCEMENT
+            state = OfferState.OFFER_OPENED
         )
         offer.updateSettlementMethods(listOf(
             SettlementMethod(currency = "USD", price = "1.00", method = "SWIFT", privateData = "some_swift_data")
         ))
+        offer.editingOfferState.value = EditingOfferState.AWAITING_TRANSACTION_CONFIRMATION
+        offer.offerEditingTransaction = BlockchainTransaction(
+            transactionHash = "0xoffer_editing_tx_hash",
+            timeOfCreation = Date(),
+            latestBlockNumberAtCreation = BigInteger.ZERO,
+            type = BlockchainTransactionType.EDIT_OFFER
+        )
         offerTruthSource.addOffer(offer)
         val encoder = Base64.getEncoder()
         val offerIDB64String = encoder.encodeToString(offer.id.asByteArray())
@@ -1182,6 +1497,10 @@ class OfferServiceTests {
             offerCancellationTransactionCreationTime = null,
             offerCancellationTransactionCreationBlockNumber =
             offer.offerCancellationTransaction?.latestBlockNumberAtCreation?.toLong(),
+            editingOfferState = offer.editingOfferState.value.asString,
+            offerEditingTransactionHash = offer.offerEditingTransaction?.transactionHash,
+            offerEditingTransactionCreationTime = null,
+            offerEditingTransactionCreationBlockNumber = null,
         )
         runBlocking {
             databaseService.storeOffer(offerForDatabase)
@@ -1211,6 +1530,7 @@ class OfferServiceTests {
                 privateData = "some_sanddollar_data"
             ),
         )
+        offer.selectedSettlementMethods.addAll(pendingSettlementMethods)
         val serializedPendingSettlementMethodsAndPrivateDetails = pendingSettlementMethods.map {
             Pair(Json.encodeToString(it), it.privateData)
         }
@@ -1232,7 +1552,11 @@ class OfferServiceTests {
             commutoSwapAddress = testingServerResponse.commutoSwapAddress
         )
 
-        val event = OfferEditedEvent(offerID = expectedOfferId, chainID = BigInteger.valueOf(31337L))
+        val event = OfferEditedEvent(
+            offerID = expectedOfferId,
+            chainID = BigInteger.valueOf(31337L),
+            transactionHash = "offer_editing_tx_hash",
+        )
 
         runBlocking {
             launch {
@@ -1245,6 +1569,8 @@ class OfferServiceTests {
                 assertEquals(expectedOfferId, offerTruthSource.offers[expectedOfferId]!!.id)
                 assertEquals(expectedOfferId, offerEditedEventRepository.appendedEvent!!.offerID)
                 assertEquals(expectedOfferId, offerEditedEventRepository.removedEvent!!.offerID)
+                assertEquals(EditingOfferState.COMPLETED, offer.editingOfferState.value)
+                assertEquals(0, offer.selectedSettlementMethods.size)
 
                 val settlementMethodsInDatabase = databaseService.getOfferSettlementMethods(
                     offerID = offerIDB64String,
@@ -1351,6 +1677,10 @@ class OfferServiceTests {
             offerCancellationTransactionCreationTime = null,
             offerCancellationTransactionCreationBlockNumber =
             offer.offerCancellationTransaction?.latestBlockNumberAtCreation?.toLong(),
+            editingOfferState = offer.editingOfferState.value.asString,
+            offerEditingTransactionHash = offer.offerEditingTransaction?.transactionHash,
+            offerEditingTransactionCreationTime = null,
+            offerEditingTransactionCreationBlockNumber = null,
         )
         runBlocking {
             databaseService.storeOffer(offerForDatabase)
@@ -1610,6 +1940,10 @@ class OfferServiceTests {
                         offerCancellationTransactionCreationTime = null,
                         offerCancellationTransactionCreationBlockNumber =
                         addedOffer.offerCancellationTransaction?.latestBlockNumberAtCreation?.toLong(),
+                        editingOfferState = addedOffer.editingOfferState.value.asString,
+                        offerEditingTransactionHash = addedOffer.offerEditingTransaction?.transactionHash,
+                        offerEditingTransactionCreationTime = null,
+                        offerEditingTransactionCreationBlockNumber = null,
                     )
                     assertEquals(expectedOfferInDatabase, offerInDatabase)
 
@@ -1655,7 +1989,7 @@ class OfferServiceTests {
     }
 
     /**
-     * Ensures that [OfferService.cancelOffer], [OfferService.createCancelOfferTransaction] and
+     * Ensures that [OfferService.createCancelOfferTransaction], [OfferService.cancelOffer] and
      * [BlockchainService.sendTransaction] function properly.
      */
     @Test
@@ -1758,6 +2092,10 @@ class OfferServiceTests {
             offerCancellationTransactionCreationTime = null,
             offerCancellationTransactionCreationBlockNumber =
             offer.offerCancellationTransaction?.latestBlockNumberAtCreation?.toLong(),
+            editingOfferState = offer.editingOfferState.value.asString,
+            offerEditingTransactionHash = offer.offerEditingTransaction?.transactionHash,
+            offerEditingTransactionCreationTime = null,
+            offerEditingTransactionCreationBlockNumber = null,
         )
 
         runBlocking {
@@ -1789,7 +2127,8 @@ class OfferServiceTests {
     }
 
     /**
-     * Ensures that [OfferService.editOffer] and [BlockchainService.editOfferAsync] function properly.
+     * Ensures that [OfferService.createEditOfferTransaction], [OfferService.editOffer] and
+     * [BlockchainService.editOfferAsync] function properly.
      */
     @Test
     fun testEditOffer() {
@@ -1833,6 +2172,16 @@ class OfferServiceTests {
         val offerTruthSource = TestOfferTruthSource()
         offerService.setOfferTruthSource(offerTruthSource)
 
+        val exceptionHandler = TestBlockchainExceptionHandler()
+
+        val blockchainService = BlockchainService(
+            exceptionHandler = exceptionHandler,
+            offerService = offerService,
+            swapService = TestSwapService(),
+            web3 = w3,
+            commutoSwapAddress = testingServerResponse.commutoSwapAddress
+        )
+
         val offer = Offer(
             isCreated = true,
             isTaken = false,
@@ -1855,54 +2204,103 @@ class OfferServiceTests {
             protocolVersion = BigInteger.ONE,
             chainID = BigInteger.valueOf(31337L), // Hardhat blockchain ID
             havePublicKey = true,
-            isUserMaker = true,
+            isUserMaker = false,
             state = OfferState.OFFER_OPENED
         )
         offerTruthSource.offers[offerID] = offer
-
-        val exceptionHandler = TestBlockchainExceptionHandler()
-
-        val blockchainService = BlockchainService(
-            exceptionHandler = exceptionHandler,
-            offerService = offerService,
-            swapService = TestSwapService(),
-            web3 = w3,
-            commutoSwapAddress = testingServerResponse.commutoSwapAddress
+        val encoder = Base64.getEncoder()
+        val offerForDatabase = DatabaseOffer(
+            id = encoder.encodeToString(offerID.asByteArray()),
+            isCreated = 1L,
+            isTaken = 0L,
+            maker = offer.maker,
+            interfaceId = encoder.encodeToString(offer.interfaceID),
+            stablecoin = offer.stablecoin,
+            amountLowerBound = offer.amountLowerBound.toString(),
+            amountUpperBound = offer.amountUpperBound.toString(),
+            securityDepositAmount = offer.securityDepositAmount.toString(),
+            serviceFeeRate = offer.serviceFeeRate.toString(),
+            onChainDirection = offer.direction.string,
+            protocolVersion = offer.protocolVersion.toString(),
+            chainID = offer.chainID.toString(),
+            havePublicKey = 1L,
+            isUserMaker = 1L,
+            state = offer.state.asString,
+            cancelingOfferState = offer.cancelingOfferState.value.asString,
+            offerCancellationTransactionHash = offer.offerCancellationTransaction?.transactionHash,
+            offerCancellationTransactionCreationTime = null,
+            offerCancellationTransactionCreationBlockNumber =
+            offer.offerCancellationTransaction?.latestBlockNumberAtCreation?.toLong(),
+            editingOfferState = offer.editingOfferState.value.asString,
+            offerEditingTransactionHash = offer.offerEditingTransaction?.transactionHash,
+            offerEditingTransactionCreationTime = null,
+            offerEditingTransactionCreationBlockNumber = null,
         )
 
+        offer.editingOfferState.value = EditingOfferState.VALIDATING
+
         runBlocking {
-            offerService.editOffer(
-                offerID = offerID,
+            databaseService.storeOffer(offerForDatabase)
+
+            val offerEditingTransaction = offerService.createEditOfferTransaction(
+                offerID = offer.id,
+                chainID = offer.chainID,
                 newSettlementMethods = listOf(
                     SettlementMethod(
                         currency = "USD",
-                        method = "a_method",
-                        price = "1.23",
-                        privateData = "some_private_data"
+                        price = "1.00",
+                        method = "SWIFT",
+                        privateData = "some_swift_data",
                     )
-                )
+                ),
             )
 
+            offerService.editOffer(
+                offer = offer,
+                newSettlementMethods = listOf(
+                    SettlementMethod(
+                        currency = "USD",
+                        price = "1.00",
+                        method = "SWIFT",
+                        privateData = "some_swift_data",
+                    )
+                ),
+                offerEditingTransaction = offerEditingTransaction,
+            )
+
+            assertEquals(EditingOfferState.AWAITING_TRANSACTION_CONFIRMATION, offer.editingOfferState.value)
+            assertNotNull(offer.offerEditingTransaction?.transactionHash)
             val expectedSettlementMethods = listOf(
                 SettlementMethod(
                     currency = "USD",
-                    method = "a_method",
-                    price = "1.23"
-                ).onChainData
+                    method = "SWIFT",
+                    price = "1.00"
+                )
             )
-
+            val offerInDatabase = databaseService.getOffer(encoder.encodeToString(offer.id.asByteArray()))
+            assertEquals(EditingOfferState.AWAITING_TRANSACTION_CONFIRMATION.asString, offerInDatabase!!
+                .editingOfferState)
+            assertNotNull(offerInDatabase.offerEditingTransactionHash)
             val offerStruct = blockchainService.getOffer(offerID)
             assertEquals(expectedSettlementMethods.size, offerStruct!!.settlementMethods.size)
             offerStruct.settlementMethods.indices.forEach {
-                assert(expectedSettlementMethods[it].contentEquals(offerStruct.settlementMethods[it]))
+                assert(expectedSettlementMethods[it].onChainData!!.contentEquals(offerStruct.settlementMethods[it]))
+                /*
+                val settlementMethodInOfferStruct = Json.decodeFromString<SettlementMethod>(
+                    offerStruct.settlementMethods[it].decodeToString())
+                val expectedSettlementMethod = Json.decodeFromString<SettlementMethod>(
+                    expectedSettlementMethods[it]!!.decodeToString())
+                assertEquals(expectedSettlementMethod.currency, settlementMethodInOfferStruct.currency)
+                assertEquals(expectedSettlementMethod.method, settlementMethodInOfferStruct.method)
+                assertEquals(expectedSettlementMethod.price, settlementMethodInOfferStruct.price)*/
             }
-            val encoder = Base64.getEncoder()
             val pendingSettlementMethodsInDatabase = databaseService.getPendingOfferSettlementMethods(
                 offerID = encoder.encodeToString(offerID.asByteArray()),
                 chainID = BigInteger.valueOf(31337L).toString()
             )
             assertEquals(1, pendingSettlementMethodsInDatabase!!.size)
-            assertEquals("some_private_data", pendingSettlementMethodsInDatabase[0].second)
+            assertEquals(Json.encodeToString(expectedSettlementMethods[0]), pendingSettlementMethodsInDatabase[0].first)
+            assertEquals("some_swift_data", pendingSettlementMethodsInDatabase[0].second)
         }
     }
 
@@ -2030,6 +2428,10 @@ class OfferServiceTests {
             offerCancellationTransactionCreationTime = null,
             offerCancellationTransactionCreationBlockNumber =
             offer.offerCancellationTransaction?.latestBlockNumberAtCreation?.toLong(),
+            editingOfferState = offer.editingOfferState.value.asString,
+            offerEditingTransactionHash = offer.offerEditingTransaction?.transactionHash,
+            offerEditingTransactionCreationTime = null,
+            offerEditingTransactionCreationBlockNumber = null,
         )
         runBlocking {
             databaseService.storeOffer(offerForDatabase)
