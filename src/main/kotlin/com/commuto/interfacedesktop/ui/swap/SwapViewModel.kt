@@ -7,6 +7,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.slf4j.LoggerFactory
+import org.web3j.crypto.RawTransaction
 import java.util.*
 import javax.inject.Inject
 
@@ -139,7 +140,9 @@ class SwapViewModel @Inject constructor(private val swapService: SwapService): U
      *
      * @param swap The [Swap] for which to report sending payment.
      */
+    @Deprecated("Use the new transaction pipeline with improved transaction state management")
     override fun reportPaymentSent(swap: Swap) {
+        /*
         viewModelScope.launch {
             setReportingPaymentSentState(
                 swap = swap,
@@ -168,6 +171,78 @@ class SwapViewModel @Inject constructor(private val swapService: SwapService): U
                     swap = swap,
                     state = ReportingPaymentSentState.EXCEPTION
                 )
+            }
+        }*/
+    }
+
+    /**
+     * Attempts to create a [RawTransaction] to call
+     * [reportPaymentSent](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#report-payment-sent) for
+     * [swap], for which the user of this interface should be the buyer.
+     *
+     * This passes [swap]'s ID and chain ID to [SwapService.createReportPaymentSentTransaction] and then passes the
+     * resulting transaction to [createdTransactionHandler] or [Exception] to [exceptionHandler].
+     *
+     * @param swap The [Swap] for which
+     * [reportPaymentSent](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#report-payment-sent) will be
+     * called.
+     * @param createdTransactionHandler A lambda that will accept and handle the created [RawTransaction].
+     * @param exceptionHandler A lambda that will accept and handle any exception that occurs during the transaction
+     * creation process.
+     */
+    override fun createReportPaymentSentTransaction(
+        swap: Swap,
+        createdTransactionHandler: (RawTransaction) -> Unit,
+        exceptionHandler: (Exception) -> Unit,
+    ) {
+        viewModelScope.launch {
+            logger.info("createReportPaymentSentTransaction: creating for ${swap.id}")
+            try {
+                val createdTransaction = swapService.createReportPaymentSentTransaction(
+                    swapID = swap.id,
+                    chainID = swap.chainID
+                )
+                createdTransactionHandler(createdTransaction)
+            } catch (exception: Exception) {
+                exceptionHandler(exception)
+            }
+        }
+    }
+
+    /**
+     * Attempts to call
+     * [reportPaymentSent](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#report-payment-sent) for a
+     * [Swap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#swap) for which the user of this interface
+     * is the buyer.
+     *
+     * This clears the reporting-payment-sent-related [Exception] of [swap] and sets [swap]'s
+     * [Swap.reportingPaymentSentState] to [ReportingPaymentSentState.VALIDATING], and then passes all data to
+     * [swapService]'s [SwapService.reportPaymentSent] function.
+     *
+     * @param swap The [Swap] for which
+     * [reportPaymentSent](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#report-payment-sent) will be
+     * called.
+     * @param reportPaymentSentTransaction An optional [RawTransaction] that will call
+     * [reportPaymentSent](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#report-payment-sent) for
+     * [swap].
+     */
+    override fun reportPaymentSent(swap: Swap, reportPaymentSentTransaction: RawTransaction?) {
+        swap.reportingPaymentSentException = null
+        swap.reportingPaymentSentState.value = ReportingPaymentSentState.VALIDATING
+        viewModelScope.launch {
+            logger.info("reportPaymentSent: reporting for ${swap.id}")
+            try {
+                swapService.reportPaymentSent(
+                    swap = swap,
+                    reportPaymentSentTransaction = reportPaymentSentTransaction,
+                )
+                logger.info("reportPaymentSent: successfully broadcast transaction for ${swap.id}")
+            } catch (exception: Exception) {
+                logger.error("reportPaymentSent: got exception during reportPaymentSent call for ${swap.id}", exception)
+                withContext(Dispatchers.Main) {
+                    swap.reportingPaymentSentException = exception
+                    swap.reportingPaymentSentState.value = ReportingPaymentSentState.EXCEPTION
+                }
             }
         }
     }

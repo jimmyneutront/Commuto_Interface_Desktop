@@ -2,6 +2,7 @@ package com.commuto.interfacedesktop.swap
 
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
+import com.commuto.interfacedesktop.blockchain.BlockchainTransaction
 import com.commuto.interfacedesktop.blockchain.structs.SwapStruct
 import com.commuto.interfacedesktop.offer.OfferDirection
 import com.commuto.interfacedesktop.settlement.SettlementMethod
@@ -49,11 +50,16 @@ import java.util.*
  * and is selling stablecoin.) The [Exception] that we encountered during the swap filling process, or `null` of no such
  * exception has occurred.
  * @property reportingPaymentSentState (This property is used only if the user of this interface is the buyer in this
- * swap.) This indicates whether we are currently reporting that we have sent fiat payment to the seller in this swap,
- * and if so, what part of the payment-sent-reporting process we are in.
+ * swap.) This indicates whether we are currently reporting that we have sent fiat payment to the seller in this swap by
+ * calling [reportPaymentSent](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#report-payment-sent), and
+ * if so, what part of the payment-sent-reporting process we are in.
  * @property reportingPaymentSentException (This property is used only if the user of this interface is the buyer in
  * this swap.) The [Exception] that we encountered during the reporting-payment-sent process, or `null` if no such
  * exception has occurred.
+ * @property reportPaymentSentTransaction The [BlockchainTransaction] that called
+ * [reportPaymentSent](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#report-payment-sent) for this swap.
+ * If the user of this interface is not the buyer, all properties of this [BlockchainTransaction] except the transaction
+ * hash may not be accurate.
  * @property reportingPaymentReceivedState (This property is used only if the user of this interface is the seller in
  * this swap.) This indicates whether we are currently reporting that we have received fiat payment from the seller in
  * this swap, and if so, what part of the payment-received-reporting process we are in.
@@ -111,6 +117,8 @@ class Swap(
 
     val reportingPaymentSentState = mutableStateOf(ReportingPaymentSentState.NONE)
     var reportingPaymentSentException: Exception? = null
+
+    var reportPaymentSentTransaction: BlockchainTransaction? = null
 
     val reportingPaymentReceivedState = mutableStateOf(ReportingPaymentReceivedState.NONE)
     var reportingPaymentReceivedException: Exception? = null

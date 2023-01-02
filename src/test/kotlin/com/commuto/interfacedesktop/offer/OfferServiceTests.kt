@@ -1012,6 +1012,10 @@ class OfferServiceTests {
                     false
                 }
             }
+            override suspend fun handleFailedTransaction(
+                transaction: BlockchainTransaction,
+                exception: BlockchainTransactionException
+            ) {}
             override suspend fun handleNewSwap(takenOffer: Offer) {}
             override suspend fun handleSwapFilledEvent(event: SwapFilledEvent) {}
             override suspend fun handlePaymentSentEvent(event: PaymentSentEvent) {}
@@ -1097,6 +1101,10 @@ class OfferServiceTests {
             val offerChannel = Channel<Offer>()
             override suspend fun sendTakerInformationMessage(swapID: UUID, chainID: BigInteger): Boolean
             { return false }
+            override suspend fun handleFailedTransaction(
+                transaction: BlockchainTransaction,
+                exception: BlockchainTransactionException
+            ) {}
             override suspend fun handleNewSwap(takenOffer: Offer) {
                 offerChannel.send(takenOffer)
             }
@@ -2285,14 +2293,6 @@ class OfferServiceTests {
             assertEquals(expectedSettlementMethods.size, offerStruct!!.settlementMethods.size)
             offerStruct.settlementMethods.indices.forEach {
                 assert(expectedSettlementMethods[it].onChainData!!.contentEquals(offerStruct.settlementMethods[it]))
-                /*
-                val settlementMethodInOfferStruct = Json.decodeFromString<SettlementMethod>(
-                    offerStruct.settlementMethods[it].decodeToString())
-                val expectedSettlementMethod = Json.decodeFromString<SettlementMethod>(
-                    expectedSettlementMethods[it]!!.decodeToString())
-                assertEquals(expectedSettlementMethod.currency, settlementMethodInOfferStruct.currency)
-                assertEquals(expectedSettlementMethod.method, settlementMethodInOfferStruct.method)
-                assertEquals(expectedSettlementMethod.price, settlementMethodInOfferStruct.price)*/
             }
             val pendingSettlementMethodsInDatabase = databaseService.getPendingOfferSettlementMethods(
                 offerID = encoder.encodeToString(offerID.asByteArray()),
@@ -2546,6 +2546,10 @@ class OfferServiceTests {
                 chainID = swapInTruthSource.chainID.toString(),
                 state = swapInTruthSource.state.value.asString,
                 role = swapInTruthSource.role.asString,
+                reportPaymentSentState = swapInTruthSource.reportingPaymentSentState.value.asString,
+                reportPaymentSentTransactionHash = null,
+                reportPaymentSentTransactionCreationTime = null,
+                reportPaymentSentTransactionCreationBlockNumber = null,
             )
             assertEquals(expectedSwapInDatabase.id, swapInDatabase!!.id)
             assertEquals(expectedSwapInDatabase.isCreated, swapInDatabase.isCreated)

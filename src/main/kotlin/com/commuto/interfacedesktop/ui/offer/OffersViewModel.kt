@@ -299,8 +299,10 @@ class OffersViewModel @Inject constructor(private val offerService: OfferService
                 logger.info("cancelOffer: successfully broadcast transaction for ${offer.id}")
             } catch (exception: Exception) {
                 logger.error("cancelOffer: got exception during cancelOffer call for ${offer.id}", exception)
-                offer.cancelingOfferException = exception
-                setCancelingOfferState(offerID = offer.id, state = CancelingOfferState.EXCEPTION)
+                withContext(Dispatchers.Main) {
+                    offer.cancelingOfferException = exception
+                    offer.cancelingOfferState.value = CancelingOfferState.EXCEPTION
+                }
             }
         }
     }
@@ -315,7 +317,7 @@ class OffersViewModel @Inject constructor(private val offerService: OfferService
      * @param offer The [Offer] to be edited.
      * @param newSettlementMethods A [List] of [SettlementMethod]s with which the [Offer] will be edited.
      */
-    @Deprecated("Use the new offer pipeline with improved transaction state management")
+    @Deprecated("Use the new transaction pipeline with improved transaction state management")
     override fun editOffer(
         offer: Offer,
         newSettlementMethods: List<SettlementMethod>
@@ -349,11 +351,10 @@ class OffersViewModel @Inject constructor(private val offerService: OfferService
                 )
             } catch (exception: Exception) {
                 logger.info("editOffer: got exception during editOffer call for ${offer.id}", exception)
-                offer.editingOfferException = exception
-                setEditingOfferState(
-                    offerID = offer.id,
-                    state = EditingOfferState.EXCEPTION
-                )
+                withContext(Dispatchers.Main) {
+                    offer.editingOfferException = exception
+                    offer.editingOfferState.value = EditingOfferState.EXCEPTION
+                }
             }
         }
     }
@@ -386,7 +387,7 @@ class OffersViewModel @Inject constructor(private val offerService: OfferService
                 val createdTransaction = offerService.createEditOfferTransaction(
                     offerID = offer.id,
                     chainID = offer.chainID,
-                    newSettlementMethods = newSettlementMethods
+                    newSettlementMethods = validatedSettlementmethods
                 )
                 withContext(Dispatchers.Main) {
                     createdTransactionHandler(createdTransaction)

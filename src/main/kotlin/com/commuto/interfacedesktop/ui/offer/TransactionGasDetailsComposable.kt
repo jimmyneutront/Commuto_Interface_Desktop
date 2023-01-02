@@ -46,7 +46,7 @@ fun TransactionGasDetailsComposable(
     val transaction = remember { mutableStateOf<RawTransaction?>(null) }
 
     /**
-     * The [Exception] that occurred in [runOnAppearance], or `null` if no such error has occurred.
+     * The [Exception] that occurred in [runOnAppearance], or `null` if no such exception has occurred.
      */
     val transactionCreationException = remember { mutableStateOf<Exception?>(null) }
 

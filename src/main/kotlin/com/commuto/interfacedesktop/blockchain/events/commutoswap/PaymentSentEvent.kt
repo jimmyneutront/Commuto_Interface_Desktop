@@ -11,8 +11,20 @@ import java.util.*
  *
  * @property swapID The ID of the swap for which payment has been sent.
  * @property chainID The ID of the blockchain on which this event was emitted.
+ * @property transactionHash The hash of the transaction that emitted this event, as a lowercase hex string with a "0x"
+ * prefix.
  */
-data class PaymentSentEvent(val swapID: UUID, val chainID: BigInteger) {
+class PaymentSentEvent(val swapID: UUID, val chainID: BigInteger, transactionHash: String) {
+
+    val transactionHash: String
+
+    init {
+        this.transactionHash = if (transactionHash.startsWith("0x")) {
+            transactionHash.lowercase()
+        } else {
+            "0x${transactionHash.lowercase()}"
+        }
+    }
 
     companion object {
         /**
@@ -23,13 +35,13 @@ data class PaymentSentEvent(val swapID: UUID, val chainID: BigInteger) {
          * @param chainID The ID of the blockchain on which this event was emitted.
          *
          * @return A new [PaymentSentEvent] with a swap ID as a [UUID] derived from [event]'s swap ID [ByteArray] and
-         * the specified [chainID].
+         * the specified [chainID], and the transaction hash specified by [event].
          */
         fun fromEventResponse(event: CommutoSwap.PaymentSentEventResponse, chainID: BigInteger): PaymentSentEvent {
             val swapIDByteBuffer = ByteBuffer.wrap(event.swapID)
             val mostSigBits = swapIDByteBuffer.long
             val leastSigBits = swapIDByteBuffer.long
-            return PaymentSentEvent(UUID(mostSigBits, leastSigBits), chainID)
+            return PaymentSentEvent(UUID(mostSigBits, leastSigBits), chainID, event.log.transactionHash)
         }
     }
 }

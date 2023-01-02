@@ -638,6 +638,10 @@ class BlockchainServiceTest {
             val swapFilledEventChannel = Channel<SwapFilledEvent>()
             override suspend fun sendTakerInformationMessage(swapID: UUID, chainID: BigInteger): Boolean
             { return false }
+            override suspend fun handleFailedTransaction(
+                transaction: BlockchainTransaction,
+                exception: BlockchainTransactionException
+            ) {}
             override suspend fun handleNewSwap(takenOffer: Offer) {}
             override suspend fun handleSwapFilledEvent(event: SwapFilledEvent) {
                 swapFilledEventChannel.send(event)
@@ -702,6 +706,10 @@ class BlockchainServiceTest {
             val paymentSentEventChannel = Channel<PaymentSentEvent>()
             override suspend fun sendTakerInformationMessage(swapID: UUID, chainID: BigInteger): Boolean
             { return false }
+            override suspend fun handleFailedTransaction(
+                transaction: BlockchainTransaction,
+                exception: BlockchainTransactionException
+            ) {}
             override suspend fun handleNewSwap(takenOffer: Offer) {}
             override suspend fun handleSwapFilledEvent(event: SwapFilledEvent) {}
             override suspend fun handlePaymentSentEvent(event: PaymentSentEvent) {
@@ -766,6 +774,10 @@ class BlockchainServiceTest {
             val paymentReceivedEventChannel = Channel<PaymentReceivedEvent>()
             override suspend fun sendTakerInformationMessage(swapID: UUID, chainID: BigInteger): Boolean
             { return false }
+            override suspend fun handleFailedTransaction(
+                transaction: BlockchainTransaction,
+                exception: BlockchainTransactionException
+            ) {}
             override suspend fun handleNewSwap(takenOffer: Offer) {}
             override suspend fun handleSwapFilledEvent(event: SwapFilledEvent) {}
             override suspend fun handlePaymentSentEvent(event: PaymentSentEvent) {}
@@ -833,6 +845,10 @@ class BlockchainServiceTest {
             val buyerClosedEventChannel = Channel<BuyerClosedEvent>()
             override suspend fun sendTakerInformationMessage(swapID: UUID, chainID: BigInteger): Boolean
             { return false }
+            override suspend fun handleFailedTransaction(
+                transaction: BlockchainTransaction,
+                exception: BlockchainTransactionException
+            ) {}
             override suspend fun handleNewSwap(takenOffer: Offer) {}
             override suspend fun handleSwapFilledEvent(event: SwapFilledEvent) {}
             override suspend fun handlePaymentSentEvent(event: PaymentSentEvent) {}
@@ -900,6 +916,10 @@ class BlockchainServiceTest {
             val sellerClosedEventChannel = Channel<SellerClosedEvent>()
             override suspend fun sendTakerInformationMessage(swapID: UUID, chainID: BigInteger): Boolean
             { return false }
+            override suspend fun handleFailedTransaction(
+                transaction: BlockchainTransaction,
+                exception: BlockchainTransactionException
+            ) {}
             override suspend fun handleNewSwap(takenOffer: Offer) {}
             override suspend fun handleSwapFilledEvent(event: SwapFilledEvent) {}
             override suspend fun handlePaymentSentEvent(event: PaymentSentEvent) {}

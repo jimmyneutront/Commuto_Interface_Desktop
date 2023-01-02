@@ -556,6 +556,75 @@ class BlockchainService (private val exceptionHandler: BlockchainExceptionNotifi
     }
 
     /**
+     * Creates and returns an EIP1559 [RawTransaction] from the users account to call CommutoSwap's
+     * [reportPaymentSent](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#report-payment-sent) function,
+     * with estimated gas limit, max priority fee per gas, max fee per gas, and with a nonce determined from all
+     * currently known transactions, including those that are still pending.
+     *
+     * @param swapID The ID of the [Swap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#swap) for which
+     * payment sending will be reported.
+     * @param chainID The blockchain ID on which the swap exists.
+     *
+     * @return A [RawTransaction] as described above, that will call
+     * [reportPaymentSent](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#report-payment-sent) for the
+     * swap specified by [swapID] on the chain specified by [chainID].
+     */
+    suspend fun createReportPaymentSentTransaction(swapID: UUID, chainID: BigInteger): RawTransaction {
+        val function = org.web3j.abi.datatypes.Function(
+            "reportPaymentSent",
+            listOf(org.web3j.abi.datatypes.generated.Bytes16(swapID.asByteArray())),
+            listOf()
+        )
+        val encodedFunction = CommutoFunctionEncoder.encode(function)
+        val transactionForGasEstimate = Transaction(
+            creds.address.toString(),
+            BigInteger.ZERO,
+            null, // No gasPrice because we are specifying maxFeePerGas
+            BigInteger.valueOf(30_000_000),
+            commutoSwap.contractAddress,
+            BigInteger.ZERO,
+            encodedFunction,
+            chainID.toLong(),
+            BigInteger.valueOf(1_000_000), // maxPriorityFeePerGas (temporary value)
+            BigInteger.valueOf(875_000_000), // maxFeePerGas (temporary value)
+        )
+        val nonce = web3.ethGetTransactionCount(
+            creds.address,
+            DefaultBlockParameter.valueOf("pending")
+        ).sendAsync().asDeferred()
+        val gasLimit = web3.ethEstimateGas(transactionForGasEstimate).sendAsync().asDeferred().await().amountUsed
+        // Get the fee history from the last 20 blocks, from the 75th to the 100th percentile.
+        val feeHistory = web3.ethFeeHistory(
+            20,
+            DefaultBlockParameter.valueOf("latest"),
+            listOf(75.0)
+        ).sendAsync().asDeferred().await().feeHistory
+        // Calculate the average of the 75th percentile reward values from the last 20 blocks and use this as the
+        // maxPriorityFeePerGas
+        val maxPriorityFeePerGas = BigInteger.ZERO.let { finalTipFee ->
+            feeHistory.reward.map { it.first() }.forEach { finalTipFee.add(it) }
+            finalTipFee.divide(BigInteger.valueOf(feeHistory.reward.count().toLong()))
+        }
+        // Calculate the 75th percentile base fee per gas value from the last 20 blocks and use this as the
+        // baseFeePerGas
+        val baseFeePerGas = BigInteger.ZERO.let {
+            val percentileIndex = floor(0.75 * feeHistory.baseFeePerGas.count()).toInt()
+            feeHistory.baseFeePerGas.sorted()[percentileIndex]
+        }
+        val maxFeePerGas = baseFeePerGas + maxPriorityFeePerGas
+        return RawTransaction.createTransaction(
+            chainID.toLong(),
+            nonce.await().transactionCount,
+            gasLimit,
+            transactionForGasEstimate.to,
+            BigInteger.ZERO, // value
+            transactionForGasEstimate.data,
+            maxPriorityFeePerGas,
+            maxFeePerGas
+        )
+    }
+
+    /**
      * A [Deferred] wrapper around the [CommutoSwap.editOffer] method.
      *
      * @param offerID The ID of the [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer) to be
@@ -730,6 +799,12 @@ class BlockchainService (private val exceptionHandler: BlockchainExceptionNotifi
                                 exception = monitoredTransactionException
                             )
                         }
+                        BlockchainTransactionType.REPORT_PAYMENT_SENT -> {
+                            swapService.handleFailedTransaction(
+                                transaction = monitoredTransaction,
+                                exception = monitoredTransactionException
+                            )
+                        }
                     }
                 }
             }
@@ -776,18 +851,28 @@ class BlockchainService (private val exceptionHandler: BlockchainExceptionNotifi
                         BlockchainTransactionType.EDIT_OFFER -> {
                             eventsInReceipt.addAll(commutoSwap.getOfferEditedEvents(transactionReceipt))
                         }
+                        BlockchainTransactionType.REPORT_PAYMENT_SENT -> {
+                            eventsInReceipt.addAll(commutoSwap.getPaymentReceivedEvents(transactionReceipt))
+                        }
                     }
                 } else {
                     logger.warn("parseDeferredReceiptOptional: monitored tx ${transactionReceipt.transactionHash} of " +
                             "type ${monitoredTransaction.type.asString} failed, calling failure handler")
+                    val exception = BlockchainTransactionException(
+                        message = "Transaction ${transactionReceipt.transactionHash} is confirmed, but failed for " +
+                                "unknown reason."
+                    )
                     when (monitoredTransaction.type) {
                         BlockchainTransactionType.CANCEL_OFFER, BlockchainTransactionType.EDIT_OFFER -> {
                             offerService.handleFailedTransaction(
                                 monitoredTransaction,
-                                exception = BlockchainTransactionException(
-                                    message = "Transaction ${transactionReceipt.transactionHash} is confirmed, but " +
-                                            "failed for unknown reason."
-                                )
+                                exception = exception
+                            )
+                        }
+                        BlockchainTransactionType.REPORT_PAYMENT_SENT -> {
+                            swapService.handleFailedTransaction(
+                                monitoredTransaction,
+                                exception = exception
                             )
                         }
                     }

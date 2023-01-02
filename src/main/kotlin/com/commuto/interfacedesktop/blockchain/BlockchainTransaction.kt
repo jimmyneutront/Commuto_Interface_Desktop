@@ -48,7 +48,11 @@ data class BlockchainTransaction(
         type: BlockchainTransactionType
     ): this(
         transaction = transaction,
-        transactionHash = transactionHash,
+        transactionHash = if (!transactionHash.startsWith("0x")) {
+            "0x${transactionHash.lowercase()}"
+        } else {
+            transactionHash.lowercase()
+        },
         timeOfCreation = Date(),
         latestBlockNumberAtCreation = latestBlockNumberAtCreation,
         type = type

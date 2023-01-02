@@ -238,7 +238,11 @@ internal class Database(databaseDriverFactory: DatabaseDriverFactory) {
             disputeRaiser = swap.disputeRaiser,
             chainID = swap.chainID,
             state = swap.state,
-            role = swap.role
+            role = swap.role,
+            reportPaymentSentState = swap.reportPaymentSentState,
+            reportPaymentSentTransactionHash = swap.reportPaymentSentTransactionHash,
+            reportPaymentSentTransactionCreationTime = swap.reportPaymentSentTransactionCreationTime,
+            reportPaymentSentTransactionCreationBlockNumber = swap.reportPaymentSentTransactionCreationBlockNumber
         )
     }
 
@@ -474,6 +478,46 @@ internal class Database(databaseDriverFactory: DatabaseDriverFactory) {
             hasSellerClosed = hasSellerClosed,
             id = swapID,
             chainID = chainID,
+        )
+    }
+
+    /**
+     * Updates the [Swap.reportPaymentSentState] property of the [Swap] with the specified [swapID] and [chainID].
+     * @param swapID The ID of the [Swap] to be updated.
+     * @param chainID The ID of the blockchain on which the [Swap] to be updated exists.
+     * @paran state The new value of the [Swap.reportPaymentSentState] property
+     */
+    internal fun updateReportPaymentSentState(swapID: String, chainID: String, state: String) {
+        dbQuery.updateReportPaymentSentStateBySwapIDAndChainID(
+            reportPaymentSentState = state,
+            id = swapID,
+            chainID = chainID
+        )
+    }
+
+    /**
+     * Updates the [Swap.reportPaymentSentTransactionHash], [Swap.reportPaymentSentTransactionCreationTime] and
+     * [Swap.reportPaymentSentTransactionCreationBlockNumber] properties of the [Swap] with the specified [swapID]
+     * and [chainID].
+     * @param swapID The ID of the [Swap] to be updated.
+     * @param chainID The ID of the blockchain on which the [Swap] to be updated exists.
+     * @param transactionHash The new value of the [Swap.reportPaymentSentTransactionHash] property.
+     * @param creationTime The new value of the [Swap.reportPaymentSentTransactionCreationTime] property.
+     * @param blockNumber The new value of the [Swap.reportPaymentSentTransactionCreationBlockNumber] property.
+     */
+    internal fun updateReportPaymentSentData(
+        swapID: String,
+        chainID: String,
+        transactionHash: String?,
+        creationTime: String?,
+        blockNumber: Long?
+    ) {
+        dbQuery.updateReportPaymentSentDataBySwapIDAndChainID(
+            reportPaymentSentTransactionHash = transactionHash,
+            reportPaymentSentTransactionCreationTime = creationTime,
+            reportPaymentSentTransactionCreationBlockNumber = blockNumber,
+            id = swapID,
+            chainID = chainID
         )
     }
 

@@ -20,9 +20,9 @@ class OfferCanceledEvent(val offerID: UUID, val chainID: BigInteger, transaction
 
     init {
         this.transactionHash = if (transactionHash.startsWith("0x")) {
-            transactionHash
+            transactionHash.lowercase()
         } else {
-            "0x$transactionHash"
+            "0x${transactionHash.lowercase()}"
         }
     }
 
