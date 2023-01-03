@@ -2550,6 +2550,10 @@ class OfferServiceTests {
                 reportPaymentSentTransactionHash = null,
                 reportPaymentSentTransactionCreationTime = null,
                 reportPaymentSentTransactionCreationBlockNumber = null,
+                reportPaymentReceivedState = swapInTruthSource.reportingPaymentReceivedState.value.asString,
+                reportPaymentReceivedTransactionHash = null,
+                reportPaymentReceivedTransactionCreationTime = null,
+                reportPaymentReceivedTransactionCreationBlockNumber = null,
             )
             assertEquals(expectedSwapInDatabase.id, swapInDatabase!!.id)
             assertEquals(expectedSwapInDatabase.isCreated, swapInDatabase.isCreated)

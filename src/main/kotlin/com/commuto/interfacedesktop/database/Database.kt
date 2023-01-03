@@ -242,7 +242,12 @@ internal class Database(databaseDriverFactory: DatabaseDriverFactory) {
             reportPaymentSentState = swap.reportPaymentSentState,
             reportPaymentSentTransactionHash = swap.reportPaymentSentTransactionHash,
             reportPaymentSentTransactionCreationTime = swap.reportPaymentSentTransactionCreationTime,
-            reportPaymentSentTransactionCreationBlockNumber = swap.reportPaymentSentTransactionCreationBlockNumber
+            reportPaymentSentTransactionCreationBlockNumber = swap.reportPaymentSentTransactionCreationBlockNumber,
+            reportPaymentReceivedState = swap.reportPaymentReceivedState,
+            reportPaymentReceivedTransactionHash = swap.reportPaymentReceivedTransactionHash,
+            reportPaymentReceivedTransactionCreationTime = swap.reportPaymentReceivedTransactionCreationTime,
+            reportPaymentReceivedTransactionCreationBlockNumber = swap
+                .reportPaymentReceivedTransactionCreationBlockNumber
         )
     }
 
@@ -516,6 +521,46 @@ internal class Database(databaseDriverFactory: DatabaseDriverFactory) {
             reportPaymentSentTransactionHash = transactionHash,
             reportPaymentSentTransactionCreationTime = creationTime,
             reportPaymentSentTransactionCreationBlockNumber = blockNumber,
+            id = swapID,
+            chainID = chainID
+        )
+    }
+
+    /**
+     * Updates the [Swap.reportPaymentReceivedState] property of the [Swap] with the specified [swapID] and [chainID].
+     * @param swapID The ID of the [Swap] to be updated.
+     * @param chainID The ID of the blockchain on which the [Swap] to be updated exists.
+     * @paran state The new value of the [Swap.reportPaymentReceivedState] property
+     */
+    internal fun updateReportPaymentReceivedState(swapID: String, chainID: String, state: String) {
+        dbQuery.updateReportPaymentReceivedStateBySwapIDAndChainID(
+            reportPaymentReceivedState = state,
+            id = swapID,
+            chainID = chainID
+        )
+    }
+
+    /**
+     * Updates the [Swap.reportPaymentReceivedTransactionHash], [Swap.reportPaymentReceivedTransactionCreationTime] and
+     * [Swap.reportPaymentReceivedTransactionCreationBlockNumber] properties of the [Swap] with the specified [swapID]
+     * and [chainID].
+     * @param swapID The ID of the [Swap] to be updated.
+     * @param chainID The ID of the blockchain on which the [Swap] to be updated exists.
+     * @param transactionHash The new value of the [Swap.reportPaymentReceivedTransactionHash] property.
+     * @param creationTime The new value of the [Swap.reportPaymentReceivedTransactionCreationTime] property.
+     * @param blockNumber The new value of the [Swap.reportPaymentReceivedTransactionCreationBlockNumber] property.
+     */
+    internal fun updateReportPaymentReceivedData(
+        swapID: String,
+        chainID: String,
+        transactionHash: String?,
+        creationTime: String?,
+        blockNumber: Long?
+    ) {
+        dbQuery.updateReportPaymentReceivedDataBySwapIDAndChainID(
+            reportPaymentReceivedTransactionHash = transactionHash,
+            reportPaymentReceivedTransactionCreationTime = creationTime,
+            reportPaymentReceivedTransactionCreationBlockNumber = blockNumber,
             id = swapID,
             chainID = chainID
         )

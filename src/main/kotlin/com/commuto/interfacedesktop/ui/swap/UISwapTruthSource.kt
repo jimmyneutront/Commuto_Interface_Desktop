@@ -68,7 +68,41 @@ interface UISwapTruthSource: SwapTruthSource {
      *
      * @param swap The [Swap] for which to report receiving payment.
      */
+    @Deprecated("Use the new transaction pipeline with improved transaction state management")
     fun reportPaymentReceived(swap: Swap)
+
+    /**
+     * Attempts to create a [RawTransaction] to call
+     * [reportPaymentReceived](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#report-payment-received)
+     * for [swap], for which the user of this interface should be the seller.
+     *
+     * @param swap The [Swap] for which
+     * [reportPaymentReceived](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#report-payment-received)
+     * will be called.
+     * @param createdTransactionHandler A lambda that will accept and handle the created [RawTransaction].
+     * @param exceptionHandler A lambda that will accept and handle any exception that occurs during the transaction
+     * creation process.
+     */
+    fun createReportPaymentReceivedTransaction(
+        swap: Swap,
+        createdTransactionHandler: (RawTransaction) -> Unit,
+        exceptionHandler: (Exception) -> Unit,
+    )
+
+    /**
+     * Attempts to call
+     * [reportPaymentReceived](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#report-payment-received)
+     * for a [Swap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#swap) for which the user of this
+     * interface is the buyer.
+     *
+     * @param swap The [Swap] for which
+     * [reportPaymentReceived](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#report-payment-received)
+     * will be called.
+     * @param reportPaymentReceivedTransaction An optional [RawTransaction] that will call
+     * [reportPaymentReceived](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#report-payment-received)
+     * for [swap].
+     */
+    fun reportPaymentReceived(swap: Swap, reportPaymentReceivedTransaction: RawTransaction?)
 
     /**
      * Attempts to close a swap [Swap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#swap).

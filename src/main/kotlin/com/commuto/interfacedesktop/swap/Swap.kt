@@ -61,8 +61,10 @@ import java.util.*
  * If the user of this interface is not the buyer, all properties of this [BlockchainTransaction] except the transaction
  * hash may not be accurate.
  * @property reportingPaymentReceivedState (This property is used only if the user of this interface is the seller in
- * this swap.) This indicates whether we are currently reporting that we have received fiat payment from the seller in
- * this swap, and if so, what part of the payment-received-reporting process we are in.
+ * this swap.) This indicates whether we are currently reporting that we have received fiat payment from the buyer in
+ * this swap by calling
+ * [reportPaymentReceived](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#report-payment-received), and
+ * if so, what part of the payment-sent-reporting process we are in.
  * @property reportingPaymentReceivedException (This property is used only if the user of this interface is the seller
  * in this swap.) The [Exception] that we encountered during the reporting-payment-received process, or `null` if no
  * such exception has occurred.
@@ -70,6 +72,10 @@ import java.util.*
  * part of the swap-closing process we are in.
  * @property reportingPaymentReceivedException The [Exception] that we encountered during the swap closing process, or
  * `null` if no such exception has occurred.
+ * @property reportPaymentReceivedTransaction The [BlockchainTransaction] that called
+ * [reportPaymentReceived](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#report-payment-received) for
+ * this swap. If the user of this interface is not the seller, all properties of this [BlockchainTransaction] except the
+ * transaction hash may not be accurate.
  * @property closingSwapState This indicates whether we are currently closing this swap, and if so, what part of the
  * swap-closing process we are in.
  * @property closingSwapException The [Exception] that we encountered during the swap closing process, or `null` if no
@@ -122,6 +128,8 @@ class Swap(
 
     val reportingPaymentReceivedState = mutableStateOf(ReportingPaymentReceivedState.NONE)
     var reportingPaymentReceivedException: Exception? = null
+
+    var reportPaymentReceivedTransaction: BlockchainTransaction? = null
 
     val closingSwapState = mutableStateOf(ClosingSwapState.NONE)
     var closingSwapException: Exception? = null

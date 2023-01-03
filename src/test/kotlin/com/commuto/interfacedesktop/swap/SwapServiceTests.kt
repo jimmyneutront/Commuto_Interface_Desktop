@@ -144,6 +144,10 @@ class SwapServiceTests {
             reportPaymentSentTransactionHash = null,
             reportPaymentSentTransactionCreationTime =  null,
             reportPaymentSentTransactionCreationBlockNumber = null,
+            reportPaymentReceivedState = swap.reportingPaymentReceivedState.value.asString,
+            reportPaymentReceivedTransactionHash = null,
+            reportPaymentReceivedTransactionCreationTime =  null,
+            reportPaymentReceivedTransactionCreationBlockNumber = null,
         )
         databaseService.storeSwap(swapForDatabase)
 
@@ -162,6 +166,120 @@ class SwapServiceTests {
         assertNotNull(swap.reportingPaymentSentException)
         val swapInDatabase = databaseService.getSwap(id = encoder.encodeToString(swapID.asByteArray()))
         assertEquals(ReportingPaymentSentState.EXCEPTION.asString, swapInDatabase!!.reportPaymentSentState)
+    }
+
+    /**
+     * Ensure [SwapService] handles failed reporting payment received transactions properly.
+     */
+    @Test
+    fun testHandleFailedReportPaymentReceivedTransaction() = runBlocking {
+        val swapID = UUID.randomUUID()
+
+        val databaseService = DatabaseService(DatabaseDriverFactory())
+        databaseService.createTables()
+        val keyManagerService = KeyManagerService(databaseService)
+
+        val swapTruthSource = TestSwapTruthSource()
+
+        val swap = Swap(
+            isCreated = true,
+            requiresFill = true,
+            id = swapID,
+            maker = "",
+            makerInterfaceID = ByteArray(0),
+            taker = "",
+            takerInterfaceID = ByteArray(0),
+            stablecoin = "",
+            amountLowerBound = BigInteger.ZERO,
+            amountUpperBound = BigInteger.ZERO,
+            securityDepositAmount = BigInteger.ZERO,
+            takenSwapAmount = BigInteger.ZERO,
+            serviceFeeAmount = BigInteger.ZERO,
+            serviceFeeRate = BigInteger.ZERO,
+            direction = OfferDirection.SELL,
+            onChainSettlementMethod =
+            """
+                 {
+                     "f": "USD",
+                     "p": "1.00",
+                     "m": "SWIFT"
+                 }
+                 """.trimIndent().encodeToByteArray(),
+            protocolVersion = BigInteger.ZERO,
+            isPaymentSent = true,
+            isPaymentReceived = false,
+            hasBuyerClosed = false,
+            hasSellerClosed = false,
+            onChainDisputeRaiser = BigInteger.ZERO,
+            chainID = BigInteger.valueOf(31337L),
+            state = SwapState.AWAITING_PAYMENT_RECEIVED,
+            role = SwapRole.TAKER_AND_SELLER,
+        )
+        val reportPaymentReceivedTransaction = BlockchainTransaction(
+            transactionHash = "a_transaction_hash_here",
+            timeOfCreation = Date(),
+            latestBlockNumberAtCreation = BigInteger.ZERO,
+            type = BlockchainTransactionType.REPORT_PAYMENT_RECEIVED
+        )
+        swap.reportPaymentReceivedTransaction = reportPaymentReceivedTransaction
+        swapTruthSource.swaps[swapID] = swap
+        val encoder = Base64.getEncoder()
+        val swapForDatabase = DatabaseSwap(
+            id = encoder.encodeToString(swapID.asByteArray()),
+            isCreated = 1L,
+            requiresFill = 1L,
+            maker = swap.maker,
+            makerInterfaceID = encoder.encodeToString(swap.makerInterfaceID),
+            taker = swap.taker,
+            takerInterfaceID = encoder.encodeToString(swap.takerInterfaceID),
+            stablecoin = swap.stablecoin,
+            amountLowerBound = swap.amountLowerBound.toString(),
+            amountUpperBound = swap.amountUpperBound.toString(),
+            securityDepositAmount = swap.securityDepositAmount.toString(),
+            takenSwapAmount = swap.takenSwapAmount.toString(),
+            serviceFeeAmount = swap.serviceFeeAmount.toString(),
+            serviceFeeRate = swap.serviceFeeRate.toString(),
+            onChainDirection = swap.onChainDirection.toString(),
+            settlementMethod = encoder.encodeToString(swap.onChainSettlementMethod),
+            makerPrivateData = null,
+            makerPrivateDataInitializationVector = null,
+            takerPrivateData = null,
+            takerPrivateDataInitializationVector = null,
+            protocolVersion = swap.protocolVersion.toString(),
+            isPaymentSent = 1L,
+            isPaymentReceived = 0L,
+            hasBuyerClosed = 0L,
+            hasSellerClosed = 0L,
+            disputeRaiser = swap.onChainDisputeRaiser.toString(),
+            chainID = swap.chainID.toString(),
+            state = swap.state.value.asString,
+            role = swap.role.asString,
+            reportPaymentSentState = swap.reportingPaymentSentState.value.asString,
+            reportPaymentSentTransactionHash = null,
+            reportPaymentSentTransactionCreationTime =  null,
+            reportPaymentSentTransactionCreationBlockNumber = null,
+            reportPaymentReceivedState = swap.reportingPaymentReceivedState.value.asString,
+            reportPaymentReceivedTransactionHash = null,
+            reportPaymentReceivedTransactionCreationTime =  null,
+            reportPaymentReceivedTransactionCreationBlockNumber = null,
+        )
+        databaseService.storeSwap(swapForDatabase)
+
+        val swapService = SwapService(
+            databaseService = databaseService,
+            keyManagerService = keyManagerService,
+        )
+        swapService.setSwapTruthSource(swapTruthSource)
+
+        swapService.handleFailedTransaction(
+            reportPaymentReceivedTransaction,
+            exception = BlockchainTransactionException(message = "tx failed")
+        )
+
+        assertEquals(ReportingPaymentReceivedState.EXCEPTION, swap.reportingPaymentReceivedState.value)
+        assertNotNull(swap.reportingPaymentReceivedException)
+        val swapInDatabase = databaseService.getSwap(id = encoder.encodeToString(swapID.asByteArray()))
+        assertEquals(ReportingPaymentReceivedState.EXCEPTION.asString, swapInDatabase!!.reportPaymentReceivedState)
     }
 
     /**
@@ -270,6 +388,10 @@ class SwapServiceTests {
             reportPaymentSentTransactionHash = null,
             reportPaymentSentTransactionCreationTime =  null,
             reportPaymentSentTransactionCreationBlockNumber = null,
+            reportPaymentReceivedState = swap.reportingPaymentReceivedState.value.asString,
+            reportPaymentReceivedTransactionHash = null,
+            reportPaymentReceivedTransactionCreationTime =  null,
+            reportPaymentReceivedTransactionCreationBlockNumber = null,
         )
         databaseService.storeSwap(swapForDatabase)
 
@@ -542,6 +664,10 @@ class SwapServiceTests {
             reportPaymentSentTransactionHash = null,
             reportPaymentSentTransactionCreationTime =  null,
             reportPaymentSentTransactionCreationBlockNumber = null,
+            reportPaymentReceivedState = swap.reportingPaymentReceivedState.value.asString,
+            reportPaymentReceivedTransactionHash = null,
+            reportPaymentReceivedTransactionCreationTime =  null,
+            reportPaymentReceivedTransactionCreationBlockNumber = null,
         )
         databaseService.storeSwap(swapForDatabase)
 
@@ -665,6 +791,10 @@ class SwapServiceTests {
             reportPaymentSentTransactionHash = null,
             reportPaymentSentTransactionCreationTime =  null,
             reportPaymentSentTransactionCreationBlockNumber = null,
+            reportPaymentReceivedState = swap.reportingPaymentReceivedState.value.asString,
+            reportPaymentReceivedTransactionHash = null,
+            reportPaymentReceivedTransactionCreationTime =  null,
+            reportPaymentReceivedTransactionCreationBlockNumber = null,
         )
         databaseService.storeSwap(swapForDatabase)
 
@@ -802,6 +932,10 @@ class SwapServiceTests {
             reportPaymentSentTransactionHash = null,
             reportPaymentSentTransactionCreationTime =  null,
             reportPaymentSentTransactionCreationBlockNumber = null,
+            reportPaymentReceivedState = swap.reportingPaymentReceivedState.value.asString,
+            reportPaymentReceivedTransactionHash = null,
+            reportPaymentReceivedTransactionCreationTime =  null,
+            reportPaymentReceivedTransactionCreationBlockNumber = null,
         )
         databaseService.storeSwap(swapForDatabase)
 
@@ -912,6 +1046,10 @@ class SwapServiceTests {
             reportPaymentSentTransactionHash = null,
             reportPaymentSentTransactionCreationTime =  null,
             reportPaymentSentTransactionCreationBlockNumber = null,
+            reportPaymentReceivedState = swap.reportingPaymentReceivedState.value.asString,
+            reportPaymentReceivedTransactionHash = null,
+            reportPaymentReceivedTransactionCreationTime =  null,
+            reportPaymentReceivedTransactionCreationBlockNumber = null,
         )
         databaseService.storeSwap(swapForDatabase)
 
@@ -1048,6 +1186,10 @@ class SwapServiceTests {
             reportPaymentSentTransactionHash = null,
             reportPaymentSentTransactionCreationTime =  null,
             reportPaymentSentTransactionCreationBlockNumber = null,
+            reportPaymentReceivedState = swap.reportingPaymentReceivedState.value.asString,
+            reportPaymentReceivedTransactionHash = null,
+            reportPaymentReceivedTransactionCreationTime =  null,
+            reportPaymentReceivedTransactionCreationBlockNumber = null,
         )
         databaseService.storeSwap(swapForDatabase)
 
@@ -1166,6 +1308,10 @@ class SwapServiceTests {
             reportPaymentSentTransactionHash = null,
             reportPaymentSentTransactionCreationTime =  null,
             reportPaymentSentTransactionCreationBlockNumber = null,
+            reportPaymentReceivedState = swap.reportingPaymentReceivedState.value.asString,
+            reportPaymentReceivedTransactionHash = null,
+            reportPaymentReceivedTransactionCreationTime =  null,
+            reportPaymentReceivedTransactionCreationBlockNumber = null,
         )
         databaseService.storeSwap(swapForDatabase)
 
@@ -1284,6 +1430,10 @@ class SwapServiceTests {
             reportPaymentSentTransactionHash = null,
             reportPaymentSentTransactionCreationTime =  null,
             reportPaymentSentTransactionCreationBlockNumber = null,
+            reportPaymentReceivedState = swap.reportingPaymentReceivedState.value.asString,
+            reportPaymentReceivedTransactionHash = null,
+            reportPaymentReceivedTransactionCreationTime =  null,
+            reportPaymentReceivedTransactionCreationBlockNumber = null,
         )
         databaseService.storeSwap(swapForDatabase)
 
@@ -1310,8 +1460,9 @@ class SwapServiceTests {
     }
 
     /**
-     * Ensures that [SwapService.reportPaymentReceived] and `[BlockchainService.reportPaymentReceivedAsync] function
-     * properly.
+     * Ensures that [BlockchainService.createReportPaymentReceivedTransaction],
+     * [SwapService.createReportPaymentReceivedTransaction], [SwapService.reportPaymentReceived] and
+     * [BlockchainService.sendTransaction] function properly.
      */
     @Test
     fun testReportPaymentReceived() = runBlocking {
@@ -1379,14 +1530,14 @@ class SwapServiceTests {
             direction = OfferDirection.BUY,
             onChainSettlementMethod =
             """
-                   {
-                       "f": "USD",
-                       "p": "1.00",
-                       "m": "SWIFT"
-                   }
-                   """.trimIndent().encodeToByteArray(),
+                    {
+                        "f": "USD",
+                        "p": "1.00",
+                        "m": "SWIFT"
+                    }
+                    """.trimIndent().encodeToByteArray(),
             protocolVersion = BigInteger.ZERO,
-            isPaymentSent = false,
+            isPaymentSent = true,
             isPaymentReceived = false,
             hasBuyerClosed = false,
             hasSellerClosed = false,
@@ -1430,38 +1581,49 @@ class SwapServiceTests {
             reportPaymentSentTransactionHash = null,
             reportPaymentSentTransactionCreationTime =  null,
             reportPaymentSentTransactionCreationBlockNumber = null,
+            reportPaymentReceivedState = swap.reportingPaymentReceivedState.value.asString,
+            reportPaymentReceivedTransactionHash = null,
+            reportPaymentReceivedTransactionCreationTime =  null,
+            reportPaymentReceivedTransactionCreationBlockNumber = null,
         )
         databaseService.storeSwap(swapForDatabase)
 
-        swapService.reportPaymentReceived(
-            swap = swap,
+        val reportPaymentReceivedTransaction = swapService.createReportPaymentReceivedTransaction(
+            swapID = swap.id,
+            chainID = swap.chainID,
         )
 
+        swapService.reportPaymentReceived(
+            swap = swap,
+            reportPaymentReceivedTransaction = reportPaymentReceivedTransaction
+        )
+
+        assertEquals(ReportingPaymentReceivedState.AWAITING_TRANSACTION_CONFIRMATION, swap.reportingPaymentReceivedState
+            .value)
         assertEquals(SwapState.REPORT_PAYMENT_RECEIVED_TRANSACTION_BROADCAST, swap.state.value)
+        assertNotNull(swap.reportPaymentReceivedTransaction?.transactionHash)
 
         val swapInDatabase = databaseService.getSwap(encoder.encodeToString(swapID.asByteArray()))
-        assertEquals(SwapState.REPORT_PAYMENT_RECEIVED_TRANSACTION_BROADCAST.asString, swapInDatabase!!.state)
+        assertEquals(ReportingPaymentReceivedState.AWAITING_TRANSACTION_CONFIRMATION.asString,
+            swapInDatabase?.reportPaymentReceivedState)
+        assertEquals(SwapState.REPORT_PAYMENT_RECEIVED_TRANSACTION_BROADCAST.asString, swapInDatabase?.state)
+        assertNotNull(swapInDatabase?.reportPaymentReceivedTransactionHash)
 
     }
 
     /**
-     * Ensure that [SwapService] handles [PaymentReceivedEvent]s properly.
+     * Ensure that [SwapService] handles [PaymentReceivedEvent]s properly for swaps in which the user of this interface
+     * is the buyer.
      */
     @Test
-    fun testHandlePaymentReceivedEvent() = runBlocking {
+    fun testHandlePaymentReceivedEventForUserIsBuyer() = runBlocking {
+        // The ID of the swap for which payment is being sent
+        val swapID = UUID.randomUUID()
+
         // Set up DatabaseService and KeyManagerService
         val databaseService = DatabaseService(DatabaseDriverFactory())
         databaseService.createTables()
         val keyManagerService = KeyManagerService(databaseService)
-
-        // The ID of the swap for which payment is being sent
-        val swapID = UUID.randomUUID()
-
-        // The PaymentReceivedEvent to be handled
-        val event = PaymentReceivedEvent(
-            swapID = swapID,
-            chainID = BigInteger.valueOf(31337),
-        )
 
         val swapService = SwapService(
             databaseService = databaseService,
@@ -1471,6 +1633,7 @@ class SwapServiceTests {
         // Create swap, add it to swapTruthSource, and save it persistently
         val swapTruthSource = TestSwapTruthSource()
         swapService.setSwapTruthSource(swapTruthSource)
+
         val swap = Swap(
             isCreated = true,
             requiresFill = false,
@@ -1489,20 +1652,144 @@ class SwapServiceTests {
             direction = OfferDirection.SELL,
             onChainSettlementMethod =
             """
-                   {
-                       "f": "USD",
-                       "p": "1.00",
-                       "m": "SWIFT"
-                   }
-                   """.trimIndent().encodeToByteArray(),
+                    {
+                        "f": "USD",
+                        "p": "1.00",
+                        "m": "SWIFT"
+                    }
+                    """.trimIndent().encodeToByteArray(),
             protocolVersion = BigInteger.ZERO,
-            isPaymentSent = false,
+            isPaymentSent = true,
             isPaymentReceived = false,
             hasBuyerClosed = false,
             hasSellerClosed = false,
             onChainDisputeRaiser = BigInteger.ZERO,
             chainID = BigInteger.valueOf(31337L),
             state = SwapState.REPORT_PAYMENT_RECEIVED_TRANSACTION_BROADCAST,
+            role = SwapRole.TAKER_AND_BUYER,
+        )
+        swapTruthSource.swaps[swapID] = swap
+        val encoder = Base64.getEncoder()
+        val swapForDatabase = DatabaseSwap(
+            id = encoder.encodeToString(swapID.asByteArray()),
+            isCreated = 1L,
+            requiresFill = 0L,
+            maker = swap.maker,
+            makerInterfaceID = encoder.encodeToString(swap.makerInterfaceID),
+            taker = swap.taker,
+            takerInterfaceID = encoder.encodeToString(swap.takerInterfaceID),
+            stablecoin = swap.stablecoin,
+            amountLowerBound = swap.amountLowerBound.toString(),
+            amountUpperBound = swap.amountUpperBound.toString(),
+            securityDepositAmount = swap.securityDepositAmount.toString(),
+            takenSwapAmount = swap.takenSwapAmount.toString(),
+            serviceFeeAmount = swap.serviceFeeAmount.toString(),
+            serviceFeeRate = swap.serviceFeeRate.toString(),
+            onChainDirection = swap.onChainDirection.toString(),
+            settlementMethod = encoder.encodeToString(swap.onChainSettlementMethod),
+            makerPrivateData = null,
+            makerPrivateDataInitializationVector = null,
+            takerPrivateData = null,
+            takerPrivateDataInitializationVector = null,
+            protocolVersion = swap.protocolVersion.toString(),
+            isPaymentSent = 1L,
+            isPaymentReceived = 0L,
+            hasBuyerClosed = 0L,
+            hasSellerClosed = 0L,
+            disputeRaiser = swap.onChainDisputeRaiser.toString(),
+            chainID = swap.chainID.toString(),
+            state = swap.state.value.asString,
+            role = swap.role.asString,
+            reportPaymentSentState = swap.reportingPaymentSentState.value.asString,
+            reportPaymentSentTransactionHash = null,
+            reportPaymentSentTransactionCreationTime =  null,
+            reportPaymentSentTransactionCreationBlockNumber = null,
+            reportPaymentReceivedState = swap.reportingPaymentReceivedState.value.asString,
+            reportPaymentReceivedTransactionHash = null,
+            reportPaymentReceivedTransactionCreationTime =  null,
+            reportPaymentReceivedTransactionCreationBlockNumber = null,
+        )
+        databaseService.storeSwap(swapForDatabase)
+
+        // The PaymentReceivedEvent to be handled
+        val event = PaymentReceivedEvent(
+            swapID = swapID,
+            chainID = BigInteger.valueOf(31337),
+            transactionHash = "reporting_payment_received_tx_hash"
+        )
+
+        swapService.handlePaymentReceivedEvent(event)
+
+        // Ensure that SwapService updates swap state and isPaymentReceived in swapTruthSource
+        assert(swap.isPaymentReceived)
+        assertEquals(SwapState.AWAITING_CLOSING, swap.state.value)
+        assertEquals("0xreporting_payment_received_tx_hash", swap
+            .reportPaymentReceivedTransaction?.transactionHash)
+
+        // Ensure that SwapService updates swap state and isPaymentReceived in persistent storage
+        val swapInDatabase = databaseService.getSwap(encoder.encodeToString(swapID.asByteArray()))
+        assertEquals(1L, swapInDatabase!!.isPaymentReceived)
+        assertEquals(SwapState.AWAITING_CLOSING.asString, swapInDatabase.state)
+        assertEquals("0xreporting_payment_received_tx_hash", swapInDatabase
+            .reportPaymentReceivedTransactionHash)
+
+    }
+
+    /**
+     * Ensure that [SwapService] handles [PaymentReceivedEvent]s properly for swaps in which the user of this interface
+     * is the seller.
+     */
+    @Test
+    fun testHandlePaymentReceivedEventForUserIsSeller() = runBlocking {
+        // The ID of the swap for which payment is being sent
+        val swapID = UUID.randomUUID()
+
+        // Set up DatabaseService and KeyManagerService
+        val databaseService = DatabaseService(DatabaseDriverFactory())
+        databaseService.createTables()
+        val keyManagerService = KeyManagerService(databaseService)
+
+        val swapService = SwapService(
+            databaseService = databaseService,
+            keyManagerService = keyManagerService,
+        )
+
+        // Create swap, add it to swapTruthSource, and save it persistently
+        val swapTruthSource = TestSwapTruthSource()
+        swapService.setSwapTruthSource(swapTruthSource)
+
+        val swap = Swap(
+            isCreated = true,
+            requiresFill = false,
+            id = swapID,
+            maker = "",
+            makerInterfaceID = ByteArray(0),
+            taker = "",
+            takerInterfaceID = ByteArray(0),
+            stablecoin = "",
+            amountLowerBound = BigInteger.ZERO,
+            amountUpperBound = BigInteger.ZERO,
+            securityDepositAmount = BigInteger.ZERO,
+            takenSwapAmount = BigInteger.ZERO,
+            serviceFeeAmount = BigInteger.ZERO,
+            serviceFeeRate = BigInteger.ZERO,
+            direction = OfferDirection.SELL,
+            onChainSettlementMethod =
+            """
+                    {
+                        "f": "USD",
+                        "p": "1.00",
+                        "m": "SWIFT"
+                    }
+                    """.trimIndent().encodeToByteArray(),
+            protocolVersion = BigInteger.ZERO,
+            isPaymentSent = true,
+            isPaymentReceived = false,
+            hasBuyerClosed = false,
+            hasSellerClosed = false,
+            onChainDisputeRaiser = BigInteger.ZERO,
+            chainID = BigInteger.valueOf(31337L),
+            state = SwapState.AWAITING_PAYMENT_RECEIVED,
             role = SwapRole.MAKER_AND_SELLER,
         )
         swapTruthSource.swaps[swapID] = swap
@@ -1541,19 +1828,32 @@ class SwapServiceTests {
             reportPaymentSentTransactionHash = null,
             reportPaymentSentTransactionCreationTime =  null,
             reportPaymentSentTransactionCreationBlockNumber = null,
+            reportPaymentReceivedState = swap.reportingPaymentReceivedState.value.asString,
+            reportPaymentReceivedTransactionHash = null,
+            reportPaymentReceivedTransactionCreationTime =  null,
+            reportPaymentReceivedTransactionCreationBlockNumber = null,
         )
         databaseService.storeSwap(swapForDatabase)
+
+        // The PaymentReceivedEvent to be handled
+        val event = PaymentReceivedEvent(
+            swapID = swapID,
+            chainID = BigInteger.valueOf(31337),
+            transactionHash = "reporting_payment_received_tx_hash"
+        )
 
         swapService.handlePaymentReceivedEvent(event)
 
         // Ensure that SwapService updates swap state and isPaymentReceived in swapTruthSource
-        assertEquals(SwapState.AWAITING_CLOSING, swap.state.value)
         assert(swap.isPaymentReceived)
+        assertEquals(SwapState.AWAITING_CLOSING, swap.state.value)
+        assertEquals(ReportingPaymentReceivedState.COMPLETED, swap.reportingPaymentReceivedState.value)
 
         // Ensure that SwapService updates swap state and isPaymentReceived in persistent storage
         val swapInDatabase = databaseService.getSwap(encoder.encodeToString(swapID.asByteArray()))
-        assertEquals(SwapState.AWAITING_CLOSING.asString, swapInDatabase!!.state)
-        assertEquals(1L, swapInDatabase.isPaymentReceived)
+        assertEquals(1L, swapInDatabase!!.isPaymentReceived)
+        assertEquals(SwapState.AWAITING_CLOSING.asString, swapInDatabase.state)
+        assertEquals(ReportingPaymentReceivedState.COMPLETED.asString, swapInDatabase.reportPaymentReceivedState)
 
     }
 
@@ -1677,6 +1977,10 @@ class SwapServiceTests {
             reportPaymentSentTransactionHash = null,
             reportPaymentSentTransactionCreationTime =  null,
             reportPaymentSentTransactionCreationBlockNumber = null,
+            reportPaymentReceivedState = swap.reportingPaymentReceivedState.value.asString,
+            reportPaymentReceivedTransactionHash = null,
+            reportPaymentReceivedTransactionCreationTime =  null,
+            reportPaymentReceivedTransactionCreationBlockNumber = null,
         )
         databaseService.storeSwap(swapForDatabase)
 
@@ -1788,6 +2092,10 @@ class SwapServiceTests {
             reportPaymentSentTransactionHash = null,
             reportPaymentSentTransactionCreationTime =  null,
             reportPaymentSentTransactionCreationBlockNumber = null,
+            reportPaymentReceivedState = swap.reportingPaymentReceivedState.value.asString,
+            reportPaymentReceivedTransactionHash = null,
+            reportPaymentReceivedTransactionCreationTime =  null,
+            reportPaymentReceivedTransactionCreationBlockNumber = null,
         )
         databaseService.storeSwap(swapForDatabase)
 
@@ -1903,6 +2211,10 @@ class SwapServiceTests {
             reportPaymentSentTransactionHash = null,
             reportPaymentSentTransactionCreationTime =  null,
             reportPaymentSentTransactionCreationBlockNumber = null,
+            reportPaymentReceivedState = swap.reportingPaymentReceivedState.value.asString,
+            reportPaymentReceivedTransactionHash = null,
+            reportPaymentReceivedTransactionCreationTime =  null,
+            reportPaymentReceivedTransactionCreationBlockNumber = null,
         )
         databaseService.storeSwap(swapForDatabase)
 

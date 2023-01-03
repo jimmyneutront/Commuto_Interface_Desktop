@@ -255,6 +255,7 @@ class SwapViewModel @Inject constructor(private val swapService: SwapService): U
      * @param swap The [Swap] for which to report receiving payment.
      */
     override fun reportPaymentReceived(swap: Swap) {
+        /*
         viewModelScope.launch {
             setReportingPaymentReceivedState(
                 swap = swap,
@@ -284,6 +285,81 @@ class SwapViewModel @Inject constructor(private val swapService: SwapService): U
                     swap = swap,
                     state = ReportingPaymentReceivedState.EXCEPTION
                 )
+            }
+        }*/
+    }
+
+    /**
+     * Attempts to create a [RawTransaction] to call
+     * [reportPaymentReceived](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#report-payment-received)
+     * for [swap], for which the user of this interface should be the seller.
+     *
+     * This passes [swap]'s ID and chain ID to [SwapService.createReportPaymentReceivedTransaction] and then passes the
+     * resulting transaction to [createdTransactionHandler] or [Exception] to [exceptionHandler].
+     *
+     * @param swap The [Swap] for which
+     * [reportPaymentReceived](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#report-payment-received)
+     * will be called.
+     * @param createdTransactionHandler A lambda that will accept and handle the created [RawTransaction].
+     * @param exceptionHandler A lambda that will accept and handle any exception that occurs during the transaction
+     * creation process.
+     */
+    override fun createReportPaymentReceivedTransaction(
+        swap: Swap,
+        createdTransactionHandler: (RawTransaction) -> Unit,
+        exceptionHandler: (Exception) -> Unit,
+    ) {
+        viewModelScope.launch {
+            logger.info("createReportPaymentReceivedTransaction: creating for ${swap.id}")
+            try {
+                val createdTransaction = swapService.createReportPaymentReceivedTransaction(
+                    swapID = swap.id,
+                    chainID = swap.chainID
+                )
+                createdTransactionHandler(createdTransaction)
+            } catch (exception: Exception) {
+                exceptionHandler(exception)
+            }
+        }
+    }
+
+    /**
+     * Attempts to call
+     * [reportPaymentReceived](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#report-payment-received)
+     * for a [Swap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#swap) for which the user of this
+     * interface is the buyer.
+     *
+     * This clears the reporting-payment-received-related [Exception] of [swap] and sets [swap]'s
+     * [Swap.reportingPaymentReceivedState] to [ReportingPaymentReceivedState.VALIDATING], and then passes all data to
+     * [swapService]'s [SwapService.reportPaymentReceived] function.
+     *
+     * @param swap The [Swap] for which
+     * [reportPaymentReceived](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#report-payment-received)
+     * will be called.
+     * @param reportPaymentReceivedTransaction An optional [RawTransaction] that will call
+     * [reportPaymentReceived](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#report-payment-received)
+     * for [swap].
+     */
+    override fun reportPaymentReceived(swap: Swap, reportPaymentReceivedTransaction: RawTransaction?) {
+        swap.reportingPaymentReceivedException = null
+        swap.reportingPaymentReceivedState.value = ReportingPaymentReceivedState.VALIDATING
+        viewModelScope.launch {
+            logger.info("reportPaymentReceived: reporting for ${swap.id}")
+            try {
+                swapService.reportPaymentReceived(
+                    swap = swap,
+                    reportPaymentReceivedTransaction = reportPaymentReceivedTransaction,
+                )
+                logger.info("reportPaymentReceived: successfully broadcast transaction for ${swap.id}")
+            } catch (exception: Exception) {
+                logger.error(
+                    "reportPaymentReceived: got exception during reportPaymentReceived call for ${swap.id}",
+                    exception
+                )
+                withContext(Dispatchers.Main) {
+                    swap.reportingPaymentReceivedException = exception
+                    swap.reportingPaymentReceivedState.value = ReportingPaymentReceivedState.EXCEPTION
+                }
             }
         }
     }

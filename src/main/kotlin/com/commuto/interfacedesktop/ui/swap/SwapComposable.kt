@@ -585,6 +585,13 @@ fun ActionButton(swap: Swap, swapTruthSource: UISwapTruthSource) {
         If the swap state is awaitingPaymentReceived and we are the seller, then we display the "Confirm Payment is
         Received" button
          */
+
+        /**
+         * Indicates whether we are showing the dialog that allows the user to report that they have received payment,
+         * if they are the seller.
+         */
+        val isShowingReportPaymentReceivedDialog = remember { mutableStateOf(false) }
+
         if (swap.reportingPaymentReceivedState.value != ReportingPaymentReceivedState.NONE &&
             swap.reportingPaymentReceivedState.value != ReportingPaymentReceivedState.EXCEPTION) {
             Text(
@@ -602,9 +609,7 @@ fun ActionButton(swap: Swap, swapTruthSource: UISwapTruthSource) {
             action = {
                 if (swap.reportingPaymentReceivedState.value == ReportingPaymentReceivedState.NONE ||
                     swap.reportingPaymentReceivedState.value == ReportingPaymentReceivedState.EXCEPTION) {
-                    swapTruthSource.reportPaymentReceived(
-                        swap = swap
-                    )
+                    isShowingReportPaymentReceivedDialog.value = true
                 }
             },
             labelText = when (swap.reportingPaymentReceivedState.value) {
@@ -614,6 +619,52 @@ fun ActionButton(swap: Swap, swapTruthSource: UISwapTruthSource) {
                 else -> "Reporting that Payment Is Received"
             }
         )
+        if (isShowingReportPaymentReceivedDialog.value) {
+            Dialog(
+                onCloseRequest = {},
+                state = DialogState(
+                    width = 500.dp,
+                    height = 600.dp,
+                ),
+                title = "Report Payment Received",
+                undecorated = true,
+                resizable = false,
+                content = {
+                    Box(
+                        modifier = Modifier
+                            .width(600.dp)
+                            .height(800.dp)
+                    ) {
+                        TransactionGasDetailsComposable(
+                            closeDialog = { isShowingReportPaymentReceivedDialog.value = false },
+                            title = "Report Payment Received",
+                            buttonLabel = "Report Payment Received",
+                            buttonAction = { createdTransaction ->
+                                swapTruthSource.reportPaymentReceived(
+                                    swap = swap,
+                                    reportPaymentReceivedTransaction = createdTransaction,
+                                )
+                            },
+                            runOnAppearance = { reportPaymentReceivedTransaction, transactionCreationException ->
+                                if (swap.reportingPaymentReceivedState.value == ReportingPaymentReceivedState.NONE ||
+                                    swap.reportingPaymentReceivedState.value == ReportingPaymentReceivedState.EXCEPTION
+                                ) {
+                                    swapTruthSource.createReportPaymentReceivedTransaction(
+                                        swap = swap,
+                                        createdTransactionHandler = { createdTransaction ->
+                                            reportPaymentReceivedTransaction.value = createdTransaction
+                                        },
+                                        exceptionHandler = { exception ->
+                                            transactionCreationException.value = exception
+                                        }
+                                    )
+                                }
+                            }
+                        )
+                    }
+                }
+            )
+        }
     } else if (swap.state.value == SwapState.AWAITING_CLOSING) {
         // We can now close the swap, so we display the "Close Swap" button
         if (swap.closingSwapState.value != ClosingSwapState.NONE &&

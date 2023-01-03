@@ -91,7 +91,11 @@ role TEXT NOT NULL,
 reportPaymentSentState TEXT NOT NULL,
 reportPaymentSentTransactionHash TEXT,
 reportPaymentSentTransactionCreationTime TEXT,
-reportPaymentSentTransactionCreationBlockNumber INTEGER
+reportPaymentSentTransactionCreationBlockNumber INTEGER,
+reportPaymentReceivedState TEXT NOT NULL,
+reportPaymentReceivedTransactionHash TEXT,
+reportPaymentReceivedTransactionCreationTime TEXT,
+reportPaymentReceivedTransactionCreationBlockNumber INTEGER
 );
 
 createUserSettlementMethodTable:
@@ -195,7 +199,11 @@ INSERT INTO Swap(
     reportPaymentSentState,
     reportPaymentSentTransactionHash,
     reportPaymentSentTransactionCreationTime,
-    reportPaymentSentTransactionCreationBlockNumber
+    reportPaymentSentTransactionCreationBlockNumber,
+    reportPaymentReceivedState,
+    reportPaymentReceivedTransactionHash,
+    reportPaymentReceivedTransactionCreationTime,
+    reportPaymentReceivedTransactionCreationBlockNumber
 )
 VALUES(?, ?, ?, ?, ?, ?, ?,
  ?, ?, ?, ?, ?,
@@ -203,6 +211,8 @@ VALUES(?, ?, ?, ?, ?, ?, ?,
  ?, ?, ?, ?,
  ?, ?,?, ?, ?, ?,
  ?, ?, ?, ?,
+ ?, ?,
+ ?, ?,
  ?, ?);
 
 insertUserSettlementMethod:
@@ -298,6 +308,18 @@ UPDATE Swap
 SET reportPaymentSentTransactionHash = ?,
 reportPaymentSentTransactionCreationTime = ?,
 reportPaymentSentTransactionCreationBlockNumber = ?
+WHERE id = ? AND chainID = ?;
+
+updateReportPaymentReceivedStateBySwapIDAndChainID:
+UPDATE Swap
+SET reportPaymentReceivedState = ?
+WHERE id = ? AND chainID = ?;
+
+updateReportPaymentReceivedDataBySwapIDAndChainID:
+UPDATE Swap
+SET reportPaymentReceivedTransactionHash = ?,
+reportPaymentReceivedTransactionCreationTime = ?,
+reportPaymentReceivedTransactionCreationBlockNumber = ?
 WHERE id = ? AND chainID = ?;
 
 updateUserSettlementMethodByID:

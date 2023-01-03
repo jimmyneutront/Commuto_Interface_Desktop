@@ -55,5 +55,19 @@ class PreviewableSwapTruthSource : UISwapTruthSource {
     /**
      * Not used since this class is for previewing user interfaces, but required for adoption of [UISwapTruthSource].
      */
+    override fun createReportPaymentReceivedTransaction(
+        swap: Swap,
+        createdTransactionHandler: (RawTransaction) -> Unit,
+        exceptionHandler: (Exception) -> Unit
+    ) {}
+
+    /**
+     * Not used since this class is for previewing user interfaces, but required for adoption of [UISwapTruthSource].
+     */
+    override fun reportPaymentReceived(swap: Swap, reportPaymentReceivedTransaction: RawTransaction?) {}
+
+    /**
+     * Not used since this class is for previewing user interfaces, but required for adoption of [UISwapTruthSource].
+     */
     override fun closeSwap(swap: Swap) {}
 }

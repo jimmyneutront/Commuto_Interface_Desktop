@@ -45,11 +45,11 @@ enum class ReportingPaymentSentState {
     val description: String
         get() = when (this) {
             // Note: This should not be used.
-            NONE -> "Press Report Payment Received to report that you have received payment"
+            NONE -> "Press Report Payment Sent to report that you have sent payment"
             VALIDATING -> "Checking that payment sending can be reported..."
             SENDING_TRANSACTION -> "Reporting that payment is sent..."
             AWAITING_TRANSACTION_CONFIRMATION -> "Waiting for confirmation..."
-            COMPLETED -> "Successfully reported that payment is received."
+            COMPLETED -> "Successfully reported that payment is sent."
             // Note: This should not be used; instead, the actual exception message should be displayed.
             EXCEPTION -> "An exception occurred."
         }

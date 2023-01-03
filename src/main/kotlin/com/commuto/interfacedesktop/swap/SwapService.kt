@@ -376,7 +376,7 @@ class SwapService @Inject constructor(
             }
             try {
                 if (reportPaymentSentTransaction == null) {
-                    throw SwapServiceException(message = "Transaction was nil during reportPaymentSent call for " +
+                    throw SwapServiceException(message = "Transaction was null during reportPaymentSent call for " +
                             swap.id)
                 }
                 logger.info("reportPaymentSent: signing transaction for ${swap.id}")
@@ -516,6 +516,173 @@ class SwapService @Inject constructor(
     }
 
     /**
+     * Attempts to create a [RawTransaction] that will call
+     * [reportPaymentReceived](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#report-payment-received)
+     * for a [Swap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#swap) for which the user of this
+     * interface is the buyer, with the ID specified by [swapID] and on the blockchain specified by [chainID].
+     *
+     * On the IO coroutine dispatcher, this calls [BlockchainService.createReportPaymentReceivedTransaction], passing
+     * [swapID] and [chainID], and returns the result.
+     *
+     * @param swapID The ID of the [Swap] for which
+     * [reportPaymentReceived](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#report-payment-received)
+     * will be called.
+     * @param chainID The ID of the blockchain on which the [Swap] exists.
+     *
+     * @return A [RawTransaction] capable of calling
+     * [reportPaymentReceived](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#report-payment-received)
+     * for the swap specified by [swapID] on the blockchain specified by [chainID].
+     */
+    suspend fun createReportPaymentReceivedTransaction(swapID: UUID, chainID: BigInteger): RawTransaction {
+        return withContext(Dispatchers.IO) {
+            logger.info("createReportPaymentReceivedTransaction: creating for $swapID")
+            blockchainService.createReportPaymentReceivedTransaction(swapID = swapID, chainID = chainID)
+        }
+    }
+
+    /**
+     * Attempts to call
+     * [reportPaymentReceived](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#report-payment-received)
+     * for a [Swap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#swap) in which the user of this
+     * interface is the buyer.
+     *
+     * On the IO coroutine dispatcher, this ensures that
+     * [reportPaymentReceived](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#report-payment-received) is
+     * not currently being called or has not already been called by the user for [swap], that the user of this interface
+     * is the seller in the swap, that calling
+     * [reportPaymentReceived](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#report-payment-received) is
+     * currently possible for [swap], and that [reportPaymentReceivedTransaction] is not `null`. Then it signs
+     * [reportPaymentReceivedTransaction], creates a [BlockchainTransaction] to wrap it, determines the transaction
+     * hash, persistently stores the transaction hash and persistently updates the [Swap.reportingPaymentReceivedState]
+     * of [swap] to [ReportingPaymentReceivedState.SENDING_TRANSACTION]. Then, on the main coroutine dispatcher, this
+     * stores the transaction hash in [swap] and sets [swap]'s [Swap.reportingPaymentReceivedState] property to
+     * [ReportingPaymentReceivedState.SENDING_TRANSACTION]. Then, on the IO coroutine dispatcher, it sends the
+     * [BlockchainTransaction]-wrapped [reportPaymentReceivedTransaction] to the blockchain. Once a response is
+     * received, this persistently updates the [Swap.reportingPaymentReceivedState] of [swap] to
+     * [ReportingPaymentReceivedState.AWAITING_TRANSACTION_CONFIRMATION] and persistently updates the [Swap.state]
+     * property of [swap] to [SwapState.REPORT_PAYMENT_RECEIVED_TRANSACTION_BROADCAST]. Then, on the main coroutine
+     * dispatcher, this sets the value of [swap]'s [Swap.reportingPaymentReceivedState] to
+     * [ReportingPaymentReceivedState.AWAITING_TRANSACTION_CONFIRMATION] and the value of [swap]'s [Swap.state] to
+     * [SwapState.REPORT_PAYMENT_RECEIVED_TRANSACTION_BROADCAST].
+     *
+     * @param swap The [Swap] for which
+     * [reportPaymentReceived](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#report-payment-received)
+     * will be called.
+     * @param reportPaymentReceivedTransaction An optional [RawTransaction] that can call
+     * [reportPaymentReceived](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#report-payment-received)
+     * for [swap].
+     *
+     * @throws [SwapServiceException] if
+     * [reportPaymentReceived](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#report-payment-received) is
+     * currently being called for [swap], if the user is not the seller, if the state of [swap] is not
+     * [SwapState.AWAITING_PAYMENT_RECEIVED], or if [reportPaymentReceivedTransaction] is `null`.
+     */
+    suspend fun reportPaymentReceived(swap: Swap, reportPaymentReceivedTransaction: RawTransaction?) {
+        withContext(Dispatchers.IO) {
+            logger.info("reportPaymentReceived: checking reporting is possible for ${swap.id}")
+            if (swap.reportingPaymentReceivedState.value != ReportingPaymentReceivedState.NONE &&
+                swap.reportingPaymentReceivedState.value != ReportingPaymentReceivedState.VALIDATING &&
+                swap.reportingPaymentReceivedState.value != ReportingPaymentReceivedState.EXCEPTION) {
+                throw SwapServiceException(message = "Payment receiving is already being reported this swap.")
+            }
+            // Ensure that the user is the seller for the swap
+            if (!(swap.role == SwapRole.MAKER_AND_SELLER || swap.role == SwapRole.TAKER_AND_SELLER)) {
+                throw SwapServiceException(message = "Only the Seller can report receiving payment")
+            }
+            // Ensure that this swap is awaiting reporting of payment received
+            if (swap.state.value != SwapState.AWAITING_PAYMENT_RECEIVED) {
+                throw SwapServiceException(message = "Payment receiving cannot currently be reported for this swap.")
+            }
+            try {
+                if (reportPaymentReceivedTransaction == null) {
+                    throw SwapServiceException(message = "Transaction was null during reportPaymentReceived call for " +
+                            swap.id)
+                }
+                logger.info("reportPaymentReceived: signing transaction for ${swap.id}")
+                val signedTransactionData = blockchainService.signTransaction(
+                    transaction = reportPaymentReceivedTransaction,
+                    chainID = swap.chainID
+                )
+                val signedTransactionHex = Numeric.toHexString(signedTransactionData)
+                val transactionHash = Hash.sha3(signedTransactionHex)
+                val blockchainTransactionForReportingPaymentReceived = BlockchainTransaction(
+                    transaction = reportPaymentReceivedTransaction,
+                    transactionHash = transactionHash,
+                    latestBlockNumberAtCreation = blockchainService.newestBlockNum,
+                    type = BlockchainTransactionType.REPORT_PAYMENT_RECEIVED
+                )
+                val dateString = DateFormatter.createDateString(blockchainTransactionForReportingPaymentReceived
+                    .timeOfCreation)
+                logger.info("reportPaymentReceived: persistently storing report payment received data for ${swap
+                    .id}, including tx hash ${blockchainTransactionForReportingPaymentReceived.transactionHash}")
+                val encoder = Base64.getEncoder()
+                databaseService.updateReportPaymentReceivedData(
+                    swapID = encoder.encodeToString(swap.id.asByteArray()),
+                    chainID = swap.chainID.toString(),
+                    transactionHash = blockchainTransactionForReportingPaymentReceived.transactionHash,
+                    creationTime = dateString,
+                    blockNumber = blockchainTransactionForReportingPaymentReceived.latestBlockNumberAtCreation.toLong()
+                )
+                logger.info("reportPaymentReceived: persistently updating reportingPaymentReceivedState for " +
+                        "${swap.id} to sendingTransaction")
+                databaseService.updateReportPaymentReceivedState(
+                    swapID = encoder.encodeToString(swap.id.asByteArray()),
+                    chainID = swap.chainID.toString(),
+                    state = ReportingPaymentReceivedState.SENDING_TRANSACTION.asString
+                )
+                logger.info("reportPaymentReceived: updating reportingPaymentReceivedState for ${swap.id} to " +
+                        "sendingTransaction and storing tx hash ${blockchainTransactionForReportingPaymentReceived
+                            .transactionHash} in swap")
+                withContext(Dispatchers.Main) {
+                    swap.reportingPaymentReceivedState.value = ReportingPaymentReceivedState.SENDING_TRANSACTION
+                    swap.reportPaymentReceivedTransaction = blockchainTransactionForReportingPaymentReceived
+                }
+                logger.info("reportPaymentReceived: sending $transactionHash for ${swap.id}")
+                blockchainService.sendTransaction(
+                    transaction = blockchainTransactionForReportingPaymentReceived,
+                    signedRawTransactionDataAsHex = signedTransactionHex,
+                    chainID = swap.chainID
+                )
+                logger.info("reportPaymentReceived: persistently updating reportingPaymentReceivedState of ${swap
+                    .id} to awaitingTransactionConfirmation")
+                databaseService.updateReportPaymentReceivedState(
+                    swapID = encoder.encodeToString(swap.id.asByteArray()),
+                    chainID = swap.chainID.toString(),
+                    state = ReportingPaymentReceivedState.AWAITING_TRANSACTION_CONFIRMATION.asString
+                )
+                logger.info("reportPaymentReceived: persistently updating state of ${swap.id} to " +
+                        "reportPaymentReceivedTransactionBroadcast")
+                databaseService.updateSwapState(
+                    swapID = encoder.encodeToString(swap.id.asByteArray()),
+                    chainID = swap.chainID.toString(),
+                    state = SwapState.REPORT_PAYMENT_RECEIVED_TRANSACTION_BROADCAST.asString
+                )
+                logger.info("reportPaymentReceived: updating reportingPaymentReceivedState for ${swap.id} to " +
+                        "awaitingTransactionConfirmation and state to reportPaymentReceivedTransactionBroadcast")
+                withContext(Dispatchers.Main) {
+                    swap.reportingPaymentReceivedState.value = ReportingPaymentReceivedState
+                        .AWAITING_TRANSACTION_CONFIRMATION
+                    swap.state.value = SwapState.REPORT_PAYMENT_RECEIVED_TRANSACTION_BROADCAST
+                }
+            } catch (exception: Exception) {
+                logger.error("reportPaymentReceived: encountered exception while reporting for ${swap.id}, setting " +
+                        "reportingPaymentReceivedState to exception", exception)
+                val encoder = Base64.getEncoder()
+                databaseService.updateReportPaymentReceivedState(
+                    swapID = encoder.encodeToString(swap.id.asByteArray()),
+                    chainID = swap.chainID.toString(),
+                    state = ReportingPaymentReceivedState.EXCEPTION.asString
+                )
+                swap.reportingPaymentReceivedException = exception
+                withContext(Dispatchers.Main) {
+                    swap.reportingPaymentReceivedState.value = ReportingPaymentReceivedState.EXCEPTION
+                }
+                throw exception
+            }
+        }
+    }
+
+    /**
      * Attempts to close a
      * [Swap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#swap) using the process described in the
      * [interface specification](https://github.com/jimmyneutront/commuto-whitepaper/blob/main/commuto-interface-specification.txt).
@@ -601,7 +768,7 @@ class SwapService @Inject constructor(
                 }
                 if (swap != null) {
                     logger.warn("handleFailedTransaction: found swap ${swap.id} on ${swap.chainID} with " +
-                            "report payment sent transaction ${transaction.transactionHash}), updating " +
+                            "report payment sent transaction ${transaction.transactionHash}, updating " +
                             "reportingPaymentSentState to EXCEPTION and state to AWAITING_PAYMENT_SENT in persistent " +
                             "storage")
                     databaseService.updateReportPaymentSentState(
@@ -624,6 +791,43 @@ class SwapService @Inject constructor(
                 } else {
                     logger.warn("handleFailedTransaction: swap with report payment sent transaction " +
                             "${transaction.transactionHash} not found in swapTruthSource")
+                }
+            }
+            BlockchainTransactionType.REPORT_PAYMENT_RECEIVED -> {
+                val swap = swapTruthSource.swaps.firstNotNullOfOrNull { uuidSwapEntry ->
+                    if (uuidSwapEntry.value.reportPaymentReceivedTransaction?.transactionHash
+                            .equals(transaction.transactionHash)) {
+                        uuidSwapEntry.value
+                    } else {
+                        null
+                    }
+                }
+                if (swap != null) {
+                    logger.warn("handleFailedTransaction: found swap ${swap.id} on ${swap.chainID} with " +
+                            "report payment received transaction ${transaction.transactionHash}, updating " +
+                            "reportingPaymentReceivedState to EXCEPTION and state to AWAITING_PAYMENT_RECEIVED in " +
+                            "persistent storage")
+                    databaseService.updateReportPaymentReceivedState(
+                        swapID = encoder.encodeToString(swap.id.asByteArray()),
+                        chainID = swap.chainID.toString(),
+                        state = ReportingPaymentReceivedState.EXCEPTION.asString,
+                    )
+                    databaseService.updateSwapState(
+                        swapID = encoder.encodeToString(swap.id.asByteArray()),
+                        chainID = swap.chainID.toString(),
+                        state = SwapState.AWAITING_PAYMENT_RECEIVED.asString
+                    )
+                    logger.warn("handleFailedTransaction: setting reportingPaymentReceivedException, updating " +
+                            "reportingPaymentReceivedState to EXCEPTION and state to AWAITING_PAYMENT_RECEIVED for " +
+                            "${swap.id}")
+                    withContext(Dispatchers.Main) {
+                        swap.reportingPaymentReceivedException = exception
+                        swap.reportingPaymentReceivedState.value = ReportingPaymentReceivedState.EXCEPTION
+                        swap.state.value = SwapState.AWAITING_PAYMENT_RECEIVED
+                    }
+                } else {
+                    logger.warn("handleFailedTransaction: swap with report payment received transaction ${transaction
+                        .transactionHash} not found in swapTruthSource")
                 }
             }
         }
@@ -741,6 +945,10 @@ class SwapService @Inject constructor(
             reportPaymentSentTransactionHash = null,
             reportPaymentSentTransactionCreationTime = null,
             reportPaymentSentTransactionCreationBlockNumber = null,
+            reportPaymentReceivedState = newSwap.reportingPaymentReceivedState.value.asString,
+            reportPaymentReceivedTransactionHash = null,
+            reportPaymentReceivedTransactionCreationTime = null,
+            reportPaymentReceivedTransactionCreationBlockNumber = null,
         )
         databaseService.storeSwap(swapForDatabase)
         // Add new Swap to swapTruthSource
@@ -1162,20 +1370,86 @@ class SwapService @Inject constructor(
             /*
             At this point, we have ensured that the chain ID of the event and the swap match, so we can proceed safely
              */
-            val swapIDB64String = Base64.getEncoder().encodeToString(event.swapID.asByteArray())
+            var mustUpdateReportPaymentReceivedTransaction = false
+            if (swap.role == SwapRole.MAKER_AND_SELLER || swap.role == SwapRole.TAKER_AND_SELLER) {
+                logger.info("handlePaymentReceivedEvent: user is buyer for ${event.swapID}")
+                swap.reportPaymentReceivedTransaction?.let { reportPaymentReceivedTransaction ->
+                    if (reportPaymentReceivedTransaction.transactionHash == event.transactionHash) {
+                        logger.info("handlePaymentReceivedEvent: tx hash ${event.transactionHash} of event " +
+                                "matches that for swap ${swap.id}: ${reportPaymentReceivedTransaction.transactionHash}")
+                    } else {
+                        logger.info("handlePaymentReceivedEvent: tx hash ${event.transactionHash} of event " +
+                                "does not match that for swap ${event.swapID}: ${reportPaymentReceivedTransaction
+                                    .transactionHash}, updating with new transaction hash")
+                        mustUpdateReportPaymentReceivedTransaction = true
+                    }
+                } ?: run {
+                    logger.warn("handlePaymentReceivedEvent: swap ${event.swapID} for which user is buyer has " +
+                            "no reporting payment sent transaction, updating with transaction hash ${event
+                                .transactionHash}")
+                    mustUpdateReportPaymentReceivedTransaction = true
+                }
+            } else {
+                logger.info("handlePaymentReceivedEvent: user is seller for ${event.swapID}, updating with " +
+                        "transaction hash ${event.transactionHash}")
+                mustUpdateReportPaymentReceivedTransaction = true
+            }
+            val encoder = Base64.getEncoder()
+            if (mustUpdateReportPaymentReceivedTransaction) {
+                val reportPaymentReceivedTransaction = BlockchainTransaction(
+                    transactionHash = event.transactionHash,
+                    timeOfCreation = Date(),
+                    latestBlockNumberAtCreation = BigInteger.ZERO,
+                    type = BlockchainTransactionType.REPORT_PAYMENT_SENT
+                )
+                withContext(Dispatchers.Main) {
+                    swap.reportPaymentReceivedTransaction = reportPaymentReceivedTransaction
+                }
+                logger.info("handlePaymentReceivedEvent: persistently storing tx data, including hash ${event
+                    .transactionHash} for ${event.swapID}")
+                val dateString = DateFormatter.createDateString(reportPaymentReceivedTransaction.timeOfCreation)
+                databaseService.updateReportPaymentReceivedData(
+                    swapID = encoder.encodeToString(event.swapID.asByteArray()),
+                    chainID = event.chainID.toString(),
+                    transactionHash = reportPaymentReceivedTransaction.transactionHash,
+                    creationTime = dateString,
+                    blockNumber = reportPaymentReceivedTransaction.latestBlockNumberAtCreation.toLong()
+                )
+            }
+            logger.info("handlePaymentReceivedEvent: persistently setting isPaymentReceived property of ${event
+                .swapID} to true")
             databaseService.updateSwapIsPaymentReceived(
-                swapID = swapIDB64String,
+                swapID = encoder.encodeToString(event.swapID.asByteArray()),
                 chainID = event.chainID.toString(),
                 isPaymentReceived = true
             )
+            logger.info("handlePaymentReceivedEvent: persistently updating state of ${event.swapID} to " +
+                    SwapState.AWAITING_CLOSING.asString)
             databaseService.updateSwapState(
-                swapID = swapIDB64String,
+                swapID = encoder.encodeToString(event.swapID.asByteArray()),
                 chainID = event.chainID.toString(),
                 state = SwapState.AWAITING_CLOSING.asString
             )
-            swap.isPaymentReceived = true
+            logger.info("handlePaymentReceivedEvent: setting isPaymentReceived property of ${event.swapID} to " +
+                    "true and setting state to ${SwapState.AWAITING_CLOSING.asString}")
             withContext(Dispatchers.Main) {
+                swap.isPaymentReceived = true
                 swap.state.value = SwapState.AWAITING_CLOSING
+            }
+            if (swap.role == SwapRole.MAKER_AND_SELLER || swap.role == SwapRole.TAKER_AND_SELLER) {
+                logger.info("handlePaymentReceivedEvent: user is seller for ${event.swapID} so persistently " +
+                        "updating reportingPaymentReceivedState to ${ReportingPaymentReceivedState.COMPLETED.asString}")
+                databaseService.updateReportPaymentReceivedState(
+                    swapID = encoder.encodeToString(event.swapID.asByteArray()),
+                    chainID = event.chainID.toString(),
+                    state = ReportingPaymentReceivedState.COMPLETED.asString
+                )
+                logger.info("handlePaymentReceivedEvent: updating reportingPaymentReceivedState to " +
+                        ReportingPaymentReceivedState.COMPLETED.asString
+                )
+                withContext(Dispatchers.Main) {
+                    swap.reportingPaymentReceivedState.value = ReportingPaymentReceivedState.COMPLETED
+                }
             }
         } ?: run {
             // Executed if we do not have a Swap with the ID specified in event

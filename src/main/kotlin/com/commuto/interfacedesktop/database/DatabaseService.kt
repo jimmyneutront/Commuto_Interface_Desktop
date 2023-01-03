@@ -850,6 +850,11 @@ open class DatabaseService(
             reportPaymentSentTransactionHash = swap.reportPaymentSentTransactionHash,
             reportPaymentSentTransactionCreationTime = swap.reportPaymentSentTransactionCreationTime,
             reportPaymentSentTransactionCreationBlockNumber = swap.reportPaymentSentTransactionCreationBlockNumber,
+            reportPaymentReceivedState = swap.reportPaymentReceivedState,
+            reportPaymentReceivedTransactionHash = swap.reportPaymentReceivedTransactionHash,
+            reportPaymentReceivedTransactionCreationTime = swap.reportPaymentReceivedTransactionCreationTime,
+            reportPaymentReceivedTransactionCreationBlockNumber = swap
+                .reportPaymentReceivedTransactionCreationBlockNumber,
         )
         try {
             withContext(databaseServiceContext) {
@@ -1078,6 +1083,59 @@ open class DatabaseService(
     }
 
     /**
+     * Updates the [Swap.reportPaymentReceivedState] property of a persistently stored
+     * [Swap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#swap) with the specified [swapID] and
+     * [chainID].
+     *
+     * @param swapID The ID of the swap to be updated, as a Base64-[String] of bytes.
+     * @param chainID The blockchain ID of the swap to be updated, as a [String].
+     * @param state The new value of the swap's [Swap.reportPaymentSentState] property.
+     */
+    @OptIn(DelicateCoroutinesApi::class)
+    suspend fun updateReportPaymentReceivedState(swapID: String, chainID: String, state: String) {
+        withContext(databaseServiceContext) {
+            database.updateReportPaymentReceivedState(swapID, chainID, state)
+        }
+        logger.info("updateReportPaymentReceivedState: set value to $state for offer with B64 ID $swapID, if " +
+                "present")
+    }
+
+    /**
+     * Updates the [Swap.reportPaymentReceivedTransactionHash], [Swap.reportPaymentReceivedTransactionCreationTime] and
+     * [Swap.reportPaymentReceivedTransactionCreationBlockNumber] properties of a persistently stored
+     * [Swap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#swap) with the specified [swapID] and
+     * [chainID].
+     *
+     * @param swapID The ID of the swap to be updated, as a Base64-[String] of bytes.
+     * @param chainID The blockchain ID of the swap to be updated, as a [String].
+     * @param transactionHash The new value of the swap's [Swap.reportPaymentReceivedTransactionHash] property, as a
+     * transaction hash as a hexadecimal string with "0x" prefix.
+     * @param creationTime The new value of the swap's [Swap.reportPaymentReceivedTransactionCreationTime] property.
+     * @param blockNumber The new value of the swap's [Swap.reportPaymentReceivedTransactionCreationBlockNumber]
+     * property.
+     */
+    @OptIn(DelicateCoroutinesApi::class)
+    suspend fun updateReportPaymentReceivedData(
+        swapID: String,
+        chainID: String,
+        transactionHash: String?,
+        creationTime: String?,
+        blockNumber: Long?
+    ) {
+        withContext(databaseServiceContext) {
+            database.updateReportPaymentReceivedData(
+                swapID = swapID,
+                chainID = chainID,
+                transactionHash = transactionHash,
+                creationTime = creationTime,
+                blockNumber = blockNumber,
+            )
+        }
+        logger.info("updateReportPaymentReceivedData: set values to $transactionHash, $creationTime and " +
+                "$blockNumber for offer with B64 ID $swapID, if present")
+    }
+
+    /**
      * Removes every [Swap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#swap) with a swap ID equal to
      * [swapID] and a chain ID equal to [chainID] from persistent storage.
      *
@@ -1158,6 +1216,11 @@ open class DatabaseService(
                 reportPaymentSentTransactionCreationTime = dbSwaps[0].reportPaymentSentTransactionCreationTime,
                 reportPaymentSentTransactionCreationBlockNumber = dbSwaps[0]
                     .reportPaymentSentTransactionCreationBlockNumber,
+                reportPaymentReceivedState = dbSwaps[0].reportPaymentReceivedState,
+                reportPaymentReceivedTransactionHash = dbSwaps[0].reportPaymentReceivedTransactionHash,
+                reportPaymentReceivedTransactionCreationTime = dbSwaps[0].reportPaymentReceivedTransactionCreationTime,
+                reportPaymentReceivedTransactionCreationBlockNumber = dbSwaps[0]
+                    .reportPaymentReceivedTransactionCreationBlockNumber,
             )
         } else {
             logger.info("getSwap: no swap found with B64 ID $id")
