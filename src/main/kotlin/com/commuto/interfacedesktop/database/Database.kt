@@ -247,7 +247,11 @@ internal class Database(databaseDriverFactory: DatabaseDriverFactory) {
             reportPaymentReceivedTransactionHash = swap.reportPaymentReceivedTransactionHash,
             reportPaymentReceivedTransactionCreationTime = swap.reportPaymentReceivedTransactionCreationTime,
             reportPaymentReceivedTransactionCreationBlockNumber = swap
-                .reportPaymentReceivedTransactionCreationBlockNumber
+                .reportPaymentReceivedTransactionCreationBlockNumber,
+            closeSwapState = swap.closeSwapState,
+            closeSwapTransactionHash = swap.closeSwapTransactionHash,
+            closeSwapTransactionCreationTime = swap.closeSwapTransactionCreationTime,
+            closeSwapTransactionCreationBlockNumber = swap.closeSwapTransactionCreationBlockNumber
         )
     }
 
@@ -561,6 +565,46 @@ internal class Database(databaseDriverFactory: DatabaseDriverFactory) {
             reportPaymentReceivedTransactionHash = transactionHash,
             reportPaymentReceivedTransactionCreationTime = creationTime,
             reportPaymentReceivedTransactionCreationBlockNumber = blockNumber,
+            id = swapID,
+            chainID = chainID
+        )
+    }
+
+    /**
+     * Updates the [Swap.closeSwapState] property of the [Swap] with the specified [swapID] and [chainID].
+     * @param swapID The ID of the [Swap] to be updated.
+     * @param chainID The ID of the blockchain on which the [Swap] to be updated exists.
+     * @paran state The new value of the [Swap.closeSwapState] property
+     */
+    internal fun updateCloseSwapState(swapID: String, chainID: String, state: String) {
+        dbQuery.updateCloseSwapStateBySwapIDAndChainID(
+            closeSwapState = state,
+            id = swapID,
+            chainID = chainID
+        )
+    }
+
+    /**
+     * Updates the [Swap.closeSwapTransactionHash], [Swap.closeSwapTransactionCreationTime] and
+     * [Swap.closeSwapTransactionCreationBlockNumber] properties of the [Swap] with the specified [swapID]
+     * and [chainID].
+     * @param swapID The ID of the [Swap] to be updated.
+     * @param chainID The ID of the blockchain on which the [Swap] to be updated exists.
+     * @param transactionHash The new value of the [Swap.closeSwapTransactionHash] property.
+     * @param creationTime The new value of the [Swap.closeSwapTransactionCreationTime] property.
+     * @param blockNumber The new value of the [Swap.closeSwapTransactionCreationBlockNumber] property.
+     */
+    internal fun updateCloseSwapData(
+        swapID: String,
+        chainID: String,
+        transactionHash: String?,
+        creationTime: String?,
+        blockNumber: Long?
+    ) {
+        dbQuery.updateCloseSwapDataBySwapIDAndChainID(
+            closeSwapTransactionHash = transactionHash,
+            closeSwapTransactionCreationTime = creationTime,
+            closeSwapTransactionCreationBlockNumber = blockNumber,
             id = swapID,
             chainID = chainID
         )

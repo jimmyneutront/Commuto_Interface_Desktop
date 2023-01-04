@@ -70,4 +70,18 @@ class PreviewableSwapTruthSource : UISwapTruthSource {
      * Not used since this class is for previewing user interfaces, but required for adoption of [UISwapTruthSource].
      */
     override fun closeSwap(swap: Swap) {}
+
+    /**
+     * Not used since this class is for previewing user interfaces, but required for adoption of [UISwapTruthSource].
+     */
+    override fun createCloseSwapTransaction(
+        swap: Swap,
+        createdTransactionHandler: (RawTransaction) -> Unit,
+        exceptionHandler: (Exception) -> Unit
+    ) {}
+
+    /**
+     * Not used since this class is for previewing user interfaces, but required for adoption of [UISwapTruthSource].
+     */
+    override fun closeSwap(swap: Swap, closeSwapTransaction: RawTransaction?) {}
 }

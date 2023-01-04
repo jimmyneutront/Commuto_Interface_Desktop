@@ -370,6 +370,7 @@ class SwapViewModel @Inject constructor(private val swapService: SwapService): U
      * @param swap The [Swap] to close.
      */
     override fun closeSwap(swap: Swap) {
+        /*
         viewModelScope.launch {
             setClosingSwapState(
                 swap = swap,
@@ -398,6 +399,76 @@ class SwapViewModel @Inject constructor(private val swapService: SwapService): U
                     swap = swap,
                     state = ClosingSwapState.EXCEPTION
                 )
+            }
+        }*/
+    }
+
+    /**
+     * Attempts to create a [RawTransaction] to call
+     * [closeSwap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#close-swap)
+     * for [swap].
+     *
+     * This passes [swap]'s ID and chain ID to [SwapService.createCloseSwapTransaction] and then passes the resulting
+     * transaction to [createdTransactionHandler] or [Exception] to [exceptionHandler].
+     *
+     * @param swap The [Swap] for which
+     * [closeSwap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#close-swap) will be called.
+     * @param createdTransactionHandler A lambda that will accept and handle the created [RawTransaction].
+     * @param exceptionHandler A lambda that will accept and handle any exception that occurs during the transaction
+     * creation process.
+     */
+    override fun createCloseSwapTransaction(
+        swap: Swap,
+        createdTransactionHandler: (RawTransaction) -> Unit,
+        exceptionHandler: (Exception) -> Unit,
+    ) {
+        viewModelScope.launch {
+            logger.info("createCloseSwapTransaction: creating for ${swap.id}")
+            try {
+                val createdTransaction = swapService.createCloseSwapTransaction(
+                    swapID = swap.id,
+                    chainID = swap.chainID
+                )
+                createdTransactionHandler(createdTransaction)
+            } catch (exception: Exception) {
+                exceptionHandler(exception)
+            }
+        }
+    }
+
+    /**
+     * Attempts to call
+     * [closeSwap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#close-swap)
+     * for a [Swap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#swap) involving the user of this
+     * interface.
+     *
+     * This clears the reporting-payment-received-related [Exception] of [swap] and sets [swap]'s
+     * [Swap.closingSwapState] to [ClosingSwapState.VALIDATING], and then passes all data to [swapService]'s
+     * [SwapService.closeSwap] function.
+     *
+     * @param swap The [Swap] for which
+     * [closeSwap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#close-swap) will be called.
+     * @param closeSwapTransaction An optional [RawTransaction] that will call
+     * [closeSwap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#close-swap)
+     * for [swap].
+     */
+    override fun closeSwap(swap: Swap, closeSwapTransaction: RawTransaction?) {
+        swap.closingSwapException = null
+        swap.closingSwapState.value = ClosingSwapState.VALIDATING
+        viewModelScope.launch {
+            logger.info("closeSwap: closing ${swap.id}")
+            try {
+                swapService.closeSwap(
+                    swap = swap,
+                    closeSwapTransaction = closeSwapTransaction,
+                )
+                logger.info("closeSwap: successfully broadcast transaction for ${swap.id}")
+            } catch (exception: Exception) {
+                logger.error("closeSwap: got exception during closeSwap call for ${swap.id}", exception)
+                withContext(Dispatchers.Main) {
+                    swap.closingSwapException = exception
+                    swap.closingSwapState.value = ClosingSwapState.EXCEPTION
+                }
             }
         }
     }

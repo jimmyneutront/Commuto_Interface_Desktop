@@ -76,10 +76,15 @@ import java.util.*
  * [reportPaymentReceived](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#report-payment-received) for
  * this swap. If the user of this interface is not the seller, all properties of this [BlockchainTransaction] except the
  * transaction hash may not be accurate.
- * @property closingSwapState This indicates whether we are currently closing this swap, and if so, what part of the
+ * @property closingSwapState This indicates whether we are currently closing this swap by calling
+ * [closeSwap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#close-swap), and if so, what part of the
  * swap-closing process we are in.
  * @property closingSwapException The [Exception] that we encountered during the swap closing process, or `null` if no
  * such exception has occurred.
+ * @property closeSwapTransaction The [BlockchainTransaction] that called
+ * [closeSwap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#close-swap) for this swap. If the user of
+ * this interface is not the seller, all properties of this [BlockchainTransaction] except the transaction hash may not
+ * be accurate.
  * @property makerPrivateSettlementMethodData The private settlement method data belonging to the maker of this swap for
  * this swap's settlement method, or `null` if such data does not exist.
  * @property takerPrivateSettlementMethodData The private settlement method data belonging to the taker of this swap for
@@ -133,6 +138,8 @@ class Swap(
 
     val closingSwapState = mutableStateOf(ClosingSwapState.NONE)
     var closingSwapException: Exception? = null
+
+    var closeSwapTransaction: BlockchainTransaction? = null
 
     var makerPrivateSettlementMethodData: String? = null
     var takerPrivateSettlementMethodData: String? = null

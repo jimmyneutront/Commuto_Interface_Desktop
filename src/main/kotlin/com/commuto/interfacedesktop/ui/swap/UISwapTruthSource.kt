@@ -109,5 +109,34 @@ interface UISwapTruthSource: SwapTruthSource {
      *
      * @param swap The [Swap] to close.
      */
+    @Deprecated("Use the new transaction pipeline with improved transaction state management")
     fun closeSwap(swap: Swap)
+
+    /**
+     * Attempts to create a [RawTransaction] to call
+     * [closeSwap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#close-swap) for [swap].
+     *
+     * @param swap The [Swap] for which
+     * [closeSwap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#close-swap) will be called.
+     * @param createdTransactionHandler A lambda that will accept and handle the created [RawTransaction].
+     * @param exceptionHandler A lambda that will accept and handle any exception that occurs during the transaction
+     * creation process.
+     */
+    fun createCloseSwapTransaction(
+        swap: Swap,
+        createdTransactionHandler: (RawTransaction) -> Unit,
+        exceptionHandler: (Exception) -> Unit,
+    )
+
+    /**
+     * Attempts to call
+     * [closeSwap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#close-swap)
+     * for a [Swap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#swap).
+     *
+     * @param swap The [Swap] for which
+     * [closeSwap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#close-swap) will be called.
+     * @param closeSwapTransaction An optional [RawTransaction] that will call
+     * [closeSwap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#close-swap) for [swap].
+     */
+    fun closeSwap(swap: Swap, closeSwapTransaction: RawTransaction?)
 }

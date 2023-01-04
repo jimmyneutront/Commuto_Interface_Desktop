@@ -729,6 +729,162 @@ class SwapService @Inject constructor(
     }
 
     /**
+     * Attempts to create a [RawTransaction] that will call
+     * [closeSwap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#close-swap)
+     * for a [Swap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#swap) for which the user of this
+     * interface is the buyer, with the ID specified by [swapID] and on the blockchain specified by [chainID].
+     *
+     * On the IO coroutine dispatcher, this calls [BlockchainService.createCloseSwapTransaction], passing [swapID] and
+     * [chainID], and returns the result.
+     *
+     * @param swapID The ID of the [Swap] for which
+     * [closeSwap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#close-swap) will be called.
+     * @param chainID The ID of the blockchain on which the [Swap] exists.
+     *
+     * @return A [RawTransaction] capable of calling
+     * [closeSwap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#close-swap) for the swap specified by
+     * [swapID] on the blockchain specified by [chainID].
+     */
+    suspend fun createCloseSwapTransaction(swapID: UUID, chainID: BigInteger): RawTransaction {
+        return withContext(Dispatchers.IO) {
+            logger.info("createCloseSwapTransaction: creating for $swapID")
+            blockchainService.createCloseSwapTransaction(swapID = swapID, chainID = chainID)
+        }
+    }
+
+    /**
+     * Attempts to call
+     * [closeSwap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#close-swap) for a
+     * [Swap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#swap) involving the user of this interface.
+     *
+     * On the IO coroutine dispatcher, this ensures that
+     * [closeSwap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#close-swap) is not currently being
+     * called or has not already been called by the user for [swap], that calling
+     * [closeSwap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#close-swap) is currently possible for
+     * [swap], and that [closeSwapTransaction] is not `null`. Then it signs [closeSwapTransaction], creates a
+     * [BlockchainTransaction] to wrap it, determines the transaction hash, persistently stores the transaction hash and
+     * persistently updates the [Swap.closingSwapState] of [swap] to [ClosingSwapState.SENDING_TRANSACTION]. Then, on
+     * the main coroutine dispatcher, this stores the transaction hash in [swap] and sets [swap]'s
+     * [Swap.closingSwapState] property to [ClosingSwapState.SENDING_TRANSACTION]. Then, on the IO coroutine dispatcher,
+     * it sends the [BlockchainTransaction]-wrapped [closeSwapTransaction] to the blockchain. Once a response is
+     * received, this persistently updates the [Swap.closingSwapState] of [swap] to
+     * [ClosingSwapState.AWAITING_TRANSACTION_CONFIRMATION] and persistently updates the [Swap.state]
+     * property of [swap] to [SwapState.CLOSE_SWAP_TRANSACTION_BROADCAST]. Then, on the main coroutine dispatcher, this
+     * sets the value of [swap]'s [Swap.closingSwapState] property to
+     * [ClosingSwapState.AWAITING_TRANSACTION_CONFIRMATION] and the value of [swap]'s [Swap.state] to
+     * [SwapState.CLOSE_SWAP_TRANSACTION_BROADCAST].
+     *
+     * @param swap The [Swap] for which
+     * [closeSwap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#close-swap)
+     * will be called.
+     * @param closeSwapTransaction An optional [RawTransaction] that can call
+     * [closeSwap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#close-swap)
+     * for [swap].
+     *
+     * @throws [SwapServiceException] if
+     * [closeSwap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#close-swap) is
+     * currently being called for [swap], if the state of [swap] is not [SwapState.AWAITING_CLOSING], or if
+     * [closeSwapTransaction] is `null`.
+     */
+    suspend fun closeSwap(swap: Swap, closeSwapTransaction: RawTransaction?) {
+        withContext(Dispatchers.IO) {
+            logger.info("closeSwap: checking closing is possible for ${swap.id}")
+            if (swap.closingSwapState.value != ClosingSwapState.NONE &&
+                swap.closingSwapState.value != ClosingSwapState.VALIDATING &&
+                swap.closingSwapState.value != ClosingSwapState.EXCEPTION) {
+                throw SwapServiceException(message = "This Swap is already being closed.")
+            }
+            // Ensure that this swap is awaiting closing
+            if (swap.state.value != SwapState.AWAITING_CLOSING) {
+                throw SwapServiceException(message = "This Swap cannot currently be closed.")
+            }
+            try {
+                if (closeSwapTransaction == null) {
+                    throw SwapServiceException(message = "Transaction was null during closeSwap call for ${swap.id}")
+                }
+                logger.info("closeSwap: signing transaction for ${swap.id}")
+                val signedTransactionData = blockchainService.signTransaction(
+                    transaction = closeSwapTransaction,
+                    chainID = swap.chainID
+                )
+                val signedTransactionHex = Numeric.toHexString(signedTransactionData)
+                val transactionHash = Hash.sha3(signedTransactionHex)
+                val blockchainTransactionForClosingSwap = BlockchainTransaction(
+                    transaction = closeSwapTransaction,
+                    transactionHash = transactionHash,
+                    latestBlockNumberAtCreation = blockchainService.newestBlockNum,
+                    type = BlockchainTransactionType.CLOSE_SWAP
+                )
+                val dateString = DateFormatter.createDateString(blockchainTransactionForClosingSwap
+                    .timeOfCreation)
+                logger.info("closeSwap: persistently storing close swap data for ${swap.id}, including tx " +
+                        "hash ${blockchainTransactionForClosingSwap.transactionHash}")
+                val encoder = Base64.getEncoder()
+                databaseService.updateCloseSwapData(
+                    swapID = encoder.encodeToString(swap.id.asByteArray()),
+                    chainID = swap.chainID.toString(),
+                    transactionHash = blockchainTransactionForClosingSwap.transactionHash,
+                    creationTime = dateString,
+                    blockNumber = blockchainTransactionForClosingSwap.latestBlockNumberAtCreation.toLong()
+                )
+                logger.info("closeSwap: persistently updating closeSwapState for ${swap.id} to ${ClosingSwapState
+                    .SENDING_TRANSACTION.asString}")
+                databaseService.updateCloseSwapState(
+                    swapID = encoder.encodeToString(swap.id.asByteArray()),
+                    chainID = swap.chainID.toString(),
+                    state = ClosingSwapState.SENDING_TRANSACTION.asString
+                )
+                logger.info("closeSwap: updating closeSwapState for ${swap.id} to sendingTransaction and storing tx " +
+                        "hash ${blockchainTransactionForClosingSwap.transactionHash} in swap")
+                withContext(Dispatchers.Main) {
+                    swap.closingSwapState.value = ClosingSwapState.SENDING_TRANSACTION
+                    swap.closeSwapTransaction = blockchainTransactionForClosingSwap
+                }
+                logger.info("closeSwap: sending $transactionHash for ${swap.id}")
+                blockchainService.sendTransaction(
+                    transaction = blockchainTransactionForClosingSwap,
+                    signedRawTransactionDataAsHex = signedTransactionHex,
+                    chainID = swap.chainID
+                )
+                logger.info("closeSwap: persistently updating closeSwapState of ${swap.id} to ${ClosingSwapState
+                    .AWAITING_TRANSACTION_CONFIRMATION.asString}")
+                databaseService.updateCloseSwapState(
+                    swapID = encoder.encodeToString(swap.id.asByteArray()),
+                    chainID = swap.chainID.toString(),
+                    state = ClosingSwapState.AWAITING_TRANSACTION_CONFIRMATION.asString
+                )
+                logger.info("closeSwap: persistently updating state of ${swap.id} to ${SwapState
+                    .CLOSE_SWAP_TRANSACTION_BROADCAST.asString}")
+                databaseService.updateSwapState(
+                    swapID = encoder.encodeToString(swap.id.asByteArray()),
+                    chainID = swap.chainID.toString(),
+                    state = SwapState.CLOSE_SWAP_TRANSACTION_BROADCAST.asString
+                )
+                logger.info("closeSwap: updating closeSwapState for ${swap.id} to ${ClosingSwapState
+                    .AWAITING_TRANSACTION_CONFIRMATION} and state to ${SwapState.CLOSE_SWAP_TRANSACTION_BROADCAST}")
+                withContext(Dispatchers.Main) {
+                    swap.closingSwapState.value = ClosingSwapState.AWAITING_TRANSACTION_CONFIRMATION
+                    swap.state.value = SwapState.CLOSE_SWAP_TRANSACTION_BROADCAST
+                }
+            } catch (exception: Exception) {
+                logger.error("closeSwap: encountered exception while closing ${swap.id}, setting closingSwapState to " +
+                        "exception", exception)
+                val encoder = Base64.getEncoder()
+                databaseService.updateCloseSwapState(
+                    swapID = encoder.encodeToString(swap.id.asByteArray()),
+                    chainID = swap.chainID.toString(),
+                    state = ClosingSwapState.EXCEPTION.asString
+                )
+                swap.closingSwapException = exception
+                withContext(Dispatchers.Main) {
+                    swap.closingSwapState.value = ClosingSwapState.EXCEPTION
+                }
+                throw exception
+            }
+        }
+    }
+
+    /**
      * The function called by [BlockchainService] in order to notify [SwapService] that a monitored swap-related
      * [BlockchainTransaction] has failed (either has been confirmed and failed, or has been dropped.)
      *
@@ -827,6 +983,40 @@ class SwapService @Inject constructor(
                     }
                 } else {
                     logger.warn("handleFailedTransaction: swap with report payment received transaction ${transaction
+                        .transactionHash} not found in swapTruthSource")
+                }
+            }
+            BlockchainTransactionType.CLOSE_SWAP -> {
+                val swap = swapTruthSource.swaps.firstNotNullOfOrNull { uuidSwapEntry ->
+                    if (uuidSwapEntry.value.closeSwapTransaction?.transactionHash.equals(transaction.transactionHash)) {
+                        uuidSwapEntry.value
+                    } else {
+                        null
+                    }
+                }
+                if (swap != null) {
+                    logger.warn("handleFailedTransaction: found swap ${swap.id} on ${swap.chainID} with close " +
+                            "swap transaction ${transaction.transactionHash}, updating closeSwapState to EXCEPTION " +
+                            "and state to AWAITING_CLOSING in persistent storage")
+                    databaseService.updateCloseSwapState(
+                        swapID = encoder.encodeToString(swap.id.asByteArray()),
+                        chainID = swap.chainID.toString(),
+                        state = ClosingSwapState.EXCEPTION.asString,
+                    )
+                    databaseService.updateSwapState(
+                        swapID = encoder.encodeToString(swap.id.asByteArray()),
+                        chainID = swap.chainID.toString(),
+                        state = SwapState.AWAITING_CLOSING.asString
+                    )
+                    logger.warn("handleFailedTransaction: setting closingSwapException, updating " +
+                            "closingSwapState to EXCEPTION and state to AWAITING_CLOSING for ${swap.id}")
+                    withContext(Dispatchers.Main) {
+                        swap.closingSwapException = exception
+                        swap.closingSwapState.value = ClosingSwapState.EXCEPTION
+                        swap.state.value = SwapState.AWAITING_CLOSING
+                    }
+                } else {
+                    logger.warn("handleFailedTransaction: swap with close swap transaction ${transaction
                         .transactionHash} not found in swapTruthSource")
                 }
             }
@@ -949,6 +1139,10 @@ class SwapService @Inject constructor(
             reportPaymentReceivedTransactionHash = null,
             reportPaymentReceivedTransactionCreationTime = null,
             reportPaymentReceivedTransactionCreationBlockNumber = null,
+            closeSwapState = newSwap.closingSwapState.value.asString,
+            closeSwapTransactionHash = null,
+            closeSwapTransactionCreationTime = null,
+            closeSwapTransactionCreationBlockNumber = null,
         )
         databaseService.storeSwap(swapForDatabase)
         // Add new Swap to swapTruthSource
@@ -1462,10 +1656,20 @@ class SwapService @Inject constructor(
      * The function called by [BlockchainService] to notify [SwapService] of a [BuyerClosedEvent].
      *
      * Once notified, [SwapService] checks in [swapTruthSource] for a [Swap] with the ID specified in [event]. If it
-     * finds such a swap, it ensures that the chain ID of the swap and the chain ID of [event] match. Then it
-     * persistently sets the swap's [Swap.hasBuyerClosed] field to `true` and does the same to the [Swap] object. If the
-     * user of this interface is the buyer for the swap specified by [BuyerClosedEvent.swapID], this persistently sets
-     * the swaps state to [SwapState.CLOSED], and does the same to the [Swap] object on the main coroutine dispatcher.
+     * finds such a [Swap], it ensures that the chain ID of the [Swap] and the chain ID of [event] match. Then it checks
+     * whether the user is the buyer in the [Swap]. If the user is, then this checks if the swap has a non-`null`
+     * transaction for calling [closeSwap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#close-swap). If
+     * it does, then this compares the hash of that transaction and the transaction hash contained in [event] If the two
+     * do not match, this sets a flag indicating that the swap closing transaction must be updated. If the swap does not
+     * have such a transaction, this flag is also set. If this flag is set, then this updates the [Swap], both in
+     * [swapTruthSource] and in persistent storage, with a new [BlockchainTransaction] containing the hash specified in
+     * [event]. Then, regardless of whether this flag is set, this persistently updates the [Swap.state] property of the
+     * [Swap] to [SwapState.CLOSED], on the main coroutine dispatcher sets the [Swap.state] property of the [Swap] to
+     * [SwapState.CLOSED], persistently updates the [Swap.closingSwapState] of the [Swap] to
+     * [ClosingSwapState.COMPLETED], and on the main coroutine dispatcher sets the [Swap.closingSwapState] property of
+     * the [Swap] to [ClosingSwapState.COMPLETED]. Then, regardless of whether the user of this interface is the buyer
+     * or seller, this persistently updates the [Swap.hasBuyerClosed] property of the [Swap] to `true`, and then on the
+     * main coroutine dispatcher sets the [Swap.hasBuyerClosed] property to `true`.
      *
      * @param event The [BuyerClosedEvent] of which [SwapService] is being notified.
      *
@@ -1480,34 +1684,85 @@ class SwapService @Inject constructor(
                         "handleBuyerClosedEvent call. BuyerClosedEvent.chainID: ${event.chainID}, Swap.chainID: " +
                         "${swap.chainID}, BuyerClosedEvent.id: ${event.swapID}")
             }
-            /*
-            At this point, we have ensured that the chain ID of the event and the swap match, so we can proceed safely
-             */
-            val swapIDB64String = Base64.getEncoder().encodeToString(event.swapID.asByteArray())
-            databaseService.updateSwapHasBuyerClosed(
-                swapID = swapIDB64String,
-                chainID = event.chainID.toString(),
-                hasBuyerClosed = true
-            )
-            swap.hasBuyerClosed = true
-            /*
-            If the user of this interface is the buyer, then this is their BuyerClosed event. Therefore, we should
-            update the state of the swap to show that the user has closed it.
-             */
+            val encoder = Base64.getEncoder()
             if (swap.role == SwapRole.MAKER_AND_BUYER || swap.role == SwapRole.TAKER_AND_BUYER) {
-                logger.info("handleBuyerClosedEvent: setting state of ${event.swapID} to CLOSED")
+                logger.info("handleBuyerClosedEvent: user is buyer for ${event.swapID}")
+                var mustUpdateCloseSwapTransaction = false
+                swap.closeSwapTransaction?.let { closeSwapTransaction ->
+                    if (closeSwapTransaction.transactionHash == event.transactionHash) {
+                        logger.info("handleBuyerClosedEvent: tx hash ${event.transactionHash} of event matches " +
+                                "that for swap ${swap.id}: ${closeSwapTransaction.transactionHash}")
+                    } else {
+                        logger.warn("handleBuyerClosedEvent: tx hash ${event.transactionHash} of event does not " +
+                                "match that for swap ${event.swapID}: ${closeSwapTransaction.transactionHash}")
+                        mustUpdateCloseSwapTransaction = true
+                    }
+                } ?: run {
+                    logger.warn("handleBuyerClosedEvent: swap ${event.swapID} for which user is buyer has no " +
+                            "closing swap transaction, updating with transaction hash ${event.transactionHash}")
+                    mustUpdateCloseSwapTransaction = true
+                }
+                if (mustUpdateCloseSwapTransaction) {
+                    val closeSwapTransaction = BlockchainTransaction(
+                        transactionHash = event.transactionHash,
+                        timeOfCreation = Date(),
+                        latestBlockNumberAtCreation = BigInteger.ZERO,
+                        type = BlockchainTransactionType.CLOSE_SWAP
+                    )
+                    withContext(Dispatchers.Main) {
+                        swap.closeSwapTransaction = closeSwapTransaction
+                    }
+                    logger.info("handleBuyerClosedEvent: persistently storing tx data, including hash ${event
+                        .transactionHash} for ${event.swapID}")
+                    val dateString = DateFormatter.createDateString(closeSwapTransaction.timeOfCreation)
+                    databaseService.updateCloseSwapData(
+                        swapID = encoder.encodeToString(swap.id.asByteArray()),
+                        chainID = swap.chainID.toString(),
+                        transactionHash = closeSwapTransaction.transactionHash,
+                        creationTime = dateString,
+                        blockNumber = closeSwapTransaction.latestBlockNumberAtCreation.toLong()
+                    )
+                }
+                logger.info("handleBuyerClosedEvent: persistently updating state of ${event.swapID} to ${SwapState
+                    .CLOSED.asString}")
                 databaseService.updateSwapState(
-                    swapID = swapIDB64String,
-                    chainID = event.chainID.toString(),
-                    state = SwapState.CLOSED.asString,
+                    swapID = encoder.encodeToString(swap.id.asByteArray()),
+                    chainID = swap.chainID.toString(),
+                    state = SwapState.CLOSED.asString
                 )
+                logger.info("handleBuyerClosedEvent: setting state of ${event.swapID} to ${SwapState.CLOSED
+                    .asString}")
                 withContext(Dispatchers.Main) {
                     swap.state.value = SwapState.CLOSED
                 }
+                logger.info("handleBuyerClosedEvent: user is buyer for ${event.swapID} so persistently " +
+                        "updating closingSwapState to ${ClosingSwapState.COMPLETED.asString}")
+                databaseService.updateCloseSwapState(
+                    swapID = encoder.encodeToString(swap.id.asByteArray()),
+                    chainID = swap.chainID.toString(),
+                    state = ClosingSwapState.COMPLETED.asString
+                )
+                withContext(Dispatchers.Main) {
+                    swap.closingSwapState.value = ClosingSwapState.COMPLETED
+                }
+            } else {
+                logger.info("handleBuyerClosedEvent: user is seller for ${event.swapID}")
+            }
+            logger.info("handleBuyerClosedEvent: persistently setting hasBuyerClosed property of ${event.swapID} to " +
+                    "true")
+            databaseService.updateSwapHasBuyerClosed(
+                swapID = encoder.encodeToString(swap.id.asByteArray()),
+                chainID = event.chainID.toString(),
+                hasBuyerClosed = true
+            )
+            logger.info("handleBuyerClosedEvent: setting hasBuyerClosed property of ${event.swapID} to true")
+            withContext(Dispatchers.Main) {
+                swap.hasBuyerClosed = true
             }
         } ?: run {
             // Executed if we do not have a Swap with the ID specified in event
-            logger.info("handleBuyerClosedEvent: got event for ${event.swapID} which was not found in swapTruthSource")
+            logger.info("handleBuyerClosedEvent: got event for ${event.swapID} which was not found in " +
+                    "swapTruthSource")
         }
     }
 
@@ -1515,11 +1770,20 @@ class SwapService @Inject constructor(
      * The function called by [BlockchainService] to notify [SwapService] of a [SellerClosedEvent].
      *
      * Once notified, [SwapService] checks in [swapTruthSource] for a [Swap] with the ID specified in [event]. If it
-     * finds such a swap, it ensures that the chain ID of the swap and the chain ID of [event] match. Then it
-     * persistently sets the swap's [Swap.hasSellerClosed] field to `true` and does the same to the [Swap] object. If
-     * the user of this interface is the seller for the swap specified by [SellerClosedEvent.swapID], this persistently
-     * sets the swaps state to [SwapState.CLOSED], and does the same to the [Swap] object on the main coroutine
-     * dispatcher.
+     * finds such a [Swap], it ensures that the chain ID of the [Swap] and the chain ID of [event] match. Then it checks
+     * whether the user is the seller in the [Swap]. If the user is, then this checks if the swap has a non-`null`
+     * transaction for calling [closeSwap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#close-swap). If
+     * it does, then this compares the hash of that transaction and the transaction hash contained in [event] If the two
+     * do not match, this sets a flag indicating that the swap closing transaction must be updated. If the swap does not
+     * have such a transaction, this flag is also set. If this flag is set, then this updates the [Swap], both in
+     * [swapTruthSource] and in persistent storage, with a new [BlockchainTransaction] containing the hash specified in
+     * [event]. Then, regardless of whether this flag is set, this persistently updates the [Swap.state] property of the
+     * [Swap] to [SwapState.CLOSED], on the main coroutine dispatcher sets the [Swap.state] property of the [Swap] to
+     * [SwapState.CLOSED], persistently updates the [Swap.closingSwapState] of the [Swap] to
+     * [ClosingSwapState.COMPLETED], and on the main coroutine dispatcher sets the [Swap.closingSwapState] property of
+     * the [Swap] to [ClosingSwapState.COMPLETED]. Then, regardless of whether the user of this interface is the buyer
+     * or seller, this persistently updates the [Swap.hasSellerClosed] property of the [Swap] to `true`, and then on the
+     * main coroutine dispatcher sets the [Swap.hasSellerClosed] property to `true`.
      *
      * @param event The [SellerClosedEvent] of which [SwapService] is being notified.
      *
@@ -1534,34 +1798,86 @@ class SwapService @Inject constructor(
                         "handleSellerClosedEvent call. SellerClosedEvent.chainID: ${event.chainID}, Swap.chainID: " +
                         "${swap.chainID}, SellerClosedEvent.id: ${event.swapID}")
             }
-            /*
-            At this point, we have ensured that the chain ID of the event and the swap match, so we can proceed safely
-             */
-            val swapIDB64String = Base64.getEncoder().encodeToString(event.swapID.asByteArray())
-            databaseService.updateSwapHasSellerClosed(
-                swapID = swapIDB64String,
-                chainID = event.chainID.toString(),
-                hasSellerClosed = true
-            )
-            swap.hasSellerClosed = true
-            /*
-            If the user of this interface is the seller, then this is their SellerClosed event. Therefore, we should
-            update the state of the swap to show that the user has closed it.
-             */
+            val encoder = Base64.getEncoder()
             if (swap.role == SwapRole.MAKER_AND_SELLER || swap.role == SwapRole.TAKER_AND_SELLER) {
-                logger.info("handleSellerClosedEvent: setting state of ${event.swapID} to CLOSED")
-                databaseService.updateSwapState(
-                    swapID = swapIDB64String,
-                    chainID = event.chainID.toString(),
-                    state = SwapState.CLOSED.asString,
+                logger.info("handleSellerClosedEvent: user is seller for ${event.swapID}")
+                var mustUpdateCloseSwapTransaction = false
+                swap.closeSwapTransaction?.let { closeSwapTransaction ->
+                    if (closeSwapTransaction.transactionHash == event.transactionHash) {
+                        logger.info("handleSellerClosedEvent: tx hash ${event.transactionHash} of event " +
+                                "matches that for swap ${swap.id}: ${closeSwapTransaction.transactionHash}")
+                    } else {
+                        logger.warn("handleSellerClosedEvent: tx hash ${event.transactionHash} of event does " +
+                                "not match that for swap ${event.swapID}: ${closeSwapTransaction.transactionHash}")
+                        mustUpdateCloseSwapTransaction = true
+                    }
+                } ?: run {
+                    logger.warn("handleSellerClosedEvent: swap ${event.swapID} for which user is seller has " +
+                            "no closing swap transaction, updating with transaction hash ${event.transactionHash}")
+                    mustUpdateCloseSwapTransaction = true
+                }
+                if (mustUpdateCloseSwapTransaction) {
+                    val closeSwapTransaction = BlockchainTransaction(
+                        transactionHash = event.transactionHash,
+                        timeOfCreation = Date(),
+                        latestBlockNumberAtCreation = BigInteger.ZERO,
+                        type = BlockchainTransactionType.CLOSE_SWAP
+                    )
+                    withContext(Dispatchers.Main) {
+                        swap.closeSwapTransaction = closeSwapTransaction
+                    }
+                    logger.info("handleSellerClosedEvent: persistently storing tx data, including hash ${event
+                        .transactionHash} for ${event.swapID}")
+                    val dateString = DateFormatter.createDateString(closeSwapTransaction.timeOfCreation)
+                    databaseService.updateCloseSwapData(
+                        swapID = encoder.encodeToString(swap.id.asByteArray()),
+                        chainID = swap.chainID.toString(),
+                        transactionHash = closeSwapTransaction.transactionHash,
+                        creationTime = dateString,
+                        blockNumber = closeSwapTransaction.latestBlockNumberAtCreation.toLong()
+                    )
+                }
+                logger.info("handleSellerClosedEvent: persistently updating state of ${event.swapID} to " +
+                        SwapState.CLOSED.asString
                 )
+                databaseService.updateSwapState(
+                    swapID = encoder.encodeToString(swap.id.asByteArray()),
+                    chainID = swap.chainID.toString(),
+                    state = SwapState.CLOSED.asString
+                )
+                logger.info("handleSellerClosedEvent: setting state of ${event.swapID} to ${SwapState.CLOSED
+                    .asString}")
                 withContext(Dispatchers.Main) {
                     swap.state.value = SwapState.CLOSED
                 }
+                logger.info("handleSellerClosedEvent: user is seller for ${event.swapID} so persistently " +
+                        "updating closingSwapState to ${ClosingSwapState.COMPLETED.asString}")
+                databaseService.updateCloseSwapState(
+                    swapID = encoder.encodeToString(swap.id.asByteArray()),
+                    chainID = swap.chainID.toString(),
+                    state = ClosingSwapState.COMPLETED.asString
+                )
+                withContext(Dispatchers.Main) {
+                    swap.closingSwapState.value = ClosingSwapState.COMPLETED
+                }
+            } else {
+                logger.info("handleSellerClosedEvent: user is buyer for ${event.swapID}")
+            }
+            logger.info("handleSellerClosedEvent: persistently setting hasSellerClosed property of ${event
+                .swapID} to true")
+            databaseService.updateSwapHasSellerClosed(
+                swapID = encoder.encodeToString(swap.id.asByteArray()),
+                chainID = event.chainID.toString(),
+                hasSellerClosed = true
+            )
+            logger.info("handleSellerClosedEvent: setting hasSellerClosed property of ${event.swapID} to true")
+            withContext(Dispatchers.Main) {
+                swap.hasSellerClosed = true
             }
         } ?: run {
             // Executed if we do not have a Swap with the ID specified in event
-            logger.info("handleSellerClosedEvent: got event for ${event.swapID} which was not found in swapTruthSource")
+            logger.info("handleSellerClosedEvent: got event for ${event.swapID} which was not found in " +
+                    "swapTruthSource")
         }
     }
 

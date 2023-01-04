@@ -667,6 +667,12 @@ fun ActionButton(swap: Swap, swapTruthSource: UISwapTruthSource) {
         }
     } else if (swap.state.value == SwapState.AWAITING_CLOSING) {
         // We can now close the swap, so we display the "Close Swap" button
+
+        /**
+         * Indicates whether we are showing the dialog that allows the user to close the swap.
+         */
+        val isShowingCloseSwapDialog = remember { mutableStateOf(false) }
+
         if (swap.closingSwapState.value != ClosingSwapState.NONE &&
             swap.closingSwapState.value != ClosingSwapState.EXCEPTION) {
             Text(
@@ -684,9 +690,7 @@ fun ActionButton(swap: Swap, swapTruthSource: UISwapTruthSource) {
             action = {
                 if (swap.closingSwapState.value == ClosingSwapState.NONE ||
                     swap.closingSwapState.value == ClosingSwapState.EXCEPTION) {
-                    swapTruthSource.closeSwap(
-                        swap = swap
-                    )
+                    isShowingCloseSwapDialog.value = true
                 }
             },
             labelText = when (swap.closingSwapState.value) {
@@ -695,6 +699,51 @@ fun ActionButton(swap: Swap, swapTruthSource: UISwapTruthSource) {
                 else -> "Closing Swap"
             }
         )
+        if (isShowingCloseSwapDialog.value) {
+            Dialog(
+                onCloseRequest = {},
+                state = DialogState(
+                    width = 500.dp,
+                    height = 600.dp,
+                ),
+                title = "Close Swap",
+                undecorated = true,
+                resizable = false,
+                content = {
+                    Box(
+                        modifier = Modifier
+                            .width(600.dp)
+                            .height(800.dp)
+                    ) {
+                        TransactionGasDetailsComposable(
+                            closeDialog = { isShowingCloseSwapDialog.value = false },
+                            title = "Close Swap",
+                            buttonLabel = "Close Swap",
+                            buttonAction = { createdTransaction ->
+                                swapTruthSource.closeSwap(
+                                    swap = swap,
+                                    closeSwapTransaction = createdTransaction,
+                                )
+                            },
+                            runOnAppearance = { closeSwapTransaction, transactionCreationException ->
+                                if (swap.closingSwapState.value == ClosingSwapState.NONE ||
+                                    swap.closingSwapState.value == ClosingSwapState.EXCEPTION) {
+                                    swapTruthSource.createCloseSwapTransaction(
+                                        swap = swap,
+                                        createdTransactionHandler = { createdTransaction ->
+                                            closeSwapTransaction.value = createdTransaction
+                                        },
+                                        exceptionHandler = { exception ->
+                                            transactionCreationException.value = exception
+                                        }
+                                    )
+                                }
+                            }
+                        )
+                    }
+                }
+            )
+        }
     }
 }
 

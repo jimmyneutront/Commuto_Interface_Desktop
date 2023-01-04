@@ -14,13 +14,17 @@ package com.commuto.interfacedesktop.blockchain
  * @property REPORT_PAYMENT_RECEIVED Indicates that a [BlockchainTransaction] reports that payment has been received for
  * a swap by calling
  * [reportPaymentReceived](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#report-payment-received)
+ * @property CLOSE_SWAP Indicates that a [BlockchainTransaction] reports that payment has been received for
+ * a swap by calling
+ * [closeSwap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#close-swap)
  * @property asString A human-readable string describing an instance of this type.
  */
 enum class BlockchainTransactionType {
     CANCEL_OFFER,
     EDIT_OFFER,
     REPORT_PAYMENT_SENT,
-    REPORT_PAYMENT_RECEIVED;
+    REPORT_PAYMENT_RECEIVED,
+    CLOSE_SWAP;
 
     val asString: String
         get() = when(this) {
@@ -28,6 +32,7 @@ enum class BlockchainTransactionType {
             EDIT_OFFER -> "editOffer"
             REPORT_PAYMENT_SENT -> "reportPaymentSent"
             REPORT_PAYMENT_RECEIVED -> "reportPaymentReceived"
+            CLOSE_SWAP -> "closeSwap"
         }
 
 }
