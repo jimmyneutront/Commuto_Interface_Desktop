@@ -5,4 +5,4 @@ package com.commuto.interfacedesktop.offer.validation
  *
  * @param desc A description providing information about the context in which the exception was thrown.
  */
-class NewOfferDataValidationException(desc: String): Exception(desc)
+class OfferDataValidationException(desc: String): Exception(desc)

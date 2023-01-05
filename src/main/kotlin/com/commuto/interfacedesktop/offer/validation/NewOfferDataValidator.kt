@@ -34,7 +34,7 @@ import java.math.RoundingMode
  *
  * @return A [ValidatedNewOfferData] derived from the inputs to this function.
  *
- * @throws [NewOfferDataValidationException] if this is not able to ensure any of the conditions in the list above. The
+ * @throws [OfferDataValidationException] if this is not able to ensure any of the conditions in the list above. The
  * descriptions of the exceptions thrown by this function are human-readable and can be displayed to the user so that
  * they can correct any problems.
  */
@@ -49,27 +49,27 @@ fun validateNewOfferData(
     settlementMethods: List<SettlementMethod>
 ): ValidatedNewOfferData {
     if (stablecoin == null || stablecoinInformation == null) {
-        throw NewOfferDataValidationException("You must select a valid stablecoin.")
+        throw OfferDataValidationException("You must select a valid stablecoin.")
     }
     val minimumAmountBaseUnits = stablecoinAmountToBaseUnits(minimumAmount, stablecoinInformation)
     if (minimumAmountBaseUnits <= BigInteger.ZERO) {
-        throw NewOfferDataValidationException("Minimum amount must be greater than zero.")
+        throw OfferDataValidationException("Minimum amount must be greater than zero.")
     }
     val maximumAmountBaseUnits = stablecoinAmountToBaseUnits(maximumAmount, stablecoinInformation)
     if (maximumAmountBaseUnits < minimumAmountBaseUnits) {
-        throw NewOfferDataValidationException("Maximum amount must not be less than the minimum amount.")
+        throw OfferDataValidationException("Maximum amount must not be less than the minimum amount.")
     }
     val securityDepositAmountBaseUnits = stablecoinAmountToBaseUnits(securityDepositAmount, stablecoinInformation)
     if (securityDepositAmountBaseUnits.times(BigInteger.TEN) < maximumAmountBaseUnits) {
-        throw NewOfferDataValidationException("The security deposit amount must be at least 10% of the maximum amount.")
+        throw OfferDataValidationException("The security deposit amount must be at least 10% of the maximum amount.")
     }
     val serviceFeeAmountLowerBound = serviceFeeRate * (minimumAmountBaseUnits / BigInteger.valueOf(10_000L))
     if (serviceFeeRate != BigInteger.ZERO && serviceFeeAmountLowerBound <= BigInteger.ZERO) {
-        throw NewOfferDataValidationException("The minimum service fee amount must be greater than zero.")
+        throw OfferDataValidationException("The minimum service fee amount must be greater than zero.")
     }
     val serviceFeeAmountUpperBound = serviceFeeRate * (maximumAmountBaseUnits / BigInteger.valueOf(10_000L))
     if (direction == null) {
-        throw NewOfferDataValidationException("You must specify a direction.")
+        throw OfferDataValidationException("You must specify a direction.")
     }
     val validatedSettlementMethods = validateSettlementMethods(settlementMethods)
     return ValidatedNewOfferData(

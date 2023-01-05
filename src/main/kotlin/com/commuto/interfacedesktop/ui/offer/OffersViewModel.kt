@@ -184,7 +184,7 @@ class OffersViewModel @Inject constructor(private val offerService: OfferService
             logger.info("openOffer: validating new offer data")
             openingOfferState
             try {
-                val serviceFeeRateForOffer = serviceFeeRate.value ?: throw NewOfferDataValidationException("Unable " +
+                val serviceFeeRateForOffer = serviceFeeRate.value ?: throw OfferDataValidationException("Unable " +
                         "to determine service fee rate")
                 val validatedOfferData = validateNewOfferData(
                     stablecoin = stablecoin,
@@ -247,8 +247,8 @@ class OffersViewModel @Inject constructor(private val offerService: OfferService
     /**
      * Attempts to create a [RawTransaction] to cancel [offer], which should be made by the user of this interface.
      *
-     * This passes [offer]'s ID and chain ID to [OfferService.createCancelOfferTransaction] and then passes the
-     * resulting transaction to [createdTransactionHandler] or exception to [exceptionHandler].
+     * This passes [offer]to [OfferService.createCancelOfferTransaction] and then passes the resulting transaction to
+     * [createdTransactionHandler] or exception to [exceptionHandler].
      *
      * @param offer The [Offer] to be canceled.
      * @param createdTransactionHandler A lambda that will accept and handle the created [RawTransaction].
@@ -263,7 +263,7 @@ class OffersViewModel @Inject constructor(private val offerService: OfferService
         viewModelScope.launch {
             logger.info("createCancelOfferTransaction: creating for ${offer.id}")
             try {
-                val createdTransaction = offerService.createCancelOfferTransaction(offer.id, offer.chainID)
+                val createdTransaction = offerService.createCancelOfferTransaction(offer = offer)
                 withContext(Dispatchers.Main) {
                     createdTransactionHandler(createdTransaction)
                 }
@@ -363,9 +363,8 @@ class OffersViewModel @Inject constructor(private val offerService: OfferService
      * Attempts to create a [RawTransaction] to edit [offer] using validated [newSettlementMethods], which should be
      * made by the user of this interface.
      *
-     * This validates [newSettlementMethods], passes [offer]'s ID and chain ID to
-     * [OfferService.createEditOfferTransaction], and then passes the resulting transaction to
-     * [createdTransactionHandler] or exception to [exceptionHandler].
+     * This validates [newSettlementMethods], passes [offer] to [OfferService.createEditOfferTransaction], and then
+     * passes the resulting transaction to [createdTransactionHandler] or exception to [exceptionHandler].
      *
      * @param offer The [Offer] to be edited.
      * @param newSettlementMethods A list of [SettlementMethod]s with which [offer] will be edited after they are
@@ -385,8 +384,7 @@ class OffersViewModel @Inject constructor(private val offerService: OfferService
             try {
                 val validatedSettlementmethods = validateSettlementMethods(newSettlementMethods)
                 val createdTransaction = offerService.createEditOfferTransaction(
-                    offerID = offer.id,
-                    chainID = offer.chainID,
+                    offer = offer,
                     newSettlementMethods = validatedSettlementmethods
                 )
                 withContext(Dispatchers.Main) {

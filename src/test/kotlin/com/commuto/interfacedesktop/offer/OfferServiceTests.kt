@@ -2110,8 +2110,7 @@ class OfferServiceTests {
             databaseService.storeOffer(offerForDatabase)
 
             val offerCancellationTransaction = offerService.createCancelOfferTransaction(
-                offerID = offer.id,
-                chainID = offer.chainID
+                offer = offer
             )
 
             offerService.cancelOffer(
@@ -2212,7 +2211,7 @@ class OfferServiceTests {
             protocolVersion = BigInteger.ONE,
             chainID = BigInteger.valueOf(31337L), // Hardhat blockchain ID
             havePublicKey = true,
-            isUserMaker = false,
+            isUserMaker = true,
             state = OfferState.OFFER_OPENED
         )
         offerTruthSource.offers[offerID] = offer
@@ -2251,8 +2250,7 @@ class OfferServiceTests {
             databaseService.storeOffer(offerForDatabase)
 
             val offerEditingTransaction = offerService.createEditOfferTransaction(
-                offerID = offer.id,
-                chainID = offer.chainID,
+                offer = offer,
                 newSettlementMethods = listOf(
                     SettlementMethod(
                         currency = "USD",

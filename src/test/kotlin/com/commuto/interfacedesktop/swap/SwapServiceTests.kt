@@ -1346,8 +1346,7 @@ class SwapServiceTests {
         databaseService.storeSwap(swapForDatabase)
 
         val reportPaymentSentTransaction = swapService.createReportPaymentSentTransaction(
-            swapID = swap.id,
-            chainID = swap.chainID,
+            swap = swap,
         )
 
         swapService.reportPaymentSent(
@@ -1753,8 +1752,7 @@ class SwapServiceTests {
         databaseService.storeSwap(swapForDatabase)
 
         val reportPaymentReceivedTransaction = swapService.createReportPaymentReceivedTransaction(
-            swapID = swap.id,
-            chainID = swap.chainID,
+            swap = swap,
         )
 
         swapService.reportPaymentReceived(
@@ -2162,8 +2160,7 @@ class SwapServiceTests {
         databaseService.storeSwap(swapForDatabase)
 
         val closeSwapTransaction = swapService.createCloseSwapTransaction(
-            swapID = swap.id,
-            chainID = swap.chainID
+            swap = swap,
         )
 
         swapService.closeSwap(

@@ -17,6 +17,9 @@ import com.commuto.interfacedesktop.p2p.SwapMessageNotifiable
 import com.commuto.interfacedesktop.p2p.messages.MakerInformationMessage
 import com.commuto.interfacedesktop.p2p.messages.TakerInformationMessage
 import com.commuto.interfacedesktop.settlement.SettlementMethod
+import com.commuto.interfacedesktop.swap.validation.validateSwapForClosing
+import com.commuto.interfacedesktop.swap.validation.validateSwapForReportingPaymentReceived
+import com.commuto.interfacedesktop.swap.validation.validateSwapForReportingPaymentSent
 import com.commuto.interfacedesktop.util.DateFormatter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -300,24 +303,25 @@ class SwapService @Inject constructor(
      * Attempts to create a [RawTransaction] that will call
      * [reportPaymentSent](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#report-payment-sent) for a
      * [Swap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#swap) for which the user of this interface
-     * is the buyer, with the ID specified by [swapID] and on the blockchain specified by [chainID].
+     * is the buyer.
      *
-     * On the IO coroutine dispatcher, this calls [BlockchainService.createReportPaymentSentTransaction], passing
-     * [swapID] and [chainID], and returns the result.
+     * On the IO coroutine dispatcher, this calls [validateSwapForReportingPaymentSent], and then
+     * [BlockchainService.createReportPaymentSentTransaction], passing the [Swap.id] and [Swap.chainID] properties of
+     * [Swap], and then returns the result.
      *
-     * @param swapID The ID of the [Swap] for which
+     * @param swap The [Swap] for which
      * [reportPaymentSent](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#report-payment-sent) will be
      * called.
-     * @param chainID The ID of the blockchain on which the [Swap] exists.
      *
      * @return A [RawTransaction] capable of calling
-     * [reportPaymentSent](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#report-payment-sent) for the
-     * swap specified by [swapID] on the blockchain specified by [chainID].
+     * [reportPaymentSent](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#report-payment-sent) for
+     * [swap].
      */
-    suspend fun createReportPaymentSentTransaction(swapID: UUID, chainID: BigInteger): RawTransaction {
+    suspend fun createReportPaymentSentTransaction(swap: Swap): RawTransaction {
         return withContext(Dispatchers.IO) {
-            logger.info("createReportPaymentSentTransaction: creating for $swapID")
-            blockchainService.createReportPaymentSentTransaction(swapID = swapID, chainID = chainID)
+            logger.info("createReportPaymentSentTransaction: creating for ${swap.id}")
+            validateSwapForReportingPaymentSent(swap = swap)
+            blockchainService.createReportPaymentSentTransaction(swapID = swap.id, chainID = swap.chainID)
         }
     }
 
@@ -327,15 +331,11 @@ class SwapService @Inject constructor(
      * [Swap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#swap) in which the user of this interface is
      * the buyer.
      *
-     * On the IO coroutine dispatcher, this ensures that
-     * [reportPaymentSent](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#report-payment-sent) is not
-     * currently being called or has not already been called by the user for [swap], that the user of this interface is
-     * the buyer in the swap, that calling
-     * [reportPaymentSent](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#report-payment-sent) is
-     * currently possible for [swap], and that [reportPaymentSentTransaction] is not `null`. Then it signs
-     * [reportPaymentSentTransaction], creates a [BlockchainTransaction] to wrap it, determines the transaction hash,
-     * persistently stores the transaction hash and persistently updates the [Swap.reportingPaymentSentState] of [swap]
-     * to [ReportingPaymentSentState.SENDING_TRANSACTION]. Then, on the main coroutine dispatcher, this stores the
+     * On the IO coroutine dispatcher, this calls [validateSwapForReportingPaymentSent], and ensures that
+     * [reportPaymentSentTransaction] is not `null`. Then it signs [reportPaymentSentTransaction], creates a
+     * [BlockchainTransaction] to wrap it, determines the transaction hash, persistently stores the transaction hash and
+     * persistently updates the [Swap.reportingPaymentSentState] of [swap] to
+     * [ReportingPaymentSentState.SENDING_TRANSACTION]. Then, on the main coroutine dispatcher, this stores the
      * transaction hash in [swap] and sets [swap]'s [Swap.reportingPaymentSentState] property to
      * [ReportingPaymentSentState.SENDING_TRANSACTION]. Then, on the IO coroutine dispatcher, it sends the
      * [BlockchainTransaction]-wrapped [reportPaymentSentTransaction] to the blockchain. Once a response is received,
@@ -353,27 +353,12 @@ class SwapService @Inject constructor(
      * [reportPaymentSent](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#report-payment-sent) for
      * [swap].
      *
-     * @throws [SwapServiceException] if
-     * [reportPaymentSent](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#report-payment-sent) is
-     * currently being called for [swap], if the user is not the buyer, if the state of [swap] is not
-     * [SwapState.AWAITING_PAYMENT_SENT], or if [reportPaymentSentTransaction] is `null`.
+     * @throws [SwapServiceException] if [reportPaymentSentTransaction] is `null`.
      */
     suspend fun reportPaymentSent(swap: Swap, reportPaymentSentTransaction: RawTransaction?) {
         withContext(Dispatchers.IO) {
             logger.info("reportPaymentSent: checking reporting is possible for ${swap.id}")
-            if (swap.reportingPaymentSentState.value != ReportingPaymentSentState.NONE &&
-                swap.reportingPaymentSentState.value != ReportingPaymentSentState.VALIDATING &&
-                swap.reportingPaymentSentState.value != ReportingPaymentSentState.EXCEPTION) {
-                throw SwapServiceException(message = "Payment sending is already being reported this swap.")
-            }
-            // Ensure that the user is the buyer for the swap
-            if (!(swap.role == SwapRole.MAKER_AND_BUYER || swap.role == SwapRole.TAKER_AND_BUYER)) {
-                throw SwapServiceException(message = "Only the Buyer can report sending payment")
-            }
-            // Ensure that this swap is awaiting reporting of payment sent
-            if (swap.state.value != SwapState.AWAITING_PAYMENT_SENT) {
-                throw SwapServiceException(message = "Payment sending cannot currently be reported for this swap.")
-            }
+            validateSwapForReportingPaymentSent(swap = swap)
             try {
                 if (reportPaymentSentTransaction == null) {
                     throw SwapServiceException(message = "Transaction was null during reportPaymentSent call for " +
@@ -521,22 +506,23 @@ class SwapService @Inject constructor(
      * for a [Swap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#swap) for which the user of this
      * interface is the buyer, with the ID specified by [swapID] and on the blockchain specified by [chainID].
      *
-     * On the IO coroutine dispatcher, this calls [BlockchainService.createReportPaymentReceivedTransaction], passing
-     * [swapID] and [chainID], and returns the result.
+     * On the IO coroutine dispatcher, this calls [validateSwapForReportingPaymentReceived], and then
+     * [BlockchainService.createReportPaymentReceivedTransaction], passing the [Swap.id] and [Swap.chainID] properties
+     * of [swap], and returns the result.
      *
-     * @param swapID The ID of the [Swap] for which
+     * @param swap The [Swap] for which
      * [reportPaymentReceived](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#report-payment-received)
      * will be called.
-     * @param chainID The ID of the blockchain on which the [Swap] exists.
      *
      * @return A [RawTransaction] capable of calling
      * [reportPaymentReceived](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#report-payment-received)
-     * for the swap specified by [swapID] on the blockchain specified by [chainID].
+     * for [swap].
      */
-    suspend fun createReportPaymentReceivedTransaction(swapID: UUID, chainID: BigInteger): RawTransaction {
+    suspend fun createReportPaymentReceivedTransaction(swap: Swap): RawTransaction {
         return withContext(Dispatchers.IO) {
-            logger.info("createReportPaymentReceivedTransaction: creating for $swapID")
-            blockchainService.createReportPaymentReceivedTransaction(swapID = swapID, chainID = chainID)
+            logger.info("createReportPaymentReceivedTransaction: creating for ${swap.id}")
+            validateSwapForReportingPaymentReceived(swap = swap)
+            blockchainService.createReportPaymentReceivedTransaction(swapID = swap.id, chainID = swap.chainID)
         }
     }
 
@@ -544,18 +530,14 @@ class SwapService @Inject constructor(
      * Attempts to call
      * [reportPaymentReceived](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#report-payment-received)
      * for a [Swap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#swap) in which the user of this
-     * interface is the buyer.
+     * interface is the seller.
      *
-     * On the IO coroutine dispatcher, this ensures that
-     * [reportPaymentReceived](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#report-payment-received) is
-     * not currently being called or has not already been called by the user for [swap], that the user of this interface
-     * is the seller in the swap, that calling
-     * [reportPaymentReceived](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#report-payment-received) is
-     * currently possible for [swap], and that [reportPaymentReceivedTransaction] is not `null`. Then it signs
-     * [reportPaymentReceivedTransaction], creates a [BlockchainTransaction] to wrap it, determines the transaction
-     * hash, persistently stores the transaction hash and persistently updates the [Swap.reportingPaymentReceivedState]
-     * of [swap] to [ReportingPaymentReceivedState.SENDING_TRANSACTION]. Then, on the main coroutine dispatcher, this
-     * stores the transaction hash in [swap] and sets [swap]'s [Swap.reportingPaymentReceivedState] property to
+     * On the IO coroutine dispatcher, this calls [validateSwapForReportingPaymentReceived], and ensures that
+     * [reportPaymentReceivedTransaction] is not `null`. Then it signs [reportPaymentReceivedTransaction], creates a
+     * [BlockchainTransaction] to wrap it, determines the transaction hash, persistently stores the transaction hash and
+     * persistently updates the [Swap.reportingPaymentReceivedState] of [swap] to
+     * [ReportingPaymentReceivedState.SENDING_TRANSACTION]. Then, on the main coroutine dispatcher, this stores the
+     * transaction hash in [swap] and sets [swap]'s [Swap.reportingPaymentReceivedState] property to
      * [ReportingPaymentReceivedState.SENDING_TRANSACTION]. Then, on the IO coroutine dispatcher, it sends the
      * [BlockchainTransaction]-wrapped [reportPaymentReceivedTransaction] to the blockchain. Once a response is
      * received, this persistently updates the [Swap.reportingPaymentReceivedState] of [swap] to
@@ -572,27 +554,12 @@ class SwapService @Inject constructor(
      * [reportPaymentReceived](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#report-payment-received)
      * for [swap].
      *
-     * @throws [SwapServiceException] if
-     * [reportPaymentReceived](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#report-payment-received) is
-     * currently being called for [swap], if the user is not the seller, if the state of [swap] is not
-     * [SwapState.AWAITING_PAYMENT_RECEIVED], or if [reportPaymentReceivedTransaction] is `null`.
+     * @throws [SwapServiceException] if [reportPaymentReceivedTransaction] is `null`.
      */
     suspend fun reportPaymentReceived(swap: Swap, reportPaymentReceivedTransaction: RawTransaction?) {
         withContext(Dispatchers.IO) {
             logger.info("reportPaymentReceived: checking reporting is possible for ${swap.id}")
-            if (swap.reportingPaymentReceivedState.value != ReportingPaymentReceivedState.NONE &&
-                swap.reportingPaymentReceivedState.value != ReportingPaymentReceivedState.VALIDATING &&
-                swap.reportingPaymentReceivedState.value != ReportingPaymentReceivedState.EXCEPTION) {
-                throw SwapServiceException(message = "Payment receiving is already being reported this swap.")
-            }
-            // Ensure that the user is the seller for the swap
-            if (!(swap.role == SwapRole.MAKER_AND_SELLER || swap.role == SwapRole.TAKER_AND_SELLER)) {
-                throw SwapServiceException(message = "Only the Seller can report receiving payment")
-            }
-            // Ensure that this swap is awaiting reporting of payment received
-            if (swap.state.value != SwapState.AWAITING_PAYMENT_RECEIVED) {
-                throw SwapServiceException(message = "Payment receiving cannot currently be reported for this swap.")
-            }
+            validateSwapForReportingPaymentReceived(swap = swap)
             try {
                 if (reportPaymentReceivedTransaction == null) {
                     throw SwapServiceException(message = "Transaction was null during reportPaymentReceived call for " +
@@ -731,24 +698,24 @@ class SwapService @Inject constructor(
     /**
      * Attempts to create a [RawTransaction] that will call
      * [closeSwap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#close-swap)
-     * for a [Swap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#swap) for which the user of this
-     * interface is the buyer, with the ID specified by [swapID] and on the blockchain specified by [chainID].
+     * for a [Swap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#swap) involving the user of this
+     * interface.
      *
-     * On the IO coroutine dispatcher, this calls [BlockchainService.createCloseSwapTransaction], passing [swapID] and
-     * [chainID], and returns the result.
+     * On the IO coroutine dispatcher, this calls [validateSwapForClosing], and then calls
+     * [BlockchainService.createCloseSwapTransaction], passing the [Swap.id] and [Swap.chainID] properties of [swap],
+     * and returns the result.
      *
-     * @param swapID The ID of the [Swap] for which
+     * @param swap The [Swap] for which
      * [closeSwap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#close-swap) will be called.
-     * @param chainID The ID of the blockchain on which the [Swap] exists.
      *
      * @return A [RawTransaction] capable of calling
-     * [closeSwap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#close-swap) for the swap specified by
-     * [swapID] on the blockchain specified by [chainID].
+     * [closeSwap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#close-swap) for [swap].
      */
-    suspend fun createCloseSwapTransaction(swapID: UUID, chainID: BigInteger): RawTransaction {
+    suspend fun createCloseSwapTransaction(swap: Swap): RawTransaction {
         return withContext(Dispatchers.IO) {
-            logger.info("createCloseSwapTransaction: creating for $swapID")
-            blockchainService.createCloseSwapTransaction(swapID = swapID, chainID = chainID)
+            logger.info("createCloseSwapTransaction: creating for ${swap.id}")
+            validateSwapForClosing(swap = swap)
+            blockchainService.createCloseSwapTransaction(swapID = swap.id, chainID = swap.chainID)
         }
     }
 
@@ -757,22 +724,18 @@ class SwapService @Inject constructor(
      * [closeSwap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#close-swap) for a
      * [Swap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#swap) involving the user of this interface.
      *
-     * On the IO coroutine dispatcher, this ensures that
-     * [closeSwap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#close-swap) is not currently being
-     * called or has not already been called by the user for [swap], that calling
-     * [closeSwap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#close-swap) is currently possible for
-     * [swap], and that [closeSwapTransaction] is not `null`. Then it signs [closeSwapTransaction], creates a
-     * [BlockchainTransaction] to wrap it, determines the transaction hash, persistently stores the transaction hash and
-     * persistently updates the [Swap.closingSwapState] of [swap] to [ClosingSwapState.SENDING_TRANSACTION]. Then, on
-     * the main coroutine dispatcher, this stores the transaction hash in [swap] and sets [swap]'s
-     * [Swap.closingSwapState] property to [ClosingSwapState.SENDING_TRANSACTION]. Then, on the IO coroutine dispatcher,
-     * it sends the [BlockchainTransaction]-wrapped [closeSwapTransaction] to the blockchain. Once a response is
-     * received, this persistently updates the [Swap.closingSwapState] of [swap] to
-     * [ClosingSwapState.AWAITING_TRANSACTION_CONFIRMATION] and persistently updates the [Swap.state]
-     * property of [swap] to [SwapState.CLOSE_SWAP_TRANSACTION_BROADCAST]. Then, on the main coroutine dispatcher, this
-     * sets the value of [swap]'s [Swap.closingSwapState] property to
-     * [ClosingSwapState.AWAITING_TRANSACTION_CONFIRMATION] and the value of [swap]'s [Swap.state] to
-     * [SwapState.CLOSE_SWAP_TRANSACTION_BROADCAST].
+     * On the IO coroutine dispatcher, this calls [validateSwapForClosing] and ensures that [closeSwapTransaction] is
+     * not `null`. Then it signs [closeSwapTransaction], creates a [BlockchainTransaction] to wrap it, determines the
+     * transaction hash, persistently stores the transaction hash and persistently updates the [Swap.closingSwapState]
+     * of [swap] to [ClosingSwapState.SENDING_TRANSACTION]. Then, on the main coroutine dispatcher, this stores the
+     * transaction hash in [swap] and sets [swap]'s [Swap.closingSwapState] property to
+     * [ClosingSwapState.SENDING_TRANSACTION]. Then, on the IO coroutine dispatcher, it sends the
+     * [BlockchainTransaction]-wrapped [closeSwapTransaction] to the blockchain. Once a response is received, this
+     * persistently updates the [Swap.closingSwapState] of [swap] to
+     * [ClosingSwapState.AWAITING_TRANSACTION_CONFIRMATION] and persistently updates the [Swap.state] property of [swap]
+     * to [SwapState.CLOSE_SWAP_TRANSACTION_BROADCAST]. Then, on the main coroutine dispatcher, this sets the value of
+     * [swap]'s [Swap.closingSwapState] property to [ClosingSwapState.AWAITING_TRANSACTION_CONFIRMATION] and the value
+     * of [swap]'s [Swap.state] to [SwapState.CLOSE_SWAP_TRANSACTION_BROADCAST].
      *
      * @param swap The [Swap] for which
      * [closeSwap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#close-swap)
@@ -781,23 +744,12 @@ class SwapService @Inject constructor(
      * [closeSwap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#close-swap)
      * for [swap].
      *
-     * @throws [SwapServiceException] if
-     * [closeSwap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#close-swap) is
-     * currently being called for [swap], if the state of [swap] is not [SwapState.AWAITING_CLOSING], or if
-     * [closeSwapTransaction] is `null`.
+     * @throws [SwapServiceException] if [closeSwapTransaction] is `null`.
      */
     suspend fun closeSwap(swap: Swap, closeSwapTransaction: RawTransaction?) {
         withContext(Dispatchers.IO) {
             logger.info("closeSwap: checking closing is possible for ${swap.id}")
-            if (swap.closingSwapState.value != ClosingSwapState.NONE &&
-                swap.closingSwapState.value != ClosingSwapState.VALIDATING &&
-                swap.closingSwapState.value != ClosingSwapState.EXCEPTION) {
-                throw SwapServiceException(message = "This Swap is already being closed.")
-            }
-            // Ensure that this swap is awaiting closing
-            if (swap.state.value != SwapState.AWAITING_CLOSING) {
-                throw SwapServiceException(message = "This Swap cannot currently be closed.")
-            }
+            validateSwapForClosing(swap = swap)
             try {
                 if (closeSwapTransaction == null) {
                     throw SwapServiceException(message = "Transaction was null during closeSwap call for ${swap.id}")

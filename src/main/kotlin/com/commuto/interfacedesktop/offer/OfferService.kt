@@ -9,6 +9,8 @@ import com.commuto.interfacedesktop.extension.asByteArray
 import com.commuto.interfacedesktop.key.KeyManagerService
 import com.commuto.interfacedesktop.offer.validation.ValidatedNewOfferData
 import com.commuto.interfacedesktop.offer.validation.ValidatedNewSwapData
+import com.commuto.interfacedesktop.offer.validation.validateOfferForCancellation
+import com.commuto.interfacedesktop.offer.validation.validateOfferForEditing
 import com.commuto.interfacedesktop.p2p.OfferMessageNotifiable
 import com.commuto.interfacedesktop.p2p.P2PService
 import com.commuto.interfacedesktop.p2p.messages.PublicKeyAnnouncement
@@ -371,22 +373,20 @@ class OfferService (
 
     /**
      * Attempts to create a [RawTransaction] that will cancel an
-     * [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer) made by the user of this interface,
-     * with the ID specified by [offerID] and on the blockchain specified by [chainID].
+     * [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer) made by the user of this interface.
      *
-     * On the IO coroutine dispatcher, this calls [BlockchainService.createCancelOfferTransaction], passing [offerID]
-     * and [chainID], and returns the result.
+     * On the IO coroutine dispatcher, this calls [validateOfferForCancellation], and then calls
+     * [BlockchainService.createCancelOfferTransaction], passing the [Offer.id] and [Offer.chainID] properties of
+     * [offer], and returns the result.
      *
-     * @param offerID The ID of the [Offer] to be canceled.
-     * @param chainID The ID of the blockchain on which the [Offer] exists.
+     * @param offer The [Offer] to be canceled.
      *
-     * @return A [RawTransaction] capable of cancelling the offer specified by [offerID] on the blockchain specified by
-     * [chainID].
+     * @return A [RawTransaction] capable of cancelling [offer].
      */
-    suspend fun createCancelOfferTransaction(offerID: UUID, chainID: BigInteger): RawTransaction {
+    suspend fun createCancelOfferTransaction(offer: Offer): RawTransaction {
         return withContext(Dispatchers.IO) {
-            logger.info("createCancelOfferTransaction: creating for $offerID")
-            blockchainService.createCancelOfferTransaction(offerID = offerID, chainID = chainID)
+            logger.info("createCancelOfferTransaction: creating for ${offer.id}")
+            blockchainService.createCancelOfferTransaction(offerID = offer.id, chainID = offer.chainID)
         }
     }
 
@@ -394,7 +394,7 @@ class OfferService (
      * Attempts to cancel an [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer) made by the
      * user of this interface.
      *
-     * On the IO coroutine dispatcher, this ensures that the offer is not taken or already being canceled, and that
+     * On the IO coroutine dispatcher, this calls [validateOfferForCancellation], and ensures that
      * [offerCancellationTransaction] is not `null`. Then it signs [offerCancellationTransaction], creates a
      * [BlockchainTransaction] to wrap it, determines the transaction hash, persistently stores the transaction hash and
      * persistently updates the [Offer.cancelingOfferState] of the offer being canceled to
@@ -409,20 +409,12 @@ class OfferService (
      * @param offer The [Offer] being canceled.
      * @param offerCancellationTransaction An optional [RawTransaction] that can cancel [offer].
      *
-     * @throws [OfferServiceException] if [offer] is taken, or if it is already being canceled, or if
-     * [offerCancellationTransaction] is `null`.
+     * @throws [OfferServiceException] if [offerCancellationTransaction] is `null`.
      */
     suspend fun cancelOffer(offer: Offer, offerCancellationTransaction: RawTransaction?) {
         withContext(Dispatchers.IO) {
             logger.info("cancelOffer: canceling ${offer.id}")
-            if (offer.isTaken.value) {
-                throw OfferServiceException("Offer ${offer.id} is taken and cannot be canceled.")
-            }
-            if (offer.cancelingOfferState.value != CancelingOfferState.NONE &&
-                offer.cancelingOfferState.value != CancelingOfferState.VALIDATING &&
-                offer.cancelingOfferState.value != CancelingOfferState.EXCEPTION) {
-                throw OfferServiceException("Offer ${offer.id} is already being canceled.")
-            }
+            validateOfferForCancellation(offer = offer)
             try {
                 if (offerCancellationTransaction == null) {
                     throw OfferServiceException("Transaction was null during cancelOffer call for ${offer.id}")
@@ -575,29 +567,28 @@ class OfferService (
 
     /**
      * Attempts to create an [RawTransaction] that will edit an
-     * [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer) made by the user of this interface
-     * with the ID specified by [offerID] and on the blockchain specified by [chainID], using the settlement methods
-     * contained in [newSettlementMethods].
+     * [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer) made by the user of this interface,
+     * using the settlement methods contained in [newSettlementMethods].
      *
-     * This serializes [newSettlementMethods] and obtains the desired on-chain data from the serialized result, creates
-     * an [OfferStruct] with these results and then calls [BlockchainService.createEditOfferTransaction], passing
-     * [offerID], [chainID] and the created [OfferStruct].
+     * On the IO coroutine dispatcher, this calls [validateOfferForEditing], and then this serializes
+     * [newSettlementMethods] and obtains the desired on-chain data from the serialized result, creates
+     * an [OfferStruct] with these results and then calls [BlockchainService.createEditOfferTransaction], passing the
+     * [Offer.id] and [Offer.chainID] properties of [Offer] and the created [OfferStruct].
      *
-     * @param offerID The ID of the [Offer] to be edited.
-     * @param chainID The ID of the blockchain on which the [Offer] exists.
+     * @param offer: The [Offer] to be edited.
      * @param newSettlementMethods The new [SettlementMethod]s with which the offer will be updated.
      *
-     * @return A [RawTransaction] capable of editing the offer specified by [offerID] on the blockchain specified by
-     * [chainID] using the settlement methods contained in [newSettlementMethods].
+     * @return A [RawTransaction] capable of editing [offer] using the settlement methods contained in
+     * [newSettlementMethods].
      */
     suspend fun createEditOfferTransaction(
-        offerID: UUID,
-        chainID: BigInteger,
+        offer: Offer,
         newSettlementMethods: List<SettlementMethod>
     ): RawTransaction {
         return withContext(Dispatchers.IO) {
-            logger.info("createEditOfferTransaction: creating for $offerID")
-            logger.info("createEditOfferTransaction: serializing settlement methods for $offerID")
+            logger.info("createEditOfferTransaction: creating for ${offer.id}")
+            validateOfferForEditing(offer = offer)
+            logger.info("createEditOfferTransaction: serializing settlement methods for ${offer.id}")
             val onChainSettlementMethods = try {
                 val serializedSettlementMethodsAndPrivateDetails = newSettlementMethods.map {
                     Pair(Json.encodeToString(it), it.privateData)
@@ -607,7 +598,7 @@ class OfferService (
                 }
             } catch (exception: Exception) {
                 logger.error("createEditOfferTransaction: encountered exception serializing settlement methods for " +
-                        "$offerID", exception)
+                        "for ${offer.id}", exception)
                 throw exception
             }
             /*
@@ -629,10 +620,10 @@ class OfferService (
                 protocolVersion = BigInteger.ZERO,
                 chainID = BigInteger.ZERO
             )
-            logger.info("createEditOfferTransaction: creating for $offerID")
+            logger.info("createEditOfferTransaction: creating for ${offer.id}")
             blockchainService.createEditOfferTransaction(
-                offerID = offerID,
-                chainID = chainID,
+                offerID = offer.id,
+                chainID = offer.chainID,
                 offerStruct = offerStruct
             )
         }
@@ -642,15 +633,15 @@ class OfferService (
      * Attempts to edit an [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer) made by the user
      * of this interface.
      *
-     * On the IO coroutine dispatcher, this ensures that the offer is not taken, canceled, or already being edited, and
-     * that [newSettlementMethods] can be serialized. Then, this creates another [RawTransaction] to edit [offer] using
-     * the serialized settlement method data, and then ensures that the data of this transaction matches the data of
-     * [offerEditingTransaction]. (If they do not match, then [offerEditingTransaction] was not created with the
-     * settlement methods contained in [newSettlementMethods].) Then this signs [offerEditingTransaction] and creates a
-     * [BlockchainTransaction] to wrap it. Then this persistently stores the offer editing data for said
-     * [BlockchainTransaction], persistently stores the pending settlement methods, and persistently updates the editing
-     * offer state of [offer] to [EditingOfferState.SENDING_TRANSACTION]`. Then, on the main coroutine dispatcher, this
-     * updates the [Offer.editingOfferState] property of [offer] to [EditingOfferState.SENDING_TRANSACTION] and sets the
+     * On the IO coroutine dispatcher, this calls [validateOfferForEditing] and ensures that [newSettlementMethods] can
+     * be serialized. Then, this creates another [RawTransaction] to edit [offer] using the serialized settlement method
+     * data, and then ensures that the data of this transaction matches the data of [offerEditingTransaction]. (If they
+     * do not match, then [offerEditingTransaction] was not created with the settlement methods contained in
+     * [newSettlementMethods].) Then this signs [offerEditingTransaction] and creates a [BlockchainTransaction] to wrap
+     * it. Then this persistently stores the offer editing data for said [BlockchainTransaction], persistently stores
+     * the pending settlement methods, and persistently updates the editing offer state of [offer] to
+     * [EditingOfferState.SENDING_TRANSACTION]`. Then, on the main coroutine dispatcher, this updates the
+     * [Offer.editingOfferState] property of [offer] to [EditingOfferState.SENDING_TRANSACTION] and sets the
      * [Offer.offerEditingTransaction] property of [offer] to said [BlockchainTransaction]. Then, on the IO coroutine
      * dispatcher, this calls [BlockchainService.sendTransaction], passing said [BlockchainTransaction]. When this call
      * returns, this persistently updates the editing offer state of [offer] to
@@ -663,9 +654,9 @@ class OfferService (
      * @param offerEditingTransaction An optional [RawTransaction] that can edit [offer] using the [SettlementMethod]s
      * contained in [newSettlementMethods].
      *
-     * @throws [OfferServiceException] if [offer] is already taken or already canceled, or already being edited, if
-     * [offerEditingTransaction] is `null` or if the data of [offerEditingTransaction] does not match that of the
-     * transaction this function creates using [newSettlementMethods].
+     * @throws [OfferServiceException] if [offerEditingTransaction] is `null` or if the data of
+     * [offerEditingTransaction] does not match that of the transaction this function creates using
+     * [newSettlementMethods].
      */
     suspend fun editOffer(
         offer: Offer,
@@ -674,15 +665,7 @@ class OfferService (
     ) {
         withContext(Dispatchers.IO) {
             logger.info("editOffer: editing ${offer.id}")
-            if (offer.isTaken.value) {
-                throw OfferServiceException(message = "Offer ${offer.id} is already taken.")
-            }
-            if (!offer.isCreated.value) {
-                throw OfferServiceException(message = "Offer ${offer.id} is already canceled.")
-            }
-            if (offer.editingOfferState.value != EditingOfferState.VALIDATING) {
-                throw OfferServiceException(message = "Offer ${offer.id} is already being edited.")
-            }
+            validateOfferForEditing(offer = offer)
             try {
                 val serializedSettlementMethodsAndPrivateDetails = try {
                     newSettlementMethods.map {
