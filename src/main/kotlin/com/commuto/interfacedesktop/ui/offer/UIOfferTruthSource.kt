@@ -13,21 +13,24 @@ import java.math.BigInteger
  * application with a graphical user interface.
  * @property isGettingServiceFeeRate Indicates whether the class implementing this interface is currently getting the
  * current service fee rate.
- * @property openingOfferState Indicates whether we are currently opening an offer, and if so, the point of the
+ * @property approvingTransferToOpenOfferState Indicates whether we are currently opening an offer, and if so, the point
+ * of the
  * [offer opening process](https://github.com/jimmyneutront/commuto-whitepaper/blob/main/commuto-interface-specification.txt)
  * we are currently in.
- * @property openingOfferException The [Exception] that occurred during the offer creation process, or `null` if no such
- * exception has occurred.
+ * @property approvingTransferToOpenOfferException The [Exception] that occurred during the offer creation process, or
+ * `null` if no such exception has occurred.
  */
 interface UIOfferTruthSource: OfferTruthSource {
     var isGettingServiceFeeRate: MutableState<Boolean>
-    val openingOfferState: MutableState<OpeningOfferState>
-    var openingOfferException: Exception?
 
     /**
      * Should attempt to get the current service fee rate and set the value of [serviceFeeRate] equal to the result.
      */
     fun updateServiceFeeRate()
+
+    val approvingTransferToOpenOfferState: MutableState<TokenTransferApprovalState>
+    var approvingTransferToOpenOfferException: Exception?
+
     /**
      * Attempts to open a new [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer).
      *
@@ -40,6 +43,7 @@ interface UIOfferTruthSource: OfferTruthSource {
      * @param direction The direction of the new offer.
      * @param settlementMethods The settlement methods of the new offer.
      */
+    @Deprecated("Use the new offer pipeline with improved transaction state management")
     fun openOffer(
         chainID: BigInteger,
         stablecoin: String?,
@@ -49,6 +53,98 @@ interface UIOfferTruthSource: OfferTruthSource {
         securityDepositAmount: BigDecimal,
         direction: OfferDirection?,
         settlementMethods: List<SettlementMethod>
+    )
+
+    /**
+     * Attempts to create a [RawTransaction] to approve a token transfer in order to open a new offer.
+     *
+     * @param stablecoin The contract address of the stablecoin for which the token transfer allowance will be created.
+     * @param stablecoinInformation A [StablecoinInformation] about the stablecoin for which token transfer allowance
+     * will be created.
+     * @param minimumAmount The minimum [BigDecimal] amount of the new offer, for which the token transfer allowance
+     * will be created.
+     * @param maximumAmount The maximum [BigDecimal] amount of the new offer, for which the token transfer allowance
+     * will be created.
+     * @param securityDepositAmount The security deposit [BigDecimal] amount for the new offer, for which the token
+     * transfer allowance will be created.
+     * @param direction The direction of the new offer, for which the token transfer allowance will be created.
+     * @param settlementMethods The settlement methods of the new offer, for which the token transfer allowance will be
+     * created.
+     * @param createdTransactionHandler A lambda that will accept and handle the created [RawTransaction].
+     * @param exceptionHandler A lambda that will accept and handle any exception that occurs during the transaction
+     * creation process.
+     */
+    fun createApproveToOpenTransaction(
+        stablecoin: String?,
+        stablecoinInformation: StablecoinInformation?,
+        minimumAmount: BigDecimal,
+        maximumAmount: BigDecimal,
+        securityDepositAmount: BigDecimal,
+        direction: OfferDirection?,
+        settlementMethods: List<SettlementMethod>,
+        createdTransactionHandler: (RawTransaction) -> Unit,
+        exceptionHandler: (Exception) -> Unit,
+    )
+
+    /**
+     * Attempts to approve a token transfer in order to open an
+     * [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer).
+     *
+     * @param chainID The ID of the blockchain on which the token transfer allowance will be created.
+     * @param stablecoin The contract address of the stablecoin for which the token transfer allowance will be created.
+     * @param stablecoinInformation A [StablecoinInformation] about the stablecoin for which token transfer allowance
+     * will be created.
+     * @param minimumAmount The minimum [BigDecimal] amount of the new offer, for which the token transfer allowance
+     * will be created.
+     * @param maximumAmount The maximum [BigDecimal] amount of the new offer, for which the token transfer allowance
+     * will be created.
+     * @param securityDepositAmount The security deposit [BigDecimal] amount for the new offer, for which the token
+     * transfer allowance will be created.
+     * @param direction The direction of the new offer, for which the token transfer allowance will be created.
+     * @param settlementMethods The settlement methods of the new offer, for which the token transfer allowance will be
+     * created.
+     * @param approveTokenTransferToOpenOfferTransaction An optional [RawTransaction] that can create a token transfer
+     * allowance of the proper amount (determined by the values of the other arguments) of token specified by
+     * [stablecoin].
+     */
+    fun approveTokenTransferToOpenOffer(
+        chainID: BigInteger,
+        stablecoin: String?,
+        stablecoinInformation: StablecoinInformation?,
+        minimumAmount: BigDecimal,
+        maximumAmount: BigDecimal,
+        securityDepositAmount: BigDecimal,
+        direction: OfferDirection?,
+        settlementMethods: List<SettlementMethod>,
+        approveTokenTransferToOpenOfferTransaction: RawTransaction?,
+    )
+
+    /**
+     * Attempts to create a [RawTransaction] that can open [offer] (which should be made by the user of this interface)
+     * by calling [openOffer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#open-offer).
+     *
+     * @param offer The [Offer] to be opened.
+     * @param createdTransactionHandler A lambda that will accept and handle the created [RawTransaction].
+     * @param exceptionHandler A lambda that will accept and handle any exception that occurs during the transaction
+     * creation process.
+     */
+    fun createOpenOfferTransaction(
+        offer: Offer,
+        createdTransactionHandler: (RawTransaction) -> Unit,
+        exceptionHandler: (Exception) -> Unit
+    )
+
+    /**
+     * Attempts to open an
+     * [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#open-offer) made by the user of this
+     * interface.
+     *
+     * @param offer The [Offer] to be opened.
+     * @param offerOpeningTransaction An optional [RawTransaction] that can open [offer].
+     */
+    fun openOffer(
+        offer: Offer,
+        offerOpeningTransaction: RawTransaction
     )
 
     /**

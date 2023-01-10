@@ -41,8 +41,7 @@ public class CommutoFunctionEncoder extends FunctionEncoder {
         return encodeParameters(parameters, new StringBuilder());
     }
 
-    @Override
-    protected String encodeWithSelector(String methodId, List<Type> parameters) {
+    public String encodeWithSelector(String methodId, List<Type> parameters) {
         final StringBuilder result = new StringBuilder(methodId);
 
         return encodeParameters(parameters, result);

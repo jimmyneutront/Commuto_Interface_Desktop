@@ -7,10 +7,22 @@ package com.commuto.interfacedesktop.offer
  * should move through the states that they represent. The order in which the cancellation-related cases are defined is
  * the order in which an offer being canceled should move through the states that they represent.
  *
- * @property OPENING Indicates that [openOffer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#open-offer)
- * has not yet been called for the corresponding offer.
- * @property OPEN_OFFER_TRANSACTION_BROADCAST Indicates that the transaction to open the corresponding offer has been
- * broadcast.
+ * @property TRANSFER_APPROVAL_FAILED Indicates that the transaction that attempted to call
+ * [approve](https://docs.openzeppelin.com/contracts/2.x/api/token/erc20#IERC20-approve-address-uint256-) in order to
+ * open the corresponding offer has failed, and a new one has not yet been created.
+ * @property APPROVING_TRANSFER Indicates that this is currently calling
+ * [approve](https://docs.openzeppelin.com/contracts/2.x/api/token/erc20#IERC20-approve-address-uint256-) in order to
+ * open the corresponding offer.
+ * @property APPROVE_TRANSFER_TRANSACTION_SENT Indicates that the transaction that calls
+ * [approve](https://docs.openzeppelin.com/contracts/2.x/api/token/erc20#IERC20-approve-address-uint256-) for the
+ * corresponding offer has been sent to a connected blockchain node.
+ * @property AWAITING_OPENING Indicates that the transaction that calls
+ * [approve](https://docs.openzeppelin.com/contracts/2.x/api/token/erc20#IERC20-approve-address-uint256-) in order to
+ * approve a token transfer to allow opening the corresponding offer has been confirmed, and the user must now open the
+ * offer.
+ * @property OPEN_OFFER_TRANSACTION_SENT Indicates that the transaction to call
+ * [openOffer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#open-offer) for the corresponding offer has
+ * been sent to a connected blockchain node.
  * @property AWAITING_PUBLIC_KEY_ANNOUNCEMENT Indicates that the
  * [OfferOpened event](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offeropened) for the corresponding
  * offer has been detected, so, if the offer's maker is the user of the interface, the public key should now be
@@ -25,8 +37,11 @@ package com.commuto.interfacedesktop.offer
  * @property asString A [String] corresponding to a particular case of [OfferState].
  */
 enum class OfferState {
-    OPENING,
-    OPEN_OFFER_TRANSACTION_BROADCAST,
+    TRANSFER_APPROVAL_FAILED,
+    APPROVING_TRANSFER,
+    APPROVE_TRANSFER_TRANSACTION_SENT,
+    AWAITING_OPENING,
+    OPEN_OFFER_TRANSACTION_SENT,
     AWAITING_PUBLIC_KEY_ANNOUNCEMENT,
     OFFER_OPENED,
     TAKEN,
@@ -36,18 +51,24 @@ enum class OfferState {
 
     val indexNumber: Int
         get() = when (this) {
-            OPENING -> 0
-            OPEN_OFFER_TRANSACTION_BROADCAST -> 1
-            AWAITING_PUBLIC_KEY_ANNOUNCEMENT -> 2
-            OFFER_OPENED -> 3
-            TAKEN -> 4
+            TRANSFER_APPROVAL_FAILED -> 0
+            APPROVING_TRANSFER -> 1
+            APPROVE_TRANSFER_TRANSACTION_SENT -> 2
+            AWAITING_OPENING -> 3
+            OPEN_OFFER_TRANSACTION_SENT -> 4
+            AWAITING_PUBLIC_KEY_ANNOUNCEMENT -> 5
+            OFFER_OPENED -> 6
+            TAKEN -> 7
             CANCELED -> -1
         }
 
     val asString: String
         get() = when (this) {
-            OPENING -> "opening"
-            OPEN_OFFER_TRANSACTION_BROADCAST -> "openOfferTxPublished"
+            TRANSFER_APPROVAL_FAILED -> "transferApprovalFailed"
+            APPROVING_TRANSFER -> "approvingTransfer"
+            APPROVE_TRANSFER_TRANSACTION_SENT -> "approveTransferTransactionSent"
+            AWAITING_OPENING -> "awaitingOpening"
+            OPEN_OFFER_TRANSACTION_SENT -> "openOfferTransactionSent"
             AWAITING_PUBLIC_KEY_ANNOUNCEMENT -> "awaitingPKAnnouncement"
             OFFER_OPENED -> "offerOpened"
             TAKEN -> "taken"
@@ -68,11 +89,20 @@ enum class OfferState {
                 null -> {
                     return null
                 }
-                "opening" -> {
-                    return OPENING
+                "transferApprovalFailed" -> {
+                    return TRANSFER_APPROVAL_FAILED
                 }
-                "openOfferTxPublished" -> {
-                    return OPEN_OFFER_TRANSACTION_BROADCAST
+                "approvingTransfer" -> {
+                    return APPROVING_TRANSFER
+                }
+                "approveTransferTransactionSent" -> {
+                    return APPROVE_TRANSFER_TRANSACTION_SENT
+                }
+                "awaitingOpening" -> {
+                    return AWAITING_OPENING
+                }
+                "openOfferTransactionSent" -> {
+                    return OPEN_OFFER_TRANSACTION_SENT
                 }
                 "awaitingPKAnnouncement" -> {
                     return AWAITING_PUBLIC_KEY_ANNOUNCEMENT

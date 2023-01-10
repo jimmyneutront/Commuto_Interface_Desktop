@@ -21,9 +21,8 @@ import javax.inject.Singleton
  * The Offers View Model, the single source of truth for all offer-related data. It is observed by offer-related
  * [androidx.compose.runtime.Composable]s.
  *
- * @property offerService The [OfferService] responsible for adding and removing
- * [com.commuto.interfacedesktop.offer.Offer]s from the list of open offers as they are created, canceled and
- * taken.
+ * @property offerService The [OfferService] responsible for adding and removing [Offer]s from the list of open offers
+ * as they are created, canceled and taken.
  * @property logger The [org.slf4j.Logger] that this class uses for logging.
  * @property offers A mutable state map of [UUID]s to [Offer]s that acts as a single source of truth for all
  * offer-related data.
@@ -31,11 +30,10 @@ import javax.inject.Singleton
  * [service fee rate](https://github.com/jimmyneutront/commuto-whitepaper/blob/main/commuto-whitepaper.txt) as a
  * percentage times 100, or `null` if the current service fee rate is not known.
  * @property isGettingServiceFeeRate Indicates whether this is currently getting the current service fee rate.
- * @property openingOfferState Indicates whether we are currently opening an offer, and if so, the point of the
- * [offer opening process](https://github.com/jimmyneutront/commuto-whitepaper/blob/main/commuto-interface-specification.txt)
- * we are currently in.
- * @property openingOfferException The [Exception] that occured during the offer creation process, or `null` if no such
- * exception has occured.
+ * @property approvingTransferToOpenOfferState Indicates whether we are currently approving a token transfer in order to
+ * open an offer, and if so, the point of the token transfer approval process that we are currently in.
+ * @property approvingTransferToOpenOfferException The [Exception] that occurred during the token transfer approval
+ * process, or `null` if no such exception has occurred.
  */
 @Singleton
 class OffersViewModel @Inject constructor(private val offerService: OfferService): UIOfferTruthSource {
@@ -56,9 +54,9 @@ class OffersViewModel @Inject constructor(private val offerService: OfferService
 
     override var isGettingServiceFeeRate = mutableStateOf(false)
 
-    override val openingOfferState = mutableStateOf(OpeningOfferState.NONE)
+    override val approvingTransferToOpenOfferState = mutableStateOf(TokenTransferApprovalState.NONE)
 
-    override var openingOfferException: Exception? = null
+    override var approvingTransferToOpenOfferException: Exception? = null
 
     private val viewModelScope = CoroutineScope(Dispatchers.IO)
 
@@ -80,14 +78,15 @@ class OffersViewModel @Inject constructor(private val offerService: OfferService
         offers.remove(id)
     }
 
+    // TODO: Remove this once old openOffer method is removed
     /**
-     * Sets [openingOfferState]'s value on the Main coroutine dispatcher.
+     * Sets openingOfferState's value on the Main coroutine dispatcher.
      *
-     * @param state The new value to which [openingOfferState]'s value will be set.
+     * @param state The new value to which openingOfferState's value will be set.
      */
     private suspend fun setOpeningOfferState(state: OpeningOfferState) {
         withContext(Dispatchers.Main) {
-            openingOfferState.value = state
+            //openingOfferState.value = state
         }
     }
 
@@ -158,6 +157,185 @@ class OffersViewModel @Inject constructor(private val offerService: OfferService
     }
 
     /**
+     * Attempts to create a [RawTransaction] to approve a token transfer in order to open a new offer.
+     *
+     * This passes all parameters except [createdTransactionHandler] or [exceptionHandler] to
+     * [OfferService.createApproveTokenTransferToOpenOfferTransaction] and then passes the resulting transaction to
+     * [createdTransactionHandler] or exception to [exceptionHandler].
+     *
+     * @param stablecoin The contract address of the stablecoin for which the token transfer allowance will be created.
+     * @param stablecoinInformation A [StablecoinInformation] about the stablecoin for which token transfer allowance
+     * will be created.
+     * @param minimumAmount The minimum [BigDecimal] amount of the new offer, for which the token transfer allowance
+     * will be created.
+     * @param maximumAmount The maximum [BigDecimal] amount of the new offer, for which the token transfer allowance
+     * will be created.
+     * @param securityDepositAmount The security deposit [BigDecimal] amount for the new offer, for which the token
+     * transfer allowance will be created.
+     * @param direction The direction of the new offer, for which the token transfer allowance will be created.
+     * @param settlementMethods The settlement methods of the new offer, for which the token transfer allowance will be
+     * created.
+     * @param createdTransactionHandler A lambda that will accept and handle the created [RawTransaction].
+     * @param exceptionHandler A lambda that will accept and handle any exception that occurs during the transaction
+     * creation process.
+     */
+    override fun createApproveToOpenTransaction(
+        stablecoin: String?,
+        stablecoinInformation: StablecoinInformation?,
+        minimumAmount: BigDecimal,
+        maximumAmount: BigDecimal,
+        securityDepositAmount: BigDecimal,
+        direction: OfferDirection?,
+        settlementMethods: List<SettlementMethod>,
+        createdTransactionHandler: (RawTransaction) -> Unit,
+        exceptionHandler: (Exception) -> Unit,
+    ) {
+        viewModelScope.launch {
+            logger.info("createApproveToOpenTransaction: creating...")
+            try {
+                val createdTransaction = offerService.createApproveTokenTransferToOpenOfferTransaction(
+                    stablecoin = stablecoin,
+                    stablecoinInformation = stablecoinInformation,
+                    minimumAmount = minimumAmount,
+                    maximumAmount = maximumAmount,
+                    securityDepositAmount = securityDepositAmount,
+                    direction = direction,
+                    settlementMethods = settlementMethods,
+                )
+                createdTransactionHandler(createdTransaction)
+            } catch (exception: Exception) {
+                exceptionHandler(exception)
+            }
+        }
+    }
+
+    /**
+     * Attempts to approve a token transfer in order to open an
+     * [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer).
+     *
+     * This clears the [approvingTransferToOpenOfferException] property and sets [approvingTransferToOpenOfferState] to
+     * [TokenTransferApprovalState.VALIDATING], and then passes all data to [offerService]'s
+     * [OfferService.approveTokenTransferToOpenOffer] function. When this function returns, this sets
+     * [approvingTransferToOpenOfferState] to [TokenTransferApprovalState.AWAITING_TRANSACTION_CONFIRMATION].
+     *
+     * @param chainID The ID of the blockchain on which the token transfer allowance will be created.
+     * @param stablecoin The contract address of the stablecoin for which the token transfer allowance will be created.
+     * @param stablecoinInformation A [StablecoinInformation] about the stablecoin for which token transfer allowance
+     * will be created.
+     * @param minimumAmount The minimum [BigDecimal] amount of the new offer, for which the token transfer allowance
+     * will be created.
+     * @param maximumAmount The maximum [BigDecimal] amount of the new offer, for which the token transfer allowance
+     * will be created.
+     * @param securityDepositAmount The security deposit [BigDecimal] amount for the new offer, for which the token
+     * transfer allowance will be created.
+     * @param direction The direction of the new offer, for which the token transfer allowance will be created.
+     * @param settlementMethods The settlement methods of the new offer, for which the token transfer allowance will be
+     * created.
+     * @param approveTokenTransferToOpenOfferTransaction An optional [RawTransaction] that can create a token transfer
+     * allowance of the proper amount (determined by the values of the other arguments) of token specified by
+     * [stablecoin].
+     */
+    override fun approveTokenTransferToOpenOffer(
+        chainID: BigInteger,
+        stablecoin: String?,
+        stablecoinInformation: StablecoinInformation?,
+        minimumAmount: BigDecimal,
+        maximumAmount: BigDecimal,
+        securityDepositAmount: BigDecimal,
+        direction: OfferDirection?,
+        settlementMethods: List<SettlementMethod>,
+        approveTokenTransferToOpenOfferTransaction: RawTransaction?,
+    ) {
+        this.approvingTransferToOpenOfferException = null
+        this.approvingTransferToOpenOfferState.value = TokenTransferApprovalState.VALIDATING
+        viewModelScope.launch {
+            logger.info("approveTokenTransferToOpenOffer: approving...")
+            try {
+                offerService.approveTokenTransferToOpenOffer(
+                    chainID = chainID,
+                    stablecoin = stablecoin,
+                    stablecoinInformation = stablecoinInformation,
+                    minimumAmount = minimumAmount,
+                    maximumAmount = maximumAmount,
+                    securityDepositAmount = securityDepositAmount,
+                    direction = direction,
+                    settlementMethods = settlementMethods,
+                    approveTokenTransferToOpenOfferTransaction = approveTokenTransferToOpenOfferTransaction
+                )
+                logger.info("approveTokenTransferToOpenOffer: successfully sent transaction")
+                approvingTransferToOpenOfferState.value = TokenTransferApprovalState.AWAITING_TRANSACTION_CONFIRMATION
+            } catch (exception: Exception) {
+                logger.error("approveTokenTransferToOpenOffer: got exception during call", exception)
+                approvingTransferToOpenOfferException = exception
+                approvingTransferToOpenOfferState.value = TokenTransferApprovalState.EXCEPTION
+            }
+        }
+    }
+
+    /**
+     * Attempts to create a [RawTransaction] that can open [offer] (which should be made by the user of this interface)
+     * by calling [openOffer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#open-offer).
+     *
+     * This passes [offer] to [OfferService.createOpenOfferTransaction] and then passes the resulting transaction to
+     * [createdTransactionHandler] or exception to [exceptionHandler].
+     *
+     * @param offer The [Offer] to be opened.
+     * @param createdTransactionHandler A lambda that will accept and handle the created [RawTransaction].
+     * @param exceptionHandler A lambda that will accept and handle any exception that occurs during the transaction
+     * creation process.
+     */
+    override fun createOpenOfferTransaction(
+        offer: Offer,
+        createdTransactionHandler: (RawTransaction) -> Unit,
+        exceptionHandler: (Exception) -> Unit
+    ) {
+        viewModelScope.launch {
+            logger.info("createOpenOfferTransaction: creating for ${offer.id}")
+            try {
+                val createdTransaction = offerService.createOpenOfferTransaction(offer = offer)
+                createdTransactionHandler(createdTransaction)
+            } catch (exception: Exception) {
+                exceptionHandler(exception)
+            }
+        }
+    }
+
+    /**
+     * Attempts to open an
+     * [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#open-offer) made by the user of this
+     * interface.
+     *
+     * This clears the offer-opening-related [Exception] of [offer] and sets [offer]'s [Offer.openingOfferState] to
+     * [OpeningOfferState.VALIDATING], and then passes all data to [offerService]'s [OfferService.openOffer] function.
+     *
+     * @param offer The [Offer] to be opened.
+     * @param offerOpeningTransaction An optional [RawTransaction] that can open [offer].
+     */
+    override fun openOffer(
+        offer: Offer,
+        offerOpeningTransaction: RawTransaction
+    ) {
+        offer.openingOfferException = null
+        offer.openingOfferState.value = OpeningOfferState.VALIDATING
+        viewModelScope.launch {
+            logger.info("openOffer: opening offer ${offer.id}")
+            try {
+                offerService.openOffer(
+                    offer = offer,
+                    offerOpeningTransaction = offerOpeningTransaction
+                )
+                logger.info("openOffer: successfully sent transaction for ${offer.id}")
+            } catch (exception: Exception) {
+                logger.error("openOffer: got error during call for ${offer.id}", exception)
+                withContext(Dispatchers.Main) {
+                    offer.openingOfferException = exception
+                    offer.openingOfferState.value = OpeningOfferState.EXCEPTION
+                }
+            }
+        }
+    }
+
+    /**
      * Attempts to open a new [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer).
      *
      * @param chainID The ID of the blockchain on which the offer will be created.
@@ -169,6 +347,7 @@ class OffersViewModel @Inject constructor(private val offerService: OfferService
      * @param direction The direction of the new offer.
      * @param settlementMethods The settlement methods of the new offer.
      */
+    @Deprecated("Use the new offer pipeline with improved transaction state management")
     override fun openOffer(
         chainID: BigInteger,
         stablecoin: String?,
@@ -182,7 +361,6 @@ class OffersViewModel @Inject constructor(private val offerService: OfferService
         viewModelScope.launch {
             setOpeningOfferState(OpeningOfferState.VALIDATING)
             logger.info("openOffer: validating new offer data")
-            openingOfferState
             try {
                 val serviceFeeRateForOffer = serviceFeeRate.value ?: throw OfferDataValidationException("Unable " +
                         "to determine service fee rate")
@@ -199,15 +377,15 @@ class OffersViewModel @Inject constructor(private val offerService: OfferService
                 logger.info("openOffer: opening new offer with validated data")
                 offerService.openOffer(
                     offerData = validatedOfferData,
-                    afterObjectCreation = { setOpeningOfferState(OpeningOfferState.STORING) },
-                    afterPersistentStorage = { setOpeningOfferState(OpeningOfferState.APPROVING) },
-                    afterTransferApproval = { setOpeningOfferState(OpeningOfferState.OPENING) },
+                    afterObjectCreation = { /*setOpeningOfferState(OpeningOfferState.STORING)*/ },
+                    afterPersistentStorage = { /*setOpeningOfferState(OpeningOfferState.APPROVING)*/ },
+                    afterTransferApproval = { /*setOpeningOfferState(OpeningOfferState.OPENING)*/ },
                 )
                 logger.info("openOffer: successfully opened offer")
                 setOpeningOfferState(OpeningOfferState.COMPLETED)
             } catch (exception: Exception) {
                 logger.error("openOffer: got exception during openOffer call", exception)
-                openingOfferException = exception
+                //openingOfferException = exception
                 setOpeningOfferState(OpeningOfferState.EXCEPTION)
             }
         }

@@ -3,6 +3,7 @@ package com.commuto.interfacedesktop.offer
 import com.commuto.interfacedesktop.blockchain.BlockchainTransaction
 import com.commuto.interfacedesktop.blockchain.BlockchainTransactionException
 import com.commuto.interfacedesktop.blockchain.events.commutoswap.*
+import com.commuto.interfacedesktop.blockchain.events.erc20.ApprovalEvent
 import javax.inject.Singleton
 
 /**
@@ -20,6 +21,16 @@ interface OfferNotifiable {
      * @param exception A [BlockchainTransactionException] describing why the on-chain transaction has failed.
      */
     suspend fun handleFailedTransaction(transaction: BlockchainTransaction, exception: BlockchainTransactionException)
+
+    /**
+     * The method called by [com.commuto.interfacedesktop.blockchain.BlockchainService] in order to notify the
+     * structure or class adopting this protocol of an [ApprovalEvent].
+     *
+     * @param event The [ApprovalEvent] of which the class implementing this interface is being notified and should
+     * handle in the implementation of this method.
+     */
+    suspend fun handleTokenTransferApprovalEvent(event: ApprovalEvent)
+
     /**
      * The method called by [com.commuto.interfacedesktop.blockchain.BlockchainService] in order to notify the class
      * implementing this interface of a [OfferOpenedEvent].

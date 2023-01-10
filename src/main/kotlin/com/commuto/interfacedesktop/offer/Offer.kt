@@ -62,6 +62,26 @@ import java.util.*
  * @property onChainSettlementMethods Corresponds to an on-chain
  * [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer)'s settlementMethods property. Note that
  * this has a private setter; code not in this class should use the [updateSettlementMethodsFromChain] method.
+ * @property approvingToOpenState If this offer was made by the user of the interface, this indicates whether a token
+ * transfer is being approved in order to open the offer, and if so, what part of the token transfer approval process it
+ * is in. If this offer was not made by the user of this interface, this property is not used.
+ * @property approvingToOpenException (This property is used only if the maker of this offer is the user of this
+ * interface.) The [Exception] that occurred during the token transfer approval process in order to open the offer, or
+ * `null` if no such exception has occurred.
+ * @property approvingToOpenTransaction The [BlockchainTransaction] that has approved a token transfer in order to
+ * create this offer, if it was made by the user of this interface, or `null` if a token transfer to create this offer
+ * has not been approved yet, or user of this interface is not the offer maker. Note that this transaction may be: not
+ * yet sent to a blockchain node, pending, confirmed and successful, confirmed and failed, or dropped.
+ * @property openingOfferState If this offer was made by the user of the interface, this indicates whether the offer is
+ * being opened, and if so, what part of the offer opening process it is in. If this offer was not made by the user of
+ * this interface, this property is not used.
+ * @property openingOfferException (This property is used only if the maker of this offer is the user of this
+ * interface.) The [Exception] that occurred during the offer opening process, or `null` if no such exception has
+ * occurred.
+ * @property offerOpeningTransaction The [BlockchainTransaction] that has opened this offer, if it was made by the user
+ * of this interface, or `null` if the offer is not opened yet or if the user of this interface is not the offer maker.
+ * Note that this transaction may be: not yet sent to a blockchain node, pending, confirmed and successful, confirmed
+ * and failed, or dropped.
  * @property cancelingOfferState If this offer was made by the user of the interface, this indicates whether the offer
  * is being canceled, and if so, what part of the offer cancellation process it is in. If this offer was not made by the
  * user of this interface, this property is not used.
@@ -188,15 +208,21 @@ class Offer(
     var onChainSettlementMethods: List<ByteArray>
         private set
 
+    val approvingToOpenState: MutableState<TokenTransferApprovalState> = mutableStateOf(TokenTransferApprovalState.NONE)
+    var approvingToOpenException: Exception? = null
+    var approvingToOpenTransaction: BlockchainTransaction? = null
+
+    val openingOfferState: MutableState<OpeningOfferState> = mutableStateOf(OpeningOfferState.NONE)
+    var openingOfferException: Exception? = null
+    var offerOpeningTransaction: BlockchainTransaction? = null
+
     val cancelingOfferState: MutableState<CancelingOfferState> = mutableStateOf(CancelingOfferState.NONE)
     var cancelingOfferException: Exception? = null
-
     var offerCancellationTransaction: BlockchainTransaction? = null
 
     val selectedSettlementMethods = mutableStateListOf<SettlementMethod>()
     val editingOfferState: MutableState<EditingOfferState> = mutableStateOf(EditingOfferState.NONE)
     var editingOfferException: Exception? = null
-
     var offerEditingTransaction: BlockchainTransaction? = null
 
     val takingOfferState: MutableState<TakingOfferState> = mutableStateOf(TakingOfferState.NONE)

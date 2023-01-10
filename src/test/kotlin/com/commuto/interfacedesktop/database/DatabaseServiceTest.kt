@@ -37,6 +37,14 @@ class DatabaseServiceTest {
             0L,
             0L,
             "a_state_here",
+            "a_tokenTransferApprovalState_here",
+            "a_tx_hash_here",
+            "a_time_here",
+            -1,
+            "an_openingOfferState_here",
+            "a_tx_hash_here",
+            "a_time_here",
+            -1,
             "a_cancelingOfferState_here",
             "a_tx_hash_here",
             "a_time_here",
@@ -64,6 +72,14 @@ class DatabaseServiceTest {
             0L,
             0L,
             "a_state_here",
+            "a_tokenTransferApprovalState_here",
+            "a_tx_hash_here",
+            "a_time_here",
+            -1,
+            "an_openingOfferState_here",
+            "a_tx_hash_here",
+            "a_time_here",
+            -1,
             "a_cancelingOfferState_here",
             "a_tx_hash_here",
             "a_time_here",
@@ -102,6 +118,14 @@ class DatabaseServiceTest {
             0L,
             0L,
             "a_state_here",
+            "a_tokenTransferApprovalState_here",
+            "a_tx_hash_here",
+            "a_time_here",
+            -1,
+            "an_openingOfferState_here",
+            "a_tx_hash_here",
+            "a_time_here",
+            -1,
             "a_cancelingOfferState_here",
             "a_tx_hash_here",
             "a_time_here",
@@ -139,6 +163,14 @@ class DatabaseServiceTest {
             0L,
             0L,
             "a_state_here",
+            "a_tokenTransferApprovalState_here",
+            "a_tx_hash_here",
+            "a_time_here",
+            -1,
+            "an_openingOfferState_here",
+            "a_tx_hash_here",
+            "a_time_here",
+            -1,
             "a_cancelingOfferState_here",
             "a_tx_hash_here",
             "a_time_here",
@@ -152,6 +184,220 @@ class DatabaseServiceTest {
         databaseService.updateOfferState("a_uuid", "a_chain_id", "a_new_state_here")
         val returnedOffer = databaseService.getOffer("a_uuid")
         assertEquals("a_new_state_here", returnedOffer!!.state)
+    }
+
+    /**
+     * Ensures that code to update a persistently stored offer's [Offer.approveToOpenState] property works properly.
+     */
+    @Test
+    fun testUpdateApproveToOpenState() = runBlocking {
+        val offerToStore = Offer(
+            "a_uuid",
+            1L,
+            0L,
+            "maker_address",
+            "interface_id",
+            "stablecoin_address",
+            "lower_bound_amount",
+            "upper_bound_amount",
+            "security_deposit_amount",
+            "service_fee_rate",
+            "direction",
+            "some_version",
+            "a_chain_id",
+            0L,
+            0L,
+            "a_state_here",
+            "a_tokenTransferApprovalState_here",
+            "a_tx_hash_here",
+            "a_time_here",
+            -1,
+            "an_openingOfferState_here",
+            "a_tx_hash_here",
+            "a_time_here",
+            -1,
+            "a_cancelingOfferState_here",
+            "a_tx_hash_here",
+            "a_time_here",
+            -1,
+            "an_editingOfferState_here",
+            "a_tx_hash_here",
+            "a_time_here",
+            -1,
+        )
+        databaseService.storeOffer(offerToStore)
+        databaseService.updateOfferApproveToOpenState(
+            offerID = "a_uuid",
+            chainID = "a_chain_id",
+            state = "a_new_tokenTransferApprovalState_here",
+        )
+        val returnedOffer = databaseService.getOffer(id = "a_uuid")
+        assertEquals("a_new_tokenTransferApprovalState_here", returnedOffer!!.approveToOpenState)
+    }
+
+    /**
+     * Ensures that code to update a persistently stored offer's [Offer.approveToOpenTransactionHash] and related
+     * properties works properly.
+     */
+    @Test
+    fun testUpdateApproveToOpenData() = runBlocking {
+        val offerToStore = Offer(
+            "a_uuid",
+            1L,
+            0L,
+            "maker_address",
+            "interface_id",
+            "stablecoin_address",
+            "lower_bound_amount",
+            "upper_bound_amount",
+            "security_deposit_amount",
+            "service_fee_rate",
+            "direction",
+            "some_version",
+            "a_chain_id",
+            0L,
+            0L,
+            "a_state_here",
+            "a_tokenTransferApprovalState_here",
+            null,
+            null,
+            null,
+            "an_openingOfferState_here",
+            "a_tx_hash_here",
+            "a_time_here",
+            -1,
+            "a_cancelingOfferState_here",
+            "a_tx_hash_here",
+            "a_time_here",
+            -1,
+            "an_editingOfferState_here",
+            "a_tx_hash_here",
+            "a_time_here",
+            -1,
+        )
+        databaseService.storeOffer(offerToStore)
+        val returnedOfferBeforeUpdate = databaseService.getOffer(id = "a_uuid")
+        assertNull(returnedOfferBeforeUpdate!!.approveToOpenTransactionHash)
+        assertNull(returnedOfferBeforeUpdate.approveToOpenTransactionCreationTime)
+        assertNull(returnedOfferBeforeUpdate.approveToOpenTransactionCreationBlockNumber)
+        databaseService.updateOfferApproveToOpenData(
+            offerID = "a_uuid",
+            chainID = "a_chain_id",
+            transactionHash = "a_tx_hash_here",
+            creationTime = "a_creation_time",
+            blockNumber = -1L
+        )
+        val returnedOfferAfterUpdate = databaseService.getOffer(id = "a_uuid")
+        assertEquals("a_tx_hash_here", returnedOfferAfterUpdate!!.approveToOpenTransactionHash)
+        assertEquals("a_creation_time", returnedOfferAfterUpdate.approveToOpenTransactionCreationTime)
+        assertEquals(-1L, returnedOfferAfterUpdate.approveToOpenTransactionCreationBlockNumber)
+    }
+
+    /**
+     * Ensures that code to update a persistently stored offer's [Offer.openingOfferState] property works properly.
+     */
+    @Test
+    fun testUpdateOpeningOfferState() = runBlocking {
+        val offerToStore = Offer(
+            "a_uuid",
+            1L,
+            0L,
+            "maker_address",
+            "interface_id",
+            "stablecoin_address",
+            "lower_bound_amount",
+            "upper_bound_amount",
+            "security_deposit_amount",
+            "service_fee_rate",
+            "direction",
+            "some_version",
+            "a_chain_id",
+            0L,
+            0L,
+            "a_state_here",
+            "a_tokenTransferApprovalState_here",
+            "a_tx_hash_here",
+            "a_time_here",
+            -1,
+            "an_openingOfferState_here",
+            "a_tx_hash_here",
+            "a_time_here",
+            -1,
+            "a_cancelingOfferState_here",
+            "a_tx_hash_here",
+            "a_time_here",
+            -1,
+            "an_editingOfferState_here",
+            "a_tx_hash_here",
+            "a_time_here",
+            -1,
+        )
+        databaseService.storeOffer(offerToStore)
+        databaseService.updateOpeningOfferState(
+            offerID = "a_uuid",
+            chainID = "a_chain_id",
+            state = "a_new_openingOfferState_here",
+        )
+        val returnedOffer = databaseService.getOffer(id = "a_uuid")
+        assertEquals("a_new_openingOfferState_here", returnedOffer!!.openingOfferState)
+    }
+
+    /**
+     * Ensures that code to update a persistently stored offer's [Offer.openingOfferTransactionHash] and related
+     * properties works properly.
+     */
+    @Test
+    fun testUpdateOpeningOfferStateData() = runBlocking {
+        val offerToStore = Offer(
+            "a_uuid",
+            1L,
+            0L,
+            "maker_address",
+            "interface_id",
+            "stablecoin_address",
+            "lower_bound_amount",
+            "upper_bound_amount",
+            "security_deposit_amount",
+            "service_fee_rate",
+            "direction",
+            "some_version",
+            "a_chain_id",
+            0L,
+            0L,
+            "a_state_here",
+            "a_tokenTransferApprovalState_here",
+            "a_tx_hash_here",
+            "a_time_here",
+            -1,
+            "an_openingOfferState_here",
+            null,
+            null,
+            null,
+            "a_cancelingOfferState_here",
+            "a_tx_hash_here",
+            "a_time_here",
+            -1,
+            "an_editingOfferState_here",
+            "a_tx_hash_here",
+            "a_time_here",
+            -1,
+        )
+        databaseService.storeOffer(offerToStore)
+        val returnedOfferBeforeUpdate = databaseService.getOffer(id = "a_uuid")
+        assertNull(returnedOfferBeforeUpdate!!.openingOfferTransactionHash)
+        assertNull(returnedOfferBeforeUpdate.openingOfferTransactionCreationTime)
+        assertNull(returnedOfferBeforeUpdate.openingOfferTransactionCreationBlockNumber)
+        databaseService.updateOpeningOfferData(
+            offerID = "a_uuid",
+            chainID = "a_chain_id",
+            transactionHash = "a_tx_hash_here",
+            creationTime = "a_creation_time",
+            blockNumber = -1L
+        )
+        val returnedOfferAfterUpdate = databaseService.getOffer(id = "a_uuid")
+        assertEquals("a_tx_hash_here", returnedOfferAfterUpdate!!.openingOfferTransactionHash)
+        assertEquals("a_creation_time", returnedOfferAfterUpdate.openingOfferTransactionCreationTime)
+        assertEquals(-1L, returnedOfferAfterUpdate.openingOfferTransactionCreationBlockNumber)
     }
 
     /**
@@ -176,6 +422,14 @@ class DatabaseServiceTest {
             0L,
             0L,
             "a_state_here",
+            "a_tokenTransferApprovalState_here",
+            "a_tx_hash_here",
+            "a_time_here",
+            -1,
+            "an_openingOfferState_here",
+            "a_tx_hash_here",
+            "a_time_here",
+            -1,
             "a_cancelingOfferState_here",
             "a_tx_hash_here",
             "a_time_here",
@@ -218,6 +472,14 @@ class DatabaseServiceTest {
             0L,
             0L,
             "a_state_here",
+            "a_tokenTransferApprovalState_here",
+            "a_tx_hash_here",
+            "a_time_here",
+            -1,
+            "an_openingOfferState_here",
+            "a_tx_hash_here",
+            "a_time_here",
+            -1,
             "a_cancelingOfferState_here",
             null,
             null,
@@ -267,6 +529,14 @@ class DatabaseServiceTest {
             0L,
             0L,
             "a_state_here",
+            "a_tokenTransferApprovalState_here",
+            "a_tx_hash_here",
+            "a_time_here",
+            -1,
+            "an_openingOfferState_here",
+            "a_tx_hash_here",
+            "a_time_here",
+            -1,
             "a_cancelingOfferState_here",
             "a_tx_hash_here",
             "a_time_here",
@@ -309,6 +579,14 @@ class DatabaseServiceTest {
             0L,
             0L,
             "a_state_here",
+            "a_tokenTransferApprovalState_here",
+            "a_tx_hash_here",
+            "a_time_here",
+            -1,
+            "an_openingOfferState_here",
+            "a_tx_hash_here",
+            "a_time_here",
+            -1,
             "a_cancelingOfferState_here",
             "a_tx_hash_here",
             "a_time_here",

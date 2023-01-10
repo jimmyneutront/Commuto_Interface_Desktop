@@ -2,6 +2,9 @@ package com.commuto.interfacedesktop.blockchain
 
 import com.commuto.interfacedesktop.CommutoWeb3j
 import com.commuto.interfacedesktop.blockchain.events.commutoswap.*
+import com.commuto.interfacedesktop.blockchain.events.erc20.ApprovalEvent
+import com.commuto.interfacedesktop.blockchain.events.erc20.CommutoApprovalEventResponse
+import com.commuto.interfacedesktop.blockchain.events.erc20.TokenTransferApprovalPurpose
 import com.commuto.interfacedesktop.blockchain.structs.OfferStruct
 import com.commuto.interfacedesktop.blockchain.structs.SwapStruct
 import com.commuto.interfacedesktop.contractwrapper.CommutoSwap
@@ -398,6 +401,149 @@ class BlockchainService (private val exceptionHandler: BlockchainExceptionNotifi
         iDByteBuffer.putLong(id.leastSignificantBits)
         val iDByteArray = iDByteBuffer.array()
         return commutoSwap.cancelOffer(iDByteArray).sendAsync().asDeferred()
+    }
+
+    /**
+     * Creates and returns an EIP1559 [RawTransaction] from the user's account to call the
+     * [approve](https://ethereum.org/en/developers/docs/standards/tokens/erc-20/) function of an ERC20 contract, with
+     * estimated gas limit, max priority fee per gas, max fee per gas, and with a nonce determined from all currently
+     * known transactions, including those that are still pending.
+     *
+     * @param tokenAddress The address of the ERC20 contract to call.
+     * @param spender The address that will be given permission to spend some of the user's balance of [tokenAddress]
+     * tokens.
+     * @param amount The amount of the user's [tokenAddress] tokens that [spender] will be allowed to spend.
+     *
+     * @Return A [RawTransaction] as described above, that will allow [spender] to spend [amount] of the user's
+     * [tokenAddress] tokens.
+     */
+    suspend fun createApproveTransferTransaction(
+        tokenAddress: String,
+        spender: String,
+        amount: BigInteger
+    ): RawTransaction {
+        val function = org.web3j.abi.datatypes.Function(
+            "approve",
+            listOf(org.web3j.abi.datatypes.Address(spender), org.web3j.abi.datatypes.generated.Uint256(amount)),
+            listOf()
+        )
+        val encodedFunction = CommutoFunctionEncoder.encode(function)
+        val chainID = web3.ethChainId().sendAsync().asDeferred().await().chainId
+        val transactionForGasEstimate = Transaction(
+            creds.address.toString(),
+            BigInteger.ZERO,
+            null, // No gasPrice because we are specifying maxFeePerGas
+            BigInteger.valueOf(30_000_000),
+            tokenAddress,
+            BigInteger.ZERO,
+            encodedFunction,
+            chainID.toLong(),
+            BigInteger.valueOf(1_000_000), // maxPriorityFeePerGas (temporary value)
+            BigInteger.valueOf(875_000_000), // maxFeePerGas (temporary value)
+        )
+        val nonce = web3.ethGetTransactionCount(
+            creds.address,
+            DefaultBlockParameter.valueOf("pending")
+        ).sendAsync().asDeferred()
+        val gasLimit = web3.ethEstimateGas(transactionForGasEstimate).sendAsync().asDeferred().await().amountUsed
+        // Get the fee history from the last 20 blocks, from the 75th to the 100th percentile.
+        val feeHistory = web3.ethFeeHistory(
+            20,
+            DefaultBlockParameter.valueOf("latest"),
+            listOf(75.0)
+        ).sendAsync().asDeferred().await().feeHistory
+        // Calculate the average of the 75th percentile reward values from the last 20 blocks and use this as the
+        // maxPriorityFeePerGas
+        val maxPriorityFeePerGas = BigInteger.ZERO.let { finalTipFee ->
+            feeHistory.reward.map { it.first() }.forEach { finalTipFee.add(it) }
+            finalTipFee.divide(BigInteger.valueOf(feeHistory.reward.count().toLong()))
+        }
+        // Calculate the 75th percentile base fee per gas value from the last 20 blocks and use this as the
+        // baseFeePerGas
+        val baseFeePerGas = BigInteger.ZERO.let {
+            val percentileIndex = floor(0.75 * feeHistory.baseFeePerGas.count()).toInt()
+            feeHistory.baseFeePerGas.sorted()[percentileIndex]
+        }
+        val maxFeePerGas = baseFeePerGas + maxPriorityFeePerGas
+        return RawTransaction.createTransaction(
+            chainID.toLong(),
+            nonce.await().transactionCount,
+            gasLimit,
+            transactionForGasEstimate.to,
+            BigInteger.ZERO, // value
+            transactionForGasEstimate.data,
+            maxPriorityFeePerGas,
+            maxFeePerGas
+        )
+    }
+
+    /**
+     * Creates and returns an EIP1559 [RawTransaction] from the user's account to call CommutoSwap's
+     * [openOffer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#open-offer) function, with estimated
+     * gas limit, max priority fee per gas, max fee per gas, and with a nonce determined from all currently known
+     * transactions, including those that are still pending.
+     *
+     * @param offerID The ID of the new [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer) to
+     * be opened.
+     * @param offerStruct The OfferStruct containing the data of the new
+     * [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer) to be opened.
+     *
+     * @return A [RawTransaction] as described above, that will open an offer using the data supplied in [offerStruct]
+     * with the ID specified by [offerID].
+     */
+    suspend fun createOpenOfferTransaction(offerID: UUID, offerStruct: OfferStruct): RawTransaction {
+        val function = org.web3j.abi.datatypes.Function(
+            "openOffer",
+            listOf(org.web3j.abi.datatypes.generated.Bytes16(offerID.asByteArray()), offerStruct.toCommutoSwapOffer()),
+            listOf()
+        )
+        val encodedFunction = CommutoFunctionEncoder.encode(function)
+        val transactionForGasEstimate = Transaction(
+            creds.address.toString(),
+            BigInteger.ZERO,
+            null, // No gasPrice because we are specifying maxFeePerGas
+            BigInteger.valueOf(30_000_000),
+            commutoSwap.contractAddress,
+            BigInteger.ZERO,
+            encodedFunction,
+            offerStruct.chainID.toLong(),
+            BigInteger.valueOf(1_000_000), // maxPriorityFeePerGas (temporary value)
+            BigInteger.valueOf(875_000_000), // maxFeePerGas (temporary value)
+        )
+        val nonce = web3.ethGetTransactionCount(
+            creds.address,
+            DefaultBlockParameter.valueOf("pending")
+        ).sendAsync().asDeferred()
+        val gasLimit = web3.ethEstimateGas(transactionForGasEstimate).sendAsync().asDeferred().await().amountUsed
+        // Get the fee history from the last 20 blocks, from the 75th to the 100th percentile.
+        val feeHistory = web3.ethFeeHistory(
+            20,
+            DefaultBlockParameter.valueOf("latest"),
+            listOf(75.0)
+        ).sendAsync().asDeferred().await().feeHistory
+        // Calculate the average of the 75th percentile reward values from the last 20 blocks and use this as the
+        // maxPriorityFeePerGas
+        val maxPriorityFeePerGas = BigInteger.ZERO.let { finalTipFee ->
+            feeHistory.reward.map { it.first() }.forEach { finalTipFee.add(it) }
+            finalTipFee.divide(BigInteger.valueOf(feeHistory.reward.count().toLong()))
+        }
+        // Calculate the 75th percentile base fee per gas value from the last 20 blocks and use this as the
+        // baseFeePerGas
+        val baseFeePerGas = BigInteger.ZERO.let {
+            val percentileIndex = floor(0.75 * feeHistory.baseFeePerGas.count()).toInt()
+            feeHistory.baseFeePerGas.sorted()[percentileIndex]
+        }
+        val maxFeePerGas = baseFeePerGas + maxPriorityFeePerGas
+        return RawTransaction.createTransaction(
+            offerStruct.chainID.toLong(),
+            nonce.await().transactionCount,
+            gasLimit,
+            transactionForGasEstimate.to,
+            BigInteger.ZERO, // value
+            transactionForGasEstimate.data,
+            maxPriorityFeePerGas,
+            maxFeePerGas
+        )
     }
 
     /**
@@ -931,6 +1077,8 @@ class BlockchainService (private val exceptionHandler: BlockchainExceptionNotifi
                             "for reason: ${monitoredTransactionException.message}")
                     transactionsToMonitor.remove(monitoredTransaction.transactionHash)
                     when (monitoredTransaction.type) {
+                        BlockchainTransactionType.APPROVE_TOKEN_TRANSFER_TO_OPEN_OFFER,
+                        BlockchainTransactionType.OPEN_OFFER,
                         BlockchainTransactionType.CANCEL_OFFER, BlockchainTransactionType.EDIT_OFFER -> {
                             offerService.handleFailedTransaction(
                                 transaction = monitoredTransaction,
@@ -985,6 +1133,26 @@ class BlockchainService (private val exceptionHandler: BlockchainExceptionNotifi
                             "events")
                     // The tranaction has not failed, so we parse it for the proper event
                     when (monitoredTransaction.type) {
+                        BlockchainTransactionType.APPROVE_TOKEN_TRANSFER_TO_OPEN_OFFER -> {
+                            val erc20Contract = ERC20.load(
+                                "0x0000000000000000000000000000000000000000",
+                                web3,
+                                txManager,
+                                gasProvider
+                            )
+                            eventsInReceipt.addAll(erc20Contract.getApprovalEvents(transactionReceipt).map {
+                                CommutoApprovalEventResponse(
+                                    log = it.log,
+                                    owner = it._owner,
+                                    spender = it._spender,
+                                    amount = it._value,
+                                    eventName = "Approval_forOpeningOffer"
+                                )
+                            })
+                        }
+                        BlockchainTransactionType.OPEN_OFFER -> {
+                            eventsInReceipt.addAll(commutoSwap.getOfferOpenedEvents(transactionReceipt))
+                        }
                         BlockchainTransactionType.CANCEL_OFFER -> {
                             eventsInReceipt.addAll(commutoSwap.getOfferCanceledEvents(transactionReceipt))
                         }
@@ -1010,6 +1178,8 @@ class BlockchainService (private val exceptionHandler: BlockchainExceptionNotifi
                                 "unknown reason."
                     )
                     when (monitoredTransaction.type) {
+                        BlockchainTransactionType.APPROVE_TOKEN_TRANSFER_TO_OPEN_OFFER,
+                        BlockchainTransactionType.OPEN_OFFER,
                         BlockchainTransactionType.CANCEL_OFFER, BlockchainTransactionType.EDIT_OFFER -> {
                             offerService.handleFailedTransaction(
                                 monitoredTransaction,
@@ -1082,6 +1252,23 @@ class BlockchainService (private val exceptionHandler: BlockchainExceptionNotifi
         logger.info("handleEventResponses: handling ${eventResponses.size} events")
         for (eventResponse in eventResponses) {
             when (eventResponse) {
+                is CommutoApprovalEventResponse -> {
+                    logger.info("handleEventResponse: handling CommutoApprovalEventResponse with eventName " +
+                            eventResponse.eventName
+                    )
+                    if (eventResponse.eventName == "Approval_forOpeningOffer") {
+                        offerService.handleTokenTransferApprovalEvent(
+                            ApprovalEvent.fromEventResponse(
+                                eventResponse,
+                                TokenTransferApprovalPurpose.OPEN_OFFER,
+                                chainID
+                            )
+                        )
+                    } else {
+                        logger.warn("handleEventResponses: got CommutoApprovalEventResponse with unrecognized " +
+                                "eventName ${eventResponse.eventName}")
+                    }
+                }
                 is CommutoSwap.OfferOpenedEventResponse -> {
                     logger.info("handleEventResponses: handling OfferOpenedEvent")
                     offerService.handleOfferOpenedEvent(OfferOpenedEvent.fromEventResponse(eventResponse, chainID))

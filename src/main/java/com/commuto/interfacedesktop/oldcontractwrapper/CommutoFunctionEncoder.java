@@ -24,7 +24,7 @@ public class CommutoFunctionEncoder extends FunctionEncoder {
     }
 
     @Override
-    public String encodeFunction(final Function function) {
+    protected String encodeFunction(Function function) {
         final List<Type> parameters = function.getInputParameters();
 
         final String methodSignature = buildMethodSignature(function.getName(), parameters);
@@ -37,12 +37,11 @@ public class CommutoFunctionEncoder extends FunctionEncoder {
     }
 
     @Override
-    public String encodeParameters(final List<Type> parameters) {
+    protected String encodeParameters(List<Type> parameters) {
         return encodeParameters(parameters, new StringBuilder());
     }
 
-    @Override
-    protected String encodeWithSelector(String methodId, List<Type> parameters) {
+    public String encodeWithSelector(String methodId, List<Type> parameters) {
         final StringBuilder result = new StringBuilder(methodId);
 
         return encodeParameters(parameters, result);
@@ -81,7 +80,9 @@ public class CommutoFunctionEncoder extends FunctionEncoder {
         return result.toString();
     }
 
-    @SuppressWarnings("unchecked")
+    /**
+     * Required by [encodeParameters], copied from [DefaultFunctionEncoder]
+     */
     private static int getLength(final List<Type> parameters) {
         int count = 0;
         for (final Type type : parameters) {
@@ -106,9 +107,16 @@ public class CommutoFunctionEncoder extends FunctionEncoder {
         return count;
     }
 
+    /**
+     * Required because the default method signature builder method doesn't work properly when the parameters
+     * include arrays of arrays (For example, bytes[] incorrectly becomes dynamicarray). Mostly copied from
+     * [DefaultFunctionEncoder].
+     */
     protected static String buildMethodSignature(String methodName, List<Type> parameters) {
         if (methodName == "openOffer") {
-            return "openOffer(bytes16,(bool,bool,address,bytes,address,uint256,uint256,uint256,uint8,bytes,bytes[],uint256))";
+            return "openOffer(bytes16,(bool,bool,address,bytes,address,uint256,uint256,uint256,uint256,uint8,bytes[],uint256))";
+        } else if (methodName == "editOffer") {
+            return "editOffer(bytes16,(bool,bool,address,bytes,address,uint256,uint256,uint256,uint256,uint8,bytes[],uint256))";
         } else {
             StringBuilder result = new StringBuilder();
             result.append(methodName);

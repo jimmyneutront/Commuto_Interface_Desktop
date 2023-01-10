@@ -16,6 +16,14 @@ chainID TEXT NOT NULL,
 havePublicKey INTEGER NOT NULL,
 isUserMaker INTEGER NOT NULL,
 state TEXT NOT NULL,
+approveToOpenState TEXT NOT NULL,
+approveToOpenTransactionHash TEXT,
+approveToOpenTransactionCreationTime TEXT,
+approveToOpenTransactionCreationBlockNumber INTEGER,
+openingOfferState TEXT NOT NULL,
+openingOfferTransactionHash TEXT,
+openingOfferTransactionCreationTime TEXT,
+openingOfferTransactionCreationBlockNumber INTEGER,
 cancelingOfferState TEXT NOT NULL,
 offerCancellationTransactionHash TEXT,
 offerCancellationTransactionCreationTime TEXT,
@@ -128,6 +136,14 @@ INSERT INTO Offer(
     havePublicKey,
     isUserMaker,
     state,
+    approveToOpenState,
+    approveToOpenTransactionHash,
+    approveToOpenTransactionCreationTime,
+    approveToOpenTransactionCreationBlockNumber,
+    openingOfferState,
+    openingOfferTransactionHash,
+    openingOfferTransactionCreationTime,
+    openingOfferTransactionCreationBlockNumber,
     cancelingOfferState,
     offerCancellationTransactionHash,
     offerCancellationTransactionCreationTime,
@@ -139,7 +155,12 @@ INSERT INTO Offer(
 )
 VALUES(?, ?, ?, ?, ?, ?, ?,
 ?, ?, ?, ?, ?,
-?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+?, ?, ?, ?, ?, ?,
+?, ?, ?,
+?, ?, ?,
+?, ?, ?,
+?, ?, ?,
+?, ?);
 
 insertOfferSettlementMethod:
 INSERT INTO OfferSettlementMethod(
@@ -242,6 +263,30 @@ WHERE id = ? AND chainID = ?;
 updateOfferStateByOfferIDAndChainID:
 UPDATE Offer
 SET state = ?
+WHERE id = ? AND chainID = ?;
+
+updateOfferApproveToOpenStateByOfferIDAndChainID:
+UPDATE Offer
+SET approveToOpenState = ?
+WHERE id = ? AND chainID = ?;
+
+updateOfferApproveToOpenDataByOfferIDAndChainID:
+UPDATE Offer
+SET approveToOpenTransactionHash = ?,
+approveToOpenTransactionCreationTime = ?,
+approveToOpenTransactionCreationBlockNumber = ?
+WHERE id = ? AND chainID = ?;
+
+updateOpeningOfferStateByOfferIDAndChainID:
+UPDATE Offer
+SET openingOfferState = ?
+WHERE id = ? AND chainID = ?;
+
+updateOpeningOfferDataByOfferIDAndChainID:
+UPDATE Offer
+SET openingOfferTransactionHash = ?,
+openingOfferTransactionCreationTime = ?,
+openingOfferTransactionCreationBlockNumber = ?
 WHERE id = ? AND chainID = ?;
 
 updateCancelingOfferStateByOfferIDAndChainID:

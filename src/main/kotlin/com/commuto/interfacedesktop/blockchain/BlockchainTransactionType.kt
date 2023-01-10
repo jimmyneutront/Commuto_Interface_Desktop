@@ -4,6 +4,12 @@ package com.commuto.interfacedesktop.blockchain
  * Describes what a particular transaction wrapped by a particular [BlockchainTransaction] does. (For example: opens a
  * new offer, fills a swap, etc.)
  *
+ * @property APPROVE_TOKEN_TRANSFER_TO_OPEN_OFFER Indicates that a [BlockchainTransaction] approves a token transfer
+ * by calling [approve](https://docs.openzeppelin.com/contracts/2.x/api/token/erc20#IERC20-approve-address-uint256-) in
+ * order to open an [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer).
+ * @property OPEN_OFFER Indicates that a [BlockchainTransaction] opens an
+ * [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer) by calling
+ * [openOffer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#open-offer).
  * @property CANCEL_OFFER Indicates that an [BlockchainTransaction] cancels an open
  * [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer).
  * @property EDIT_OFFER Indicates that a [BlockchainTransaction] edits an open
@@ -20,6 +26,8 @@ package com.commuto.interfacedesktop.blockchain
  * @property asString A human-readable string describing an instance of this type.
  */
 enum class BlockchainTransactionType {
+    APPROVE_TOKEN_TRANSFER_TO_OPEN_OFFER,
+    OPEN_OFFER,
     CANCEL_OFFER,
     EDIT_OFFER,
     REPORT_PAYMENT_SENT,
@@ -28,6 +36,8 @@ enum class BlockchainTransactionType {
 
     val asString: String
         get() = when(this) {
+            APPROVE_TOKEN_TRANSFER_TO_OPEN_OFFER -> "approveTokenTransferToOpenOffer"
+            OPEN_OFFER -> "openOffer"
             CANCEL_OFFER -> "cancelOffer"
             EDIT_OFFER -> "editOffer"
             REPORT_PAYMENT_SENT -> "reportPaymentSent"

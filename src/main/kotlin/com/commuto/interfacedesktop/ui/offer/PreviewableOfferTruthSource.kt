@@ -5,7 +5,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.snapshots.SnapshotStateMap
 import com.commuto.interfacedesktop.offer.Offer
 import com.commuto.interfacedesktop.offer.OfferDirection
-import com.commuto.interfacedesktop.offer.OpeningOfferState
+import com.commuto.interfacedesktop.offer.TokenTransferApprovalState
 import com.commuto.interfacedesktop.settlement.SettlementMethod
 import com.commuto.interfacedesktop.ui.StablecoinInformation
 import org.web3j.crypto.RawTransaction
@@ -32,8 +32,16 @@ class PreviewableOfferTruthSource: UIOfferTruthSource {
     }
     override var serviceFeeRate: MutableState<BigInteger?> = mutableStateOf(null)
     override var isGettingServiceFeeRate = mutableStateOf(false)
-    override val openingOfferState = mutableStateOf(OpeningOfferState.NONE)
-    override var openingOfferException: Exception? = null
+
+    /**
+     * Not used since this class is for previewing user interfaces, but required for implementing [UIOfferTruthSource].
+     */
+    override val approvingTransferToOpenOfferState = mutableStateOf(TokenTransferApprovalState.NONE)
+
+    /**
+     * Not used since this class is for previewing user interfaces, but required for implementing [UIOfferTruthSource].
+     */
+    override var approvingTransferToOpenOfferException: Exception? = null
 
     /**
      * Does nothing, since this class is only used for previewing user interfaces.
@@ -49,6 +57,53 @@ class PreviewableOfferTruthSource: UIOfferTruthSource {
      * Does nothing, since this class is only used for previewing user interfaces.
      */
     override fun updateServiceFeeRate() {}
+
+    /**
+     * Not used since this class is for previewing user interfaces, but required for implementing [UIOfferTruthSource].
+     */
+    override fun createApproveToOpenTransaction(
+        stablecoin: String?,
+        stablecoinInformation: StablecoinInformation?,
+        minimumAmount: BigDecimal,
+        maximumAmount: BigDecimal,
+        securityDepositAmount: BigDecimal,
+        direction: OfferDirection?,
+        settlementMethods: List<SettlementMethod>,
+        createdTransactionHandler: (RawTransaction) -> Unit,
+        exceptionHandler: (Exception) -> Unit,
+    ) {}
+
+    /**
+     * Not used since this class is for previewing user interfaces, but required for implementing [UIOfferTruthSource].
+     */
+    override fun approveTokenTransferToOpenOffer(
+        chainID: BigInteger,
+        stablecoin: String?,
+        stablecoinInformation: StablecoinInformation?,
+        minimumAmount: BigDecimal,
+        maximumAmount: BigDecimal,
+        securityDepositAmount: BigDecimal,
+        direction: OfferDirection?,
+        settlementMethods: List<SettlementMethod>,
+        approveTokenTransferToOpenOfferTransaction: RawTransaction?,
+    ) {}
+
+    /**
+     * Not used since this class is for previewing user interfaces, but required for implementing [UIOfferTruthSource].
+     */
+    override fun createOpenOfferTransaction(
+        offer: Offer,
+        createdTransactionHandler: (RawTransaction) -> Unit,
+        exceptionHandler: (Exception) -> Unit
+    ) {}
+
+    /**
+     * Not used since this class is for previewing user interfaces, but required for implementing [UIOfferTruthSource].
+     */
+    override fun openOffer(
+        offer: Offer,
+        offerOpeningTransaction: RawTransaction
+    ) {}
 
     /**
      * Does nothing since this class is only used for previewing user interfaces, but is required for implementing

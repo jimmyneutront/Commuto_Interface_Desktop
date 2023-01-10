@@ -134,6 +134,109 @@ open class DatabaseService(
     }
 
     /**
+     * Updates the [Offer.approveToOpenState] property of a persistently stored
+     * [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer) with the specified [offerID] and
+     * [chainID].
+     *
+     * @param offerID The ID of the offer to be updated, as a Base64-[String] of bytes.
+     * @param chainID The blockchain ID of the offer to be updated, as a [String].
+     * @param state The new value of the offer's [Offer.approveToOpenState] property.
+     */
+    @OptIn(DelicateCoroutinesApi::class)
+    suspend fun updateOfferApproveToOpenState(offerID: String, chainID: String, state: String) {
+        withContext(databaseServiceContext) {
+            database.updateOfferApproveToOpenState(offerID, chainID, state)
+        }
+        logger.info("updateOfferApproveToOpenState: set value to $state for offer with B64 ID $offerID, if " +
+                "present")
+    }
+
+    /**
+     * Updates the [Offer.approveToOpenTransactionHash], [Offer.approveToOpenTransactionCreationTime] and
+     * [Offer.approveToOpenTransactionCreationBlockNumber] properties of a persistently stored
+     * [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer) with the specified [offerID] and
+     * [chainID].
+     *
+     * @param offerID The ID of the offer to be updated, as a Base64-[String] of bytes.
+     * @param chainID The blockchain ID of the offer to be updated, as a [String].
+     * @param transactionHash The new value of the offer's [Offer.approveToOpenTransactionHash] property, as a
+     * transaction hash as a hexadecimal string with "0x" prefix.
+     * @param creationTime The new value of the offer's [Offer.approveToOpenTransactionCreationTime] property.
+     * @param blockNumber The new value of the offer's [Offer.approveToOpenTransactionCreationBlockNumber] property.
+     */
+    @OptIn(DelicateCoroutinesApi::class)
+    suspend fun updateOfferApproveToOpenData(
+        offerID: String,
+        chainID: String,
+        transactionHash: String?,
+        creationTime: String?,
+        blockNumber: Long?
+    ) {
+        withContext(databaseServiceContext) {
+            database.updateOfferApproveToOpenData(
+                offerID = offerID,
+                chainID = chainID,
+                transactionHash = transactionHash,
+                creationTime = creationTime,
+                blockNumber = blockNumber,
+            )
+        }
+        logger.info("updateOfferApproveToOpenData: set values to $transactionHash, $creationTime and " +
+                "$blockNumber for offer with B64 ID $offerID, if present")
+    }
+
+    /**
+     * Updates the [Offer.openingOfferState] property of a persistently stored
+     * [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer) with the specified [offerID] and
+     * [chainID].
+     *
+     * @param offerID The ID of the offer to be updated, as a Base64-[String] of bytes.
+     * @param chainID The blockchain ID of the offer to be updated, as a [String].
+     * @param state The new value of the offer's [Offer.openingOfferState] property.
+     */
+    @OptIn(DelicateCoroutinesApi::class)
+    suspend fun updateOpeningOfferState(offerID: String, chainID: String, state: String) {
+        withContext(databaseServiceContext) {
+            database.updateOpeningOfferState(offerID, chainID, state)
+        }
+        logger.info("updateOpeningOfferState: set value to $state for offer with B64 ID $offerID, if present")
+    }
+
+    /**
+     * Updates the [Offer.openingOfferTransactionHash], [Offer.openingOfferTransactionCreationTime] and
+     * [Offer.openingOfferTransactionCreationBlockNumber] properties of a persistently stored
+     * [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer) with the specified [offerID] and
+     * [chainID].
+     *
+     * @param offerID The ID of the offer to be updated, as a Base64-[String] of bytes.
+     * @param chainID The blockchain ID of the offer to be updated, as a [String].
+     * @param transactionHash The new value of the offer's [Offer.openingOfferTransactionHash] property, as a
+     * transaction hash as a hexadecimal string with "0x" prefix.
+     * @param creationTime The new value of the offer's [Offer.openingOfferTransactionCreationTime] property.
+     * @param blockNumber The new value of the offer's [Offer.openingOfferTransactionCreationBlockNumber] property.
+     */
+    @OptIn(DelicateCoroutinesApi::class)
+    suspend fun updateOpeningOfferData(
+        offerID: String,
+        chainID: String,
+        transactionHash: String?,
+        creationTime: String?,
+        blockNumber: Long?
+    ) {
+        withContext(databaseServiceContext) {
+            database.updateOpeningOfferData(
+                offerID = offerID,
+                chainID = chainID,
+                transactionHash = transactionHash,
+                creationTime = creationTime,
+                blockNumber = blockNumber,
+            )
+        }
+        logger.info("updateOpeningOfferData: set values to $transactionHash, $creationTime and $blockNumber " +
+                "for offer with B64 ID $offerID, if present")
+    }
+
+    /**
      * Updates the [Offer.cancelingOfferState] property of a persistently stored
      * [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer) with the specified [offerID] and
      * [chainID].

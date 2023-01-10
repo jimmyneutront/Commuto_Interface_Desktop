@@ -142,6 +142,14 @@ internal class Database(databaseDriverFactory: DatabaseDriverFactory) {
             havePublicKey = offer.havePublicKey,
             isUserMaker = offer.isUserMaker,
             state = offer.state,
+            approveToOpenState = offer.approveToOpenState,
+            approveToOpenTransactionHash = offer.approveToOpenTransactionHash,
+            approveToOpenTransactionCreationTime = offer.approveToOpenTransactionCreationTime,
+            approveToOpenTransactionCreationBlockNumber = offer.approveToOpenTransactionCreationBlockNumber,
+            openingOfferState = offer.openingOfferState,
+            openingOfferTransactionHash = offer.openingOfferTransactionHash,
+            openingOfferTransactionCreationTime = offer.openingOfferTransactionCreationTime,
+            openingOfferTransactionCreationBlockNumber = offer.openingOfferTransactionCreationBlockNumber,
             cancelingOfferState = offer.cancelingOfferState,
             offerCancellationTransactionHash = offer.offerCancellationTransactionHash,
             offerCancellationTransactionCreationTime = offer.offerCancellationTransactionCreationTime,
@@ -291,6 +299,86 @@ internal class Database(databaseDriverFactory: DatabaseDriverFactory) {
     internal fun updateOfferState(offerID: String, chainID: String, state: String) {
         dbQuery.updateOfferStateByOfferIDAndChainID(
             state = state,
+            id = offerID,
+            chainID = chainID
+        )
+    }
+
+    /**
+     * Updates the [Offer.approveToOpenState] property of the [Offer] with the specified [offerID] and [chainID].
+     * @param offerID The ID of the [Offer] to be updated.
+     * @param chainID The ID of the blockchain on which the [Offer] to be updated exists.
+     * @param state The new value of the [Offer.approveToOpenState] property.
+     */
+    internal fun updateOfferApproveToOpenState(offerID: String, chainID: String, state: String) {
+        dbQuery.updateOfferApproveToOpenStateByOfferIDAndChainID(
+            approveToOpenState = state,
+            id = offerID,
+            chainID = chainID
+        )
+    }
+
+    /**
+     * Updates the [Offer.approveToOpenTransactionHash], [Offer.approveToOpenTransactionCreationTime] and
+     * [Offer.approveToOpenTransactionCreationBlockNumber] properties of the [Offer] with the specified [offerID]
+     * and [chainID].
+     * @param offerID The ID of the [Offer] to be updated.
+     * @param chainID The ID of the blockchain on which the [Offer] to be updated exists.
+     * @param transactionHash The new value of the [Offer.approveToOpenTransactionHash] property.
+     * @param creationTime The new value of the [Offer.approveToOpenTransactionCreationTime] property.
+     * @param blockNumber The new value of the [Offer.approveToOpenTransactionCreationBlockNumber] property.
+     */
+    internal fun updateOfferApproveToOpenData(
+        offerID: String,
+        chainID: String,
+        transactionHash: String?,
+        creationTime: String?,
+        blockNumber: Long?
+    ) {
+        dbQuery.updateOfferApproveToOpenDataByOfferIDAndChainID(
+            approveToOpenTransactionHash = transactionHash,
+            approveToOpenTransactionCreationTime = creationTime,
+            approveToOpenTransactionCreationBlockNumber = blockNumber,
+            id = offerID,
+            chainID = chainID
+        )
+    }
+
+    /**
+     * Updates the [Offer.openingOfferState] property of the [Offer] with the specified [offerID] and [chainID].
+     * @param offerID The ID of the [Offer] to be updated.
+     * @param chainID The ID of the blockchain on which the [Offer] to be updated exists.
+     * @param state The new value of the [Offer.openingOfferState] property.
+     */
+    internal fun updateOpeningOfferState(offerID: String, chainID: String, state: String) {
+        dbQuery.updateOpeningOfferStateByOfferIDAndChainID(
+            openingOfferState = state,
+            id = offerID,
+            chainID = chainID
+        )
+    }
+
+    /**
+     * Updates the [Offer.openingOfferTransactionHash], [Offer.openingOfferTransactionCreationTime] and
+     * [Offer.openingOfferTransactionCreationBlockNumber] properties of the [Offer] with the specified [offerID] and
+     * [chainID].
+     * @param offerID The ID of the [Offer] to be updated.
+     * @param chainID The ID of the blockchain on which the [Offer] to be updated exists.
+     * @param transactionHash The new value of the [Offer.openingOfferTransactionHash] property.
+     * @param creationTime The new value of the [Offer.openingOfferTransactionCreationTime] property.
+     * @param blockNumber The new value of the [Offer.openingOfferTransactionCreationBlockNumber] property.
+     */
+    internal fun updateOpeningOfferData(
+        offerID: String,
+        chainID: String,
+        transactionHash: String?,
+        creationTime: String?,
+        blockNumber: Long?
+    ) {
+        dbQuery.updateOpeningOfferDataByOfferIDAndChainID(
+            openingOfferTransactionHash = transactionHash,
+            openingOfferTransactionCreationTime = creationTime,
+            openingOfferTransactionCreationBlockNumber = blockNumber,
             id = offerID,
             chainID = chainID
         )
