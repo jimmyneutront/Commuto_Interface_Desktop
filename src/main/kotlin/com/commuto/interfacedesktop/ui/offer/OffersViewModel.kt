@@ -3,6 +3,7 @@ package com.commuto.interfacedesktop.ui.offer
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
+import com.commuto.interfacedesktop.key.keys.KeyPair
 import com.commuto.interfacedesktop.offer.*
 import com.commuto.interfacedesktop.offer.validation.*
 import com.commuto.interfacedesktop.settlement.SettlementMethod
@@ -609,6 +610,219 @@ class OffersViewModel @Inject constructor(private val offerService: OfferService
                 logger.error("editOffer: got exception during editOffer call for ${offer.id}", exception)
                 offer.editingOfferException = exception
                 setEditingOfferState(offerID = offer.id, state = EditingOfferState.EXCEPTION)
+            }
+        }
+    }
+
+    /**
+     * Attempts to approve a token transfer in order to take an
+     * [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer).
+     *
+     * This passes all parameters (except [createdTransactionHandler] or [exceptionHandler]) as well as a
+     * [StablecoinInformationRepository] to [OfferService.createApproveTokenTransferToTakeOfferTransaction] and then
+     * passes the resulting transaction to [createdTransactionHandler] or exception to [exceptionHandler].
+     *
+     * @param offer The [Offer] to be taken.
+     * @param takenSwapAmount The [BigDecimal] amount of stablecoin that the user wants to buy/sell. If the offer has
+     * lower and upper bound amounts that ARE equal, this parameter will be ignored.
+     * @param makerSettlementMethod The [SettlementMethod], belonging to the maker, that the user/taker has selected to
+     * send/receive traditional currency payment.
+     * @param takerSettlementMethod The [SettlementMethod], belonging to the user/taker, that the user has selected to
+     * send/receive traditional currency payment. This must contain the user's valid private settlement method data, and
+     * must have method and currency fields matching [makerSettlementMethod].
+     * @param createdTransactionHandler A lambda that will accept and handle the created [RawTransaction].
+     * @param exceptionHandler A lambda that will accept and handle any exception that occurs during the transaction
+     * creation process.
+     */
+    override fun createApproveTokenTransferToTakeOfferTransaction(
+        offer: Offer,
+        takenSwapAmount: BigDecimal,
+        makerSettlementMethod: SettlementMethod?,
+        takerSettlementMethod: SettlementMethod?,
+        createdTransactionHandler: (RawTransaction) -> Unit,
+        exceptionHandler: (Exception) -> Unit
+    ) {
+        viewModelScope.launch {
+            logger.info("createApproveTokenTransferToTakeOfferTransaction: creating for ${offer.id}")
+            try {
+                // TODO: get proper stablecoin repo here
+                val createdTransaction = offerService.createApproveTokenTransferToTakeOfferTransaction(
+                    offerToTake = offer,
+                    takenSwapAmount = takenSwapAmount,
+                    makerSettlementMethod = makerSettlementMethod,
+                    takerSettlementMethod = takerSettlementMethod,
+                    stablecoinInformationRepository = StablecoinInformationRepository.hardhatStablecoinInfoRepo
+                )
+                withContext(Dispatchers.Main) {
+                    createdTransactionHandler(createdTransaction)
+                }
+            } catch (exception: Exception) {
+                withContext(Dispatchers.Main) {
+                    exceptionHandler(exception)
+                }
+            }
+        }
+    }
+
+    /**
+     * Attempts to approve a token transfer in order to take an
+     * [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer).
+     *
+     * This clears [offer]'s [Offer.approvingToTakeException] property and sets its [Offer.approvingToTakeState] to
+     * [TokenTransferApprovalState.VALIDATING], and then passes all data (as well as a
+     * [StablecoinInformationRepository]) to [offerService]s [OfferService.approveTokenTransferToTakeOffer] function.
+     * When this function returns, this sets [offer]'s [Offer.approvingToTakeState] to
+     * [TokenTransferApprovalState.AWAITING_TRANSACTION_CONFIRMATION].
+     *
+     * @param offer The [Offer] to be taken.
+     * @param takenSwapAmount The [BigDecimal] amount of stablecoin that the user wants to buy/sell. If the offer has
+     * lower and upper bound amounts that ARE equal, this parameter will be ignored.
+     * @param makerSettlementMethod The [SettlementMethod], belonging to the maker, that the user/taker has selected to
+     * send/receive traditional currency payment.
+     * @param takerSettlementMethod The [SettlementMethod], belonging to the user/taker, that the user has selected to
+     * send/receive traditional currency payment. This must contain the user's valid private settlement method data, and
+     * must have method and currency fields matching [makerSettlementMethod].
+     * @param approveTokenTransferToOpenOfferTransaction An optional [RawTransaction] that can create a token transfer
+     * allowance of the proper amount (determined by the values of the other arguments) of the token specified by
+     * [offer].
+     */
+    override fun approveTokenTransferToTakeOffer(
+        offer: Offer,
+        takenSwapAmount: BigDecimal,
+        makerSettlementMethod: SettlementMethod?,
+        takerSettlementMethod: SettlementMethod?,
+        approveTokenTransferToOpenOfferTransaction: RawTransaction?
+    ) {
+        offer.approvingToTakeException = null
+        offer.approvingToTakeState.value = TokenTransferApprovalState.VALIDATING
+        viewModelScope.launch {
+            logger.info("approveTokenTransferToTakeOffer: approving for ${offer.id}")
+            try {
+                // TODO: get proper stablecoin repo here
+                offerService.approveTokenTransferToTakeOffer(
+                    offerToTake = offer,
+                    takenSwapAmount = takenSwapAmount,
+                    makerSettlementMethod = makerSettlementMethod,
+                    takerSettlementMethod = takerSettlementMethod,
+                    stablecoinInformationRepository = StablecoinInformationRepository.hardhatStablecoinInfoRepo,
+                    approveTokenTransferToTakeOfferTransaction = approveTokenTransferToOpenOfferTransaction
+                )
+                logger.info("approveTokenTransferToTakeOffer: successfully")
+                withContext(Dispatchers.Main) {
+                    offer.approvingToTakeState.value = TokenTransferApprovalState.AWAITING_TRANSACTION_CONFIRMATION
+                }
+            } catch (exception: Exception) {
+                logger.error("approveTokenTransferToTakeOffer: got exception during call for ${offer.id}",
+                    exception)
+                withContext(Dispatchers.Main) {
+                    offer.approvingToTakeException = exception
+                    offer.approvingToTakeState.value = TokenTransferApprovalState.EXCEPTION
+                }
+            }
+        }
+    }
+
+    /**
+     * Attempts to create a [RawTransaction] that can take [offer] (which should NOT be made by the user of this
+     * interface) by calling [takeOffer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#take-offer).
+     *
+     * This passes all passed data (along with a [StablecoinInformationRepository]) and then passes the resulting
+     * transaction and key pair to [createdTransactionAndKeyPairHandler] or exception to [exceptionHandler].
+     *
+     * @param offer The [Offer] to be taken.
+     * @param takenSwapAmount The [BigDecimal] amount of stablecoin that the user wants to buy/sell. If the offer has
+     * lower and upper bound amounts that ARE equal, this parameter will be ignored.
+     * @param makerSettlementMethod The [SettlementMethod], belonging to the maker, that the user/taker has selected to
+     * send/receive traditional currency payment.
+     * @param takerSettlementMethod The [SettlementMethod], belonging to the user/taker, that the user has selected to
+     * send/receive traditional currency payment. This must contain the user's valid private settlement method data, and
+     * must have method and currency fields matching [makerSettlementMethod].
+     * @param createdTransactionAndKeyPairHandler A lambda that will accept and handle the created [RawTransaction] and
+     * [KeyPair].
+     * @param exceptionHandler A lambda that will accept and handle any error that occurs during the transaction
+     * creation process.
+     */
+    override fun createTakeOfferTransaction(
+        offer: Offer,
+        takenSwapAmount: BigDecimal,
+        makerSettlementMethod: SettlementMethod?,
+        takerSettlementMethod: SettlementMethod?,
+        createdTransactionAndKeyPairHandler: (RawTransaction, KeyPair) -> Unit,
+        exceptionHandler: (Exception) -> Unit
+    ) {
+        viewModelScope.launch {
+            logger.info("createTakeOfferTransaction: creating for ${offer.id}")
+            try {
+                // TODO: get proper stablecoin repo here
+                val createdTransactionAndKeyPair = offerService.createTakeOfferTransaction(
+                    offerToTake = offer,
+                    takenSwapAmount = takenSwapAmount,
+                    makerSettlementMethod = makerSettlementMethod,
+                    takerSettlementMethod = takerSettlementMethod,
+                    stablecoinInformationRepository = StablecoinInformationRepository.hardhatStablecoinInfoRepo
+                )
+                withContext(Dispatchers.Main) {
+                    createdTransactionAndKeyPairHandler(
+                        createdTransactionAndKeyPair.first,
+                        createdTransactionAndKeyPair.second
+                    )
+                }
+            } catch (exception: Exception) {
+                withContext(Dispatchers.Main) {
+                    exceptionHandler(exception)
+                }
+            }
+        }
+    }
+
+    /**
+     * Attempts to take an [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#open-offer).
+     *
+     * This clears the offer-taking-related [Exception] of [offer] and sets [offer]'s [Offer.takingOfferState] to
+     * [TakingOfferState.VALIDATING], and then passes all data to [offerService]'s [OfferService.takeOffer] function.
+     *
+     * @param offer The [Offer] to be taken.
+     * @param takenSwapAmount The [BigDecimal] amount of stablecoin that the user wants to buy/sell. If the offer has
+     * lower and upper bound amounts that ARE equal, this parameter will be ignored.
+     * @param makerSettlementMethod The [SettlementMethod], belonging to the maker, that the user/taker has selected to
+     * send/receive traditional currency payment.
+     * @param takerSettlementMethod The [SettlementMethod], belonging to the user/taker, that the user has selected to
+     * send/receive traditional currency payment. This must contain the user's valid private settlement method data, and
+     * must have method and currency fields matching [makerSettlementMethod].
+     * @param keyPair An optional [KeyPair], which serves as the user's/taker's key pair and with which
+     * [offerTakingTransaction] should have been created.
+     * @param offerTakingTransaction An optional [RawTransaction] that can take [offer].
+     */
+    override fun takeOffer(
+        offer: Offer,
+        takenSwapAmount: BigDecimal,
+        makerSettlementMethod: SettlementMethod?,
+        takerSettlementMethod: SettlementMethod?,
+        keyPair: KeyPair?,
+        offerTakingTransaction: RawTransaction?,
+    ) {
+        offer.takingOfferException = null
+        offer.approvingToTakeState.value = TokenTransferApprovalState.VALIDATING
+        viewModelScope.launch {
+            logger.info("takeOffer: taking ${offer.id}")
+            try {
+                // TODO: get proper stablecoin repo here
+                offerService.takeOffer(
+                    offerToTake = offer,
+                    takenSwapAmount = takenSwapAmount,
+                    makerSettlementMethod = makerSettlementMethod,
+                    takerSettlementMethod = takerSettlementMethod,
+                    stablecoinInformationRepository = StablecoinInformationRepository.hardhatStablecoinInfoRepo,
+                    takerKeyPair = keyPair,
+                    offerTakingTransaction = offerTakingTransaction,
+                )
+                logger.info("takeOffer successfully sent transaction for ${offer.id}")
+            } catch (exception: Exception) {
+                logger.error("takeOffer: got exception during call for ${offer.id}", exception)
+                withContext(Dispatchers.Main) {
+                    offer.takingOfferException = exception
+                    offer.takingOfferState.value = TakingOfferState.EXCEPTION
+                }
             }
         }
     }

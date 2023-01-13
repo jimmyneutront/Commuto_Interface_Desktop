@@ -20,6 +20,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.commuto.interfacedesktop.key.keys.KeyPair
 import com.commuto.interfacedesktop.offer.*
 import com.commuto.interfacedesktop.settlement.SettlementMethod
 import com.commuto.interfacedesktop.ui.StablecoinInformation
@@ -79,6 +80,18 @@ fun TakeOfferComposable(
      */
     val selectedTakerSettlementMethod = remember { mutableStateOf<SettlementMethod?>(null) }
 
+    /**
+     * Indicates whether this view should allow the user to submit information and take the offer, display a gas
+     * estimate for approving a token transfer in order to take the offer, or display a gas estimate for taking the
+     * offer.
+     */
+    val selectedTakeOfferComposable = remember { mutableStateOf(SelectedTakeOfferComposable.SUBMIT_INFORMATION) }
+
+    /**
+     * The key pair created for use by the user/taker, if any.
+     */
+    var createdKeyPairForTaker: KeyPair? = null
+
     if (offer == null) {
         TakeOfferUnavailableComposable(
             message = "This Offer is unavailable.",
@@ -107,164 +120,296 @@ fun TakeOfferComposable(
             closeDialog = closeDialog
         )
     } else {
-        val stablecoinInformation = stablecoinInfoRepo.getStablecoinInformation(
-            chainID = offer.chainID, contractAddress = offer.stablecoin
-        )
-        val closeSheetButtonLabel = if (offer.takingOfferState.value == TakingOfferState.COMPLETED) "Done" else "Cancel"
-        Column(
-            modifier = Modifier
-                .padding(10.dp)
-                .verticalScroll(rememberScrollState()),
-        ) {
-            Row(
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(
-                    text = "Take Offer",
-                    style = MaterialTheme.typography.h4,
-                    fontWeight = FontWeight.Bold,
+        when (selectedTakeOfferComposable.value) {
+            SelectedTakeOfferComposable.SUBMIT_INFORMATION -> {
+                val stablecoinInformation = stablecoinInfoRepo.getStablecoinInformation(
+                    chainID = offer.chainID, contractAddress = offer.stablecoin
                 )
-                Button(
-                    onClick = {
-                        closeDialog()
-                    },
-                    content = {
+                val closeSheetButtonLabel = if (offer.takingOfferState.value == TakingOfferState.COMPLETED) "Done" else
+                    "Cancel"
+                Column(
+                    modifier = Modifier
+                        .padding(10.dp)
+                        .verticalScroll(rememberScrollState()),
+                ) {
+                    Row(
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
                         Text(
-                            text = closeSheetButtonLabel,
+                            text = "Take Offer",
+                            style = MaterialTheme.typography.h4,
                             fontWeight = FontWeight.Bold,
                         )
+                        Button(
+                            onClick = {
+                                closeDialog()
+                            },
+                            content = {
+                                Text(
+                                    text = closeSheetButtonLabel,
+                                    fontWeight = FontWeight.Bold,
+                                )
+                            },
+                            colors = ButtonDefaults.buttonColors(
+                                backgroundColor =  Color.Transparent,
+                                contentColor = Color.Black,
+                            ),
+                            elevation = null,
+                        )
+                    }
+                    Text(
+                        text = "You are:",
+                        style = MaterialTheme.typography.h6,
+                    )
+                    Text(
+                        text = createRoleDescription(
+                            offerDirection = offer.direction,
+                            stablecoinInformation = stablecoinInformation,
+                            selectedSettlementMethod = selectedMakerSettlementMethod.value
+                        ),
+                        style = MaterialTheme.typography.h5,
+                        fontWeight = FontWeight.Bold,
+                    )
+                    OfferAmountComposable(
+                        stablecoinInformation = stablecoinInformation,
+                        min = offer.amountLowerBound,
+                        max = offer.amountUpperBound,
+                        securityDeposit = offer.securityDepositAmount,
+                    )
+                    if (offer.amountLowerBound != offer.amountUpperBound) {
+                        /*
+                        If the upper and lower bound of the offer amount are NOT equal, then we want to display a single
+                        service fee amount based on the amount that the user has specified.
+                         */
+                        Text(
+                            text = "Enter an Amount:"
+                        )
+                        StablecoinAmountFieldComposable(
+                            amountString = specifiedStablecoinAmountString,
+                            amount = specifiedStablecoinAmount,
+                        )
+                        ServiceFeeAmountComposable(
+                            stablecoinInformation = stablecoinInformation,
+                            minimumAmount = specifiedStablecoinAmount.value,
+                            maximumAmount = specifiedStablecoinAmount.value,
+                            serviceFeeRate = offer.serviceFeeRate
+                        )
+                    } else {
+                        /*
+                        If the upper and lower bound of the offer amount are equal, then only one service fee amount
+                        should be displayed and we can pass the lower bound amount as both the minimum and the maximum
+                        to this Composable
+                         */
+                        ServiceFeeAmountComposable(
+                            stablecoinInformation = stablecoinInformation,
+                            minimumAmount = offer.amountLowerBound,
+                            maximumAmount = offer.amountLowerBound,
+                            serviceFeeRate = offer.serviceFeeRate
+                        )
+                    }
+                    Text(
+                        text = "Select Settlement Method:",
+                        style =  MaterialTheme.typography.h6,
+                    )
+                    ImmutableSettlementMethodSelector(
+                        settlementMethods = offer.settlementMethods,
+                        selectedSettlementMethod = selectedMakerSettlementMethod,
+                        stablecoinCurrencyCode = stablecoinInformation?.currencyCode ?: "Unknown Stablecoin"
+                    )
+                    if (selectedMakerSettlementMethod.value != null) {
+                        Text(
+                            text = "Select Your Settlement Method:",
+                            style =  MaterialTheme.typography.h6,
+                        )
+                        FilterableSettlementMethodSelector(
+                            settlementMethodTruthSource = settlementMethodTruthSource,
+                            selectedMakerSettlementMethod = selectedMakerSettlementMethod,
+                            selectedTakerSettlementMethod = selectedTakerSettlementMethod,
+                        )
+                    }
+                    Column {
+                        if (offer.approvingToTakeState.value == TokenTransferApprovalState.VALIDATING ||
+                            offer.approvingToTakeState.value == TokenTransferApprovalState.SENDING_TRANSACTION) {
+                            Text(
+                                text = "Approving ${stablecoinInformation?.currencyCode ?: "Stablecoin"} Transfer in " +
+                                        "Order to Take Offer"
+                            )
+                        } else if (offer.approvingToTakeState.value == TokenTransferApprovalState
+                                .AWAITING_TRANSACTION_CONFIRMATION) {
+                            Text(
+                                text = "Awaiting Confirmation of Transfer Approval"
+                            )
+                        } else if (offer.approvingToTakeState.value == TokenTransferApprovalState.EXCEPTION) {
+                            Text(
+                                text = offer.approvingToTakeException?.message
+                                    ?: ("An unknown exception occurred while " +
+                                            "approving the token transfer"),
+                                color = Color.Red
+                            )
+                        } else if (offer.approvingToTakeState.value == TokenTransferApprovalState.COMPLETED) {
+                            when (offer.takingOfferState.value) {
+                                TakingOfferState.VALIDATING, TakingOfferState.SENDING_TRANSACTION -> {
+                                    Text(
+                                        text = "Taking Offer"
+                                    )
+                                }
+                                TakingOfferState.AWAITING_TRANSACTION_CONFIRMATION -> {
+                                    Text(
+                                        text = "Awaiting Confirmation that Offer is Taken"
+                                    )
+                                }
+                                TakingOfferState.EXCEPTION -> {
+                                    Text(
+                                        text = offer.takingOfferException?.message
+                                            ?: ("An unknown exception occurred while taking the Offer")
+                                    )
+                                }
+                                else -> {}
+                            }
+                        }
+                        val takeOfferButtonOutlineColor = when (offer.takingOfferState.value) {
+                            TakingOfferState.NONE, TakingOfferState.EXCEPTION -> Color.Black
+                            else -> Color.Gray
+                        }
+                        Button(
+                            onClick = {
+                                if (offer.approvingToTakeState.value == TokenTransferApprovalState.NONE ||
+                                    offer.approvingToTakeState.value == TokenTransferApprovalState.EXCEPTION) {
+                                    selectedTakeOfferComposable.value = SelectedTakeOfferComposable
+                                        .APPROVE_TOKEN_TRANSFER_GAS_ESTIMATE
+                                } else if (offer.takingOfferState.value == TakingOfferState.NONE ||
+                                    offer.takingOfferState.value == TakingOfferState.EXCEPTION) {
+                                    selectedTakeOfferComposable.value = SelectedTakeOfferComposable
+                                        .TAKE_OFFER_GAS_ESTIMATE
+                                }
+                            },
+                            content = {
+                                val takeOfferButtonLabel = if (offer.approvingToTakeState.value ==
+                                    TokenTransferApprovalState.NONE || offer.approvingToTakeState.value ==
+                                    TokenTransferApprovalState.EXCEPTION) {
+                                    "Approve Transfer to Take Offer"
+                                } else if (offer.approvingToTakeState.value == TokenTransferApprovalState.VALIDATING ||
+                                    offer.approvingToTakeState.value == TokenTransferApprovalState
+                                        .SENDING_TRANSACTION ||
+                                    offer.approvingToTakeState.value == TokenTransferApprovalState
+                                        .AWAITING_TRANSACTION_CONFIRMATION) {
+                                    "Approving Transfer"
+                                } else if (offer.approvingToTakeState.value == TokenTransferApprovalState.COMPLETED &&
+                                    (offer.takingOfferState.value == TakingOfferState.NONE ||
+                                            offer.takingOfferState.value == TakingOfferState.EXCEPTION)) {
+                                    "Take Offer"
+                                } else if (offer.takingOfferState.value == TakingOfferState.COMPLETED) {
+                                    "Offer Taken"
+                                } else {
+                                    "Taking Offer"
+                                }
+                                Text(
+                                    text = takeOfferButtonLabel,
+                                    style = MaterialTheme.typography.h4,
+                                    fontWeight = FontWeight.Bold,
+                                    textAlign = TextAlign.Center
+                                )
+                            },
+                            border = BorderStroke(3.dp, takeOfferButtonOutlineColor),
+                            colors = ButtonDefaults.buttonColors(
+                                backgroundColor =  Color.Transparent,
+                                contentColor = Color.Black,
+                            ),
+                            elevation = null,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                }
+            }
+            SelectedTakeOfferComposable.APPROVE_TOKEN_TRANSFER_GAS_ESTIMATE -> {
+                TransactionGasDetailsComposable(
+                    closeDialog = closeDialog,
+                    title = "Approve Token Transfer",
+                    buttonLabel = "Approve Token Transfer",
+                    buttonAction = { createdTransaction ->
+                        offerTruthSource.approveTokenTransferToTakeOffer(
+                            offer = offer,
+                            takenSwapAmount = specifiedStablecoinAmount.value,
+                            makerSettlementMethod = selectedMakerSettlementMethod.value,
+                            takerSettlementMethod = selectedTakerSettlementMethod.value,
+                            approveTokenTransferToOpenOfferTransaction = createdTransaction
+                        )
                     },
-                    colors = ButtonDefaults.buttonColors(
-                        backgroundColor =  Color.Transparent,
-                        contentColor = Color.Black,
-                    ),
-                    elevation = null,
+                    runOnAppearance = { approveTransferTransaction, transactionCreationException ->
+                        if (offer.approvingToTakeState.value == TokenTransferApprovalState.NONE ||
+                            offer.approvingToTakeState.value == TokenTransferApprovalState.EXCEPTION) {
+                            offerTruthSource.createApproveTokenTransferToTakeOfferTransaction(
+                                offer = offer,
+                                takenSwapAmount = specifiedStablecoinAmount.value,
+                                makerSettlementMethod = selectedMakerSettlementMethod.value,
+                                takerSettlementMethod = selectedTakerSettlementMethod.value,
+                                createdTransactionHandler = { createdTransaction ->
+                                    approveTransferTransaction.value = createdTransaction
+                                },
+                                exceptionHandler = { exception ->
+                                    transactionCreationException.value = exception
+                                }
+                            )
+                        }
+                    }
                 )
             }
-            Text(
-                text = "You are:",
-                style = MaterialTheme.typography.h6,
-            )
-            Text(
-                text = createRoleDescription(
-                    offerDirection = offer.direction,
-                    stablecoinInformation = stablecoinInformation,
-                    selectedSettlementMethod = selectedMakerSettlementMethod.value
-                ),
-                style = MaterialTheme.typography.h5,
-                fontWeight = FontWeight.Bold,
-            )
-            OfferAmountComposable(
-                stablecoinInformation = stablecoinInformation,
-                min = offer.amountLowerBound,
-                max = offer.amountUpperBound,
-                securityDeposit = offer.securityDepositAmount,
-            )
-            if (offer.amountLowerBound != offer.amountUpperBound) {
-                /*
-                If the upper and lower bound of the offer amount are NOT equal, then we want to display a single service
-                fee amount based on the amount that the user has specified.
-                 */
-                Text(
-                    text = "Enter an Amount:"
-                )
-                StablecoinAmountFieldComposable(
-                    amountString = specifiedStablecoinAmountString,
-                    amount = specifiedStablecoinAmount,
-                )
-                ServiceFeeAmountComposable(
-                    stablecoinInformation = stablecoinInformation,
-                    minimumAmount = specifiedStablecoinAmount.value,
-                    maximumAmount = specifiedStablecoinAmount.value,
-                    serviceFeeRate = offer.serviceFeeRate
-                )
-            } else {
-                /*
-                If the upper and lower bound of the offer amount are equal, then only one service fee amount should be
-                displayed and we can pass the lower bound amount as both the minimum and the maximum to this Composable
-                 */
-                ServiceFeeAmountComposable(
-                    stablecoinInformation = stablecoinInformation,
-                    minimumAmount = offer.amountLowerBound,
-                    maximumAmount = offer.amountLowerBound,
-                    serviceFeeRate = offer.serviceFeeRate
-                )
-            }
-            Text(
-                text = "Select Settlement Method:",
-                style =  MaterialTheme.typography.h6,
-            )
-            ImmutableSettlementMethodSelector(
-                settlementMethods = offer.settlementMethods,
-                selectedSettlementMethod = selectedMakerSettlementMethod,
-                stablecoinCurrencyCode = stablecoinInformation?.currencyCode ?: "Unknown Stablecoin"
-            )
-            if (selectedMakerSettlementMethod.value != null) {
-                Text(
-                    text = "Select Your Settlement Method:",
-                    style =  MaterialTheme.typography.h6,
-                )
-                FilterableSettlementMethodSelector(
-                    settlementMethodTruthSource = settlementMethodTruthSource,
-                    selectedMakerSettlementMethod = selectedMakerSettlementMethod,
-                    selectedTakerSettlementMethod = selectedTakerSettlementMethod,
-                )
-            }
-            if (offer.takingOfferState.value != TakingOfferState.NONE &&
-                offer.takingOfferState.value != TakingOfferState.EXCEPTION) {
-                Text(
-                    text = offer.takingOfferState.value.description,
-                    style =  MaterialTheme.typography.h6,
-                )
-            }
-            if (offer.takingOfferState.value == TakingOfferState.EXCEPTION) {
-                Text(
-                    text = offer.takingOfferException?.message ?: "An unknown exception occurred",
-                    style =  MaterialTheme.typography.h6,
-                    color = Color.Red
-                )
-            }
-            val takeOfferButtonOutlineColor = when (offer.takingOfferState.value) {
-                TakingOfferState.NONE, TakingOfferState.EXCEPTION -> Color.Black
-                else -> Color.Gray
-            }
-            Button(
-                onClick = {
-                    if (offer.takingOfferState.value == TakingOfferState.NONE ||
-                        offer.takingOfferState.value == TakingOfferState.EXCEPTION) {
+            SelectedTakeOfferComposable.TAKE_OFFER_GAS_ESTIMATE -> {
+                TransactionGasDetailsComposable(
+                    closeDialog = closeDialog,
+                    title = "Take Offer",
+                    buttonLabel = "Take Offer",
+                    buttonAction = { createdTransaction ->
                         offerTruthSource.takeOffer(
                             offer = offer,
                             takenSwapAmount = specifiedStablecoinAmount.value,
                             makerSettlementMethod = selectedMakerSettlementMethod.value,
                             takerSettlementMethod = selectedTakerSettlementMethod.value,
+                            keyPair = createdKeyPairForTaker,
+                            offerTakingTransaction = createdTransaction
                         )
+                    },
+                    runOnAppearance = { takeOfferTransaction, transactionCreationException ->
+                        if (offer.takingOfferState.value == TakingOfferState.NONE ||
+                            offer.takingOfferState.value == TakingOfferState.EXCEPTION) {
+                            offerTruthSource.createTakeOfferTransaction(
+                                offer = offer,
+                                takenSwapAmount = specifiedStablecoinAmount.value,
+                                makerSettlementMethod = selectedMakerSettlementMethod.value,
+                                takerSettlementMethod = selectedTakerSettlementMethod.value,
+                                createdTransactionAndKeyPairHandler = { createdTransaction, createdKeyPair ->
+                                    takeOfferTransaction.value = createdTransaction
+                                    createdKeyPairForTaker = createdKeyPair
+                                },
+                                exceptionHandler = { exception ->
+                                    transactionCreationException.value = exception
+                                }
+                            )
+                        }
                     }
-                },
-                content = {
-                    val takeOfferButtonLabel = when (offer.takingOfferState.value) {
-                        TakingOfferState.NONE, TakingOfferState.EXCEPTION -> "Take Offer"
-                        TakingOfferState.COMPLETED -> "Offer Taken"
-                        else -> "Taking Offer"
-                    }
-                    Text(
-                        text = takeOfferButtonLabel,
-                        style = MaterialTheme.typography.h4,
-                        fontWeight = FontWeight.Bold,
-                        textAlign = TextAlign.Center
-                    )
-                },
-                border = BorderStroke(3.dp, takeOfferButtonOutlineColor),
-                colors = ButtonDefaults.buttonColors(
-                    backgroundColor =  Color.Transparent,
-                    contentColor = Color.Black,
-                ),
-                elevation = null,
-                modifier = Modifier.fillMaxWidth()
-            )
+                )
+            }
         }
     }
+}
+
+/**
+ * Indicates what kind of information this composable should display.
+ *
+ * Indicates whether this composable should allow the user to submit information and take the offer, display a gas
+ * estimate for approving a token transfer in order to take the offer, or display a gas estimate for taking the offer.
+ *
+ * @property SUBMIT_INFORMATION Indicates that this view should allow the user to submit information and take the offer.
+ * @property APPROVE_TOKEN_TRANSFER_GAS_ESTIMATE Indicates that this view should display a gas estimate for approving a
+ * token transfer in order to take the offer.
+ * @property TAKE_OFFER_GAS_ESTIMATE Indicates that this view should display a gas estimate for taking the offer.
+ */
+enum class SelectedTakeOfferComposable {
+    SUBMIT_INFORMATION,
+    APPROVE_TOKEN_TRANSFER_GAS_ESTIMATE,
+    TAKE_OFFER_GAS_ESTIMATE;
 }
 
 /**

@@ -368,6 +368,14 @@ fun OfferComposable(
                     }
                 } else if (offer.state == OfferState.OFFER_OPENED) {
                     // The user is not the maker of this offer, so we display a button for taking the offer
+                    if (offer.approvingToTakeState.value == TokenTransferApprovalState.EXCEPTION) {
+                        Text(
+                            text = offer.approvingToTakeException?.message ?: ("An unknown exception occurred while " +
+                                    "approving the token transfer."),
+                            style =  MaterialTheme.typography.h6,
+                            color = Color.Red
+                        )
+                    }
                     if (offer.takingOfferState.value == TakingOfferState.EXCEPTION) {
                         Text(
                             text = offer.takingOfferException?.message ?: "An unknown exception occurred",
@@ -384,10 +392,23 @@ fun OfferComposable(
                             isShowingTakeOfferDialog.value = true
                         },
                         content = {
-                            val takeOfferButtonLabel = when (offer.takingOfferState.value) {
-                                TakingOfferState.NONE, TakingOfferState.EXCEPTION -> "Take Offer"
-                                TakingOfferState.COMPLETED -> "Offer Taken"
-                                else -> "Taking Offer"
+                            val takeOfferButtonLabel = if (offer.approvingToTakeState.value ==
+                                TokenTransferApprovalState.NONE || offer.approvingToTakeState.value ==
+                                TokenTransferApprovalState.EXCEPTION) {
+                                "Approve Transfer to Take Offer"
+                            } else if (offer.approvingToTakeState.value == TokenTransferApprovalState.VALIDATING ||
+                                offer.approvingToTakeState.value == TokenTransferApprovalState.SENDING_TRANSACTION ||
+                                offer.approvingToTakeState.value == TokenTransferApprovalState
+                                    .AWAITING_TRANSACTION_CONFIRMATION) {
+                                "Approving Transfer"
+                            } else if (offer.approvingToTakeState.value == TokenTransferApprovalState.COMPLETED &&
+                                (offer.takingOfferState.value == TakingOfferState.NONE ||
+                                        offer.takingOfferState.value == TakingOfferState.EXCEPTION)) {
+                                "Take Offer"
+                            } else if (offer.takingOfferState.value == TakingOfferState.COMPLETED) {
+                                "Offer Taken"
+                            } else {
+                                "Taking Offer"
                             }
                             Text(
                                 text = takeOfferButtonLabel,

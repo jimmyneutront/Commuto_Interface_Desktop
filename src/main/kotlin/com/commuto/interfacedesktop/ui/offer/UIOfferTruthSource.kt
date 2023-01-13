@@ -1,6 +1,7 @@
 package com.commuto.interfacedesktop.ui.offer
 
 import androidx.compose.runtime.MutableState
+import com.commuto.interfacedesktop.key.keys.KeyPair
 import com.commuto.interfacedesktop.offer.*
 import com.commuto.interfacedesktop.settlement.SettlementMethod
 import com.commuto.interfacedesktop.ui.StablecoinInformation
@@ -230,6 +231,105 @@ interface UIOfferTruthSource: OfferTruthSource {
     )
 
     /**
+     * Attempts to approve a token transfer in order to take an
+     * [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer).
+     *
+     * @param offer The [Offer] to be taken.
+     * @param takenSwapAmount The [BigDecimal] amount of stablecoin that the user wants to buy/sell. If the offer has
+     * lower and upper bound amounts that ARE equal, this parameter will be ignored.
+     * @param makerSettlementMethod The [SettlementMethod], belonging to the maker, that the user/taker has selected to
+     * send/receive traditional currency payment.
+     * @param takerSettlementMethod The [SettlementMethod], belonging to the user/taker, that the user has selected to
+     * send/receive traditional currency payment. This must contain the user's valid private settlement method data, and
+     * must have method and currency fields matching [makerSettlementMethod].
+     * @param createdTransactionHandler A lambda that will accept and handle the created [RawTransaction].
+     * @param exceptionHandler A lambda that will accept and handle any exception that occurs during the transaction
+     * creation process.
+     */
+    fun createApproveTokenTransferToTakeOfferTransaction(
+        offer: Offer,
+        takenSwapAmount: BigDecimal,
+        makerSettlementMethod: SettlementMethod?,
+        takerSettlementMethod: SettlementMethod?,
+        createdTransactionHandler: (RawTransaction) -> Unit,
+        exceptionHandler: (Exception) -> Unit
+    )
+
+    /**
+     * Attempts to approve a token transfer in order to take an
+     * [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer).
+     *
+     * @param offer The [Offer] to be taken.
+     * @param takenSwapAmount The [BigDecimal] amount of stablecoin that the user wants to buy/sell. If the offer has
+     * lower and upper bound amounts that ARE equal, this parameter will be ignored.
+     * @param makerSettlementMethod The [SettlementMethod], belonging to the maker, that the user/taker has selected to
+     * send/receive traditional currency payment.
+     * @param takerSettlementMethod The [SettlementMethod], belonging to the user/taker, that the user has selected to
+     * send/receive traditional currency payment. This must contain the user's valid private settlement method data, and
+     * must have method and currency fields matching [makerSettlementMethod].
+     * @param approveTokenTransferToOpenOfferTransaction An optional [RawTransaction] that can create a token transfer
+     * allowance of the proper amount (determined by the values of the other arguments) of the token specified by
+     * [offer].
+     */
+    fun approveTokenTransferToTakeOffer(
+        offer: Offer,
+        takenSwapAmount: BigDecimal,
+        makerSettlementMethod: SettlementMethod?,
+        takerSettlementMethod: SettlementMethod?,
+        approveTokenTransferToOpenOfferTransaction: RawTransaction?
+    )
+
+    /**
+     * Attempts to create a [RawTransaction] that can take [offer] (which should NOT be made by the user of this
+     * interface) by calling [takeOffer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#take-offer).
+     *
+     * @param offer The [Offer] to be taken.
+     * @param takenSwapAmount The [BigDecimal] amount of stablecoin that the user wants to buy/sell. If the offer has
+     * lower and upper bound amounts that ARE equal, this parameter will be ignored.
+     * @param makerSettlementMethod The [SettlementMethod], belonging to the maker, that the user/taker has selected to
+     * send/receive traditional currency payment.
+     * @param takerSettlementMethod The [SettlementMethod], belonging to the user/taker, that the user has selected to
+     * send/receive traditional currency payment. This must contain the user's valid private settlement method data, and
+     * must have method and currency fields matching [makerSettlementMethod].
+     * @param createdTransactionAndKeyPairHandler A lambda that will accept and handle the created [RawTransaction] and
+     * [KeyPair].
+     * @param exceptionHandler A lambda that will accept and handle any error that occurs during the transaction
+     * creation process.
+     */
+    fun createTakeOfferTransaction(
+        offer: Offer,
+        takenSwapAmount: BigDecimal,
+        makerSettlementMethod: SettlementMethod?,
+        takerSettlementMethod: SettlementMethod?,
+        createdTransactionAndKeyPairHandler: (RawTransaction, KeyPair) -> Unit,
+        exceptionHandler: (Exception) -> Unit
+    )
+
+    /**
+     * Attempts to take an [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#open-offer).
+     *
+     * @param offer The [Offer] to be taken.
+     * @param takenSwapAmount The [BigDecimal] amount of stablecoin that the user wants to buy/sell. If the offer has
+     * lower and upper bound amounts that ARE equal, this parameter will be ignored.
+     * @param makerSettlementMethod The [SettlementMethod], belonging to the maker, that the user/taker has selected to
+     * send/receive traditional currency payment.
+     * @param takerSettlementMethod The [SettlementMethod], belonging to the user/taker, that the user has selected to
+     * send/receive traditional currency payment. This must contain the user's valid private settlement method data, and
+     * must have method and currency fields matching [makerSettlementMethod].
+     * @param keyPair An optional [KeyPair], which serves as the user's/taker's key pair and with which
+     * [offerTakingTransaction] should have been created.
+     * @param offerTakingTransaction An optional [RawTransaction] that can take [offer].
+     */
+    fun takeOffer(
+        offer: Offer,
+        takenSwapAmount: BigDecimal,
+        makerSettlementMethod: SettlementMethod?,
+        takerSettlementMethod: SettlementMethod?,
+        keyPair: KeyPair?,
+        offerTakingTransaction: RawTransaction?,
+    )
+
+    /**
      * Attempts to take an [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer).
      *
      * @param offer The [Offer] to be taken.
@@ -241,6 +341,7 @@ interface UIOfferTruthSource: OfferTruthSource {
      * send/receive traditional currency payment. This must contain the user's valid private settlement method data, and
      * must have method and currency fields matching [makerSettlementMethod].
      */
+    @Deprecated("Use the new offer pipeline with improved transaction state management")
     fun takeOffer(
         offer: Offer,
         takenSwapAmount: BigDecimal,
