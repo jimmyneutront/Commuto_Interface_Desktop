@@ -9,6 +9,7 @@ import com.commuto.interfacedesktop.blockchain.structs.OfferStruct
 import com.commuto.interfacedesktop.database.DatabaseService
 import com.commuto.interfacedesktop.extension.asByteArray
 import com.commuto.interfacedesktop.key.KeyManagerService
+import com.commuto.interfacedesktop.key.keys.KeyPair
 import com.commuto.interfacedesktop.offer.validation.*
 import com.commuto.interfacedesktop.p2p.OfferMessageNotifiable
 import com.commuto.interfacedesktop.p2p.P2PService
@@ -16,6 +17,7 @@ import com.commuto.interfacedesktop.p2p.messages.PublicKeyAnnouncement
 import com.commuto.interfacedesktop.settlement.SettlementMethod
 import com.commuto.interfacedesktop.swap.*
 import com.commuto.interfacedesktop.ui.StablecoinInformation
+import com.commuto.interfacedesktop.ui.StablecoinInformationRepository
 import com.commuto.interfacedesktop.db.Offer as DatabaseOffer
 import com.commuto.interfacedesktop.db.Swap as DatabaseSwap
 import com.commuto.interfacedesktop.ui.offer.OffersViewModel
@@ -511,21 +513,29 @@ class OfferService (
                     isUserMaker = 1L,
                     state = newOffer.state.asString,
                     approveToOpenState = newOffer.approvingToOpenState.value.asString,
-                    approveToOpenTransactionHash = newOffer.approvingToOpenTransaction?.transactionHash,
+                    approveToOpenTransactionHash = null,
                     approveToOpenTransactionCreationTime = null,
                     approveToOpenTransactionCreationBlockNumber = null,
                     openingOfferState = newOffer.openingOfferState.value.asString,
-                    openingOfferTransactionHash = newOffer.offerOpeningTransaction?.transactionHash,
+                    openingOfferTransactionHash = null,
                     openingOfferTransactionCreationTime = null,
                     openingOfferTransactionCreationBlockNumber = null,
                     cancelingOfferState = newOffer.cancelingOfferState.value.asString,
-                    offerCancellationTransactionHash = newOffer.offerCancellationTransaction?.transactionHash,
+                    offerCancellationTransactionHash = null,
                     offerCancellationTransactionCreationTime = null,
                     offerCancellationTransactionCreationBlockNumber = null,
                     editingOfferState = newOffer.editingOfferState.value.asString,
-                    offerEditingTransactionHash = newOffer.offerEditingTransaction?.transactionHash,
+                    offerEditingTransactionHash = null,
                     offerEditingTransactionCreationTime = null,
                     offerEditingTransactionCreationBlockNumber = null,
+                    approveToTakeState = newOffer.approvingToTakeState.value.asString,
+                    approveToTakeTransactionHash = null,
+                    approveToTakeTransactionCreationTime = null,
+                    approveToTakeTransactionCreationBlockNumber = null,
+                    takingOfferState = newOffer.openingOfferState.value.asString,
+                    takingOfferTransactionHash = null,
+                    takingOfferTransactionCreationTime = null,
+                    takingOfferTransactionCreationBlockNumber = null,
                 )
                 databaseService.storeOffer(offerForDatabase)
                 logger.info("approveTokenTransferToOpenOffer: serializing and persistently storing settlement " +
@@ -671,7 +681,7 @@ class OfferService (
                     offerStruct = offer.toOfferStruct()
                 )
                 if (offerOpeningTransaction == null) {
-                    throw OfferServiceException(message = "Transaction was nil during openOffer call for ${offer.id}")
+                    throw OfferServiceException(message = "Transaction was null during openOffer call for ${offer.id}")
                 }
                 if (recreatedTransaction.data != offerOpeningTransaction.data) {
                     throw OfferServiceException(message = "Data of offerOpeningTransaction did not match that of " +
@@ -1244,6 +1254,632 @@ class OfferService (
     }
 
     /**
+     * Attempts to create a [RawTransaction] that will call
+     * [approve](https://ethereum.org/en/developers/docs/standards/tokens/erc-20/) on an ERC20 contract in order to take
+     * an offer.
+     *
+     * On the IO coroutine dispatcher, this calls [validateNewSwapData], and uses the resulting [ValidatedNewSwapData]
+     * to calculate the transfer amount that must be approved. Then it calls
+     * [BlockchainService.createApproveTransferTransaction], passing the stablecoin contract address specified in
+     * [offerToTake], the address of the CommutoSwap contract, and the calculated transfer amount, and returns the
+     * result.
+     *
+     * @param offerToTake The offer that will be taken, for which this token transfer approval transaction is being
+     * created.
+     * @param takenSwapAmount The [BigDecimal] amount of stablecoin that the user wants to buy/sell. If the offer has
+     * lower and upper bound amounts that ARE equal, this parameter will be ignored.
+     * @param makerSettlementMethod The [SettlementMethod], belonging to the maker, that the user/taker has selected to
+     * send/receive traditional currency payment.
+     * @param takerSettlementMethod The [SettlementMethod], belonging to the user/taker, that the user has selected to
+     * send/receive traditional currency payment. This must contain the user's valid private settlement method data, and
+     * must have method and currency fields matching [makerSettlementMethod].
+     * @param stablecoinInformationRepository A [StablecoinInformationRepository] containing information for the
+     * stablecoin address-chain ID pair specified by [offerToTake].
+     *
+     * @return [RawTransaction] capable of approving a token transfer of the proper amount.
+     */
+    suspend fun createApproveTokenTransferToTakeOfferTransaction(
+        offerToTake: Offer,
+        takenSwapAmount: BigDecimal,
+        makerSettlementMethod: SettlementMethod?,
+        takerSettlementMethod: SettlementMethod?,
+        stablecoinInformationRepository: StablecoinInformationRepository
+    ): RawTransaction {
+        return withContext(Dispatchers.IO) {
+            try {
+                logger.info("createApproveTokenTransferToTakeOfferTransaction: creating for ${offerToTake.id}")
+                val validatedSwapData = validateNewSwapData(
+                    offer = offerToTake,
+                    takenSwapAmount = takenSwapAmount,
+                    selectedMakerSettlementMethod = makerSettlementMethod,
+                    selectedTakerSettlementMethod = takerSettlementMethod,
+                    stablecoinInformationRepository = stablecoinInformationRepository,
+                )
+                val serviceFeeAmount = (validatedSwapData.takenSwapAmount * offerToTake.serviceFeeRate) /
+                        BigInteger.valueOf(10_000L)
+                val tokenAmountForTakingOffer = when(offerToTake.direction) {
+                    /*
+                    We are taking a BUY offer, so we are SELLING stablecoin. Therefore we must authorize a transfer
+                    equal to the taken swap amount, the security deposit amount, and the service fee amount to the
+                    CommutoSwap contract.
+                     */
+                    OfferDirection.BUY -> validatedSwapData.takenSwapAmount + offerToTake.securityDepositAmount +
+                            serviceFeeAmount
+                    /*
+                    We are taking a SELL offer, so we are BUYING stablecoin. Therefore we must authorize a transfer
+                    equal to the security deposit amount and the service fee amount to the CommutoSwap contract.
+                     */
+                    OfferDirection.SELL -> offerToTake.securityDepositAmount + serviceFeeAmount
+                }
+                blockchainService.createApproveTransferTransaction(
+                    tokenAddress = offerToTake.stablecoin,
+                    spender = blockchainService.getCommutoSwapAddress(),
+                    amount = tokenAmountForTakingOffer
+                )
+            } catch (exception: Exception) {
+                logger.error("createApproveTokenTransferToTakeOfferTransaction, encountered exception", exception)
+                throw exception
+            }
+        }
+    }
+
+    /**
+     * Attempts to call [approve](https://ethereum.org/en/developers/docs/standards/tokens/erc-20/) on an ERC20 contract
+     * in order to take an offer.
+     *
+     * On the IO coroutine dispatcher, this calls [validateNewSwapData] and uses the resulting [ValidatedNewSwapData] to
+     * determine the proper transfer amount to approve. Then, this creates another [RawTransaction] to approve such a
+     * transfer using this data, and then ensures that the data of this transaction matches the data of
+     * [approveTokenTransferToTakeOfferTransaction]. (If they do not match, then
+     * [approveTokenTransferToTakeOfferTransaction] was not created with the data supplied to this function.) Then this
+     * signs [approveTokenTransferToTakeOfferTransaction] and creates a [BlockchainTransaction] to wrap it. Then this
+     * persistently stores the token transfer approval data for said [BlockchainTransaction] and persistently updates
+     * the token transfer approval state of [offerToTake] to [TokenTransferApprovalState.SENDING_TRANSACTION]. Then, on
+     * the main coroutine dispatcher, this updates the [Offer.approvingToTakeState] property of [offerToTake] to
+     * [TokenTransferApprovalState.SENDING_TRANSACTION] and sets the [Offer.approvingToTakeTransaction] property of
+     * [offerToTake] to said [BlockchainTransaction]. Then, on the IO coroutine dispatcher, this calls
+     * [BlockchainService.sendTransaction], passing said [BlockchainTransaction]. When this call returns, this
+     * persistently updates the approving to take state of [offerToTake] to
+     * [TokenTransferApprovalState.AWAITING_TRANSACTION_CONFIRMATION]. Then, on the main coroutine dispatcher, this
+     * updates the [Offer.approvingToTakeState] property of [offerToTake] to
+     * [TokenTransferApprovalState.AWAITING_TRANSACTION_CONFIRMATION].
+     *
+     * @param offerToTake The offer that will be taken, for which this token transfer approval transaction is being
+     * created.
+     * @param takenSwapAmount The [BigDecimal] amount of stablecoin that the user wants to buy/sell. If the offer has
+     * lower and upper bound amounts that ARE equal, this parameter will be ignored.
+     * @param makerSettlementMethod The [SettlementMethod], belonging to the maker, that the user/taker has selected to
+     * send/receive traditional currency payment.
+     * @param takerSettlementMethod The [SettlementMethod], belonging to the user/taker, that the user has selected to
+     * send/receive traditional currency payment. This must contain the user's valid private settlement method data, and
+     * must have method and currency fields matching [makerSettlementMethod].
+     * @param stablecoinInformationRepository A [StablecoinInformationRepository] containing information for the
+     * stablecoin address-chain ID pair specified by [offerToTake].
+     * @param approveTokenTransferToTakeOfferTransaction An optional [RawTransaction] that can approve a token transfer
+     * for the proper amount.
+     *
+     * @throws []OfferServiceException] if [offerToTake] is not in the [OfferState.OFFER_OPENED] state, if
+     * [approveTokenTransferToTakeOfferTransaction] is `null`, or if the data of
+     * [approveTokenTransferToTakeOfferTransaction] does not match that of the transaction this function creates using
+     * the supplied arguments.
+     */
+    suspend fun approveTokenTransferToTakeOffer(
+        offerToTake: Offer,
+        takenSwapAmount: BigDecimal,
+        makerSettlementMethod: SettlementMethod?,
+        takerSettlementMethod: SettlementMethod?,
+        stablecoinInformationRepository: StablecoinInformationRepository,
+        approveTokenTransferToTakeOfferTransaction: RawTransaction?,
+    ) {
+        withContext(Dispatchers.IO) {
+            try {
+                logger.info("approveTokenTransferToTakeOffer: validating new swap data for ${offerToTake.id}")
+                if (offerToTake.state != OfferState.OFFER_OPENED) {
+                    throw OfferServiceException(message = "This Offer cannot currently be taken.")
+                }
+                val validatedSwapData = validateNewSwapData(
+                    offer = offerToTake,
+                    takenSwapAmount = takenSwapAmount,
+                    selectedMakerSettlementMethod = makerSettlementMethod,
+                    selectedTakerSettlementMethod = takerSettlementMethod,
+                    stablecoinInformationRepository = stablecoinInformationRepository,
+                )
+                val serviceFeeAmount = (validatedSwapData.takenSwapAmount * offerToTake.serviceFeeRate) /
+                        BigInteger.valueOf(10_000L)
+                val tokenAmountForTakingOffer = when(offerToTake.direction) {
+                    /*
+                    We are taking a BUY offer, so we are SELLING stablecoin. Therefore we must authorize a transfer
+                    equal to the taken swap amount, the security deposit amount, and the service fee amount to the
+                    CommutoSwap contract.
+                     */
+                    OfferDirection.BUY -> validatedSwapData.takenSwapAmount + offerToTake.securityDepositAmount +
+                            serviceFeeAmount
+                    /*
+                    We are taking a SELL offer, so we are BUYING stablecoin. Therefore we must authorize a transfer
+                    equal to the security deposit amount and the service fee amount to the CommutoSwap contract.
+                     */
+                    OfferDirection.SELL -> offerToTake.securityDepositAmount + serviceFeeAmount
+                }
+                logger.info("approveTokenTransferToTakeOffer: recreating RawTransaction to approve transfer " +
+                        "of $tokenAmountForTakingOffer tokens at contract ${offerToTake.stablecoin}")
+                val recreatedTransaction = blockchainService.createApproveTransferTransaction(
+                    tokenAddress = offerToTake.stablecoin,
+                    spender = blockchainService.getCommutoSwapAddress(),
+                    amount = tokenAmountForTakingOffer,
+                )
+                if (approveTokenTransferToTakeOfferTransaction == null) {
+                    throw OfferServiceException(message = "Transaction was null during " +
+                            "approveTokenTransferToTakeOffer call")
+                }
+                if (recreatedTransaction.data != approveTokenTransferToTakeOfferTransaction.data) {
+                    throw OfferServiceException(message = "Data of approveTokenTransferToTakeOfferTransaction did " +
+                            "not match that of transaction created with supplied data")
+                }
+                logger.info("approveTokenTransferToTakeOffer: signing transaction for ${offerToTake.id}")
+                val signedTransactionData = blockchainService.signTransaction(
+                    transaction = approveTokenTransferToTakeOfferTransaction,
+                    chainID = offerToTake.chainID,
+                )
+                val signedTransactionHex = Numeric.toHexString(signedTransactionData)
+                val blockchainTransactionForApprovingTransfer = BlockchainTransaction(
+                    transaction = approveTokenTransferToTakeOfferTransaction,
+                    transactionHash = Hash.sha3(signedTransactionHex),
+                    latestBlockNumberAtCreation = blockchainService.newestBlockNum,
+                    type = BlockchainTransactionType.APPROVE_TOKEN_TRANSFER_TO_TAKE_OFFER
+                )
+                val dateString = DateFormatter.createDateString(blockchainTransactionForApprovingTransfer
+                    .timeOfCreation)
+                logger.info("approveTokenTransferToTakeOffer: persistently storing approve transfer data for " +
+                        "${offerToTake.id}, including tx hash ${blockchainTransactionForApprovingTransfer
+                            .transactionHash}")
+                val encoder = Base64.getEncoder()
+                databaseService.updateOfferApproveToTakeData(
+                    offerID = encoder.encodeToString(offerToTake.id.asByteArray()),
+                    chainID = offerToTake.chainID.toString(),
+                    transactionHash = blockchainTransactionForApprovingTransfer.transactionHash,
+                    creationTime = dateString,
+                    blockNumber = blockchainTransactionForApprovingTransfer.latestBlockNumberAtCreation.toLong()
+                )
+                logger.info("approveTokenTransferToTakeOffer: persistently updating approveToTakeState for " +
+                        "${offerToTake.id} to sendingTransaction")
+                databaseService.updateOfferApproveToTakeState(
+                    offerID = encoder.encodeToString(offerToTake.id.asByteArray()),
+                    chainID = offerToTake.chainID.toString(),
+                    state = TokenTransferApprovalState.SENDING_TRANSACTION.asString,
+                )
+                logger.info("approveTokenTransferToTakeOffer: updating approvingToTakeState for " +
+                        "${offerToTake.id} to sendingTransaction and storing tx " +
+                        "${blockchainTransactionForApprovingTransfer.transactionHash} in offer")
+                withContext(Dispatchers.Main) {
+                    offerToTake.approvingToTakeState.value = TokenTransferApprovalState.SENDING_TRANSACTION
+                    offerToTake.approvingToTakeTransaction = blockchainTransactionForApprovingTransfer
+                }
+                logger.info("approveTokenTransferToTakeOffer: sending ${blockchainTransactionForApprovingTransfer
+                    .transactionHash} for ${offerToTake.id}")
+                blockchainService.sendTransaction(
+                    transaction = blockchainTransactionForApprovingTransfer,
+                    signedRawTransactionDataAsHex = signedTransactionHex,
+                    chainID = offerToTake.chainID,
+                )
+                logger.info("approveTokenTransferToTakeOffer: persistently updating approvingToTakeState of " +
+                        "${offerToTake.id} to awaitingTransactionConfirmation")
+                databaseService.updateOfferApproveToTakeState(
+                    offerID = encoder.encodeToString(offerToTake.id.asByteArray()),
+                    chainID = offerToTake.chainID.toString(),
+                    state = TokenTransferApprovalState.AWAITING_TRANSACTION_CONFIRMATION.asString,
+                )
+                logger.info("approveTokenTransferToTakeOffer: updating approvingToTakeState to " +
+                        "awaitingTransactionConfirmation for ${offerToTake.id}")
+                withContext(Dispatchers.Main) {
+                    offerToTake.approvingToTakeState.value = TokenTransferApprovalState
+                        .AWAITING_TRANSACTION_CONFIRMATION
+                }
+            } catch (exception: Exception) {
+                logger.error("approveTokenTransferToTakeOffer: encountered exception", exception)
+                throw exception
+            }
+        }
+    }
+
+    /**
+     * Attempts to create a [RawTransaction] that will take an
+     * [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer).
+     *
+     * On the IO coroutine dispatcher, this creates, but does not persistently store, a new [KeyPair], and then calls
+     * [createNewSwap], passing all supplied data as well as this new [KeyPair]. Then this calls
+     * [BlockchainService.createTakeOfferTransaction], passing the [Offer.id] property of [offerToTake] and a
+     * `SwapStruct` created from the [Swap] returned by the [createNewSwap] call, and then returns a pair containing the
+     * [RawTransaction] this call returns and the new [KeyPair].
+     *
+     * @param offerToTake The offer that will be taken, for which this offer taking transaction is being created.
+     * @param takenSwapAmount The [BigDecimal] amount of stablecoin that the user wants to buy/sell. If the offer has
+     * lower and upper bound amounts that ARE equal, this parameter will be ignored.
+     * @param makerSettlementMethod The [SettlementMethod], belonging to the maker, that the user/taker has selected to
+     * send/receive traditional currency payment.
+     * @param takerSettlementMethod The [SettlementMethod], belonging to the user/taker, that the user has selected to
+     * send/receive traditional currency payment. This must contain the user's valid private settlement method data, and
+     * must have method and currency fields matching [makerSettlementMethod].
+     * @param stablecoinInformationRepository A [StablecoinInformationRepository] containing information for the
+     * stablecoin address-chain ID pair specified by [offerToTake].
+     */
+    suspend fun createTakeOfferTransaction(
+        offerToTake: Offer,
+        takenSwapAmount: BigDecimal,
+        makerSettlementMethod: SettlementMethod?,
+        takerSettlementMethod: SettlementMethod?,
+        stablecoinInformationRepository: StablecoinInformationRepository
+    ): Pair<RawTransaction, KeyPair> {
+        return withContext(Dispatchers.IO) {
+            try {
+                logger.info("createTakeOfferTransaction: creating for ${offerToTake.id}")
+                logger.info("createTakeOfferTransaction: creating new key pair for ${offerToTake.id}")
+                /*
+                Generate a new 2056 bit RSA key pair to take the swap, but DON'T store it yet in case the user decides
+                not to take the swap
+                 */
+                val keyPair = keyManagerService.generateKeyPair(storeResult = false)
+                val newSwap = createNewSwap(
+                    offerToTake = offerToTake,
+                    takenSwapAmount = takenSwapAmount,
+                    makerSettlementMethod = makerSettlementMethod,
+                    takerSettlementMethod = takerSettlementMethod,
+                    stablecoinInformationRepository = stablecoinInformationRepository,
+                    takerKeyPair = keyPair
+                )
+                val swapStruct = newSwap.toSwapStruct()
+                Pair(
+                    blockchainService.createTakeOfferTransaction(
+                        offerID = offerToTake.id,
+                        swapStruct = swapStruct
+                    ),
+                    keyPair
+                )
+            } catch (exception: Exception) {
+                logger.error("createTakeOfferTransaction: encountered exception", exception)
+                throw exception
+            }
+        }
+    }
+
+    /**
+     * Attempts to take an [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer) NOT made by the
+     * user of this interface.
+     *
+     * On the IO coroutine dispatcher, this calls [createNewSwap], and then uses the resulting data to create another
+     * [RawTransaction] to open [offerToTake] and ensures that the data of this transaction matches the data of
+     * [offerTakingTransaction]. (If they do not match, then [offerTakingTransaction] was not created with the data
+     * contained in [offerToTake].) Then this persistently stores [takerKeyPair] and the [Swap] obtained from the
+     * [createNewSwap] call. Then this signs [offerTakingTransaction] and creates a [BlockchainTransaction] to wrap it.
+     * Then this persistently stores the offer taking data for said [BlockchainTransaction], and persistently updates
+     * the offer taking state of [offerToTake] to [TakingOfferState.SENDING_TRANSACTION]. Then, on the main coroutine
+     * dispatcher, this updates the [Offer.takingOfferState] property of [offerToTake] to
+     * [TakingOfferState.SENDING_TRANSACTION] and sets the [Offer.takingOfferTransaction] property of [offerToTake] to
+     * said [BlockchainTransaction], and adds the [Swap] to [swapTruthSource]. Then, on the IO coroutine dispatcher,
+     * this calls [BlockchainService.sendTransaction], passing said [BlockchainTransaction]. When this call returns,
+     * this persistently updates the state of the [Swap] to [SwapState.TAKE_OFFER_TRANSACTION_SENT], persistently
+     * updates the taking offer state of [offerToTake] to [TakingOfferState.AWAITING_TRANSACTION_CONFIRMATION], and then
+     * on the main coroutine dispatcher, updates the state of the [Swap] to [SwapState.TAKE_OFFER_TRANSACTION_SENT] and
+     * the [Offer.takingOfferState] of [offerToTake] to [TakingOfferState.AWAITING_TRANSACTION_CONFIRMATION].
+     *
+     * @param offerToTake The offer that will be taken.
+     * @param takenSwapAmount The [BigDecimal] amount of stablecoin that the user wants to buy/sell. If the offer has
+     * lower and upper bound amounts that ARE equal, this parameter will be ignored.
+     * @param makerSettlementMethod The [SettlementMethod], belonging to the maker, that the user/taker has selected to
+     * send/receive traditional currency payment.
+     * @param takerSettlementMethod The [SettlementMethod], belonging to the user/taker, that the user has selected to
+     * send/receive traditional currency payment. This must contain the user's valid private settlement method data, and
+     * must have method and currency fields matching [makerSettlementMethod].
+     * @param stablecoinInformationRepository A [StablecoinInformationRepository] containing information for the
+     * stablecoin address-chain ID pair specified by [offerToTake].
+     * @param takerKeyPair A [KeyPair] created by this interface, from which the taker interface ID used in
+     * [offerTakingTransaction] was derived, and which will thus be used as the taker's key pair when taking
+     * [offerToTake].
+     * @param offerTakingTransaction An optional [RawTransaction] that can take [offerToTake] using the supplied data.
+     *
+     * @throws [OfferServiceException] if [offerToTake]` is not in the [OfferState.OFFER_OPENED] state, if the
+     * [Offer.approvingToTakeState] property of [offerToTake] is not [TokenTransferApprovalState.COMPLETED], if the
+     * [Offer.takingOfferState] property of [offerToTake] is not [TakingOfferState.NONE], [TakingOfferState.VALIDATING]
+     * or [TakingOfferState.EXCEPTION], if [offerTakingTransaction] is `null`, if [takerKeyPair] is `null` or if the
+     * data of [offerTakingTransaction] does not match that of the transaction this function creates using the supplied
+     * arguments.
+     */
+    suspend fun takeOffer(
+        offerToTake: Offer,
+        takenSwapAmount: BigDecimal,
+        makerSettlementMethod: SettlementMethod?,
+        takerSettlementMethod: SettlementMethod?,
+        stablecoinInformationRepository: StablecoinInformationRepository,
+        takerKeyPair: KeyPair?,
+        offerTakingTransaction: RawTransaction?
+    ) {
+        withContext(Dispatchers.IO) {
+            val encoder = Base64.getEncoder()
+            try {
+                logger.info("takeOffer: taking ${offerToTake.id}")
+                if (offerToTake.state != OfferState.OFFER_OPENED) {
+                    throw OfferServiceException(message = "This Offer cannot currently be taken.")
+                }
+                if (offerToTake.approvingToTakeState.value != TokenTransferApprovalState.COMPLETED) {
+                    throw OfferServiceException(message = "This Offer cannot be taken unless a token transfer is " +
+                            "approved.")
+                }
+                if (offerToTake.takingOfferState.value != TakingOfferState.NONE &&
+                    offerToTake.takingOfferState.value != TakingOfferState.VALIDATING &&
+                    offerToTake.takingOfferState.value != TakingOfferState.EXCEPTION
+                ) {
+                    throw OfferServiceException(message = "This Offer is already being taken.")
+                }
+                val newSwap = createNewSwap(
+                    offerToTake = offerToTake,
+                    takenSwapAmount = takenSwapAmount,
+                    makerSettlementMethod = makerSettlementMethod,
+                    takerSettlementMethod = takerSettlementMethod,
+                    stablecoinInformationRepository = stablecoinInformationRepository,
+                    takerKeyPair = takerKeyPair
+                )
+                logger.info("takeOffer: recreating RawTransaction to take ${offerToTake.id} to ensure " +
+                        "offerTakingTransaction was created with the contents of offerToTake")
+                val recreatedTransaction = blockchainService.createTakeOfferTransaction(
+                    offerID = offerToTake.id,
+                    swapStruct = newSwap.toSwapStruct(),
+                )
+                if (offerTakingTransaction == null) {
+                    throw OfferServiceException(message = "Transaction was null during takeOffer call for " +
+                            "${offerToTake.id}")
+                }
+                if (recreatedTransaction.data != offerTakingTransaction.data) {
+                    throw OfferServiceException(message = "Data of offerTakingTransaction did not match that of " +
+                            "transaction created with offer ${offerToTake.id}")
+                }
+                if (takerKeyPair == null) {
+                    throw OfferServiceException(message = "takerKeyPair was nil during takeOffer call for " +
+                            "${offerToTake.id}")
+                }
+                logger.info("takeOffer: persistently storing key pair ${encoder.encodeToString(takerKeyPair
+                    .interfaceId)} for ${newSwap.id}")
+                keyManagerService.storeKeyPair(keyPair = takerKeyPair)
+                logger.info("takeOffer: persistently storing swap ${newSwap.id}")
+                val swapForDatabase = DatabaseSwap(
+                    id = encoder.encodeToString(offerToTake.id.asByteArray()),
+                    isCreated = if (newSwap.isCreated) 1L else 0L,
+                    requiresFill = if (newSwap.requiresFill) 1L else 0L,
+                    maker = newSwap.maker,
+                    makerInterfaceID = encoder.encodeToString(newSwap.makerInterfaceID),
+                    taker = newSwap.taker,
+                    takerInterfaceID = encoder.encodeToString(newSwap.takerInterfaceID),
+                    stablecoin = newSwap.stablecoin,
+                    amountLowerBound = newSwap.amountLowerBound.toString(),
+                    amountUpperBound = newSwap.amountUpperBound.toString(),
+                    securityDepositAmount = newSwap.securityDepositAmount.toString(),
+                    takenSwapAmount = newSwap.takenSwapAmount.toString(),
+                    serviceFeeAmount = newSwap.serviceFeeAmount.toString(),
+                    serviceFeeRate = newSwap.serviceFeeRate.toString(),
+                    onChainDirection = newSwap.onChainDirection.toString(),
+                    settlementMethod = encoder.encodeToString(newSwap.onChainSettlementMethod),
+                    protocolVersion = newSwap.protocolVersion.toString(),
+                    makerPrivateData = null,
+                    makerPrivateDataInitializationVector = null,
+                    takerPrivateData = newSwap.takerPrivateSettlementMethodData,
+                    takerPrivateDataInitializationVector = null,
+                    isPaymentSent = if (newSwap.isPaymentSent) 1L else 0L,
+                    isPaymentReceived = if (newSwap.isPaymentReceived) 1L else 0L,
+                    hasBuyerClosed = if (newSwap.hasBuyerClosed) 1L else 0L,
+                    hasSellerClosed = if (newSwap.hasSellerClosed) 1L else 0L,
+                    disputeRaiser = newSwap.onChainDisputeRaiser.toString(),
+                    chainID = newSwap.chainID.toString(),
+                    state = newSwap.state.value.asString,
+                    role = newSwap.role.asString,
+                    reportPaymentSentState = newSwap.reportingPaymentSentState.value.asString,
+                    reportPaymentSentTransactionHash = null,
+                    reportPaymentSentTransactionCreationTime = null,
+                    reportPaymentSentTransactionCreationBlockNumber = null,
+                    reportPaymentReceivedState = newSwap.reportingPaymentReceivedState.value.asString,
+                    reportPaymentReceivedTransactionHash = null,
+                    reportPaymentReceivedTransactionCreationTime = null,
+                    reportPaymentReceivedTransactionCreationBlockNumber = null,
+                    closeSwapState = newSwap.closingSwapState.value.asString,
+                    closeSwapTransactionHash = null,
+                    closeSwapTransactionCreationTime = null,
+                    closeSwapTransactionCreationBlockNumber = null,
+                )
+                databaseService.storeSwap(swap = swapForDatabase)
+                logger.info("takeOffer: signing transaction for ${offerToTake.id}")
+                val signedTransactionData = blockchainService.signTransaction(
+                    transaction = offerTakingTransaction,
+                    chainID = offerToTake.chainID,
+                )
+                val signedTransactionHex = Numeric.toHexString(signedTransactionData)
+                val blockchainTransactionForOfferTaking = BlockchainTransaction(
+                    transaction = offerTakingTransaction,
+                    transactionHash = Hash.sha3(signedTransactionHex),
+                    latestBlockNumberAtCreation = blockchainService.newestBlockNum,
+                    type = BlockchainTransactionType.TAKE_OFFER
+                )
+                val dateString = DateFormatter.createDateString(blockchainTransactionForOfferTaking.timeOfCreation)
+                logger.info("takeOffer: persistently storing taking offer data for ${offerToTake.id}, " +
+                        "including tx hash ${blockchainTransactionForOfferTaking.transactionHash}")
+                databaseService.updateTakingOfferData(
+                    offerID = encoder.encodeToString(offerToTake.id.asByteArray()),
+                    chainID = offerToTake.chainID.toString(),
+                    transactionHash = blockchainTransactionForOfferTaking.transactionHash,
+                    creationTime = dateString,
+                    blockNumber = blockchainTransactionForOfferTaking.latestBlockNumberAtCreation.toLong()
+                )
+                logger.info("takeOffer: persistently updating takingOfferState for ${offerToTake.id} to " +
+                        "sendingTransaction")
+                databaseService.updateTakingOfferState(
+                    offerID = encoder.encodeToString(offerToTake.id.asByteArray()),
+                    chainID = offerToTake.chainID.toString(),
+                    state = TakingOfferState.SENDING_TRANSACTION.asString,
+                )
+                logger.info("takeOffer: updating takingOfferState to sendingTransaction, storing tx " +
+                        "${blockchainTransactionForOfferTaking.transactionHash} in offer ${offerToTake.id}, and " +
+                        "storing swap in swapTruthSource"
+                )
+                withContext(Dispatchers.Main) {
+                    offerToTake.takingOfferTransaction = blockchainTransactionForOfferTaking
+                    offerToTake.takingOfferState.value = TakingOfferState.SENDING_TRANSACTION
+                    swapTruthSource.addSwap(newSwap)
+                }
+                logger.info("takeOffer: sending ${blockchainTransactionForOfferTaking.transactionHash} for " +
+                        "${offerToTake.id}")
+                blockchainService.sendTransaction(
+                    transaction = blockchainTransactionForOfferTaking,
+                    signedRawTransactionDataAsHex = signedTransactionHex,
+                    chainID = offerToTake.chainID
+                )
+                logger.info("takeOffer: persistently updating state of swap ${newSwap.id} to ${SwapState
+                    .TAKE_OFFER_TRANSACTION_SENT.asString}")
+                databaseService.updateSwapState(
+                    swapID = encoder.encodeToString(newSwap.id.asByteArray()),
+                    chainID = newSwap.chainID.toString(),
+                    state = SwapState.TAKE_OFFER_TRANSACTION_SENT.asString
+                )
+                logger.info("takeOffer: persistently updating takingOfferState of ${offerToTake.id} to " +
+                        TakingOfferState.AWAITING_TRANSACTION_CONFIRMATION.asString
+                )
+                databaseService.updateTakingOfferState(
+                    offerID = encoder.encodeToString(offerToTake.id.asByteArray()),
+                    chainID = offerToTake.chainID.toString(),
+                    state = TakingOfferState.AWAITING_TRANSACTION_CONFIRMATION.asString,
+                )
+                logger.info("takeOffer: updating state of swap ${newSwap.id} to ${SwapState
+                    .TAKE_OFFER_TRANSACTION_SENT.asString} and takingOfferState of offer to ${TakingOfferState
+                    .AWAITING_TRANSACTION_CONFIRMATION.asString}")
+                withContext(Dispatchers.Main) {
+                    newSwap.state.value = SwapState.TAKE_OFFER_TRANSACTION_SENT
+                    offerToTake.takingOfferState.value = TakingOfferState.AWAITING_TRANSACTION_CONFIRMATION
+                }
+            } catch (exception: Exception) {
+                logger.error("takeOffer: encountered exception while taking ${offerToTake.id}, setting " +
+                        "takingOfferState to exception", exception)
+                databaseService.updateTakingOfferState(
+                    offerID = encoder.encodeToString(offerToTake.id.asByteArray()),
+                    chainID = offerToTake.chainID.toString(),
+                    state = TakingOfferState.EXCEPTION.asString,
+                )
+                offerToTake.takingOfferException = exception
+                withContext(Dispatchers.Main) {
+                    offerToTake.takingOfferState.value = TakingOfferState.EXCEPTION
+                }
+            }
+        }
+    }
+
+    /**
+     * Creates a new [Swap] using the supplied data.
+     *
+     * This ensures that an offer with an ID equal to [offerToTake] exists on chain and is not taken. Then this calls
+     * [validateNewSwapData], and uses the resulting [ValidatedNewSwapData] to create a new [Swap] along with the
+     * information contained in [offerToTake] and the supplied [takerKeyPair]. Then this returns said [Swap].
+     *
+     * @param offerToTake The offer that will be taken, for which this is creating a [Swap].
+     * @param takenSwapAmount The [BigDecimal] amount of stablecoin that the user wants to buy/sell. If the offer has
+     * lower and upper bound amounts that ARE equal, this parameter will be ignored.
+     * @param makerSettlementMethod The [SettlementMethod], belonging to the maker, that the user/taker has selected to
+     * send/receive traditional currency payment.
+     * @param takerSettlementMethod The [SettlementMethod], belonging to the user/taker, that the user has selected to
+     * send/receive traditional currency payment. This must contain the user's valid private settlement method data, and
+     * must have method and currency fields matching [makerSettlementMethod].
+     * @param stablecoinInformationRepository A [StablecoinInformationRepository] containing information for the
+     * stablecoin address-chain ID pair specified by [offerToTake].
+     * @param takerKeyPair A [KeyPair] created by this interface, which will be used as the user's/taker's key pair.
+     *
+     * @return A [Swap] created from the supplied data.
+     *
+     * @throws [OfferServiceException] if no offer with the ID specified in [offerToTake] is found on-chain, if this is
+     * unable to find the selected settlement method in the list of settlement methods accepted by the maker, if
+     * [takerKeyPair] is `null`, or if the offer on chain is not created or is already taken.
+     */
+    private suspend fun createNewSwap(
+        offerToTake: Offer,
+        takenSwapAmount: BigDecimal,
+        makerSettlementMethod: SettlementMethod?,
+        takerSettlementMethod: SettlementMethod?,
+        stablecoinInformationRepository: StablecoinInformationRepository,
+        takerKeyPair: KeyPair?,
+    ): Swap {
+        logger.info("createNewSwap: checking that ${offerToTake.id} is created and not taken")
+        val offerOnChain = blockchainService.getOffer(id = offerToTake.id)
+            ?: throw OfferServiceException("Unable to find on-chain offer with id ${offerToTake.id}")
+        if (!offerOnChain.isCreated) {
+            throw OfferServiceException("Offer ${offerToTake.id} does not exist")
+        }
+        if (offerOnChain.isTaken) {
+            throw OfferServiceException("Offer ${offerToTake.id} has already been taken")
+        }
+        logger.info("createNewSwap: validating data for ${offerToTake.id}")
+        val validatedSwapData = validateNewSwapData(
+            offer = offerToTake,
+            takenSwapAmount = takenSwapAmount,
+            selectedMakerSettlementMethod = makerSettlementMethod,
+            selectedTakerSettlementMethod = takerSettlementMethod,
+            stablecoinInformationRepository = stablecoinInformationRepository
+        )
+        logger.info("createNewSwap: creating new Swap object for ${offerToTake.id}")
+        val requiresFill = when (offerToTake.direction) {
+            OfferDirection.BUY -> false
+            OfferDirection.SELL -> true
+        }
+        val serviceFeeAmount = (validatedSwapData.takenSwapAmount * offerToTake.serviceFeeRate) /
+                BigInteger.valueOf(10_000L)
+        val encoder = Base64.getEncoder()
+        val selectedOnChainSettlementMethod = offerToTake.onChainSettlementMethods.firstOrNull {
+            try {
+                val settlementMethod = Json.decodeFromString<SettlementMethod>(it.decodeToString())
+                settlementMethod.currency == validatedSwapData.makerSettlementMethod.currency &&
+                        settlementMethod.method == validatedSwapData.makerSettlementMethod.method &&
+                        settlementMethod.price == validatedSwapData.makerSettlementMethod.price
+            } catch (exception: Exception) {
+                logger.warn("takeOffer: got exception while deserializing settlement method " +
+                        "${encoder.encodeToString(it)} for ${offerToTake.id}")
+                false
+            }
+        }
+            ?: throw OfferServiceException("Unable to find specified settlement method in list of settlement " +
+                    "methods accepted by offer maker")
+        val swapRole = when (offerToTake.direction) {
+            // The maker is offering to buy, so we are selling
+            OfferDirection.BUY -> SwapRole.TAKER_AND_SELLER
+            // The maker is offering to sell, so we are buying
+            OfferDirection.SELL -> SwapRole.TAKER_AND_BUYER
+        }
+        val takerAddress = blockchainService.getAddress()
+        if (takerKeyPair == null) {
+            throw OfferServiceException(message = "Taker's key pair was nil in call for ${offerToTake.id}")
+        }
+        val newSwap = Swap(
+            isCreated = true,
+            requiresFill = requiresFill,
+            id = offerToTake.id,
+            maker = offerToTake.maker,
+            makerInterfaceID = offerToTake.interfaceID,
+            taker = takerAddress,
+            takerInterfaceID = takerKeyPair.interfaceId,
+            stablecoin = offerToTake.stablecoin,
+            amountLowerBound = offerToTake.amountLowerBound,
+            amountUpperBound = offerToTake.amountUpperBound,
+            securityDepositAmount = offerToTake.securityDepositAmount,
+            takenSwapAmount = validatedSwapData.takenSwapAmount,
+            serviceFeeAmount = serviceFeeAmount,
+            serviceFeeRate = offerToTake.serviceFeeRate,
+            direction = offerToTake.direction,
+            onChainSettlementMethod = selectedOnChainSettlementMethod,
+            protocolVersion = offerToTake.protocolVersion,
+            isPaymentSent = false,
+            isPaymentReceived = false,
+            hasBuyerClosed = false,
+            hasSellerClosed = false,
+            onChainDisputeRaiser = BigInteger.ZERO,
+            chainID = offerToTake.chainID,
+            state = SwapState.TAKING,
+            role = swapRole
+        )
+        newSwap.takerPrivateSettlementMethodData = validatedSwapData.takerSettlementMethod.privateData
+        return newSwap
+    }
+
+    /**
      * Attempts to take an [Swap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer), using the
      * process described in the
      * [interface specification](https://github.com/jimmyneutront/commuto-whitepaper/blob/main/commuto-interface-specification.txt).
@@ -1255,7 +1891,7 @@ class OfferService (
      * [CommutoSwap](https://github.com/jimmyneutront/commuto-protocol/blob/main/CommutoSwap.sol) contract, calls the
      * CommutoSwap contract's [takeOffer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#take-offer)
      * function (via [BlockchainService]), passing the offer ID and new [Swap], and then updates the state of
-     * [offerToTake] to [OfferState.TAKEN] and the state of the swap to [SwapState.TAKE_OFFER_TRANSACTION_BROADCAST].
+     * [offerToTake] to [OfferState.TAKEN] and the state of the swap to [SwapState.TAKE_OFFER_TRANSACTION_SENT].
      * Then, on the main coroutine dispatcher, the new [Swap] is added to [swapTruthSource], the value of
      * [offerToTake]'s [Offer.isTaken] property is set to true and [offerToTake] is removed from [offerTruthSource].
      *
@@ -1436,11 +2072,11 @@ class OfferService (
                 The swap object isn't being used in any Composable here, so we don't need to update the state value on
                 the main coroutine dispatcher
                  */
-                newSwap.state.value = SwapState.TAKE_OFFER_TRANSACTION_BROADCAST
+                newSwap.state.value = SwapState.TAKE_OFFER_TRANSACTION_SENT
                 databaseService.updateSwapState(
                     swapID = offerIDB64String,
                     chainID = newSwap.chainID.toString(),
-                    state = SwapState.TAKE_OFFER_TRANSACTION_BROADCAST.asString
+                    state = SwapState.TAKE_OFFER_TRANSACTION_SENT.asString
                 )
                 logger.info("takeOffer: adding ${newSwap.id} to swapTruthSource and removing " +
                         "${offerToTake.id} from offerTruthSource")
@@ -1474,7 +2110,7 @@ class OfferService (
      * offer with the corresponding approving to open transaction hash, persistently updates the state of the offer to
      * [OfferState.TRANSFER_APPROVAL_FAILED], persistently updates the offer's approve to open state to
      * [TokenTransferApprovalState.EXCEPTION] and on the main coroutine dispatcher sets the [Offer.state] property to
-     * [OfferState.TRANSFER_APPROVAL_FAILED], the [Offer.approvingToOpenException] property to `exception`, and the
+     * [OfferState.TRANSFER_APPROVAL_FAILED], the [Offer.approvingToOpenException] property to [exception], and the
      * [Offer.approvingToOpenState] property to [TokenTransferApprovalState.EXCEPTION].
      *
      * If [transaction] is of type [BlockchainTransactionType.OPEN_OFFER], then this finds the offer with the
@@ -1494,6 +2130,20 @@ class OfferService (
      * methods, sets its [Offer.editingOfferException] property to [exception], and updates its
      * [Offer.editingOfferState] property to [EditingOfferState.EXCEPTION]. Then this deletes the offer's pending
      * settlement methods from persistent storage.
+     *
+     * If [transaction] is of type [BlockchainTransactionType.APPROVE_TOKEN_TRANSFER_TO_TAKE_OFFER] then this finds the
+     * offer with the corresponding approving to take transaction hash, persistently updates the offer's approve to take
+     * state to [TokenTransferApprovalState.EXCEPTION] and on the main coroutine dispatcher sets the
+     * [Offer.approvingToTakeException] property to [exception] and the [Offer.approvingToTakeState] property to
+     * [TokenTransferApprovalState.EXCEPTION].
+     *
+     * If [transaction] is of type [BlockchainTransactionType.TAKE_OFFER], then this finds the offer with the
+     * corresponding offer taking transaction hash, persistently updates its taking offer state to
+     * [TakingOfferState.EXCEPTION] and on the main coroutine dispatcher sets its [Offer.takingOfferException] property
+     * to [exception], and updates its [Offer.takingOfferState] property to [TakingOfferState.EXCEPTION]. Then this
+     * finds the swap with an ID equal to that of said offer, persistently updates its state to
+     * [SwapState.TAKE_OFFER_TRANSACTION_FAILED] and on the main coroutine dispatcher sets the [Offer.state] property to
+     * [SwapState.TAKE_OFFER_TRANSACTION_FAILED].
      *
      * @param transaction The [BlockchainTransaction] wrapping the on-chain transaction that has failed.
      * @param exception A [BlockchainTransactionException] describing why the on-chain transaction has failed.
@@ -1642,6 +2292,85 @@ class OfferService (
                         .transactionHash} not found in offerTruthSource")
                 }
             }
+            BlockchainTransactionType.APPROVE_TOKEN_TRANSFER_TO_TAKE_OFFER -> {
+                offerTruthSource.offers.firstNotNullOfOrNull { uuidOfferEntry ->
+                    if (uuidOfferEntry.value.approvingToTakeTransaction?.transactionHash
+                            .equals(transaction.transactionHash)) {
+                        uuidOfferEntry.value
+                    } else {
+                        null
+                    }
+                }?.let { offer ->
+                    logger.warn("handleFailedTransaction: found offer ${offer.id} on ${offer.chainID} with " +
+                            "approving to take transaction ${transaction.transactionHash}, updating " +
+                            "approvingToTakeState to exception in persistent storage")
+                    databaseService.updateOfferApproveToTakeState(
+                        offerID = encoder.encodeToString(offer.id.asByteArray()),
+                        chainID = offer.chainID.toString(),
+                        state = TokenTransferApprovalState.EXCEPTION.asString,
+                    )
+                    logger.warn("handleFailedTransaction: setting approvingToTakeException and updating " +
+                            "approvingToTakeState to exception for ${offer.id}")
+                    withContext(Dispatchers.Main) {
+                        offer.approvingToTakeException = exception
+                        offer.approvingToTakeState.value = TokenTransferApprovalState.EXCEPTION
+                    }
+                } ?: run {
+                    logger.warn("handleFailedTransaction: offer with offer taking transaction ${transaction
+                        .transactionHash} not found in offerTruthSource")
+                }
+            }
+            BlockchainTransactionType.TAKE_OFFER -> {
+                offerTruthSource.offers.firstNotNullOfOrNull { uuidOfferEntry ->
+                    if (uuidOfferEntry.value.takingOfferTransaction?.transactionHash
+                            .equals(transaction.transactionHash)) {
+                        uuidOfferEntry.value
+                    } else {
+                        null
+                    }
+                }?.let { offer ->
+                    logger.warn("handleFailedTransaction: found offer ${offer.id} on ${offer.chainID} with " +
+                            "offer taking transaction ${transaction.transactionHash}, updating takingOfferState to " +
+                            "${TakingOfferState.EXCEPTION.asString} in persistent storage")
+                    databaseService.updateTakingOfferState(
+                        offerID = encoder.encodeToString(offer.id.asByteArray()),
+                        chainID = offer.chainID.toString(),
+                        state = TakingOfferState.EXCEPTION.asString,
+                    )
+                    logger.warn("handleFailedTransaction: setting takingOfferException and updating " +
+                            "takingOfferState to ${TakingOfferState.EXCEPTION.asString} for ${offer.id}")
+                    withContext(Dispatchers.Main) {
+                        offer.takingOfferException = exception
+                        offer.takingOfferState.value = TakingOfferState.EXCEPTION
+                    }
+                    logger.warn("handleFailedTransaction: searching for swap ${offer.id}")
+                    swapTruthSource.swaps.firstNotNullOfOrNull { uuidSwapEntry ->
+                        if (uuidSwapEntry.value.id == offer.id && uuidSwapEntry.value.chainID == offer.chainID) {
+                            uuidSwapEntry.value
+                        } else {
+                            null
+                        }
+                    }?.let { swap ->
+                        logger.warn("handleFailedTransaction: found swap ${swap.id} on ${swap.chainID}, " +
+                                "updating state to ${SwapState.TAKE_OFFER_TRANSACTION_FAILED.asString}")
+                        databaseService.updateSwapState(
+                            swapID = encoder.encodeToString(swap.id.asByteArray()),
+                            chainID = swap.chainID.toString(),
+                            state = SwapState.TAKE_OFFER_TRANSACTION_FAILED.asString
+                        )
+                        logger.warn("handleFailedTransaction: updating state to ${SwapState
+                            .TAKE_OFFER_TRANSACTION_FAILED.asString} for swap ${swap.id}")
+                        withContext(Dispatchers.Main) {
+                            swap.state.value = SwapState.TAKE_OFFER_TRANSACTION_FAILED
+                        }
+                    } ?: run {
+                        logger.warn("handleFailedTransaction: swap with id ${offer.id} not found in swapTruthSource")
+                    }
+                } ?: run {
+                    logger.warn("handleFailedTransaction: offer with offer taking transaction ${transaction
+                        .transactionHash} not found in offerTruthSource")
+                }
+            }
             BlockchainTransactionType.REPORT_PAYMENT_SENT, BlockchainTransactionType.REPORT_PAYMENT_RECEIVED,
             BlockchainTransactionType.CLOSE_SWAP -> {
                 throw OfferServiceException(message = "handleFailedTransaction: received a swap-related transaction " +
@@ -1659,6 +2388,11 @@ class OfferService (
      * [OfferState.AWAITING_OPENING], persistently updates its approving to open state to
      * [TokenTransferApprovalState.COMPLETED], and then on the main coroutine dispatcher sets its [Offer.state] property
      * to [OfferState.AWAITING_OPENING] and its [Offer.approvingToOpenState] to [TokenTransferApprovalState.COMPLETED].
+     *
+     * If the purpose of [ApprovalEvent] is [TokenTransferApprovalPurpose.TAKE_OFFER], this gets the offer with the
+     * corresponding approving to take transaction hash, persistently updates its approving to take state to
+     * [TokenTransferApprovalState.COMPLETED], and then on the main coroutine dispatcher sets its
+     * [Offer.approvingToTakeState] to [TokenTransferApprovalState.COMPLETED].
      *
      * @param event The [ApprovalEvent] of which [OfferService] is being notified.
      */
@@ -1701,6 +2435,31 @@ class OfferService (
                 } ?: run {
                     logger.info("handleTokenTransferApprovalEvent: offer with approving to open transaction ${event
                         .transactionHash} not found in offerTruthSource")
+                }
+            }
+            TokenTransferApprovalPurpose.TAKE_OFFER -> {
+                offerTruthSource.offers.firstNotNullOfOrNull { uuidOfferEntry ->
+                    if (uuidOfferEntry.value.approvingToTakeTransaction?.transactionHash
+                            .equals(event.transactionHash)) {
+                        uuidOfferEntry.value
+                    } else {
+                        null
+                    }
+                }?.let { offer ->
+                    logger.info("handleTokenTransferApprovalEvent: found offer ${offer.id} with " +
+                            "approvingToTake tx hash ${event.transactionHash}, persistently updating " +
+                            "approvingToTakeState to completed"
+                    )
+                    databaseService.updateOfferApproveToTakeState(
+                        offerID = encoder.encodeToString(offer.id.asByteArray()),
+                        chainID = offer.chainID.toString(),
+                        state = TokenTransferApprovalState.COMPLETED.asString
+                    )
+                    logger.info("handleTokenTransferApprovalEvent: updating approvingToTakeState to completed for " +
+                            "${offer.id}")
+                    withContext(Dispatchers.Main) {
+                        offer.approvingToTakeState.value = TokenTransferApprovalState.COMPLETED
+                    }
                 }
             }
         }
@@ -1854,7 +2613,15 @@ class OfferService (
                 editingOfferState = newOffer.editingOfferState.value.asString,
                 offerEditingTransactionHash = null,
                 offerEditingTransactionCreationTime = null,
-                offerEditingTransactionCreationBlockNumber = null
+                offerEditingTransactionCreationBlockNumber = null,
+                approveToTakeState = newOffer.approvingToTakeState.value.asString,
+                approveToTakeTransactionHash = null,
+                approveToTakeTransactionCreationTime = null,
+                approveToTakeTransactionCreationBlockNumber = null,
+                takingOfferState = newOffer.takingOfferState.value.asString,
+                takingOfferTransactionHash = null,
+                takingOfferTransactionCreationTime = null,
+                takingOfferTransactionCreationBlockNumber = null
             )
             logger.info("handleOfferOpenedEvent: persistently storing ${newOffer.id}")
             databaseService.storeOffer(offerForDatabase)
@@ -2182,29 +2949,38 @@ class OfferService (
     }
 
     /**
-     * The function called by [BlockchainService] to notify [OfferService] of an [OfferTakenEvent]. Once notified,
-     * [OfferService] saves [event] in [offerTakenEventRepository] and calls [SwapService.sendTakerInformationMessage],
-     * passing the swap ID and chain ID in [event]. If this call returns true, then the user of this interface is the
-     * taker of this offer and all necessary action has been taken. Otherwise, the user of this interface is not the
-     * taker of this offer, and therefore this searches for an [Offer] in [offerTruthSource] with an ID equal to that
-     * specified in [event]. If this finds such an [Offer], this ensures that the chain ID of the offer and the chain ID
-     * specified in [event] match, and then checks if the user of this interface is the maker of the offer. If so, this
-     * calls [SwapService.handleNewSwap]. Then, regardless of whether the user of this interface is the maker of the
-     * offer, this removes the corresponding offer and its settlement methods from persistent storage, and then
-     * synchronously removes the [Offer] from `offersTruthSource` on the main coroutine dispatcher. Finally, regardless
-     * of whether the user of this interface is the maker or taker of this offer or neither, this removes [event] from
+     * The function called by [BlockchainService] to notify [OfferService] of an [OfferTakenEvent].
+     *
+     * Once notified, [OfferService] saves [event] in [offerTakenEventRepository] and searches for an offer with the ID
+     * and chain ID specified in [event]. If such an offer is found, this calls
+     * [SwapService.sendTakerInformationMessage], passing the swap ID and chain ID in [event]. If this call returns
+     * true, then the user of this interface is the taker of this offer and necessary action has been taken, so this
+     * persistently updates the state of the offer to [OfferState.TAKEN] and the taking offer state of the offer to
+     * [TakingOfferState.COMPLETED], and then does the same to the [Offer] object on the main coroutine dispatcher and
+     * then returns. Otherwise, this checks if the user of this interface is the maker of the offer. If so, this calls
+     * [SwapService.handleNewSwap]. Then, regardless of whether the user of this interface is the maker of the offer,
+     * this removes the corresponding offer and its settlement methods from persistent storage, and then synchronously
+     * removes the [Offer] from [offerTruthSource] on the main coroutine dispatcher. Finally, regardless of whether the
+     * user of this interface is the maker or taker of this offer or neither, this removes [event] from
      * [offerTakenEventRepository].
      *
      * @param event The [OfferTakenEvent] of which [OfferService] is being notified.
      */
     override suspend fun handleOfferTakenEvent(event: OfferTakenEvent) {
         logger.info("handleOfferTakenEvent: handling event for offer ${event.offerID}")
-        val offerIDByteBuffer = ByteBuffer.wrap(ByteArray(16))
-        offerIDByteBuffer.putLong(event.offerID.mostSignificantBits)
-        offerIDByteBuffer.putLong(event.offerID.leastSignificantBits)
-        val offerIDByteArray = offerIDByteBuffer.array()
-        val offerIdString = Base64.getEncoder().encodeToString(offerIDByteArray)
+        val offerIdString = Base64.getEncoder().encodeToString(event.offerID.asByteArray())
         offerTakenEventRepository.append(event)
+        val offer = offerTruthSource.offers[event.offerID]
+        if (offer == null) {
+            logger.warn("handleOfferTakenEvent: got event for offer ${event.offerID} not found in offerTruthSource")
+            offerTakenEventRepository.remove(event)
+            return
+        }
+        if (offer.chainID != event.chainID) {
+            logger.warn("handleOfferTakenEvent: chain ID ${event.chainID} did not match chain ID of offer " +
+                    "${event.offerID}")
+            return
+        }
         /*
         We try to send taker information for the swap with the ID specified in the event. If we cannot (possibly because
         we are not the taker), sendTakerInformationMessage will NOT send a message and will return false, and we handle
@@ -2212,43 +2988,50 @@ class OfferService (
           */
         logger.info("handleOfferTakenEvent: checking role for ${event.offerID}")
         if (swapService.sendTakerInformationMessage(swapID = event.offerID, chainID = event.chainID)) {
-            logger.info("handleOfferTakenEvent: sent taker info for ${event.offerID}")
+            logger.info("handleOfferTakenEvent: sent taker info for ${event.offerID}, persistently updating " +
+                    "state of ${offer.id} to ${OfferState.TAKEN.asString}")
+            databaseService.updateOfferState(
+                offerID = offerIdString,
+                chainID = offer.chainID.toString(),
+                state = OfferState.TAKEN.asString
+            )
+            logger.info("handleOfferTakenEvent: persistently updating takingOfferState of ${offer.id} to " +
+                    TakingOfferState.COMPLETED.asString)
+            databaseService.updateTakingOfferState(
+                offerID = offerIdString,
+                chainID = offer.chainID.toString(),
+                state = TakingOfferState.COMPLETED.asString
+            )
+            logger.info("handleOfferTakenEvent: updating state of ${offer.id} to ${OfferState.TAKEN.asString} " +
+                    "and takingOfferState to ${TakingOfferState.COMPLETED.asString}")
+            withContext(Dispatchers.Main) {
+                offer.state = OfferState.TAKEN
+                offer.takingOfferState.value = TakingOfferState.COMPLETED
+            }
         } else {
-            val offer = offerTruthSource.offers[event.offerID]
-            if (offer == null) {
-                logger.info("handleOfferTakenEvent: got event for offer ${event.offerID} not found in offerTruthSource")
-                offerTakenEventRepository.remove(event)
-                return
+            // If we have the offer and we are the maker, then we handle the new swap
+            if (offer.isUserMaker) {
+                logger.info("handleOfferTakenEvent: ${event.offerID} was made by the user of this interface, " +
+                        "handling new swap")
+                swapService.handleNewSwap(takenOffer = offer)
             }
-            if (offer.chainID == event.chainID) {
-                // If we have the offer and we are the maker, then we handle the new swap
-                if (offer.isUserMaker) {
-                    logger.info("handleOfferTakenEvent: ${event.offerID} was made by the user of this interface, " +
-                            "handling new swap")
-                    swapService.handleNewSwap(takenOffer = offer)
-                }
-                /*
-                Regardless of whether we are or are not the maker of this offer, we are not the taker, so we remove the
-                offer and its settlement methods.
-                 */
-                databaseService.deleteOffers(offerID = offerIdString, chainID = event.chainID.toString())
-                logger.info("handleOfferTakenEvent: deleted offer ${event.offerID} from persistent storage")
-                databaseService.deleteOfferSettlementMethods(
-                    offerID = offerIdString,
-                    chainID = event.chainID.toString()
-                )
-                logger.info("handleOfferTakenEvent: deleted settlement methods of offer ${event.offerID} from " +
-                        "persistent storage")
-                withContext(Dispatchers.Main) {
-                    offer.isTaken.value = true
-                    offerTruthSource.removeOffer(event.offerID)
-                }
-                logger.info("handleOfferTakenEvent: removed offer ${event.offerID} from offerTruthSource if " +
-                        "present")
-            } else {
-                logger.info("handleOfferTakenEvent: chain ID ${event.chainID} did not match chain ID of offer " +
-                        "${event.offerID}")
+            /*
+            Regardless of whether we are or are not the maker of this offer, we are not the taker, so we remove the
+            offer and its settlement methods.
+             */
+            databaseService.deleteOffers(offerID = offerIdString, chainID = event.chainID.toString())
+            logger.info("handleOfferTakenEvent: deleted offer ${event.offerID} from persistent storage")
+            databaseService.deleteOfferSettlementMethods(
+                offerID = offerIdString,
+                chainID = event.chainID.toString()
+            )
+            logger.info("handleOfferTakenEvent: deleted settlement methods of offer ${event.offerID} from " +
+                    "persistent storage")
+            withContext(Dispatchers.Main) {
+                offer.isTaken.value = true
+                offerTruthSource.offers.remove(offer.id)
             }
+            logger.info("handleOfferTakenEvent: removed offer ${event.offerID} from offerTruthSource if present")
         }
         offerTakenEventRepository.remove(event)
     }

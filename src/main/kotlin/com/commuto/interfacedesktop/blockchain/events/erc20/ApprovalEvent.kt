@@ -50,7 +50,7 @@ class ApprovalEvent(
                 spender = event.spender,
                 amount = event.amount,
                 purpose = purpose,
-                transactionHash = event.log.transactionHash,
+                transactionHash = event.getEventResponseLog().transactionHash,
                 chainID = chainID
             )
         }

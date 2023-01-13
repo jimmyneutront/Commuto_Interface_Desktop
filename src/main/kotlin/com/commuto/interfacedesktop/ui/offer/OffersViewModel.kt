@@ -232,7 +232,7 @@ class OffersViewModel @Inject constructor(private val offerService: OfferService
      * @param settlementMethods The settlement methods of the new offer, for which the token transfer allowance will be
      * created.
      * @param approveTokenTransferToOpenOfferTransaction An optional [RawTransaction] that can create a token transfer
-     * allowance of the proper amount (determined by the values of the other arguments) of token specified by
+     * allowance of the proper amount (determined by the values of the other arguments) of the token specified by
      * [stablecoin].
      */
     override fun approveTokenTransferToOpenOffer(
@@ -318,7 +318,7 @@ class OffersViewModel @Inject constructor(private val offerService: OfferService
         offer.openingOfferException = null
         offer.openingOfferState.value = OpeningOfferState.VALIDATING
         viewModelScope.launch {
-            logger.info("openOffer: opening offer ${offer.id}")
+            logger.info("openOffer: opening ${offer.id}")
             try {
                 offerService.openOffer(
                     offer = offer,
@@ -643,33 +643,37 @@ class OffersViewModel @Inject constructor(private val offerService: OfferService
                     selectedTakerSettlementMethod = takerSettlementMethod,
                     stablecoinInformationRepository = StablecoinInformationRepository.hardhatStablecoinInfoRepo
                 )
-                setTakingOfferState(offerID = offer.id, state = TakingOfferState.CHECKING)
+                //setTakingOfferState(offerID = offer.id, state = TakingOfferState.CHECKING)
                 offerService.takeOffer(
                     offerToTake = offer,
                     swapData = validatedSwapData,
                     afterAvailabilityCheck = {
+                        /*
                         setTakingOfferState(
                             offerID = offer.id,
                             state = TakingOfferState.CREATING,
-                        )
+                        )*/
                     },
                     afterObjectCreation = {
+                        /*
                         setTakingOfferState(
                             offerID = offer.id,
                             state = TakingOfferState.STORING,
-                        )
+                        )*/
                     },
                     afterPersistentStorage = {
+                        /*
                         setTakingOfferState(
                             offerID = offer.id,
                             state = TakingOfferState.APPROVING,
-                        )
+                        )*/
                     },
                     afterTransferApproval = {
+                        /*
                         setTakingOfferState(
                             offerID = offer.id,
                             state = TakingOfferState.TAKING,
-                        )
+                        )*/
                     }
                 )
                 logger.info("takeOffer: successfully took offer ${offer.id}")

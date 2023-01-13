@@ -106,12 +106,25 @@ import java.util.*
  * made by the user of this interface, or `null` if the offer has not been edited or the user of this interface is not
  * the offer maker. Note that this transaction may be: not yet sent to a blockchain node, pending, confirmed and
  * successful, confirmed and failed, or dropped.
+ * @property approvingToTakeState If this offer was NOT made by the user of the interface, this indicates whether a
+ * token transfer is being approved in order to take the offer, and if so, what part of the token transfer approval
+ * process it is in. If this offer was made by the user of this interface, this property is not used.
+ * @property approvingToTakeException (This property is used only if the maker of this offer is NOT the user of this
+ * interface and if the user of this interface is attempting/has attempted to take this offer.) The [Exception] that
+ * occurred during the token transfer approval process in order to take the offer, or `null` if no such exception has
+ * occurred.
+ * @property approvingToTakeTransaction The [BlockchainTransaction] that has approved a token transfer in order to take
+ * this offer, if the user of this interface is attempting/has attempted to take it, or `null` if the user's token
+ * transfer to take this offer has not been approved yet, if user of this interface is the offer maker, or if the user
+ * of this interface is NOT the offer taker. Note that this transaction may be: not yet sent to a blockchain node,
+ * pending, confirmed and successful, confirmed and failed, or dropped.
  * @property takingOfferState (This property is used only if the maker of this offer is NOT the user of this interface.)
  * This indicates whether we are currently taking this offer, and if so, what part of the offer taking process we are
  * in.
- * @property takingOfferException (This property is used only if the maker of this offer is NOT the user of this
- * interface.) The [Exception] that we encountered during the offer editing process, or `null` of no such exception has
- * occurred.
+ * @property takingOfferException (This property is used only if the taker of this offer is the user of this interface.)
+ * The [Exception] that we encountered during the offer taking process, or `null` of no such exception has occurred.
+ * @property takingOfferTransaction The [BlockchainTransaction] that has taken this offer, if it was taken by the user
+ * of this interface, or `null` if the user of this offer is not the taker of this offer.
  */
 class Offer(
     isCreated: Boolean,
@@ -225,8 +238,13 @@ class Offer(
     var editingOfferException: Exception? = null
     var offerEditingTransaction: BlockchainTransaction? = null
 
+    val approvingToTakeState: MutableState<TokenTransferApprovalState> = mutableStateOf(TokenTransferApprovalState.NONE)
+    var approvingToTakeException: Exception? = null
+    var approvingToTakeTransaction: BlockchainTransaction? = null
+
     val takingOfferState: MutableState<TakingOfferState> = mutableStateOf(TakingOfferState.NONE)
     var takingOfferException: Exception? = null
+    var takingOfferTransaction: BlockchainTransaction? = null
 
     init {
         this.isCreated = mutableStateOf(isCreated)

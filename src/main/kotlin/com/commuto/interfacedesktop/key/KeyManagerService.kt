@@ -27,8 +27,7 @@ class KeyManagerService @Inject constructor(private var databaseService: Databas
      * Generates an 2048-bit RSA key pair and computes the key pair's interface ID, which is the SHA-256 hash of the
      * PKCS#1 byte array encoded representation of the public key.
      *
-     * @param storeResult Indicates whether the generated key pair should be stored persistently using
-     * [databaseService]. This will usually be left as true, but testing code may set it as false.
+     * @param storeResult Indicates whether the generated key pair should be stored persistently .
      *
      * @return A [KeyPair], the private key of which is a 2048-bit RSA private key, and the interface ID of which is the
      * SHA-256 hash of the PKCS#1 encoded byte representation of the [KeyPair]'s public key.
@@ -38,15 +37,26 @@ class KeyManagerService @Inject constructor(private var databaseService: Databas
         val encoder = Base64.getEncoder()
         val interfaceIDString = encoder.encodeToString(keyPair.interfaceId)
         if (storeResult) {
-            databaseService.storeKeyPair(
-                interfaceIDString,
-                encoder.encodeToString(keyPair.pubKeyToPkcs1Bytes()),
-                encoder.encodeToString(keyPair.privKeyToPkcs1Bytes())
-            )
-            logger.info("generateKeyPair: stored new key pair with interface id $interfaceIDString")
+            storeKeyPair(keyPair = keyPair)
         }
         logger.info("generateKeyPair: returning new key pair $interfaceIDString")
         return keyPair
+    }
+
+    /**
+     * Persistently stores a given [KeyPair] using [DatabaseService].
+     *
+     * @param keyPair The [KeyPair] to be stored.
+     */
+    suspend fun storeKeyPair(keyPair: KeyPair) {
+        val encoder = Base64.getEncoder()
+        val interfaceIDString = encoder.encodeToString(keyPair.interfaceId)
+        databaseService.storeKeyPair(
+            interfaceIDString,
+            encoder.encodeToString(keyPair.pubKeyToPkcs1Bytes()),
+            encoder.encodeToString(keyPair.privKeyToPkcs1Bytes())
+        )
+        logger.info("storeKeyPair: stored new key pair with interface id $interfaceIDString")
     }
 
     /**

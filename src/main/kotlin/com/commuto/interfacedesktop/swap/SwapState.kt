@@ -6,9 +6,13 @@ package com.commuto.interfacedesktop.swap
  * The order in which the cases of this `enum` are defined is the order in which a swap should move through the states
  * that they represent.
  *
- * @property TAKING Indicates that [takeOffer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#take-offer)
- * has not yet been called for the offer corresponding to the associated swap.
- * @property TAKE_OFFER_TRANSACTION_BROADCAST Indicates that the transaction to take the offer corresponding to the
+ * @property TAKE_OFFER_TRANSACTION_FAILED Indicates that the transaction that attempted to call
+ * [takeOffer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#take-offer) to take the corresponding offer
+ * has failed, and a new one has not yet been created.
+ * @property TAKING Indicates that
+ * [takeOffer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#take-offer) has not yet been successfully
+ * called for the offer corresponding to the associated swap.
+ * @property TAKE_OFFER_TRANSACTION_SENT Indicates that the transaction to take the offer corresponding to the
  * associated swap has been broadcast.
  * @property AWAITING_TAKER_INFORMATION Indicates that the swap has been taken on-chain, and now the swap taker must
  * send their settlement method information and public key to the maker.
@@ -37,8 +41,9 @@ package com.commuto.interfacedesktop.swap
  * @property asString A [String] corresponding to a particular case of [SwapState].
  */
 enum class SwapState {
+    TAKE_OFFER_TRANSACTION_FAILED,
     TAKING,
-    TAKE_OFFER_TRANSACTION_BROADCAST,
+    TAKE_OFFER_TRANSACTION_SENT,
     AWAITING_TAKER_INFORMATION,
     AWAITING_MAKER_INFORMATION,
     AWAITING_FILLING,
@@ -53,8 +58,9 @@ enum class SwapState {
 
     val asString: String
         get() = when (this) {
+            TAKE_OFFER_TRANSACTION_FAILED -> "takeOfferTxFailed"
             TAKING -> "taking"
-            TAKE_OFFER_TRANSACTION_BROADCAST -> "takeOfferTxPublished"
+            TAKE_OFFER_TRANSACTION_SENT -> "takeOfferTxSent"
             AWAITING_TAKER_INFORMATION -> "awaitingTakerInfo"
             AWAITING_MAKER_INFORMATION -> "awaitingMakerInfo"
             AWAITING_FILLING -> "awaitingFilling"

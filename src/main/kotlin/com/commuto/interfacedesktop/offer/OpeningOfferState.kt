@@ -13,7 +13,7 @@ package com.commuto.interfacedesktop.offer
  * corresponding offer, and we are waiting for it to be confirmed.
  * [openOffer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#open-offer) function for the new offer.
  * @property COMPLETED Indicates that we have opened the corresponding offer, and the transaction that did so has been
- * confirmed
+ * confirmed.
  * @property EXCEPTION Indicates that we encountered an exception while opening the corresponding offer.
  * @property asString Returns a [String] corresponding to a particular case of [OpeningOfferState].
  * @property description A human-readable string describing the current state.

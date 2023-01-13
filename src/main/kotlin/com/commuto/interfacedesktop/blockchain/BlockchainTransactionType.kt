@@ -14,6 +14,12 @@ package com.commuto.interfacedesktop.blockchain
  * [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer).
  * @property EDIT_OFFER Indicates that a [BlockchainTransaction] edits an open
  * [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer).
+ * @property APPROVE_TOKEN_TRANSFER_TO_TAKE_OFFER Indicates that a [BlockchainTransaction] approves a token transfer by
+ * calling [approve](https://docs.openzeppelin.com/contracts/2.x/api/token/erc20#IERC20-approve-address-uint256-) in
+ * order to take an open [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer).
+ * @property TAKE_OFFER Indicates that a [BlockchainTransaction] takes an
+ * [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer) by calling
+ * [takeOffer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#take-offer).
  * @property REPORT_PAYMENT_SENT Indicates that a [BlockchainTransaction] reports that payment has been sent for a
  * swap by calling
  * [reportPaymentSent](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#report-payment-sent)
@@ -30,6 +36,8 @@ enum class BlockchainTransactionType {
     OPEN_OFFER,
     CANCEL_OFFER,
     EDIT_OFFER,
+    APPROVE_TOKEN_TRANSFER_TO_TAKE_OFFER,
+    TAKE_OFFER,
     REPORT_PAYMENT_SENT,
     REPORT_PAYMENT_RECEIVED,
     CLOSE_SWAP;
@@ -40,6 +48,8 @@ enum class BlockchainTransactionType {
             OPEN_OFFER -> "openOffer"
             CANCEL_OFFER -> "cancelOffer"
             EDIT_OFFER -> "editOffer"
+            APPROVE_TOKEN_TRANSFER_TO_TAKE_OFFER -> "approveTokenTransferToTakeOffer"
+            TAKE_OFFER -> "takeOffer"
             REPORT_PAYMENT_SENT -> "reportPaymentSent"
             REPORT_PAYMENT_RECEIVED -> "reportPaymentReceived"
             CLOSE_SWAP -> "closeSwap"

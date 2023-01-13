@@ -100,6 +100,13 @@ class BlockchainService (private val exceptionHandler: BlockchainExceptionNotifi
         "0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d"
     )
 
+    /**
+     * Returns the address of [creds] as a string.
+     */
+    fun getAddress(): String {
+        return creds.address
+    }
+
     private var lastParsedBlockNum: BigInteger = BigInteger.ZERO
 
     var newestBlockNum: BigInteger = BigInteger.ZERO
@@ -130,7 +137,7 @@ class BlockchainService (private val exceptionHandler: BlockchainExceptionNotifi
         lastParsedBlockNum = blockNumber
     }
 
-    private val listenInterval = 30L
+    private val listenInterval = 3_000L
 
     private var listenJob: Job = Job()
 
@@ -702,6 +709,75 @@ class BlockchainService (private val exceptionHandler: BlockchainExceptionNotifi
     }
 
     /**
+     * Creates and returns an EIP1559 [RawTransaction] from the user's account to call CommutoSwap's
+     * [takeOffer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#take-offer) function, with estimated
+     * gas limit, max priority fee per gas, max fee per gas, and with a nonce determined from all currently known
+     * transactions, including those that are still pending.
+     *
+     * @param offerID The ID of the [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer) to be
+     * taken.
+     * @param swapStruct The [SwapStruct] containing the data of the
+     * [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer) to be taken.
+     *
+     * @return An [RawTransaction] as described above, that will take the offer specified by [offerID] using the
+     * data supplied in [swapStruct].
+     */
+    suspend fun createTakeOfferTransaction(offerID: UUID, swapStruct: SwapStruct): RawTransaction {
+        val function = org.web3j.abi.datatypes.Function(
+            "takeOffer",
+            listOf(org.web3j.abi.datatypes.generated.Bytes16(offerID.asByteArray()), swapStruct.toCommutoSwapSwap()),
+            listOf()
+        )
+        val encodedFunction = CommutoFunctionEncoder.encode(function)
+        val transactionForGasEstimate = Transaction(
+            creds.address.toString(),
+            BigInteger.ZERO,
+            null, // No gasPrice because we are specifying maxFeePerGas
+            BigInteger.valueOf(30_000_000),
+            commutoSwap.contractAddress,
+            BigInteger.ZERO,
+            encodedFunction,
+            swapStruct.chainID.toLong(),
+            BigInteger.valueOf(1_000_000), // maxPriorityFeePerGas (temporary value)
+            BigInteger.valueOf(875_000_000), // maxFeePerGas (temporary value)
+        )
+        val nonce = web3.ethGetTransactionCount(
+            creds.address,
+            DefaultBlockParameter.valueOf("pending")
+        ).sendAsync().asDeferred()
+        val gasLimit = web3.ethEstimateGas(transactionForGasEstimate).sendAsync().asDeferred().await().amountUsed
+        // Get the fee history from the last 20 blocks, from the 75th to the 100th percentile.
+        val feeHistory = web3.ethFeeHistory(
+            20,
+            DefaultBlockParameter.valueOf("latest"),
+            listOf(75.0)
+        ).sendAsync().asDeferred().await().feeHistory
+        // Calculate the average of the 75th percentile reward values from the last 20 blocks and use this as the
+        // maxPriorityFeePerGas
+        val maxPriorityFeePerGas = BigInteger.ZERO.let { finalTipFee ->
+            feeHistory.reward.map { it.first() }.forEach { finalTipFee.add(it) }
+            finalTipFee.divide(BigInteger.valueOf(feeHistory.reward.count().toLong()))
+        }
+        // Calculate the 75th percentile base fee per gas value from the last 20 blocks and use this as the
+        // baseFeePerGas
+        val baseFeePerGas = BigInteger.ZERO.let {
+            val percentileIndex = floor(0.75 * feeHistory.baseFeePerGas.count()).toInt()
+            feeHistory.baseFeePerGas.sorted()[percentileIndex]
+        }
+        val maxFeePerGas = baseFeePerGas + maxPriorityFeePerGas
+        return RawTransaction.createTransaction(
+            swapStruct.chainID.toLong(),
+            nonce.await().transactionCount,
+            gasLimit,
+            transactionForGasEstimate.to,
+            BigInteger.ZERO, // value
+            transactionForGasEstimate.data,
+            maxPriorityFeePerGas,
+            maxFeePerGas
+        )
+    }
+
+    /**
      * Creates and returns an EIP1559 [RawTransaction] from the users account to call CommutoSwap's
      * [reportPaymentSent](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#report-payment-sent) function,
      * with estimated gas limit, max priority fee per gas, max fee per gas, and with a nonce determined from all
@@ -1079,7 +1155,9 @@ class BlockchainService (private val exceptionHandler: BlockchainExceptionNotifi
                     when (monitoredTransaction.type) {
                         BlockchainTransactionType.APPROVE_TOKEN_TRANSFER_TO_OPEN_OFFER,
                         BlockchainTransactionType.OPEN_OFFER,
-                        BlockchainTransactionType.CANCEL_OFFER, BlockchainTransactionType.EDIT_OFFER -> {
+                        BlockchainTransactionType.CANCEL_OFFER, BlockchainTransactionType.EDIT_OFFER,
+                        BlockchainTransactionType.APPROVE_TOKEN_TRANSFER_TO_TAKE_OFFER,
+                        BlockchainTransactionType.TAKE_OFFER -> {
                             offerService.handleFailedTransaction(
                                 transaction = monitoredTransaction,
                                 exception = monitoredTransactionException
@@ -1133,22 +1211,12 @@ class BlockchainService (private val exceptionHandler: BlockchainExceptionNotifi
                             "events")
                     // The tranaction has not failed, so we parse it for the proper event
                     when (monitoredTransaction.type) {
-                        BlockchainTransactionType.APPROVE_TOKEN_TRANSFER_TO_OPEN_OFFER -> {
-                            val erc20Contract = ERC20.load(
-                                "0x0000000000000000000000000000000000000000",
-                                web3,
-                                txManager,
-                                gasProvider
-                            )
-                            eventsInReceipt.addAll(erc20Contract.getApprovalEvents(transactionReceipt).map {
-                                CommutoApprovalEventResponse(
-                                    log = it.log,
-                                    owner = it._owner,
-                                    spender = it._spender,
-                                    amount = it._value,
-                                    eventName = "Approval_forOpeningOffer"
-                                )
-                            })
+                        BlockchainTransactionType.APPROVE_TOKEN_TRANSFER_TO_OPEN_OFFER,
+                        BlockchainTransactionType.APPROVE_TOKEN_TRANSFER_TO_TAKE_OFFER -> {
+                            eventsInReceipt.addAll(parseApprovalTransaction(
+                                transactionReceipt = transactionReceipt,
+                                monitoredTransaction = monitoredTransaction
+                            ))
                         }
                         BlockchainTransactionType.OPEN_OFFER -> {
                             eventsInReceipt.addAll(commutoSwap.getOfferOpenedEvents(transactionReceipt))
@@ -1158,6 +1226,9 @@ class BlockchainService (private val exceptionHandler: BlockchainExceptionNotifi
                         }
                         BlockchainTransactionType.EDIT_OFFER -> {
                             eventsInReceipt.addAll(commutoSwap.getOfferEditedEvents(transactionReceipt))
+                        }
+                        BlockchainTransactionType.TAKE_OFFER -> {
+                            eventsInReceipt.addAll(commutoSwap.getOfferTakenEvents(transactionReceipt))
                         }
                         BlockchainTransactionType.REPORT_PAYMENT_SENT -> {
                             eventsInReceipt.addAll(commutoSwap.getPaymentSentEvents(transactionReceipt))
@@ -1180,7 +1251,9 @@ class BlockchainService (private val exceptionHandler: BlockchainExceptionNotifi
                     when (monitoredTransaction.type) {
                         BlockchainTransactionType.APPROVE_TOKEN_TRANSFER_TO_OPEN_OFFER,
                         BlockchainTransactionType.OPEN_OFFER,
-                        BlockchainTransactionType.CANCEL_OFFER, BlockchainTransactionType.EDIT_OFFER -> {
+                        BlockchainTransactionType.CANCEL_OFFER, BlockchainTransactionType.EDIT_OFFER,
+                        BlockchainTransactionType.APPROVE_TOKEN_TRANSFER_TO_TAKE_OFFER,
+                        BlockchainTransactionType.TAKE_OFFER, -> {
                             offerService.handleFailedTransaction(
                                 monitoredTransaction,
                                 exception = exception
@@ -1208,6 +1281,46 @@ class BlockchainService (private val exceptionHandler: BlockchainExceptionNotifi
             eventsInReceipt
         } else {
             emptyList()
+        }
+    }
+
+    /**
+     * Parses a given [TransactionReceipt] corresponding to a [BlockchainTransaction] in search of ERC20
+     * [Approve](https://eips.ethereum.org/EIPS/eip-20) events, and returns a corresponding list of
+     * [CommutoApprovalEventResponse]s.
+     *
+     * @param transactionReceipt The [TransactionReceipt] to be parsed.
+     * @param monitoredTransaction The [BlockchainTransaction] corresponding to [transactionReceipt].
+     *
+     * @return A [List] of [CommutoApprovalEventResponse]s created from all
+     * [Approve](https://eips.ethereum.org/EIPS/eip-20) events emitted by the transaction.
+     */
+    private fun parseApprovalTransaction(
+        transactionReceipt: TransactionReceipt,
+        monitoredTransaction: BlockchainTransaction
+    ): List<CommutoApprovalEventResponse> {
+        val erc20Contract = ERC20.load(
+            "0x0000000000000000000000000000000000000000",
+            web3,
+            txManager,
+            gasProvider
+        )
+        return erc20Contract.getApprovalEvents(transactionReceipt).map {
+            CommutoApprovalEventResponse(
+                log = it.log,
+                owner = it._owner,
+                spender = it._spender,
+                amount = it._value,
+                eventName = if (monitoredTransaction.type == BlockchainTransactionType
+                        .APPROVE_TOKEN_TRANSFER_TO_OPEN_OFFER) {
+                    "Approval_forOpeningOffer"
+                } else if (monitoredTransaction.type == BlockchainTransactionType
+                        .APPROVE_TOKEN_TRANSFER_TO_TAKE_OFFER) {
+                    "Approval_forTakingOffer"
+                } else {
+                    "unknown"
+                }
+            )
         }
     }
 
@@ -1261,6 +1374,14 @@ class BlockchainService (private val exceptionHandler: BlockchainExceptionNotifi
                             ApprovalEvent.fromEventResponse(
                                 eventResponse,
                                 TokenTransferApprovalPurpose.OPEN_OFFER,
+                                chainID
+                            )
+                        )
+                    } else if (eventResponse.eventName == "Approval_forTakingOffer") {
+                        offerService.handleTokenTransferApprovalEvent(
+                            ApprovalEvent.fromEventResponse(
+                                eventResponse,
+                                TokenTransferApprovalPurpose.TAKE_OFFER,
                                 chainID
                             )
                         )

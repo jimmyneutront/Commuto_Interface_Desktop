@@ -158,6 +158,14 @@ internal class Database(databaseDriverFactory: DatabaseDriverFactory) {
             offerEditingTransactionHash = offer.offerEditingTransactionHash,
             offerEditingTransactionCreationTime = offer.offerEditingTransactionCreationTime,
             offerEditingTransactionCreationBlockNumber = offer.offerEditingTransactionCreationBlockNumber,
+            approveToTakeState = offer.approveToTakeState,
+            approveToTakeTransactionHash = offer.approveToTakeTransactionHash,
+            approveToTakeTransactionCreationTime = offer.approveToTakeTransactionCreationTime,
+            approveToTakeTransactionCreationBlockNumber = offer.approveToTakeTransactionCreationBlockNumber,
+            takingOfferState = offer.takingOfferState,
+            takingOfferTransactionHash = offer.takingOfferTransactionHash,
+            takingOfferTransactionCreationTime = offer.takingOfferTransactionCreationTime,
+            takingOfferTransactionCreationBlockNumber = offer.takingOfferTransactionCreationBlockNumber,
         )
     }
 
@@ -459,6 +467,86 @@ internal class Database(databaseDriverFactory: DatabaseDriverFactory) {
             offerEditingTransactionHash = transactionHash,
             offerEditingTransactionCreationTime = creationTime,
             offerEditingTransactionCreationBlockNumber = blockNumber,
+            id = offerID,
+            chainID = chainID
+        )
+    }
+
+    /**
+     * Updates the [Offer.approveToTakeState] property of the [Offer] with the specified [offerID] and [chainID].
+     * @param offerID The ID of the [Offer] to be updated.
+     * @param chainID The ID of the blockchain on which the [Offer] to be updated exists.
+     * @param state The new value of the [Offer.approveToTakeState] property.
+     */
+    internal fun updateOfferApproveToTakeState(offerID: String, chainID: String, state: String) {
+        dbQuery.updateOfferApproveToTakeStateByOfferIDAndChainID(
+            approveToTakeState = state,
+            id = offerID,
+            chainID = chainID
+        )
+    }
+
+    /**
+     * Updates the [Offer.approveToTakeTransactionHash], [Offer.approveToTakeTransactionCreationTime] and
+     * [Offer.approveToTakeTransactionCreationBlockNumber] properties of the [Offer] with the specified [offerID]
+     * and [chainID].
+     * @param offerID The ID of the [Offer] to be updated.
+     * @param chainID The ID of the blockchain on which the [Offer] to be updated exists.
+     * @param transactionHash The new value of the [Offer.approveToTakeTransactionHash] property.
+     * @param creationTime The new value of the [Offer.approveToTakeTransactionCreationTime] property.
+     * @param blockNumber The new value of the [Offer.approveToTakeTransactionCreationBlockNumber] property.
+     */
+    internal fun updateOfferApproveToTakeData(
+        offerID: String,
+        chainID: String,
+        transactionHash: String?,
+        creationTime: String?,
+        blockNumber: Long?
+    ) {
+        dbQuery.updateOfferApproveToTakeDataByOfferIDAndChainID(
+            approveToTakeTransactionHash = transactionHash,
+            approveToTakeTransactionCreationTime = creationTime,
+            approveToTakeTransactionCreationBlockNumber = blockNumber,
+            id = offerID,
+            chainID = chainID
+        )
+    }
+
+    /**
+     * Updates the [Offer.takingOfferState] property of the [Offer] with the specified [offerID] and [chainID].
+     * @param offerID The ID of the [Offer] to be updated.
+     * @param chainID The ID of the blockchain on which the [Offer] to be updated exists.
+     * @param state The new value of the [Offer.takingOfferState] property.
+     */
+    internal fun updateTakingOfferState(offerID: String, chainID: String, state: String) {
+        dbQuery.updateTakingOfferStateByOfferIDAndChainID(
+            takingOfferState = state,
+            id = offerID,
+            chainID = chainID
+        )
+    }
+
+    /**
+     * Updates the [Offer.takingOfferTransactionHash], [Offer.takingOfferTransactionCreationTime] and
+     * [Offer.takingOfferTransactionCreationBlockNumber] properties of the [Offer] with the specified [offerID] and
+     * [chainID].
+     * @param offerID The ID of the [Offer] to be updated.
+     * @param chainID The ID of the blockchain on which the [Offer] to be updated exists.
+     * @param transactionHash The new value of the [Offer.takingOfferTransactionHash] property.
+     * @param creationTime The new value of the [Offer.takingOfferTransactionCreationTime] property.
+     * @param blockNumber The new value of the [Offer.takingOfferTransactionCreationBlockNumber] property.
+     */
+    internal fun updateTakingOfferData(
+        offerID: String,
+        chainID: String,
+        transactionHash: String?,
+        creationTime: String?,
+        blockNumber: Long?
+    ) {
+        dbQuery.updateTakingOfferDataByOfferIDAndChainID(
+            takingOfferTransactionHash = transactionHash,
+            takingOfferTransactionCreationTime = creationTime,
+            takingOfferTransactionCreationBlockNumber = blockNumber,
             id = offerID,
             chainID = chainID
         )

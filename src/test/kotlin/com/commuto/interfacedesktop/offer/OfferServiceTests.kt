@@ -14,18 +14,16 @@ import com.commuto.interfacedesktop.extension.asByteArray
 import com.commuto.interfacedesktop.key.KeyManagerService
 import com.commuto.interfacedesktop.key.keys.KeyPair
 import com.commuto.interfacedesktop.key.keys.PublicKey
-import com.commuto.interfacedesktop.offer.validation.ValidatedNewSwapData
 import com.commuto.interfacedesktop.p2p.P2PService
 import com.commuto.interfacedesktop.p2p.TestP2PExceptionHandler
 import com.commuto.interfacedesktop.p2p.TestSwapMessageNotifiable
 import com.commuto.interfacedesktop.p2p.messages.PublicKeyAnnouncement
 import com.commuto.interfacedesktop.settlement.SettlementMethod
+import com.commuto.interfacedesktop.settlement.privatedata.PrivateSEPAData
 import com.commuto.interfacedesktop.settlement.privatedata.PrivateSWIFTData
-import com.commuto.interfacedesktop.swap.SwapNotifiable
-import com.commuto.interfacedesktop.swap.SwapState
-import com.commuto.interfacedesktop.swap.TestSwapService
-import com.commuto.interfacedesktop.swap.TestSwapTruthSource
+import com.commuto.interfacedesktop.swap.*
 import com.commuto.interfacedesktop.ui.StablecoinInformation
+import com.commuto.interfacedesktop.ui.StablecoinInformationRepository
 import com.commuto.interfacedesktop.ui.offer.PreviewableOfferTruthSource
 import io.ktor.client.*
 import io.ktor.client.call.*
@@ -142,6 +140,14 @@ class OfferServiceTests {
             offerEditingTransactionHash = null,
             offerEditingTransactionCreationTime = null,
             offerEditingTransactionCreationBlockNumber = null,
+            approveToTakeState = offer.approvingToTakeState.value.asString,
+            approveToTakeTransactionHash = null,
+            approveToTakeTransactionCreationTime = null,
+            approveToTakeTransactionCreationBlockNumber = null,
+            takingOfferState = offer.takingOfferState.value.asString,
+            takingOfferTransactionHash = null,
+            takingOfferTransactionCreationTime = null,
+            takingOfferTransactionCreationBlockNumber = null,
         )
         databaseService.storeOffer(offerForDatabase)
 
@@ -240,6 +246,14 @@ class OfferServiceTests {
             offerEditingTransactionHash = null,
             offerEditingTransactionCreationTime = null,
             offerEditingTransactionCreationBlockNumber = null,
+            approveToTakeState = offer.approvingToTakeState.value.asString,
+            approveToTakeTransactionHash = null,
+            approveToTakeTransactionCreationTime = null,
+            approveToTakeTransactionCreationBlockNumber = null,
+            takingOfferState = offer.takingOfferState.value.asString,
+            takingOfferTransactionHash = null,
+            takingOfferTransactionCreationTime = null,
+            takingOfferTransactionCreationBlockNumber = null,
         )
         databaseService.storeOffer(offerForDatabase)
 
@@ -338,6 +352,14 @@ class OfferServiceTests {
             offerEditingTransactionHash = null,
             offerEditingTransactionCreationTime = null,
             offerEditingTransactionCreationBlockNumber = null,
+            approveToTakeState = offer.approvingToTakeState.value.asString,
+            approveToTakeTransactionHash = null,
+            approveToTakeTransactionCreationTime = null,
+            approveToTakeTransactionCreationBlockNumber = null,
+            takingOfferState = offer.takingOfferState.value.asString,
+            takingOfferTransactionHash = null,
+            takingOfferTransactionCreationTime = null,
+            takingOfferTransactionCreationBlockNumber = null,
         )
         databaseService.storeOffer(offerForDatabase)
 
@@ -434,6 +456,14 @@ class OfferServiceTests {
             offerEditingTransactionHash = null,
             offerEditingTransactionCreationTime = null,
             offerEditingTransactionCreationBlockNumber = null,
+            approveToTakeState = offer.approvingToTakeState.value.asString,
+            approveToTakeTransactionHash = null,
+            approveToTakeTransactionCreationTime = null,
+            approveToTakeTransactionCreationBlockNumber = null,
+            takingOfferState = offer.takingOfferState.value.asString,
+            takingOfferTransactionHash = null,
+            takingOfferTransactionCreationTime = null,
+            takingOfferTransactionCreationBlockNumber = null,
         )
         databaseService.storeOffer(offerForDatabase)
 
@@ -484,6 +514,302 @@ class OfferServiceTests {
             chainID = offerForDatabase.chainID
         )
         assertNull(pendingSettlementMethodsInDatabase)
+
+    }
+
+    /**
+     * Ensure [OfferService] properly handles failed transactions that approve token transfers in order to take an
+     * offer.
+     */
+    @Test
+    fun testHandleFailedApproveToTakeTransaction() = runBlocking {
+        val offerID = UUID.randomUUID()
+
+        val databaseService = DatabaseService(DatabaseDriverFactory())
+        databaseService.createTables()
+        val keyManagerService = KeyManagerService(databaseService)
+
+        val offerTruthSource = TestOfferTruthSource()
+
+        val offer = Offer(
+            isCreated = true,
+            isTaken = false,
+            id = offerID,
+            maker = "0x0000000000000000000000000000000000000000",
+            interfaceID = ByteArray(0),
+            stablecoin = "0x0000000000000000000000000000000000000000",
+            amountLowerBound = BigInteger.ZERO,
+            amountUpperBound = BigInteger.ZERO,
+            securityDepositAmount = BigInteger.ZERO,
+            serviceFeeRate = BigInteger.ZERO,
+            direction = OfferDirection.BUY,
+            settlementMethods = mutableStateListOf(),
+            protocolVersion = BigInteger.ZERO,
+            chainID = BigInteger.valueOf(31337L),
+            havePublicKey = true,
+            isUserMaker = false,
+            state = OfferState.OFFER_OPENED
+        )
+        offer.approvingToTakeState.value = TokenTransferApprovalState.AWAITING_TRANSACTION_CONFIRMATION
+        val approvingToTakeTransaction = BlockchainTransaction(
+            transactionHash = "a_transaction_hash_here",
+            timeOfCreation = Date(),
+            latestBlockNumberAtCreation = BigInteger.ZERO,
+            type = BlockchainTransactionType.APPROVE_TOKEN_TRANSFER_TO_TAKE_OFFER
+        )
+        offer.approvingToTakeTransaction = approvingToTakeTransaction
+        offerTruthSource.offers[offerID] = offer
+        val encoder = Base64.getEncoder()
+        val offerForDatabase = DatabaseOffer(
+            id = encoder.encodeToString(offerID.asByteArray()),
+            isCreated = 1L,
+            isTaken = 0L,
+            maker = offer.maker,
+            interfaceId = encoder.encodeToString(offer.interfaceID),
+            stablecoin = offer.stablecoin,
+            amountLowerBound = offer.amountLowerBound.toString(),
+            amountUpperBound = offer.amountUpperBound.toString(),
+            securityDepositAmount = offer.securityDepositAmount.toString(),
+            serviceFeeRate = offer.serviceFeeRate.toString(),
+            onChainDirection = offer.direction.string,
+            protocolVersion = offer.protocolVersion.toString(),
+            chainID = offer.chainID.toString(),
+            havePublicKey = 1L,
+            isUserMaker = 1L,
+            state = offer.state.asString,
+            approveToOpenState = offer.approvingToOpenState.value.asString,
+            approveToOpenTransactionHash = null,
+            approveToOpenTransactionCreationTime = null,
+            approveToOpenTransactionCreationBlockNumber = null,
+            openingOfferState = offer.openingOfferState.value.asString,
+            openingOfferTransactionHash = null,
+            openingOfferTransactionCreationTime = null,
+            openingOfferTransactionCreationBlockNumber = null,
+            cancelingOfferState = offer.cancelingOfferState.value.asString,
+            offerCancellationTransactionHash = null,
+            offerCancellationTransactionCreationTime = null,
+            offerCancellationTransactionCreationBlockNumber = null,
+            editingOfferState = offer.editingOfferState.value.asString,
+            offerEditingTransactionHash = null,
+            offerEditingTransactionCreationTime = null,
+            offerEditingTransactionCreationBlockNumber = null,
+            approveToTakeState = offer.approvingToTakeState.value.asString,
+            approveToTakeTransactionHash = null,
+            approveToTakeTransactionCreationTime = null,
+            approveToTakeTransactionCreationBlockNumber = null,
+            takingOfferState = offer.takingOfferState.value.asString,
+            takingOfferTransactionHash = null,
+            takingOfferTransactionCreationTime = null,
+            takingOfferTransactionCreationBlockNumber = null,
+        )
+        databaseService.storeOffer(offerForDatabase)
+
+        val offerService = OfferService(
+            databaseService,
+            keyManagerService,
+            TestSwapService(),
+        )
+        offerService.setOfferTruthSource(offerTruthSource)
+
+        offerService.handleFailedTransaction(
+            transaction = approvingToTakeTransaction,
+            exception = BlockchainTransactionException(message = "tx failed")
+        )
+
+        assertEquals(TokenTransferApprovalState.EXCEPTION, offer.approvingToTakeState.value)
+        assertNotNull(offer.approvingToTakeException)
+        val offerInDatabase = databaseService.getOffer(id = encoder.encodeToString(offerID.asByteArray()))
+        assertEquals(TokenTransferApprovalState.EXCEPTION.asString, offerInDatabase?.approveToTakeState)
+    }
+
+    /**
+     * Ensure [OfferService] properly handles failed offer taking transactions.
+     */
+    @Test
+    fun testHandleFailedOfferTakingTransaction() = runBlocking {
+        val offerID = UUID.randomUUID()
+
+        val databaseService = DatabaseService(DatabaseDriverFactory())
+        databaseService.createTables()
+        val keyManagerService = KeyManagerService(databaseService)
+
+        val offerTruthSource = TestOfferTruthSource()
+
+        val offer = Offer(
+            isCreated = true,
+            isTaken = false,
+            id = offerID,
+            maker = "0x0000000000000000000000000000000000000000",
+            interfaceID = ByteArray(0),
+            stablecoin = "0x0000000000000000000000000000000000000000",
+            amountLowerBound = BigInteger.ZERO,
+            amountUpperBound = BigInteger.ZERO,
+            securityDepositAmount = BigInteger.ZERO,
+            serviceFeeRate = BigInteger.ZERO,
+            direction = OfferDirection.BUY,
+            settlementMethods = mutableStateListOf(),
+            protocolVersion = BigInteger.ZERO,
+            chainID = BigInteger.valueOf(31337L),
+            havePublicKey = true,
+            isUserMaker = false,
+            state = OfferState.OFFER_OPENED
+        )
+        offer.takingOfferState.value = TakingOfferState.AWAITING_TRANSACTION_CONFIRMATION
+        val takingOfferTransaction = BlockchainTransaction(
+            transactionHash = "a_transaction_hash_here",
+            timeOfCreation = Date(),
+            latestBlockNumberAtCreation = BigInteger.ZERO,
+            type = BlockchainTransactionType.TAKE_OFFER
+        )
+        offer.takingOfferTransaction = takingOfferTransaction
+        offerTruthSource.offers[offerID] = offer
+        val encoder = Base64.getEncoder()
+        val offerForDatabase = DatabaseOffer(
+            id = encoder.encodeToString(offerID.asByteArray()),
+            isCreated = 1L,
+            isTaken = 0L,
+            maker = offer.maker,
+            interfaceId = encoder.encodeToString(offer.interfaceID),
+            stablecoin = offer.stablecoin,
+            amountLowerBound = offer.amountLowerBound.toString(),
+            amountUpperBound = offer.amountUpperBound.toString(),
+            securityDepositAmount = offer.securityDepositAmount.toString(),
+            serviceFeeRate = offer.serviceFeeRate.toString(),
+            onChainDirection = offer.direction.string,
+            protocolVersion = offer.protocolVersion.toString(),
+            chainID = offer.chainID.toString(),
+            havePublicKey = 1L,
+            isUserMaker = 1L,
+            state = offer.state.asString,
+            approveToOpenState = offer.approvingToOpenState.value.asString,
+            approveToOpenTransactionHash = null,
+            approveToOpenTransactionCreationTime = null,
+            approveToOpenTransactionCreationBlockNumber = null,
+            openingOfferState = offer.openingOfferState.value.asString,
+            openingOfferTransactionHash = null,
+            openingOfferTransactionCreationTime = null,
+            openingOfferTransactionCreationBlockNumber = null,
+            cancelingOfferState = offer.cancelingOfferState.value.asString,
+            offerCancellationTransactionHash = null,
+            offerCancellationTransactionCreationTime = null,
+            offerCancellationTransactionCreationBlockNumber = null,
+            editingOfferState = offer.editingOfferState.value.asString,
+            offerEditingTransactionHash = null,
+            offerEditingTransactionCreationTime = null,
+            offerEditingTransactionCreationBlockNumber = null,
+            approveToTakeState = offer.approvingToTakeState.value.asString,
+            approveToTakeTransactionHash = null,
+            approveToTakeTransactionCreationTime = null,
+            approveToTakeTransactionCreationBlockNumber = null,
+            takingOfferState = offer.takingOfferState.value.asString,
+            takingOfferTransactionHash = null,
+            takingOfferTransactionCreationTime = null,
+            takingOfferTransactionCreationBlockNumber = null,
+        )
+        databaseService.storeOffer(offerForDatabase)
+
+        val swapTruthSource = TestSwapTruthSource()
+
+        val swap = Swap(
+            isCreated = offer.isCreated.value,
+            requiresFill = false,
+            id = offer.id,
+            maker = offer.maker,
+            makerInterfaceID = offer.interfaceID,
+            taker = "0x0000000000000000000000000000000000000000",
+            takerInterfaceID = ByteArray(0),
+            stablecoin = offer.stablecoin,
+            amountLowerBound = offer.amountLowerBound,
+            amountUpperBound = offer.amountUpperBound,
+            securityDepositAmount = offer.securityDepositAmount,
+            takenSwapAmount = offer.amountLowerBound,
+            serviceFeeAmount = BigInteger.ZERO,
+            serviceFeeRate = offer.serviceFeeRate,
+            direction = offer.direction,
+            onChainSettlementMethod =
+            """
+                {
+                    "f": "USD",
+                    "p": "1.00",
+                    "m": "SWIFT"
+                }
+                """.trimIndent().encodeToByteArray(),
+            protocolVersion = BigInteger.ZERO,
+            isPaymentSent = false,
+            isPaymentReceived = false,
+            hasBuyerClosed = false,
+            hasSellerClosed = false,
+            onChainDisputeRaiser = BigInteger.ZERO,
+            chainID = offer.chainID,
+            state = SwapState.TAKE_OFFER_TRANSACTION_SENT,
+            role = SwapRole.TAKER_AND_SELLER,
+        )
+        swapTruthSource.swaps[offerID] = swap
+        val swapForDatabase = DatabaseSwap(
+            id = encoder.encodeToString(swap.id.asByteArray()),
+            isCreated = if (swap.isCreated) 1L else 0L,
+            requiresFill = if (swap.requiresFill) 1L else 0L,
+            maker = swap.maker,
+            makerInterfaceID = encoder.encodeToString(swap.makerInterfaceID),
+            taker = swap.taker,
+            takerInterfaceID = encoder.encodeToString(swap.takerInterfaceID),
+            stablecoin = swap.stablecoin,
+            amountLowerBound = swap.amountLowerBound.toString(),
+            amountUpperBound = swap.amountUpperBound.toString(),
+            securityDepositAmount = swap.securityDepositAmount.toString(),
+            takenSwapAmount = swap.takenSwapAmount.toString(),
+            serviceFeeAmount = swap.serviceFeeAmount.toString(),
+            serviceFeeRate = swap.serviceFeeRate.toString(),
+            onChainDirection = swap.onChainDirection.toString(),
+            settlementMethod = encoder.encodeToString(swap.onChainSettlementMethod),
+            makerPrivateData = swap.makerPrivateSettlementMethodData,
+            makerPrivateDataInitializationVector = null,
+            takerPrivateData = null,
+            takerPrivateDataInitializationVector = null,
+            protocolVersion = swap.protocolVersion.toString(),
+            isPaymentSent = if (swap.isPaymentSent) 1L else 0L,
+            isPaymentReceived = if (swap.isPaymentReceived) 1L else 0L,
+            hasBuyerClosed = if (swap.hasBuyerClosed) 1L else 0L,
+            hasSellerClosed = if (swap.hasSellerClosed) 1L else 0L,
+            disputeRaiser = swap.onChainDisputeRaiser.toString(),
+            chainID = swap.chainID.toString(),
+            state = swap.state.value.asString,
+            role = swap.role.asString,
+            reportPaymentSentState = swap.reportingPaymentSentState.value.asString,
+            reportPaymentSentTransactionHash = null,
+            reportPaymentSentTransactionCreationTime = null,
+            reportPaymentSentTransactionCreationBlockNumber = null,
+            reportPaymentReceivedState = swap.reportingPaymentReceivedState.value.asString,
+            reportPaymentReceivedTransactionHash = null,
+            reportPaymentReceivedTransactionCreationTime = null,
+            reportPaymentReceivedTransactionCreationBlockNumber = null,
+            closeSwapState = swap.closingSwapState.value.asString,
+            closeSwapTransactionHash = null,
+            closeSwapTransactionCreationTime = null,
+            closeSwapTransactionCreationBlockNumber = null,
+        )
+        databaseService.storeSwap(swapForDatabase)
+
+        val offerService = OfferService(
+            databaseService,
+            keyManagerService,
+            TestSwapService(),
+        )
+        offerService.setOfferTruthSource(offerTruthSource)
+        offerService.setSwapTruthSource(swapTruthSource)
+
+        offerService.handleFailedTransaction(
+            transaction = takingOfferTransaction,
+            exception = BlockchainTransactionException(message = "tx failed")
+        )
+
+        assertEquals(TakingOfferState.EXCEPTION, offer.takingOfferState.value)
+        assertNotNull(offer.takingOfferException)
+        assertEquals(SwapState.TAKE_OFFER_TRANSACTION_FAILED, swap.state.value)
+        val offerInDatabase = databaseService.getOffer(id = encoder.encodeToString(offerID.asByteArray()))
+        assertEquals(TakingOfferState.EXCEPTION.asString, offerInDatabase?.takingOfferState)
+        val swapInDatabase = databaseService.getSwap(id = encoder.encodeToString(offerID.asByteArray()))
+        assertEquals(SwapState.TAKE_OFFER_TRANSACTION_FAILED.asString, swapInDatabase?.state)
 
     }
 
@@ -573,6 +899,14 @@ class OfferServiceTests {
             offerEditingTransactionHash = null,
             offerEditingTransactionCreationTime = null,
             offerEditingTransactionCreationBlockNumber = null,
+            approveToTakeState = offer.approvingToTakeState.value.asString,
+            approveToTakeTransactionHash = null,
+            approveToTakeTransactionCreationTime = null,
+            approveToTakeTransactionCreationBlockNumber = null,
+            takingOfferState = offer.takingOfferState.value.asString,
+            takingOfferTransactionHash = null,
+            takingOfferTransactionCreationTime = null,
+            takingOfferTransactionCreationBlockNumber = null,
         )
         databaseService.storeOffer(offerForDatabase)
 
@@ -854,6 +1188,14 @@ class OfferServiceTests {
             offerEditingTransactionHash = null,
             offerEditingTransactionCreationTime = null,
             offerEditingTransactionCreationBlockNumber = null,
+            approveToTakeState = offer.approvingToTakeState.value.asString,
+            approveToTakeTransactionHash = null,
+            approveToTakeTransactionCreationTime = null,
+            approveToTakeTransactionCreationBlockNumber = null,
+            takingOfferState = offer.takingOfferState.value.asString,
+            takingOfferTransactionHash = null,
+            takingOfferTransactionCreationTime = null,
+            takingOfferTransactionCreationBlockNumber = null,
         )
         databaseService.storeOffer(offerForDatabase)
 
@@ -1098,6 +1440,14 @@ class OfferServiceTests {
             offerEditingTransactionHash = null,
             offerEditingTransactionCreationTime = null,
             offerEditingTransactionCreationBlockNumber = null,
+            approveToTakeState = offer.approvingToTakeState.value.asString,
+            approveToTakeTransactionHash = null,
+            approveToTakeTransactionCreationTime = null,
+            approveToTakeTransactionCreationBlockNumber = null,
+            takingOfferState = offer.takingOfferState.value.asString,
+            takingOfferTransactionHash = null,
+            takingOfferTransactionCreationTime = null,
+            takingOfferTransactionCreationBlockNumber = null,
         )
         runBlocking {
             databaseService.storeOffer(offerForDatabase)
@@ -1154,12 +1504,125 @@ class OfferServiceTests {
     }
 
     /**
+     * Ensures that [OfferService] handles [Approval](https://eips.ethereum.org/EIPS/eip-20) events properly, when such
+     * events indicate the approval of a token transfer in order to take an offer.
+     */
+    @Test
+    fun testHandleApprovalToTakeOfferEvent() = runBlocking {
+
+        val offerID = UUID.randomUUID()
+
+        val databaseService = DatabaseService(DatabaseDriverFactory())
+        databaseService.createTables()
+        val keyManagerService = KeyManagerService(databaseService)
+
+        val offerTruthSource = TestOfferTruthSource()
+
+        val offerService = OfferService(
+            databaseService,
+            keyManagerService,
+            TestSwapService(),
+        )
+        offerService.setOfferTruthSource(offerTruthSource)
+
+        val offer = Offer(
+            isCreated = true,
+            isTaken = false,
+            id = offerID,
+            maker = "0x0000000000000000000000000000000000000000",
+            interfaceID = ByteArray(0),
+            stablecoin = "0x0000000000000000000000000000000000000000",
+            amountLowerBound = BigInteger.ZERO,
+            amountUpperBound = BigInteger.ZERO,
+            securityDepositAmount = BigInteger.ZERO,
+            serviceFeeRate = BigInteger.ZERO,
+            direction = OfferDirection.BUY,
+            settlementMethods = mutableStateListOf(),
+            protocolVersion = BigInteger.ZERO,
+            chainID = BigInteger.valueOf(31337L),
+            havePublicKey = true,
+            isUserMaker = false,
+            state = OfferState.OFFER_OPENED
+        )
+        offer.approvingToTakeState.value = TokenTransferApprovalState.AWAITING_TRANSACTION_CONFIRMATION
+        val approvingToTakeTransaction = BlockchainTransaction(
+            transactionHash = "0xa_transaction_hash_here",
+            timeOfCreation = Date(),
+            latestBlockNumberAtCreation = BigInteger.ZERO,
+            type = BlockchainTransactionType.APPROVE_TOKEN_TRANSFER_TO_TAKE_OFFER
+        )
+        offer.approvingToTakeTransaction = approvingToTakeTransaction
+        offerTruthSource.offers[offerID] = offer
+        val encoder = Base64.getEncoder()
+        val offerForDatabase = DatabaseOffer(
+            id = encoder.encodeToString(offerID.asByteArray()),
+            isCreated = 1L,
+            isTaken = 0L,
+            maker = offer.maker,
+            interfaceId = encoder.encodeToString(offer.interfaceID),
+            stablecoin = offer.stablecoin,
+            amountLowerBound = offer.amountLowerBound.toString(),
+            amountUpperBound = offer.amountUpperBound.toString(),
+            securityDepositAmount = offer.securityDepositAmount.toString(),
+            serviceFeeRate = offer.serviceFeeRate.toString(),
+            onChainDirection = offer.direction.string,
+            protocolVersion = offer.protocolVersion.toString(),
+            chainID = offer.chainID.toString(),
+            havePublicKey = 1L,
+            isUserMaker = 0L,
+            state = offer.state.asString,
+            approveToOpenState = offer.approvingToOpenState.value.asString,
+            approveToOpenTransactionHash = null,
+            approveToOpenTransactionCreationTime = null,
+            approveToOpenTransactionCreationBlockNumber = null,
+            openingOfferState = offer.openingOfferState.value.asString,
+            openingOfferTransactionHash = null,
+            openingOfferTransactionCreationTime = null,
+            openingOfferTransactionCreationBlockNumber = null,
+            cancelingOfferState = offer.cancelingOfferState.value.asString,
+            offerCancellationTransactionHash = null,
+            offerCancellationTransactionCreationTime = null,
+            offerCancellationTransactionCreationBlockNumber = null,
+            editingOfferState = offer.editingOfferState.value.asString,
+            offerEditingTransactionHash = null,
+            offerEditingTransactionCreationTime = null,
+            offerEditingTransactionCreationBlockNumber = null,
+            approveToTakeState = offer.approvingToTakeState.value.asString,
+            approveToTakeTransactionHash = null,
+            approveToTakeTransactionCreationTime = null,
+            approveToTakeTransactionCreationBlockNumber = null,
+            takingOfferState = offer.takingOfferState.value.asString,
+            takingOfferTransactionHash = null,
+            takingOfferTransactionCreationTime = null,
+            takingOfferTransactionCreationBlockNumber = null,
+        )
+        databaseService.storeOffer(offerForDatabase)
+
+        val event = ApprovalEvent(
+            owner = "0x0000000000000000000000000000000000000000",
+            spender = "0x0000000000000000000000000000000000000000",
+            amount = BigInteger.ZERO,
+            purpose = TokenTransferApprovalPurpose.TAKE_OFFER,
+            transactionHash = "0xa_transaction_hash_here",
+            chainID = offer.chainID
+        )
+
+        offerService.handleTokenTransferApprovalEvent(event = event)
+
+        assertEquals(TokenTransferApprovalState.COMPLETED, offer.approvingToTakeState.value)
+        assertNull(offer.approvingToTakeException)
+        val offerInDatabase = databaseService.getOffer(id = encoder.encodeToString(offerID.asByteArray()))
+        assertEquals(TokenTransferApprovalState.COMPLETED.asString, offerInDatabase?.approveToTakeState)
+
+    }
+
+    /**
      * Ensures that [OfferService] handles
      * [OfferTaken](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offertaken) events properly for offers
      * neither made nor taken by the interface user.
      */
     @Test
-    fun testHandleOfferTakenEvent() {
+    fun testHandleOfferTakenEvent() = runBlocking {
         @Serializable
         data class TestingServerResponse(val commutoSwapAddress: String, val offerId: String)
 
@@ -1173,18 +1636,12 @@ class OfferServiceTests {
                 requestTimeoutMillis = 90_000
             }
         }
-        val testingServerResponse: TestingServerResponse = runBlocking {
-            testingServerClient.get(testingServiceUrl) {
-                url {
-                    parameters.append("events", "offer-opened-taken")
-                }
-            }.body()
-        }
+        val testingServerResponse: TestingServerResponse = testingServerClient.get(testingServiceUrl) {
+            url {
+                parameters.append("events", "offer-opened-taken")
+            }
+        }.body()
         val expectedOfferId = UUID.fromString(testingServerResponse.offerId)
-        val expectedOfferIdByteBuffer = ByteBuffer.wrap(ByteArray(16))
-        expectedOfferIdByteBuffer.putLong(expectedOfferId.mostSignificantBits)
-        expectedOfferIdByteBuffer.putLong(expectedOfferId.leastSignificantBits)
-        val expectedOfferIdByteArray = expectedOfferIdByteBuffer.array()
 
         val w3 = CommutoWeb3j(HttpService(System.getenv("BLOCKCHAIN_NODE")))
 
@@ -1192,78 +1649,48 @@ class OfferServiceTests {
         databaseService.createTables()
         val keyManagerService = KeyManagerService(databaseService)
 
-        class TestBlockchainEventRepository: BlockchainEventRepository<OfferTakenEvent>() {
-
-            var appendedEvent: OfferTakenEvent? = null
-            var removedEvent: OfferTakenEvent? = null
-
-            override fun append(element: OfferTakenEvent) {
-                appendedEvent = element
-                super.append(element)
-            }
-
-            override fun remove(elementToRemove: OfferTakenEvent) {
-                removedEvent = elementToRemove
-                super.remove(elementToRemove)
-            }
-
-        }
-        val offerTakenEventRepository = TestBlockchainEventRepository()
-
         val offerService = OfferService(
             databaseService,
             keyManagerService,
             TestSwapService(),
-            BlockchainEventRepository(),
-            BlockchainEventRepository(),
-            BlockchainEventRepository(),
-            offerTakenEventRepository,
-            BlockchainEventRepository(),
         )
 
-        // We need this TestOfferTruthSource in order to track removed offers
-        class TestOfferTruthSource: OfferTruthSource {
-            init {
-                offerService.setOfferTruthSource(this)
-            }
-            val offersChannel = Channel<Offer>()
-            override var offers = mutableStateMapOf<UUID, Offer>()
-            override var serviceFeeRate = mutableStateOf<BigInteger?>(null)
-            override fun addOffer(offer: Offer) {
-                offers[offer.id] = offer
-            }
-            override fun removeOffer(id: UUID) {
-                val offerToSend = offers[id]!!
-                offers.remove(id)
-                runBlocking {
-                    offersChannel.send(offerToSend)
-                }
-            }
-        }
         val offerTruthSource = TestOfferTruthSource()
+        offerService.setOfferTruthSource(offerTruthSource)
 
         val exceptionHandler = TestBlockchainExceptionHandler()
-
-        val blockchainService = BlockchainService(
+        BlockchainService(
             exceptionHandler = exceptionHandler,
             offerService = offerService,
             swapService = TestSwapService(),
             web3 = w3,
             commutoSwapAddress = testingServerResponse.commutoSwapAddress
         )
-        blockchainService.listen()
+
+        val offerOpenedEvent = OfferOpenedEvent(
+            offerID = expectedOfferId,
+            interfaceID = ByteArray(0),
+            chainID = BigInteger.valueOf(31337L)
+        )
+
+        offerService.handleOfferOpenedEvent(event = offerOpenedEvent)
+        assertEquals(1, offerTruthSource.offers.size)
+        assertNotNull(offerTruthSource.offers[expectedOfferId])
         val encoder = Base64.getEncoder()
-        runBlocking {
-            withTimeout(60_000) {
-                offerTruthSource.offersChannel.receive()
-                assertFalse(exceptionHandler.gotError)
-                assert(offerTruthSource.offers.isEmpty())
-                assertEquals(offerTakenEventRepository.appendedEvent!!.offerID, expectedOfferId)
-                assertEquals(offerTakenEventRepository.removedEvent!!.offerID, expectedOfferId)
-                val offerInDatabase = databaseService.getOffer(encoder.encodeToString(expectedOfferIdByteArray))
-                assertEquals(offerInDatabase, null)
-            }
-        }
+        val offerInDatabase = databaseService.getOffer(encoder.encodeToString(expectedOfferId.asByteArray()))
+        assertNotNull(offerInDatabase)
+
+        val offerTakenEvent = OfferTakenEvent(
+            offerID = expectedOfferId,
+            takerInterfaceID = ByteArray(0),
+            chainID = BigInteger.valueOf(31337L)
+        )
+
+        offerService.handleOfferTakenEvent(event = offerTakenEvent)
+        assertEquals(0, offerTruthSource.offers.size)
+        assertNull(offerTruthSource.offers[expectedOfferId])
+        val offerInDatabaseAfterTaking = databaseService.getOffer(encoder.encodeToString(expectedOfferId.asByteArray()))
+        assertNull(offerInDatabaseAfterTaking)
     }
 
     /**
@@ -1310,28 +1737,93 @@ class OfferServiceTests {
                 requestTimeoutMillis = 90_000
             }
         }
-        val testingServerResponse: TestingServerResponse = runBlocking {
-            testingServerClient.get(testingServiceUrl) {
-                url {
-                    parameters.append("events", "offer-opened-taken")
-                    parameters.append("offerID", newOfferID.toString())
-                    parameters.append("makerInterfaceID", makerInterfaceIDString)
-                    parameters.append("takerInterfaceID", takerInterfaceIDString)
-                }
-            }.body()
-        }
+        val testingServerResponse: TestingServerResponse = testingServerClient.get(testingServiceUrl) {
+            url {
+                parameters.append("events", "offer-opened-taken")
+                parameters.append("offerID", newOfferID.toString())
+                parameters.append("makerInterfaceID", makerInterfaceIDString)
+                parameters.append("takerInterfaceID", takerInterfaceIDString)
+            }
+        }.body()
 
         val w3 = CommutoWeb3j(HttpService(System.getenv("BLOCKCHAIN_NODE")))
+
+        val offerTruthSource = TestOfferTruthSource()
+
+        val offer = Offer(
+            isCreated = true,
+            isTaken = false,
+            id = newOfferID,
+            maker = "0x0000000000000000000000000000000000000000",
+            interfaceID = ByteArray(0),
+            stablecoin = "0x0000000000000000000000000000000000000000",
+            amountLowerBound = BigInteger.ZERO,
+            amountUpperBound = BigInteger.ZERO,
+            securityDepositAmount = BigInteger.ZERO,
+            serviceFeeRate = BigInteger.ZERO,
+            direction = OfferDirection.BUY,
+            settlementMethods = mutableStateListOf(),
+            protocolVersion = BigInteger.ZERO,
+            chainID = BigInteger.valueOf(31337L),
+            havePublicKey = true,
+            isUserMaker = false,
+            state = OfferState.OFFER_OPENED
+        )
+        offer.takingOfferState.value = TakingOfferState.AWAITING_TRANSACTION_CONFIRMATION
+        offerTruthSource.offers[newOfferID] = offer
+        val offerForDatabase = DatabaseOffer(
+            id = encoder.encodeToString(newOfferID.asByteArray()),
+            isCreated = if (offer.isCreated.value) 1L else 0L,
+            isTaken = if (offer.isTaken.value) 1L else 0L,
+            maker = offer.maker,
+            interfaceId = encoder.encodeToString(offer.interfaceID),
+            stablecoin = offer.stablecoin,
+            amountLowerBound = offer.amountLowerBound.toString(),
+            amountUpperBound = offer.amountUpperBound.toString(),
+            securityDepositAmount = offer.securityDepositAmount.toString(),
+            serviceFeeRate = offer.serviceFeeRate.toString(),
+            onChainDirection = offer.direction.string,
+            protocolVersion = offer.protocolVersion.toString(),
+            chainID = offer.chainID.toString(),
+            havePublicKey = if (offer.havePublicKey) 1L else 0L,
+            isUserMaker = if (offer.isUserMaker) 1L else 0L,
+            state = offer.state.asString,
+            approveToOpenState = offer.approvingToOpenState.value.asString,
+            approveToOpenTransactionHash = null,
+            approveToOpenTransactionCreationTime = null,
+            approveToOpenTransactionCreationBlockNumber = null,
+            openingOfferState = offer.openingOfferState.value.asString,
+            openingOfferTransactionHash = null,
+            openingOfferTransactionCreationTime = null,
+            openingOfferTransactionCreationBlockNumber = null,
+            cancelingOfferState = offer.cancelingOfferState.value.asString,
+            offerCancellationTransactionHash = null,
+            offerCancellationTransactionCreationTime = null,
+            offerCancellationTransactionCreationBlockNumber = null,
+            editingOfferState = offer.editingOfferState.value.asString,
+            offerEditingTransactionHash = null,
+            offerEditingTransactionCreationTime = null,
+            offerEditingTransactionCreationBlockNumber = null,
+            approveToTakeState = offer.approvingToTakeState.value.asString,
+            approveToTakeTransactionHash = null,
+            approveToTakeTransactionCreationTime = null,
+            approveToTakeTransactionCreationBlockNumber = null,
+            takingOfferState = offer.takingOfferState.value.asString,
+            takingOfferTransactionHash = null,
+            takingOfferTransactionCreationTime = null,
+            takingOfferTransactionCreationBlockNumber = null,
+        )
+        databaseService.storeOffer(offerForDatabase)
 
         /*
         OfferService should call the sendTakerInformation method of this class, passing a UUID equal to newOfferID
         to begin the process of sending taker information
          */
         class TestSwapService(val expectedSwapIDForMessage: UUID): SwapNotifiable {
-            val chainIDChannel = Channel<BigInteger>()
+            var chainIDForMessage: BigInteger? = null
             override suspend fun sendTakerInformationMessage(swapID: UUID, chainID: BigInteger): Boolean {
                 return if (swapID == expectedSwapIDForMessage) {
-                    chainIDChannel.send(chainID)
+                    chainIDForMessage = chainID
                     true
                 } else {
                     false
@@ -1355,24 +1847,34 @@ class OfferServiceTests {
             keyManagerService,
             swapService,
         )
-        offerService.setOfferTruthSource(TestOfferTruthSource())
+        offerService.setOfferTruthSource(offerTruthSource)
 
         val exceptionHandler = TestBlockchainExceptionHandler()
 
-        val blockchainService = BlockchainService(
+        BlockchainService(
             exceptionHandler = exceptionHandler,
             offerService = offerService,
             swapService = swapService,
             web3 = w3,
             commutoSwapAddress = testingServerResponse.commutoSwapAddress
         )
-        blockchainService.listen()
 
-        withTimeout(60_000) {
-            val receivedChainID = swapService.chainIDChannel.receive()
-            assertEquals(BigInteger.valueOf(31337L), receivedChainID)
-            assertFalse(exceptionHandler.gotError)
-        }
+        val offerTakenEvent = OfferTakenEvent(
+            offerID = newOfferID,
+            takerInterfaceID = takerKeyPair.interfaceId,
+            chainID = BigInteger.valueOf(31337L),
+        )
+
+        offerService.handleOfferTakenEvent(offerTakenEvent)
+
+        assertEquals(BigInteger.valueOf(31337L), swapService.chainIDForMessage)
+        assertEquals(OfferState.TAKEN, offer.state)
+        assertEquals(TakingOfferState.COMPLETED, offer.takingOfferState.value)
+
+        val offerInDatabase = databaseService.getOffer(id = encoder.encodeToString(newOfferID.asByteArray()))
+        assertEquals(OfferState.TAKEN.asString, offerInDatabase?.state)
+        assertEquals(TakingOfferState.COMPLETED.asString, offerInDatabase?.takingOfferState)
+
     }
 
     /**
@@ -1382,7 +1884,7 @@ class OfferServiceTests {
      */
     @Test
     fun testHandleOfferTakenEventForUserIsMaker() = runBlocking {
-        val newOfferID = UUID.randomUUID()
+        val offerID = UUID.randomUUID()
 
         val databaseService = DatabaseService(DatabaseDriverFactory())
         databaseService.createTables()
@@ -1405,60 +1907,19 @@ class OfferServiceTests {
                 requestTimeoutMillis = 90_000
             }
         }
-        val testingServerResponse: TestingServerResponse = runBlocking {
-            testingServerClient.get(testingServiceUrl) {
-                url {
-                    parameters.append("events", "offer-opened-taken")
-                    parameters.append("offerID", newOfferID.toString())
-                    parameters.append("interfaceID", encoder.encodeToString(keyPair.interfaceId))
-                }
-            }.body()
-        }
+        val testingServerResponse: TestingServerResponse = testingServerClient.get(testingServiceUrl) {
+            url {
+                parameters.append("events", "offer-opened-taken")
+                parameters.append("offerID", offerID.toString())
+                parameters.append("interfaceID", encoder.encodeToString(keyPair.interfaceId))
+            }
+        }.body()
 
         // Set up node connection
         val w3 = CommutoWeb3j(HttpService(System.getenv("BLOCKCHAIN_NODE")))
 
         val offerTruthSource = TestOfferTruthSource()
 
-        // OfferService should call the handleNewSwap method of this class, passing an offer with an ID equal to
-        // offerID. We need this new TestSwapService declaration to track when handleNewSwap is called.
-        class TestSwapService: SwapNotifiable {
-            val offerChannel = Channel<Offer>()
-            override suspend fun sendTakerInformationMessage(swapID: UUID, chainID: BigInteger): Boolean
-            { return false }
-            override suspend fun handleFailedTransaction(
-                transaction: BlockchainTransaction,
-                exception: BlockchainTransactionException
-            ) {}
-            override suspend fun handleNewSwap(takenOffer: Offer) {
-                offerChannel.send(takenOffer)
-            }
-            override suspend fun handleSwapFilledEvent(event: SwapFilledEvent) {}
-            override suspend fun handlePaymentSentEvent(event: PaymentSentEvent) {}
-            override suspend fun handlePaymentReceivedEvent(event: PaymentReceivedEvent) {}
-            override suspend fun handleBuyerClosedEvent(event: BuyerClosedEvent) {}
-            override suspend fun handleSellerClosedEvent(event: SellerClosedEvent) {}
-        }
-        val swapService = TestSwapService()
-
-        val offerService = OfferService(
-            databaseService,
-            keyManagerService,
-            swapService,
-        )
-        offerService.setOfferTruthSource(offerTruthSource)
-
-        val p2pExceptionHandler = TestP2PExceptionHandler()
-        val mxClient = MatrixClientServerApiClient(
-            baseUrl = Url("https://matrix.org"),
-        ).apply { accessToken.value = System.getenv("MXKY") }
-        P2PService(
-            exceptionHandler = p2pExceptionHandler,
-            offerService = offerService,
-            swapService = TestSwapMessageNotifiable(),
-            mxClient = mxClient,
-            keyManagerService = keyManagerService,
-        )
         /*
         We have to persistently store an offer with an ID equal to offerID and isUserMaker set to true, so that
         OfferService calls handleNewSwap
@@ -1466,7 +1927,7 @@ class OfferServiceTests {
         val offer = Offer(
             isCreated = true,
             isTaken = false,
-            id = newOfferID,
+            id = offerID,
             maker = "0x0000000000000000000000000000000000000000",
             interfaceID = keyPair.interfaceId,
             stablecoin = "0x0000000000000000000000000000000000000000",
@@ -1480,13 +1941,13 @@ class OfferServiceTests {
             chainID = BigInteger.valueOf(31337L),
             havePublicKey = true,
             isUserMaker = true,
-            state = OfferState.OPEN_OFFER_TRANSACTION_SENT
+            state = OfferState.OFFER_OPENED
         )
         offerTruthSource.addOffer(offer)
         val offerForDatabase = DatabaseOffer(
-            id = encoder.encodeToString(newOfferID.asByteArray()),
-            isCreated = 1L,
-            isTaken = 0L,
+            id = encoder.encodeToString(offerID.asByteArray()),
+            isCreated = if (offer.isCreated.value) 1L else 0L,
+            isTaken = if (offer.isTaken.value) 1L else 0L,
             maker = offer.maker,
             interfaceId = encoder.encodeToString(offer.interfaceID),
             stablecoin = offer.stablecoin,
@@ -1497,8 +1958,8 @@ class OfferServiceTests {
             onChainDirection = offer.direction.string,
             protocolVersion = offer.protocolVersion.toString(),
             chainID = offer.chainID.toString(),
-            havePublicKey = 1L,
-            isUserMaker = 1L,
+            havePublicKey = if (offer.havePublicKey) 1L else 0L,
+            isUserMaker = if (offer.isUserMaker) 1L else 0L,
             state = offer.state.asString,
             approveToOpenState = offer.approvingToOpenState.value.asString,
             approveToOpenTransactionHash = null,
@@ -1516,26 +1977,88 @@ class OfferServiceTests {
             offerEditingTransactionHash = null,
             offerEditingTransactionCreationTime = null,
             offerEditingTransactionCreationBlockNumber = null,
+            approveToTakeState = offer.approvingToTakeState.value.asString,
+            approveToTakeTransactionHash = null,
+            approveToTakeTransactionCreationTime = null,
+            approveToTakeTransactionCreationBlockNumber = null,
+            takingOfferState = offer.takingOfferState.value.asString,
+            takingOfferTransactionHash = null,
+            takingOfferTransactionCreationTime = null,
+            takingOfferTransactionCreationBlockNumber = null,
         )
         databaseService.storeOffer(offerForDatabase)
 
+        // OfferService should call the handleNewSwap method of this class, passing an offer with an ID equal to
+        // offerID. We need this new TestSwapService declaration to track when handleNewSwap is called.
+        class TestSwapService: SwapNotifiable {
+            var swapID: UUID? = null
+            var chainID: BigInteger? = null
+            override suspend fun sendTakerInformationMessage(swapID: UUID, chainID: BigInteger): Boolean
+            { return false }
+            override suspend fun handleFailedTransaction(
+                transaction: BlockchainTransaction,
+                exception: BlockchainTransactionException
+            ) {}
+            override suspend fun handleNewSwap(takenOffer: Offer) {
+                this.swapID = takenOffer.id
+                this.chainID = takenOffer.chainID
+            }
+            override suspend fun handleSwapFilledEvent(event: SwapFilledEvent) {}
+            override suspend fun handlePaymentSentEvent(event: PaymentSentEvent) {}
+            override suspend fun handlePaymentReceivedEvent(event: PaymentReceivedEvent) {}
+            override suspend fun handleBuyerClosedEvent(event: BuyerClosedEvent) {}
+            override suspend fun handleSellerClosedEvent(event: SellerClosedEvent) {}
+        }
+        val swapService = TestSwapService()
+
+        val offerService = OfferService(
+            databaseService,
+            keyManagerService,
+            swapService,
+        )
+        offerService.setOfferTruthSource(offerTruthSource)
+
+        val p2pExceptionHandler = TestP2PExceptionHandler()
+
+        val mxClient = MatrixClientServerApiClient(
+            baseUrl = Url("https://matrix.org"),
+        ).apply { accessToken.value = System.getenv("MXKY") }
+
+        P2PService(
+            exceptionHandler = p2pExceptionHandler,
+            offerService = offerService,
+            swapService = TestSwapMessageNotifiable(),
+            mxClient = mxClient,
+            keyManagerService = keyManagerService,
+        )
+
         val exceptionHandler = TestBlockchainExceptionHandler()
 
-        val blockchainService = BlockchainService(
+        BlockchainService(
             exceptionHandler = exceptionHandler,
             offerService = offerService,
-            swapService = TestSwapService(),
+            swapService = swapService,
             web3 = w3,
             commutoSwapAddress = testingServerResponse.commutoSwapAddress
         )
-        blockchainService.listen()
 
-        withTimeout(60_000) {
-            val receivedOffer = swapService.offerChannel.receive()
-            assertEquals(newOfferID, receivedOffer.id)
-            assertEquals(BigInteger.valueOf(31337L), receivedOffer.chainID)
-            assertFalse(exceptionHandler.gotError)
-        }
+        val offerTakenEvent = OfferTakenEvent(
+            offerID = offerID,
+            takerInterfaceID = ByteArray(0),
+            chainID = offer.chainID
+        )
+
+        offerService.handleOfferTakenEvent(event = offerTakenEvent)
+
+        assertEquals(offerID, swapService.swapID)
+        assertEquals(BigInteger.valueOf(31337L), swapService.chainID)
+        assert(offer.isTaken.value)
+        assertNull(offerTruthSource.offers[offerID])
+        assertNull(databaseService.getOffer(id = encoder.encodeToString(offerID.asByteArray())))
+        assertNull(databaseService.getOfferSettlementMethods(
+            offerID = encoder.encodeToString(offerID.asByteArray()),
+            chainID = offer.chainID.toString())
+        )
 
     }
 
@@ -1666,6 +2189,14 @@ class OfferServiceTests {
             offerEditingTransactionHash = null,
             offerEditingTransactionCreationTime = null,
             offerEditingTransactionCreationBlockNumber = null,
+            approveToTakeState = offer.approvingToTakeState.value.asString,
+            approveToTakeTransactionHash = null,
+            approveToTakeTransactionCreationTime = null,
+            approveToTakeTransactionCreationBlockNumber = null,
+            takingOfferState = offer.takingOfferState.value.asString,
+            takingOfferTransactionHash = null,
+            takingOfferTransactionCreationTime = null,
+            takingOfferTransactionCreationBlockNumber = null,
         )
         runBlocking {
             databaseService.storeOffer(offerForDatabase)
@@ -1855,6 +2386,14 @@ class OfferServiceTests {
             offerEditingTransactionHash = null,
             offerEditingTransactionCreationTime = null,
             offerEditingTransactionCreationBlockNumber = null,
+            approveToTakeState = offer.approvingToTakeState.value.asString,
+            approveToTakeTransactionHash = null,
+            approveToTakeTransactionCreationTime = null,
+            approveToTakeTransactionCreationBlockNumber = null,
+            takingOfferState = offer.takingOfferState.value.asString,
+            takingOfferTransactionHash = null,
+            takingOfferTransactionCreationTime = null,
+            takingOfferTransactionCreationBlockNumber = null,
         )
         runBlocking {
             databaseService.storeOffer(offerForDatabase)
@@ -2042,6 +2581,14 @@ class OfferServiceTests {
             offerEditingTransactionHash = null,
             offerEditingTransactionCreationTime = null,
             offerEditingTransactionCreationBlockNumber = null,
+            approveToTakeState = offer.approvingToTakeState.value.asString,
+            approveToTakeTransactionHash = null,
+            approveToTakeTransactionCreationTime = null,
+            approveToTakeTransactionCreationBlockNumber = null,
+            takingOfferState = offer.takingOfferState.value.asString,
+            takingOfferTransactionHash = null,
+            takingOfferTransactionCreationTime = null,
+            takingOfferTransactionCreationBlockNumber = null,
         )
         runBlocking {
             databaseService.storeOffer(offerForDatabase)
@@ -2316,6 +2863,14 @@ class OfferServiceTests {
             offerEditingTransactionHash = null,
             offerEditingTransactionCreationTime = null,
             offerEditingTransactionCreationBlockNumber = null,
+            approveToTakeState = offer.approvingToTakeState.value.asString,
+            approveToTakeTransactionHash = null,
+            approveToTakeTransactionCreationTime = null,
+            approveToTakeTransactionCreationBlockNumber = null,
+            takingOfferState = offer.takingOfferState.value.asString,
+            takingOfferTransactionHash = null,
+            takingOfferTransactionCreationTime = null,
+            takingOfferTransactionCreationBlockNumber = null,
         )
         assertEquals(mostlyExpectedOfferInDatabase.id, offerInDatabase.id)
         assertEquals(mostlyExpectedOfferInDatabase.isCreated, offerInDatabase.isCreated)
@@ -2485,6 +3040,14 @@ class OfferServiceTests {
             offerEditingTransactionHash = null,
             offerEditingTransactionCreationTime = null,
             offerEditingTransactionCreationBlockNumber = null,
+            approveToTakeState = offer.approvingToTakeState.value.asString,
+            approveToTakeTransactionHash = null,
+            approveToTakeTransactionCreationTime = null,
+            approveToTakeTransactionCreationBlockNumber = null,
+            takingOfferState = offer.takingOfferState.value.asString,
+            takingOfferTransactionHash = null,
+            takingOfferTransactionCreationTime = null,
+            takingOfferTransactionCreationBlockNumber = null,
         )
 
         runBlocking {
@@ -2630,6 +3193,14 @@ class OfferServiceTests {
             offerEditingTransactionHash = null,
             offerEditingTransactionCreationTime = null,
             offerEditingTransactionCreationBlockNumber = null,
+            approveToTakeState = offer.approvingToTakeState.value.asString,
+            approveToTakeTransactionHash = null,
+            approveToTakeTransactionCreationTime = null,
+            approveToTakeTransactionCreationBlockNumber = null,
+            takingOfferState = offer.takingOfferState.value.asString,
+            takingOfferTransactionHash = null,
+            takingOfferTransactionCreationTime = null,
+            takingOfferTransactionCreationBlockNumber = null,
         )
 
         offer.editingOfferState.value = EditingOfferState.VALIDATING
@@ -2691,11 +3262,13 @@ class OfferServiceTests {
     }
 
     /**
-     * Ensures that [OfferService.takeOffer], [BlockchainService.approveTokenTransferAsync] and
-     * [BlockchainService.takeOfferAsync] function properly.
+     * Ensures that [OfferService.createApproveTokenTransferToTakeOfferTransaction],
+     * [BlockchainService.createApproveTransferTransaction], [OfferService.approveTokenTransferToTakeOffer],
+     * [OfferService.createTakeOfferTransaction], [BlockchainService.createTakeOfferTransaction],
+     * [OfferService.openOffer], and [BlockchainService.sendTransaction] function properly.
      */
     @Test
-    fun testTakeOffer() {
+    fun testTakeOffer() = runBlocking {
 
         val offerID = UUID.randomUUID()
 
@@ -2720,15 +3293,13 @@ class OfferServiceTests {
                 requestTimeoutMillis = 90_000
             }
         }
-        val testingServerResponse: TestingServerResponse = runBlocking {
-            testingServerClient.get(testingServiceUrl){
-                url {
-                    parameters.append("events", "offer-opened")
-                    parameters.append("offerID", offerID.toString())
-                    parameters.append("settlement_method_string", settlementMethodString)
-                }
-            }.body()
-        }
+        val testingServerResponse: TestingServerResponse = testingServerClient.get(testingServiceUrl){
+            url {
+                parameters.append("events", "offer-opened")
+                parameters.append("offerID", offerID.toString())
+                parameters.append("settlement_method_string", settlementMethodString)
+            }
+        }.body()
 
         val w3 = CommutoWeb3j(HttpService(System.getenv("BLOCKCHAIN_NODE")))
 
@@ -2740,14 +3311,10 @@ class OfferServiceTests {
             databaseService,
             keyManagerService,
             TestSwapService(),
-            BlockchainEventRepository(),
-            BlockchainEventRepository(),
-            BlockchainEventRepository(),
-            BlockchainEventRepository(),
-            BlockchainEventRepository(),
         )
 
         val offerTruthSource = TestOfferTruthSource()
+        offerTruthSource.serviceFeeRate.value = BigInteger.ONE
         offerService.setOfferTruthSource(offerTruthSource)
 
         val swapTruthSource = TestSwapTruthSource()
@@ -2788,14 +3355,12 @@ class OfferServiceTests {
             isUserMaker = false,
             state = OfferState.OFFER_OPENED
         )
-
         offerTruthSource.addOffer(offer)
         val encoder = Base64.getEncoder()
-        val offerIDB64String = encoder.encodeToString(offerID.asByteArray())
         val offerForDatabase = DatabaseOffer(
-            id = offerIDB64String,
-            isCreated = 1L,
-            isTaken = 0L,
+            id = encoder.encodeToString(offerID.asByteArray()),
+            isCreated = if (offer.isCreated.value) 1L else 0L,
+            isTaken = if (offer.isTaken.value) 1L else 0L,
             maker = offer.maker,
             interfaceId = encoder.encodeToString(offer.interfaceID),
             stablecoin = offer.stablecoin,
@@ -2806,8 +3371,8 @@ class OfferServiceTests {
             onChainDirection = offer.direction.string,
             protocolVersion = offer.protocolVersion.toString(),
             chainID = offer.chainID.toString(),
-            havePublicKey = 1L,
-            isUserMaker = 1L,
+            havePublicKey = if (offer.havePublicKey) 1L else 0L,
+            isUserMaker = if (offer.isUserMaker) 1L else 0L,
             state = offer.state.asString,
             approveToOpenState = offer.approvingToOpenState.value.asString,
             approveToOpenTransactionHash = null,
@@ -2825,173 +3390,239 @@ class OfferServiceTests {
             offerEditingTransactionHash = null,
             offerEditingTransactionCreationTime = null,
             offerEditingTransactionCreationBlockNumber = null,
+            approveToTakeState = offer.approvingToTakeState.value.asString,
+            approveToTakeTransactionHash = null,
+            approveToTakeTransactionCreationTime = null,
+            approveToTakeTransactionCreationBlockNumber = null,
+            takingOfferState = offer.takingOfferState.value.asString,
+            takingOfferTransactionHash = null,
+            takingOfferTransactionCreationTime = null,
+            takingOfferTransactionCreationBlockNumber = null,
         )
-        runBlocking {
-            databaseService.storeOffer(offerForDatabase)
+        databaseService.storeOffer(offerForDatabase)
 
-            val offerInDatabaseBeforeTaking = databaseService.getOffer(id = offerIDB64String)
-            assertEquals(offerForDatabase, offerInDatabaseBeforeTaking)
+        val offerInDatabaseBeforeTaking = databaseService.getOffer(id = encoder.encodeToString(offer.id.asByteArray()))
+        assertEquals(offerForDatabase, offerInDatabaseBeforeTaking)
 
-            val swapData = ValidatedNewSwapData(
-                takenSwapAmount = BigInteger.valueOf(15_000L) * BigInteger.TEN.pow(18),
-                makerSettlementMethod = SettlementMethod(
-                    currency = "EUR",
-                    price = "0.98",
-                    method = "SEPA",
-                    privateData = "EUR_SEPA_Private_Data"
+        val tokenTransferApprovalTransaction = offerService.createApproveTokenTransferToTakeOfferTransaction(
+            offerToTake = offer,
+            takenSwapAmount = BigDecimal.valueOf(15_000),
+            makerSettlementMethod = SettlementMethod(
+                currency = "EUR",
+                price = "0.98",
+                method = "SEPA",
+                privateData = ""
+            ),
+            takerSettlementMethod = SettlementMethod(
+                currency = "EUR",
+                price = "0.98",
+                method = "SEPA",
+                privateData = Json.encodeToString(
+                    PrivateSEPAData(
+                        accountHolder = "account_holder",
+                        bic = "bic",
+                        iban = "iban",
+                        address = "address"
+                    )
                 ),
-                takerSettlementMethod = SettlementMethod(
-                    currency = "EUR",
-                    price = "0.98",
-                    method = "SEPA",
-                    privateData = "Taker_EUR_SEPA_Private_Data"
-                )
+            ),
+            stablecoinInformationRepository = StablecoinInformationRepository.hardhatStablecoinInfoRepo
+        )
+
+        offerService.approveTokenTransferToTakeOffer(
+            offerToTake = offer,
+            takenSwapAmount = BigDecimal.valueOf(15_000),
+            makerSettlementMethod = SettlementMethod(
+                currency = "EUR",
+                price = "0.98",
+                method = "SEPA",
+                privateData = ""
+            ),
+            takerSettlementMethod = SettlementMethod(
+                currency = "EUR",
+                price = "0.98",
+                method = "SEPA",
+                privateData = Json.encodeToString(
+                    PrivateSEPAData(
+                        accountHolder = "account_holder",
+                        bic = "bic",
+                        iban = "iban",
+                        address = "address"
+                    )
+                ),
+            ),
+            stablecoinInformationRepository = StablecoinInformationRepository.hardhatStablecoinInfoRepo,
+            approveTokenTransferToTakeOfferTransaction = tokenTransferApprovalTransaction
+        )
+        // Since we aren't parsing new events, we have to set the offer's approving to take manually
+        offer.approvingToTakeState.value = TokenTransferApprovalState.COMPLETED
+
+        val takingOfferTransactionAndKeyPair = offerService.createTakeOfferTransaction(
+            offerToTake = offer,
+            takenSwapAmount = BigDecimal.valueOf(15_000),
+            makerSettlementMethod = SettlementMethod(
+                currency = "EUR",
+                price = "0.98",
+                method = "SEPA",
+                privateData = ""
+            ),
+            takerSettlementMethod = SettlementMethod(
+                currency = "EUR",
+                price = "0.98",
+                method = "SEPA",
+                privateData = Json.encodeToString(
+                    PrivateSEPAData(
+                        accountHolder = "account_holder",
+                        bic = "bic",
+                        iban = "iban",
+                        address = "address"
+                    )
+                ),
+            ),
+            stablecoinInformationRepository = StablecoinInformationRepository.hardhatStablecoinInfoRepo,
+        )
+
+        offerService.takeOffer(
+            offerToTake = offer,
+            takenSwapAmount = BigDecimal.valueOf(15_000),
+            makerSettlementMethod = SettlementMethod(
+                currency = "EUR",
+                price = "0.98",
+                method = "SEPA",
+                privateData = ""
+            ),
+            takerSettlementMethod = SettlementMethod(
+                currency = "EUR",
+                price = "0.98",
+                method = "SEPA",
+                privateData = Json.encodeToString(
+                    PrivateSEPAData(
+                        accountHolder = "account_holder",
+                        bic = "bic",
+                        iban = "iban",
+                        address = "address"
+                    )
+                ),
+            ),
+            stablecoinInformationRepository = StablecoinInformationRepository.hardhatStablecoinInfoRepo,
+            takerKeyPair = takingOfferTransactionAndKeyPair.second,
+            offerTakingTransaction = takingOfferTransactionAndKeyPair.first,
+        )
+
+        val swapOnChain = blockchainService.getSwap(id = offerID)
+        assertTrue(swapOnChain!!.isCreated)
+
+        assertNotNull(keyManagerService.getKeyPair(interfaceId = swapOnChain.takerInterfaceID))
+
+        val swapInTruthSource = swapTruthSource.swaps[offerID]
+        assertTrue(swapInTruthSource!!.isCreated)
+        assertFalse(swapInTruthSource.requiresFill)
+        assertEquals(offerID, swapInTruthSource.id)
+        assertEquals("0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266", swapInTruthSource.maker)
+        assert(ByteArray(0).contentEquals(swapInTruthSource.makerInterfaceID))
+        assertEquals(blockchainService.getAddress(), swapInTruthSource.taker)
+        assert(swapOnChain.takerInterfaceID.contentEquals(swapInTruthSource.takerInterfaceID))
+        assertEquals(testingServerResponse.stablecoinAddress, swapInTruthSource.stablecoin)
+        assertEquals(BigInteger.valueOf(10_000L) * BigInteger.TEN.pow(18), swapInTruthSource
+            .amountLowerBound)
+        assertEquals(BigInteger.valueOf(20_000L) * BigInteger.TEN.pow(18), swapInTruthSource
+            .amountUpperBound)
+        assertEquals(BigInteger.valueOf(2_000L) * BigInteger.TEN.pow(18), swapInTruthSource
+            .securityDepositAmount)
+        assertEquals(BigInteger.valueOf(15_000L) * BigInteger.TEN.pow(18), swapInTruthSource
+            .takenSwapAmount)
+        assertEquals(BigInteger.valueOf(150L) * BigInteger.TEN.pow(18), swapInTruthSource
+            .serviceFeeAmount)
+        assertEquals(BigInteger.valueOf(100L), swapInTruthSource.serviceFeeRate)
+        assertEquals(BigInteger.ZERO, swapInTruthSource.onChainDirection)
+        assertEquals(OfferDirection.BUY, swapInTruthSource.direction)
+        assert(Json.encodeToString(
+            SettlementMethod(
+                currency = "EUR",
+                price = "0.98",
+                method = "SEPA",
             )
-
-            offerService.takeOffer(
-                offerToTake = offer,
-                swapData = swapData,
+        ).encodeToByteArray().contentEquals(swapInTruthSource.onChainSettlementMethod))
+        assertEquals("EUR", swapInTruthSource.settlementMethod.currency)
+        assertEquals("0.98", swapInTruthSource.settlementMethod.price)
+        assertEquals("SEPA", swapInTruthSource.settlementMethod.method)
+        assertEquals(Json.encodeToString(
+            PrivateSEPAData(
+                accountHolder = "account_holder",
+                bic = "bic",
+                iban = "iban",
+                address = "address"
             )
+        ), swapInTruthSource.takerPrivateSettlementMethodData)
+        assertEquals(BigInteger.ONE, swapInTruthSource.protocolVersion)
+        assertFalse(swapInTruthSource.isPaymentSent)
+        assertFalse(swapInTruthSource.isPaymentReceived)
+        assertFalse(swapInTruthSource.hasBuyerClosed)
+        assertFalse(swapInTruthSource.hasSellerClosed)
+        assertEquals(BigInteger.ZERO, swapInTruthSource.onChainDisputeRaiser)
+        assertEquals(BigInteger.valueOf(31337L), swapInTruthSource.chainID)
+        assertEquals(SwapState.TAKE_OFFER_TRANSACTION_SENT, swapInTruthSource.state.value)
 
-            val swapOnChain = blockchainService.getSwap(id = offerID)
-            assertTrue(swapOnChain!!.isCreated)
-
-            assertNotNull(keyManagerService.getKeyPair(interfaceId = swapOnChain.takerInterfaceID))
-
-            val swapInTruthSource = swapTruthSource.swaps[offerID]
-            assertTrue(swapInTruthSource!!.isCreated)
-            assertFalse(swapInTruthSource.requiresFill)
-            assertEquals(offerID, swapInTruthSource.id)
-            assertEquals("0xf39fd6e51aad88f6f4ce6ab8827279cfffb92266", swapInTruthSource.maker)
-            assert(ByteArray(0).contentEquals(swapInTruthSource.makerInterfaceID))
-            // TODO: check taker address once walletService is implemented
-            assert(swapOnChain.takerInterfaceID.contentEquals(swapInTruthSource.takerInterfaceID))
-            assertEquals(testingServerResponse.stablecoinAddress, swapInTruthSource.stablecoin)
-            assertEquals(BigInteger.valueOf(10_000L) * BigInteger.TEN.pow(18), swapInTruthSource
-                .amountLowerBound)
-            assertEquals(BigInteger.valueOf(20_000L) * BigInteger.TEN.pow(18), swapInTruthSource
-                .amountUpperBound)
-            assertEquals(BigInteger.valueOf(2_000L) * BigInteger.TEN.pow(18), swapInTruthSource
-                .securityDepositAmount)
-            assertEquals(BigInteger.valueOf(15_000L) * BigInteger.TEN.pow(18), swapInTruthSource
-                .takenSwapAmount)
-            assertEquals(BigInteger.valueOf(150L) * BigInteger.TEN.pow(18), swapInTruthSource
-                .serviceFeeAmount)
-            assertEquals(BigInteger.valueOf(100L), swapInTruthSource.serviceFeeRate)
-            assertEquals(BigInteger.ZERO, swapInTruthSource.onChainDirection)
-            assertEquals(OfferDirection.BUY, swapInTruthSource.direction)
-            assert(Json.encodeToString(
+        // Test the persistently stored swap
+        val swapInDatabase = databaseService.getSwap(id = encoder.encodeToString(offerID.asByteArray()))
+        // TODO: check proper taker address once WalletService is implemented
+        val expectedSwapInDatabase = DatabaseSwap(
+            id = encoder.encodeToString(offerID.asByteArray()),
+            isCreated = 1L,
+            requiresFill = 0L,
+            maker = swapInTruthSource.maker,
+            makerInterfaceID = "",
+            taker = swapInTruthSource.taker,
+            takerInterfaceID = encoder.encodeToString(swapInTruthSource.takerInterfaceID),
+            stablecoin = swapInTruthSource.stablecoin,
+            amountLowerBound = swapInTruthSource.amountLowerBound.toString(),
+            amountUpperBound = swapInTruthSource.amountUpperBound.toString(),
+            securityDepositAmount = swapInTruthSource.securityDepositAmount.toString(),
+            takenSwapAmount = swapInTruthSource.takenSwapAmount.toString(),
+            serviceFeeAmount = swapInTruthSource.serviceFeeAmount.toString(),
+            serviceFeeRate = swapInTruthSource.serviceFeeRate.toString(),
+            onChainDirection = swapInTruthSource.onChainDirection.toString(),
+            settlementMethod = encoder.encodeToString(Json.encodeToString(
                 SettlementMethod(
                     currency = "EUR",
                     price = "0.98",
                     method = "SEPA",
+                ),
+            ).encodeToByteArray()),
+            makerPrivateData = null,
+            makerPrivateDataInitializationVector = null,
+            takerPrivateData = Json.encodeToString(
+                PrivateSEPAData(
+                    accountHolder = "account_holder",
+                    bic = "bic",
+                    iban = "iban",
+                    address = "address"
                 )
-            ).encodeToByteArray().contentEquals(swapInTruthSource.onChainSettlementMethod))
-            assertEquals("EUR", swapInTruthSource.settlementMethod.currency)
-            assertEquals("0.98", swapInTruthSource.settlementMethod.price)
-            assertEquals("SEPA", swapInTruthSource.settlementMethod.method)
-            assertEquals("Taker_EUR_SEPA_Private_Data", swapInTruthSource.takerPrivateSettlementMethodData)
-            assertEquals(BigInteger.ONE, swapInTruthSource.protocolVersion)
-            assertFalse(swapInTruthSource.isPaymentSent)
-            assertFalse(swapInTruthSource.isPaymentReceived)
-            assertFalse(swapInTruthSource.hasBuyerClosed)
-            assertFalse(swapInTruthSource.hasSellerClosed)
-            assertEquals(BigInteger.ZERO, swapInTruthSource.onChainDisputeRaiser)
-            assertEquals(BigInteger.valueOf(31337L), swapInTruthSource.chainID)
-            assertEquals(SwapState.TAKE_OFFER_TRANSACTION_BROADCAST, swapInTruthSource.state.value)
-
-            // Test the persistently stored swap
-            val swapInDatabase = databaseService.getSwap(id = offerIDB64String)
-            // TODO: check proper taker address once WalletService is implemented
-            val expectedSwapInDatabase = DatabaseSwap(
-                id = offerIDB64String,
-                isCreated = 1L,
-                requiresFill = 0L,
-                maker = swapInTruthSource.maker,
-                makerInterfaceID = "",
-                taker = swapInTruthSource.taker,
-                takerInterfaceID = "",
-                stablecoin = swapInTruthSource.stablecoin,
-                amountLowerBound = swapInTruthSource.amountLowerBound.toString(),
-                amountUpperBound = swapInTruthSource.amountUpperBound.toString(),
-                securityDepositAmount = swapInTruthSource.securityDepositAmount.toString(),
-                takenSwapAmount = swapInTruthSource.takenSwapAmount.toString(),
-                serviceFeeAmount = swapInTruthSource.serviceFeeAmount.toString(),
-                serviceFeeRate = swapInTruthSource.serviceFeeRate.toString(),
-                onChainDirection = swapInTruthSource.onChainDirection.toString(),
-                settlementMethod = encoder.encodeToString(Json.encodeToString(
-                    SettlementMethod(
-                        currency = "EUR",
-                        price = "0.98",
-                        method = "SEPA",
-                    ),
-                ).encodeToByteArray()),
-                makerPrivateData = null,
-                makerPrivateDataInitializationVector = null,
-                takerPrivateData = "Taker_EUR_SEPA_Private_Data",
-                takerPrivateDataInitializationVector = null,
-                protocolVersion = swapInTruthSource.protocolVersion.toString(),
-                isPaymentSent = 0L,
-                isPaymentReceived = 0L,
-                hasBuyerClosed = 0L,
-                hasSellerClosed = 0L,
-                disputeRaiser = swapInTruthSource.onChainDisputeRaiser.toString(),
-                chainID = swapInTruthSource.chainID.toString(),
-                state = swapInTruthSource.state.value.asString,
-                role = swapInTruthSource.role.asString,
-                reportPaymentSentState = swapInTruthSource.reportingPaymentSentState.value.asString,
-                reportPaymentSentTransactionHash = null,
-                reportPaymentSentTransactionCreationTime = null,
-                reportPaymentSentTransactionCreationBlockNumber = null,
-                reportPaymentReceivedState = swapInTruthSource.reportingPaymentReceivedState.value.asString,
-                reportPaymentReceivedTransactionHash = null,
-                reportPaymentReceivedTransactionCreationTime = null,
-                reportPaymentReceivedTransactionCreationBlockNumber = null,
-                closeSwapState = swapInTruthSource.closingSwapState.value.asString,
-                closeSwapTransactionHash = null,
-                closeSwapTransactionCreationTime = null,
-                closeSwapTransactionCreationBlockNumber = null,
-            )
-            assertEquals(expectedSwapInDatabase.id, swapInDatabase!!.id)
-            assertEquals(expectedSwapInDatabase.isCreated, swapInDatabase.isCreated)
-            assertEquals(expectedSwapInDatabase.requiresFill, swapInDatabase.requiresFill)
-            assertEquals(expectedSwapInDatabase.maker, swapInDatabase.maker)
-            assertEquals(expectedSwapInDatabase.taker, swapInDatabase.taker)
-            assertEquals(expectedSwapInDatabase.stablecoin, swapInDatabase.stablecoin)
-            assertEquals(expectedSwapInDatabase.amountLowerBound, swapInDatabase.amountLowerBound)
-            assertEquals(expectedSwapInDatabase.amountUpperBound, swapInDatabase.amountUpperBound)
-            assertEquals(expectedSwapInDatabase.securityDepositAmount, swapInDatabase.securityDepositAmount)
-            assertEquals(expectedSwapInDatabase.takenSwapAmount, swapInDatabase.takenSwapAmount)
-            assertEquals(expectedSwapInDatabase.serviceFeeAmount, swapInDatabase.serviceFeeAmount)
-            assertEquals(expectedSwapInDatabase.serviceFeeRate, swapInDatabase.serviceFeeRate)
-            assertEquals(expectedSwapInDatabase.onChainDirection, swapInDatabase.onChainDirection)
-            assertEquals(expectedSwapInDatabase.settlementMethod, swapInDatabase.settlementMethod)
-            assertEquals(expectedSwapInDatabase.takerPrivateData, swapInDatabase.takerPrivateData)
-            assertEquals(expectedSwapInDatabase.protocolVersion, swapInDatabase.protocolVersion)
-            assertEquals(expectedSwapInDatabase.isPaymentSent, swapInDatabase.isPaymentSent)
-            assertEquals(expectedSwapInDatabase.isPaymentReceived, swapInDatabase.isPaymentReceived)
-            assertEquals(expectedSwapInDatabase.hasBuyerClosed, swapInDatabase.hasBuyerClosed)
-            assertEquals(expectedSwapInDatabase.hasSellerClosed, swapInDatabase.hasSellerClosed)
-            assertEquals(expectedSwapInDatabase.disputeRaiser, swapInDatabase.disputeRaiser)
-            assertEquals(expectedSwapInDatabase.chainID, swapInDatabase.chainID)
-            assertEquals(expectedSwapInDatabase.state, swapInDatabase.state)
-            assertEquals(expectedSwapInDatabase.role, swapInDatabase.role)
-
-            // Ensure the Offer is in the "taken" state
-            assertEquals(OfferState.TAKEN, offer.state)
-
-            // Ensure the value of the Offer's isTaken property is true
-            assertTrue(offer.isTaken.value)
-
-            // Check that the offer has been deleted from persistent storage
-            assertNull(databaseService.getOffer(id = offerIDB64String))
-
-            // Check that the offer's settlement methods have been deleted from persistent storage
-            assertNull(databaseService.getOfferSettlementMethods(
-                offerID = offerIDB64String,
-                chainID = BigInteger.valueOf(31337L).toString()),
-            )
-        }
+            ),
+            takerPrivateDataInitializationVector = null,
+            protocolVersion = swapInTruthSource.protocolVersion.toString(),
+            isPaymentSent = 0L,
+            isPaymentReceived = 0L,
+            hasBuyerClosed = 0L,
+            hasSellerClosed = 0L,
+            disputeRaiser = swapInTruthSource.onChainDisputeRaiser.toString(),
+            chainID = swapInTruthSource.chainID.toString(),
+            state = swapInTruthSource.state.value.asString,
+            role = "takerAndSeller",
+            reportPaymentSentState = swapInTruthSource.reportingPaymentSentState.value.asString,
+            reportPaymentSentTransactionHash = null,
+            reportPaymentSentTransactionCreationTime = null,
+            reportPaymentSentTransactionCreationBlockNumber = null,
+            reportPaymentReceivedState = swapInTruthSource.reportingPaymentReceivedState.value.asString,
+            reportPaymentReceivedTransactionHash = null,
+            reportPaymentReceivedTransactionCreationTime = null,
+            reportPaymentReceivedTransactionCreationBlockNumber = null,
+            closeSwapState = swapInTruthSource.closingSwapState.value.asString,
+            closeSwapTransactionHash = null,
+            closeSwapTransactionCreationTime = null,
+            closeSwapTransactionCreationBlockNumber = null,
+        )
+        assertEquals(expectedSwapInDatabase, swapInDatabase)
 
     }
 

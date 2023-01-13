@@ -21,4 +21,13 @@ data class CommutoApprovalEventResponse(
     val spender: String,
     val amount: BigInteger,
     val eventName: String
-): BaseEventResponse()
+): BaseEventResponse() {
+
+    /**
+     * Returns this object's [log] property. This exists because [ApprovalEvent.fromEventResponse] was throwing a
+     * [IllegalAccessError], complaining that the companion object was attempting to access a private field.
+     */
+    fun getEventResponseLog(): Log {
+        return log
+    }
+}

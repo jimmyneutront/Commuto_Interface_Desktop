@@ -31,7 +31,15 @@ offerCancellationTransactionCreationBlockNumber INTEGER,
 editingOfferState TEXT NOT NULL,
 offerEditingTransactionHash TEXT,
 offerEditingTransactionCreationTime TEXT,
-offerEditingTransactionCreationBlockNumber INTEGER
+offerEditingTransactionCreationBlockNumber INTEGER,
+approveToTakeState TEXT NOT NULL,
+approveToTakeTransactionHash TEXT,
+approveToTakeTransactionCreationTime TEXT,
+approveToTakeTransactionCreationBlockNumber INTEGER,
+takingOfferState TEXT NOT NULL,
+takingOfferTransactionHash TEXT,
+takingOfferTransactionCreationTime TEXT,
+takingOfferTransactionCreationBlockNumber INTEGER
 );
 
 createSettlementMethodTable:
@@ -151,7 +159,15 @@ INSERT INTO Offer(
     editingOfferState,
     offerEditingTransactionHash,
     offerEditingTransactionCreationTime,
-    offerEditingTransactionCreationBlockNumber
+    offerEditingTransactionCreationBlockNumber,
+    approveToTakeState,
+    approveToTakeTransactionHash,
+    approveToTakeTransactionCreationTime,
+    approveToTakeTransactionCreationBlockNumber,
+    takingOfferState,
+    takingOfferTransactionHash,
+    takingOfferTransactionCreationTime,
+    takingOfferTransactionCreationBlockNumber
 )
 VALUES(?, ?, ?, ?, ?, ?, ?,
 ?, ?, ?, ?, ?,
@@ -159,6 +175,9 @@ VALUES(?, ?, ?, ?, ?, ?, ?,
 ?, ?, ?,
 ?, ?, ?,
 ?, ?, ?,
+?, ?, ?,
+?, ?, ?,
+?, ?,
 ?, ?, ?,
 ?, ?);
 
@@ -311,6 +330,30 @@ UPDATE Offer
 SET offerEditingTransactionHash = ?,
 offerEditingTransactionCreationTime = ?,
 offerEditingTransactionCreationBlockNumber = ?
+WHERE id = ? AND chainID = ?;
+
+updateOfferApproveToTakeStateByOfferIDAndChainID:
+UPDATE Offer
+SET approveToTakeState = ?
+WHERE id = ? AND chainID = ?;
+
+updateOfferApproveToTakeDataByOfferIDAndChainID:
+UPDATE Offer
+SET approveToTakeTransactionHash = ?,
+approveToTakeTransactionCreationTime = ?,
+approveToTakeTransactionCreationBlockNumber = ?
+WHERE id = ? AND chainID = ?;
+
+updateTakingOfferStateByOfferIDAndChainID:
+UPDATE Offer
+SET takingOfferState = ?
+WHERE id = ? AND chainID = ?;
+
+updateTakingOfferDataByOfferIDAndChainID:
+UPDATE Offer
+SET takingOfferTransactionHash = ?,
+takingOfferTransactionCreationTime = ?,
+takingOfferTransactionCreationBlockNumber = ?
 WHERE id = ? AND chainID = ?;
 
 updateSwapRequiresFillBySwapIDAndChainID:

@@ -308,7 +308,7 @@ class Swap(
                 hasSellerClosed = false,
                 onChainDisputeRaiser = BigInteger.ZERO,
                 chainID = BigInteger.valueOf(31337L), // Hardhat blockchain ID,
-                state = SwapState.TAKE_OFFER_TRANSACTION_BROADCAST,
+                state = SwapState.TAKE_OFFER_TRANSACTION_SENT,
                 role = SwapRole.MAKER_AND_BUYER,
             ),
             Swap(
@@ -342,7 +342,7 @@ class Swap(
                 hasSellerClosed = false,
                 onChainDisputeRaiser = BigInteger.ZERO,
                 chainID = BigInteger.valueOf(31337L), // Hardhat blockchain ID,
-                state = SwapState.TAKE_OFFER_TRANSACTION_BROADCAST,
+                state = SwapState.TAKE_OFFER_TRANSACTION_SENT,
                 role = SwapRole.TAKER_AND_SELLER,
             ),
         )

@@ -398,8 +398,9 @@ fun SwapStateComposable(swapState: MutableState<SwapState>, userRole: SwapRole, 
      * A string describing [swapState] based on the value of [userRole].
      */
     val stateDescription = when (swapState.value) {
+        SwapState.TAKE_OFFER_TRANSACTION_FAILED -> "An exception occured while taking offer"
         SwapState.TAKING -> "Taking Offer..."
-        SwapState.TAKE_OFFER_TRANSACTION_BROADCAST -> "Awaiting confirmation that offer is taken"
+        SwapState.TAKE_OFFER_TRANSACTION_SENT -> "Awaiting confirmation that offer is taken"
         SwapState.AWAITING_TAKER_INFORMATION -> {
             when (userRole) {
                 // We are the maker, so we are waiting to receive settlement method information from the taker

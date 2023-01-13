@@ -861,7 +861,8 @@ class SwapService @Inject constructor(
         val encoder = Base64.getEncoder()
         when (transaction.type) {
             BlockchainTransactionType.APPROVE_TOKEN_TRANSFER_TO_OPEN_OFFER, BlockchainTransactionType.OPEN_OFFER,
-            BlockchainTransactionType.CANCEL_OFFER, BlockchainTransactionType.EDIT_OFFER -> {
+            BlockchainTransactionType.CANCEL_OFFER, BlockchainTransactionType.EDIT_OFFER,
+            BlockchainTransactionType.APPROVE_TOKEN_TRANSFER_TO_TAKE_OFFER, BlockchainTransactionType.TAKE_OFFER -> {
                 throw SwapServiceException(message = "handleFailedTransaction: received an offer-related transaction " +
                         transaction.transactionHash
                 )

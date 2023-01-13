@@ -53,6 +53,14 @@ class DatabaseServiceTest {
             "a_tx_hash_here",
             "a_time_here",
             -1,
+            "a_tokenTransferApprovalState_here",
+            "a_tx_hash_here",
+            "a_time_here",
+            -1,
+            "a_takingOfferState_here",
+            "a_tx_hash_here",
+            "a_time_here",
+            -1,
         )
         databaseService.storeOffer(offerToStore)
         val anotherOfferToStore = Offer(
@@ -85,6 +93,14 @@ class DatabaseServiceTest {
             "a_time_here",
             -1,
             "an_editingOfferState_here",
+            "a_tx_hash_here",
+            "a_time_here",
+            -1,
+            "a_tokenTransferApprovalState_here",
+            "a_tx_hash_here",
+            "a_time_here",
+            -1,
+            "a_takingOfferState_here",
             "a_tx_hash_here",
             "a_time_here",
             -1,
@@ -134,6 +150,14 @@ class DatabaseServiceTest {
             "a_tx_hash_here",
             "a_time_here",
             -1,
+            "a_tokenTransferApprovalState_here",
+            "a_tx_hash_here",
+            "a_time_here",
+            -1,
+            "a_takingOfferState_here",
+            "a_tx_hash_here",
+            "a_time_here",
+            -1,
         )
         databaseService.storeOffer(offerToStore)
         databaseService.updateOfferHavePublicKey("a_uuid", "a_chain_id", true)
@@ -179,6 +203,14 @@ class DatabaseServiceTest {
             "a_tx_hash_here",
             "a_time_here",
             -1,
+            "a_tokenTransferApprovalState_here",
+            "a_tx_hash_here",
+            "a_time_here",
+            -1,
+            "a_takingOfferState_here",
+            "a_tx_hash_here",
+            "a_time_here",
+            -1,
         )
         databaseService.storeOffer(offerToStore)
         databaseService.updateOfferState("a_uuid", "a_chain_id", "a_new_state_here")
@@ -221,6 +253,14 @@ class DatabaseServiceTest {
             "a_time_here",
             -1,
             "an_editingOfferState_here",
+            "a_tx_hash_here",
+            "a_time_here",
+            -1,
+            "a_tokenTransferApprovalState_here",
+            "a_tx_hash_here",
+            "a_time_here",
+            -1,
+            "a_takingOfferState_here",
             "a_tx_hash_here",
             "a_time_here",
             -1,
@@ -271,6 +311,14 @@ class DatabaseServiceTest {
             "a_time_here",
             -1,
             "an_editingOfferState_here",
+            "a_tx_hash_here",
+            "a_time_here",
+            -1,
+            "a_tokenTransferApprovalState_here",
+            "a_tx_hash_here",
+            "a_time_here",
+            -1,
+            "a_takingOfferState_here",
             "a_tx_hash_here",
             "a_time_here",
             -1,
@@ -331,6 +379,14 @@ class DatabaseServiceTest {
             "a_tx_hash_here",
             "a_time_here",
             -1,
+            "a_tokenTransferApprovalState_here",
+            "a_tx_hash_here",
+            "a_time_here",
+            -1,
+            "a_takingOfferState_here",
+            "a_tx_hash_here",
+            "a_time_here",
+            -1,
         )
         databaseService.storeOffer(offerToStore)
         databaseService.updateOpeningOfferState(
@@ -378,6 +434,14 @@ class DatabaseServiceTest {
             "a_time_here",
             -1,
             "an_editingOfferState_here",
+            "a_tx_hash_here",
+            "a_time_here",
+            -1,
+            "a_tokenTransferApprovalState_here",
+            "a_tx_hash_here",
+            "a_time_here",
+            -1,
+            "a_takingOfferState_here",
             "a_tx_hash_here",
             "a_time_here",
             -1,
@@ -438,6 +502,14 @@ class DatabaseServiceTest {
             "a_tx_hash_here",
             "a_time_here",
             -1,
+            "a_tokenTransferApprovalState_here",
+            "a_tx_hash_here",
+            "a_time_here",
+            -1,
+            "a_takingOfferState_here",
+            "a_tx_hash_here",
+            "a_time_here",
+            -1,
         )
         databaseService.storeOffer(offerToStore)
         databaseService.updateCancelingOfferState(
@@ -485,6 +557,14 @@ class DatabaseServiceTest {
             null,
             null,
             "an_editingOfferState_here",
+            "a_tx_hash_here",
+            "a_time_here",
+            -1,
+            "a_tokenTransferApprovalState_here",
+            "a_tx_hash_here",
+            "a_time_here",
+            -1,
+            "a_takingOfferState_here",
             "a_tx_hash_here",
             "a_time_here",
             -1,
@@ -545,6 +625,14 @@ class DatabaseServiceTest {
             "a_tx_hash_here",
             "a_time_here",
             -1,
+            "a_tokenTransferApprovalState_here",
+            "a_tx_hash_here",
+            "a_time_here",
+            -1,
+            "a_takingOfferState_here",
+            "a_tx_hash_here",
+            "a_time_here",
+            -1,
         )
         databaseService.storeOffer(offerToStore)
         databaseService.updateEditingOfferState(
@@ -595,6 +683,14 @@ class DatabaseServiceTest {
             null,
             null,
             null,
+            "a_tokenTransferApprovalState_here",
+            "a_tx_hash_here",
+            "a_time_here",
+            -1,
+            "a_takingOfferState_here",
+            "a_tx_hash_here",
+            "a_time_here",
+            -1,
         )
         databaseService.storeOffer(offerToStore)
         val returnedOfferBeforeUpdate = databaseService.getOffer(id = "a_uuid")
@@ -612,6 +708,252 @@ class DatabaseServiceTest {
         assertEquals("a_tx_hash_here", returnedOfferAfterUpdate!!.offerEditingTransactionHash)
         assertEquals("a_creation_time", returnedOfferAfterUpdate.offerEditingTransactionCreationTime)
         assertEquals(-1L, returnedOfferAfterUpdate.offerEditingTransactionCreationBlockNumber)
+    }
+
+    /**
+     * Ensures that code to update a persistently stored offer's [Offer.approveToTakeState] property works properly.
+     */
+    @Test
+    fun testUpdateApproveToTakeState() = runBlocking {
+        val offerToStore = Offer(
+            "a_uuid",
+            1L,
+            0L,
+            "maker_address",
+            "interface_id",
+            "stablecoin_address",
+            "lower_bound_amount",
+            "upper_bound_amount",
+            "security_deposit_amount",
+            "service_fee_rate",
+            "direction",
+            "some_version",
+            "a_chain_id",
+            0L,
+            0L,
+            "a_state_here",
+            "a_tokenTransferApprovalState_here",
+            "a_tx_hash_here",
+            "a_time_here",
+            -1,
+            "an_openingOfferState_here",
+            "a_tx_hash_here",
+            "a_time_here",
+            -1,
+            "a_cancelingOfferState_here",
+            "a_tx_hash_here",
+            "a_time_here",
+            -1,
+            "an_editingOfferState_here",
+            "a_tx_hash_here",
+            "a_time_here",
+            -1,
+            "a_tokenTransferApprovalState_here",
+            "a_tx_hash_here",
+            "a_time_here",
+            -1,
+            "a_takingOfferState_here",
+            "a_tx_hash_here",
+            "a_time_here",
+            -1,
+        )
+        databaseService.storeOffer(offerToStore)
+        databaseService.updateOfferApproveToTakeState(
+            offerID = "a_uuid",
+            chainID = "a_chain_id",
+            state = "a_new_tokenTransferApprovalState_here",
+        )
+        val returnedOffer = databaseService.getOffer(id = "a_uuid")
+        Assert.assertEquals("a_new_tokenTransferApprovalState_here", returnedOffer!!.approveToTakeState)
+    }
+
+    /**
+     * Ensures that code to update a persistently stored offer's [Offer.approveToTakeTransactionHash] and related
+     * properties works properly.
+     */
+    @Test
+    fun testUpdateApproveToTakeData() = runBlocking {
+        val offerToStore = Offer(
+            "a_uuid",
+            1L,
+            0L,
+            "maker_address",
+            "interface_id",
+            "stablecoin_address",
+            "lower_bound_amount",
+            "upper_bound_amount",
+            "security_deposit_amount",
+            "service_fee_rate",
+            "direction",
+            "some_version",
+            "a_chain_id",
+            0L,
+            0L,
+            "a_state_here",
+            "a_tokenTransferApprovalState_here",
+            "a_tx_hash_here",
+            "a_time_here",
+            -1,
+            "an_openingOfferState_here",
+            "a_tx_hash_here",
+            "a_time_here",
+            -1,
+            "a_cancelingOfferState_here",
+            "a_tx_hash_here",
+            "a_time_here",
+            -1,
+            "an_editingOfferState_here",
+            "a_tx_hash_here",
+            "a_time_here",
+            -1,
+            "a_tokenTransferApprovalState_here",
+            null,
+            null,
+            null,
+            "a_takingOfferState_here",
+            "a_tx_hash_here",
+            "a_time_here",
+            -1,
+        )
+        databaseService.storeOffer(offerToStore)
+        val returnedOfferBeforeUpdate = databaseService.getOffer(id = "a_uuid")
+        assertNull(returnedOfferBeforeUpdate!!.approveToTakeTransactionHash)
+        assertNull(returnedOfferBeforeUpdate.approveToTakeTransactionCreationTime)
+        assertNull(returnedOfferBeforeUpdate.approveToTakeTransactionCreationBlockNumber)
+        databaseService.updateOfferApproveToTakeData(
+            offerID = "a_uuid",
+            chainID = "a_chain_id",
+            transactionHash = "a_tx_hash_here",
+            creationTime = "a_creation_time",
+            blockNumber = -1L
+        )
+        val returnedOfferAfterUpdate = databaseService.getOffer(id = "a_uuid")
+        Assert.assertEquals("a_tx_hash_here", returnedOfferAfterUpdate!!.approveToTakeTransactionHash)
+        Assert.assertEquals("a_creation_time", returnedOfferAfterUpdate.approveToTakeTransactionCreationTime)
+        Assert.assertEquals(-1L, returnedOfferAfterUpdate.approveToTakeTransactionCreationBlockNumber)
+    }
+
+    /**
+     * Ensures that code to update a persistently stored offer's [Offer.takingOfferState] property works properly.
+     */
+    @Test
+    fun testUpdateTakingOfferState() = runBlocking {
+        val offerToStore = Offer(
+            "a_uuid",
+            1L,
+            0L,
+            "maker_address",
+            "interface_id",
+            "stablecoin_address",
+            "lower_bound_amount",
+            "upper_bound_amount",
+            "security_deposit_amount",
+            "service_fee_rate",
+            "direction",
+            "some_version",
+            "a_chain_id",
+            0L,
+            0L,
+            "a_state_here",
+            "a_tokenTransferApprovalState_here",
+            "a_tx_hash_here",
+            "a_time_here",
+            -1,
+            "an_openingOfferState_here",
+            "a_tx_hash_here",
+            "a_time_here",
+            -1,
+            "a_cancelingOfferState_here",
+            "a_tx_hash_here",
+            "a_time_here",
+            -1,
+            "an_editingOfferState_here",
+            "a_tx_hash_here",
+            "a_time_here",
+            -1,
+            "a_tokenTransferApprovalState_here",
+            "a_tx_hash_here",
+            "a_time_here",
+            -1,
+            "a_takingOfferState_here",
+            "a_tx_hash_here",
+            "a_time_here",
+            -1,
+        )
+        databaseService.storeOffer(offerToStore)
+        databaseService.updateTakingOfferState(
+            offerID = "a_uuid",
+            chainID = "a_chain_id",
+            state = "a_new_takingOfferState_here",
+        )
+        val returnedOffer = databaseService.getOffer(id = "a_uuid")
+        Assert.assertEquals("a_new_takingOfferState_here", returnedOffer!!.takingOfferState)
+    }
+
+    /**
+     * Ensures that code to update a persistently stored offer's [Offer.takingOfferTransactionHash] and related
+     * properties works properly.
+     */
+    @Test
+    fun testUpdateTakingOfferStateData() = runBlocking {
+        val offerToStore = Offer(
+            "a_uuid",
+            1L,
+            0L,
+            "maker_address",
+            "interface_id",
+            "stablecoin_address",
+            "lower_bound_amount",
+            "upper_bound_amount",
+            "security_deposit_amount",
+            "service_fee_rate",
+            "direction",
+            "some_version",
+            "a_chain_id",
+            0L,
+            0L,
+            "a_state_here",
+            "a_tokenTransferApprovalState_here",
+            "a_tx_hash_here",
+            "a_time_here",
+            -1,
+            "an_openingOfferState_here",
+            "a_tx_hash_here",
+            "a_time_here",
+            -1,
+            "a_cancelingOfferState_here",
+            "a_tx_hash_here",
+            "a_time_here",
+            -1,
+            "an_editingOfferState_here",
+            "a_tx_hash_here",
+            "a_time_here",
+            -1,
+            "a_tokenTransferApprovalState_here",
+            "a_tx_hash_here",
+            "a_time_here",
+            -1,
+            "a_takingOfferState_here",
+            null,
+            null,
+            null,
+        )
+        databaseService.storeOffer(offerToStore)
+        val returnedOfferBeforeUpdate = databaseService.getOffer(id = "a_uuid")
+        assertNull(returnedOfferBeforeUpdate!!.takingOfferTransactionHash)
+        assertNull(returnedOfferBeforeUpdate.takingOfferTransactionCreationTime)
+        assertNull(returnedOfferBeforeUpdate.takingOfferTransactionCreationBlockNumber)
+        databaseService.updateTakingOfferData(
+            offerID = "a_uuid",
+            chainID = "a_chain_id",
+            transactionHash = "a_tx_hash_here",
+            creationTime = "a_creation_time",
+            blockNumber = -1L
+        )
+        val returnedOfferAfterUpdate = databaseService.getOffer(id = "a_uuid")
+        Assert.assertEquals("a_tx_hash_here", returnedOfferAfterUpdate!!.takingOfferTransactionHash)
+        Assert.assertEquals("a_creation_time", returnedOfferAfterUpdate.takingOfferTransactionCreationTime)
+        Assert.assertEquals(-1L, returnedOfferAfterUpdate.takingOfferTransactionCreationBlockNumber)
     }
 
     /**
