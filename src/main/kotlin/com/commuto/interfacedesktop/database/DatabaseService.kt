@@ -1016,12 +1016,10 @@ open class DatabaseService(
      */
     @OptIn(DelicateCoroutinesApi::class)
     suspend fun storeSwap(swap: Swap) {
-        val encryptedMakerData = encryptPrivateSwapSettlementMethodData(
-            privateSettlementMethodData = swap.makerPrivateData
-        )
-        val encryptedTakerData = encryptPrivateSwapSettlementMethodData(
-            privateSettlementMethodData = swap.takerPrivateData
-        )
+        val encryptedMakerData = encryptPrivateSwapSettlementMethodData(privateSettlementMethodData = swap
+            .makerPrivateData)
+        val encryptedTakerData = encryptPrivateSwapSettlementMethodData(privateSettlementMethodData = swap
+            .takerPrivateData)
         val swapToInsert = Swap(
             id = swap.id,
             isCreated = swap.isCreated,
@@ -1052,6 +1050,14 @@ open class DatabaseService(
             chainID = swap.chainID,
             state = swap.state,
             role = swap.role,
+            approveToFillState = swap.approveToFillState,
+            approveToFillTransactionHash = swap.approveToFillTransactionHash,
+            approveToFillTransactionCreationTime = swap.approveToFillTransactionCreationTime,
+            approveToFillTransactionCreationBlockNumber = swap.approveToFillTransactionCreationBlockNumber,
+            fillingSwapState = swap.fillingSwapState,
+            fillingSwapTransactionHash = swap.fillingSwapTransactionHash,
+            fillingSwapTransactionCreationTime = swap.fillingSwapTransactionCreationTime,
+            fillingSwapTransactionCreationBlockNumber = swap.fillingSwapTransactionCreationBlockNumber,
             reportPaymentSentState = swap.reportPaymentSentState,
             reportPaymentSentTransactionHash = swap.reportPaymentSentTransactionHash,
             reportPaymentSentTransactionCreationTime = swap.reportPaymentSentTransactionCreationTime,
@@ -1239,6 +1245,108 @@ open class DatabaseService(
             database.updateSwapState(swapID, chainID, state)
         }
         logger.info("updateSwapState: set value to $state for swap with B64 ID $swapID, if present")
+    }
+
+    /**
+     * Updates the [Swap.approveToFillState] property of a persistently stored
+     * [Swap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#swap) with the specified [swapID] and
+     * [chainID].
+     *
+     * @param swapID The ID of the swap to be updated, as a Base64-[String] of bytes.
+     * @param chainID The blockchain ID of the offer to be updated, as a [String].
+     * @param state The new value of the offer's [Swap.approveToFillState] property.
+     */
+    @OptIn(DelicateCoroutinesApi::class)
+    suspend fun updateSwapApproveToFillState(swapID: String, chainID: String, state: String) {
+        withContext(databaseServiceContext) {
+            database.updateSwapApproveToFillState(swapID, chainID, state)
+        }
+        logger.info("updateSwapApproveToFillState: set value to $state for swap with B64 ID $swapID, if present")
+    }
+
+    /**
+     * Updates the [Swap.approveToFillTransactionHash], [Swap.approveToFillTransactionCreationTime] and
+     * [Swap.approveToFillTransactionCreationBlockNumber] properties of a persistently stored
+     * [Swap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#swap) with the specified [swapID] and
+     * [chainID].
+     *
+     * @param swapID The ID of the swap to be updated, as a Base64-[String] of bytes.
+     * @param chainID The blockchain ID of the swap to be updated, as a [String].
+     * @param transactionHash The new value of the swap's [Swap.approveToFillTransactionHash] property, as a transaction
+     * hash as a hexadecimal string with "0x" prefix.
+     * @param creationTime The new value of the swap's [Swap.approveToFillTransactionCreationTime] property.
+     * @param blockNumber The new value of the swap's [Swap.approveToFillTransactionCreationBlockNumber] property.
+     */
+    @OptIn(DelicateCoroutinesApi::class)
+    suspend fun updateSwapApproveToFillData(
+        swapID: String,
+        chainID: String,
+        transactionHash: String?,
+        creationTime: String?,
+        blockNumber: Long?
+    ) {
+        withContext(databaseServiceContext) {
+            database.updateSwapApproveToFillData(
+                swapID = swapID,
+                chainID = chainID,
+                transactionHash = transactionHash,
+                creationTime = creationTime,
+                blockNumber = blockNumber,
+            )
+        }
+        logger.info("updateSwapApproveToFillData: set values to $transactionHash, $creationTime and $blockNumber for " +
+                "swap with B64 ID $swapID, if present")
+    }
+
+    /**
+     * Updates the [Swap.fillingSwapState] property of a persistently stored
+     * [Swap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#swap) with the specified [swapID] and
+     * [chainID].
+     *
+     * @param swapID The ID of the swap to be updated, as a Base64-[String] of bytes.
+     * @param chainID The blockchain ID of the swap to be updated, as a [String].
+     * @param state The new value of the swap's [Swap.fillingSwapState] property.
+     */
+    @OptIn(DelicateCoroutinesApi::class)
+    suspend fun updateFillingSwapState(swapID: String, chainID: String, state: String) {
+        withContext(databaseServiceContext) {
+            database.updateFillingSwapState(swapID, chainID, state)
+        }
+        logger.info("updateFillingSwapState: set value to $state for offer with B64 ID $swapID, if present")
+    }
+
+    /**
+     * Updates the [Swap.fillingSwapTransactionHash], [Swap.fillingSwapTransactionCreationTime] and
+     * [Swap.fillingSwapTransactionCreationBlockNumber] properties of a persistently stored
+     * [Swap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#swap) with the specified [swapID] and
+     * [chainID].
+     *
+     * @param swapID The ID of the swap to be updated, as a Base64-[String] of bytes.
+     * @param chainID The blockchain ID of the swap to be updated, as a [String].
+     * @param transactionHash The new value of the swap's [Swap.fillingSwapTransactionHash] property, as a
+     * transaction hash as a hexadecimal string with "0x" prefix.
+     * @param creationTime The new value of the swap's [Swap.fillingSwapTransactionCreationTime] property.
+     * @param blockNumber The new value of the swap's [Swap.fillingSwapTransactionCreationBlockNumber] property.
+     */
+    @OptIn(DelicateCoroutinesApi::class)
+    suspend fun updateFillingSwapData(
+        swapID: String,
+        chainID: String,
+        transactionHash: String?,
+        creationTime: String?,
+        blockNumber: Long?
+    ) {
+        withContext(databaseServiceContext) {
+            database.updateFillingSwapData(
+                swapID = swapID,
+                chainID = chainID,
+                transactionHash = transactionHash,
+                creationTime = creationTime,
+                blockNumber = blockNumber,
+            )
+        }
+        logger.info("updateFillingSwapData: set values to $transactionHash, $creationTime and $blockNumber for swap " +
+                "with B64 ID $swapID, if present")
     }
 
     /**
@@ -1473,6 +1581,14 @@ open class DatabaseService(
                 chainID = dbSwaps[0].chainID,
                 state = dbSwaps[0].state,
                 role = dbSwaps[0].role,
+                approveToFillState = dbSwaps[0].approveToFillState,
+                approveToFillTransactionHash = dbSwaps[0].approveToFillTransactionHash,
+                approveToFillTransactionCreationTime = dbSwaps[0].approveToFillTransactionCreationTime,
+                approveToFillTransactionCreationBlockNumber = dbSwaps[0].approveToFillTransactionCreationBlockNumber,
+                fillingSwapState = dbSwaps[0].fillingSwapState,
+                fillingSwapTransactionHash = dbSwaps[0].fillingSwapTransactionHash,
+                fillingSwapTransactionCreationTime = dbSwaps[0].fillingSwapTransactionCreationTime,
+                fillingSwapTransactionCreationBlockNumber = dbSwaps[0].fillingSwapTransactionCreationBlockNumber,
                 reportPaymentSentState = dbSwaps[0].reportPaymentSentState,
                 reportPaymentSentTransactionHash = dbSwaps[0].reportPaymentSentTransactionHash,
                 reportPaymentSentTransactionCreationTime = dbSwaps[0].reportPaymentSentTransactionCreationTime,

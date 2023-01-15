@@ -104,6 +104,14 @@ disputeRaiser TEXT NOT NULL,
 chainID TEXT NOT NULL,
 state TEXT NOT NULL,
 role TEXT NOT NULL,
+approveToFillState TEXT NOT NULL,
+approveToFillTransactionHash TEXT,
+approveToFillTransactionCreationTime TEXT,
+approveToFillTransactionCreationBlockNumber INTEGER,
+fillingSwapState TEXT NOT NULL,
+fillingSwapTransactionHash TEXT,
+fillingSwapTransactionCreationTime TEXT,
+fillingSwapTransactionCreationBlockNumber INTEGER,
 reportPaymentSentState TEXT NOT NULL,
 reportPaymentSentTransactionHash TEXT,
 reportPaymentSentTransactionCreationTime TEXT,
@@ -240,6 +248,14 @@ INSERT INTO Swap(
     chainID,
     state,
     role,
+    approveToFillState,
+    approveToFillTransactionHash,
+    approveToFillTransactionCreationTime,
+    approveToFillTransactionCreationBlockNumber,
+    fillingSwapState,
+    fillingSwapTransactionHash,
+    fillingSwapTransactionCreationTime,
+    fillingSwapTransactionCreationBlockNumber,
     reportPaymentSentState,
     reportPaymentSentTransactionHash,
     reportPaymentSentTransactionCreationTime,
@@ -263,7 +279,10 @@ VALUES(?, ?, ?, ?, ?, ?, ?,
  ?, ?,
  ?, ?,
  ?, ?, ?,
- ?);
+ ?, ?,
+ ?, ?,
+ ?, ?, ?,
+ ?, ?);
 
 insertUserSettlementMethod:
 INSERT INTO UserSettlementMethod(
@@ -394,6 +413,30 @@ WHERE id = ? AND chainID = ?;
 updateSwapStateBySwapIDAndChainID:
 UPDATE Swap
 SET state = ?
+WHERE id = ? AND chainID = ?;
+
+updateSwapApproveToFillStateBySwapIDAndChainID:
+UPDATE Swap
+SET approveToFillState = ?
+WHERE id = ? AND chainID = ?;
+
+updateSwapApproveToFillDataBySwapIDAndChainID:
+UPDATE Swap
+SET approveToFillTransactionHash = ?,
+approveToFillTransactionCreationTime = ?,
+approveToFillTransactionCreationBlockNumber = ?
+WHERE id = ? AND chainID = ?;
+
+updateFillingSwapStateBySwapIDAndChainID:
+UPDATE Swap
+SET fillingSwapState = ?
+WHERE id = ? AND chainID = ?;
+
+updateFillingSwapDataBySwapIDAndChainID:
+UPDATE Swap
+SET fillingSwapTransactionHash = ?,
+fillingSwapTransactionCreationTime = ?,
+fillingSwapTransactionCreationBlockNumber = ?
 WHERE id = ? AND chainID = ?;
 
 updateReportPaymentSentStateBySwapIDAndChainID:

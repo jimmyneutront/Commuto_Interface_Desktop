@@ -21,7 +21,7 @@ package com.commuto.interfacedesktop.swap
  * @property AWAITING_FILLING Indicates that the maker has sent their settlement method information to the taker, and
  * that the swap is a maker-as-seller swap and the maker must now fill the swap. If the swap is a maker-as-buyer swap,
  * this is not used.
- * @property FILL_SWAP_TRANSACTION_BROADCAST Indicates that the swap is a maker-as-seller swap and that the transaction
+ * @property FILL_SWAP_TRANSACTION_SENT Indicates that the swap is a maker-as-seller swap and that the transaction
  * to fill the swap has been broadcast.
  * @property AWAITING_PAYMENT_SENT If the swap is a maker-as-seller swap, this indicates that the maker has filled the
  * swap, and the buyer must now send payment for the stablecoin they are purchasing. If the swap is a maker-as-buyer
@@ -47,7 +47,7 @@ enum class SwapState {
     AWAITING_TAKER_INFORMATION,
     AWAITING_MAKER_INFORMATION,
     AWAITING_FILLING,
-    FILL_SWAP_TRANSACTION_BROADCAST,
+    FILL_SWAP_TRANSACTION_SENT,
     AWAITING_PAYMENT_SENT,
     REPORT_PAYMENT_SENT_TRANSACTION_BROADCAST,
     AWAITING_PAYMENT_RECEIVED,
@@ -64,7 +64,7 @@ enum class SwapState {
             AWAITING_TAKER_INFORMATION -> "awaitingTakerInfo"
             AWAITING_MAKER_INFORMATION -> "awaitingMakerInfo"
             AWAITING_FILLING -> "awaitingFilling"
-            FILL_SWAP_TRANSACTION_BROADCAST -> "illSwapTransactionBroadcast"
+            FILL_SWAP_TRANSACTION_SENT -> "fillSwapTransactionSent"
             AWAITING_PAYMENT_SENT -> "awaitingPaymentSent"
             REPORT_PAYMENT_SENT_TRANSACTION_BROADCAST -> "reportPaymentSentTransactionBroadcast"
             AWAITING_PAYMENT_RECEIVED -> "awaitingPaymentReceived"

@@ -24,7 +24,7 @@ interface OfferNotifiable {
 
     /**
      * The method called by [com.commuto.interfacedesktop.blockchain.BlockchainService] in order to notify the
-     * structure or class adopting this protocol of an [ApprovalEvent].
+     * class implementing this interface of an [ApprovalEvent].
      *
      * @param event The [ApprovalEvent] of which the class implementing this interface is being notified and should
      * handle in the implementation of this method.

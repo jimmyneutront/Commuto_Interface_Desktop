@@ -255,6 +255,14 @@ internal class Database(databaseDriverFactory: DatabaseDriverFactory) {
             chainID = swap.chainID,
             state = swap.state,
             role = swap.role,
+            approveToFillState = swap.approveToFillState,
+            approveToFillTransactionHash = swap.approveToFillTransactionHash,
+            approveToFillTransactionCreationTime = swap.approveToFillTransactionCreationTime,
+            approveToFillTransactionCreationBlockNumber = swap.approveToFillTransactionCreationBlockNumber,
+            fillingSwapState = swap.fillingSwapState,
+            fillingSwapTransactionHash = swap.fillingSwapTransactionHash,
+            fillingSwapTransactionCreationTime = swap.fillingSwapTransactionCreationTime,
+            fillingSwapTransactionCreationBlockNumber = swap.fillingSwapTransactionCreationBlockNumber,
             reportPaymentSentState = swap.reportPaymentSentState,
             reportPaymentSentTransactionHash = swap.reportPaymentSentTransactionHash,
             reportPaymentSentTransactionCreationTime = swap.reportPaymentSentTransactionCreationTime,
@@ -663,6 +671,86 @@ internal class Database(databaseDriverFactory: DatabaseDriverFactory) {
             hasSellerClosed = hasSellerClosed,
             id = swapID,
             chainID = chainID,
+        )
+    }
+
+    /**
+     * Updates the [Swap.approveToFillState] property of the [Swap] with the specified [swapID] and [chainID].
+     * @param swapID The ID of the [Swap] to be updated.
+     * @param chainID The ID of the blockchain on which the [Offer] to be updated exists.
+     * @param state The new value of the [Swap.approveToFillState] property.
+     */
+    internal fun updateSwapApproveToFillState(swapID: String, chainID: String, state: String) {
+        dbQuery.updateSwapApproveToFillStateBySwapIDAndChainID(
+            approveToFillState = state,
+            id = swapID,
+            chainID = chainID
+        )
+    }
+
+    /**
+     * Updates the [Swap.approveToFillTransactionHash], [Swap.approveToFillTransactionCreationTime] and
+     * [Swap.approveToFillTransactionCreationBlockNumber] properties of the [Swap] with the specified [swapID]
+     * and [chainID].
+     * @param swapID The ID of the [Swap] to be updated.
+     * @param chainID The ID of the blockchain on which the [Swap] to be updated exists.
+     * @param transactionHash The new value of the [Swap.approveToFillTransactionHash] property.
+     * @param creationTime The new value of the [Swap.approveToFillTransactionCreationTime] property.
+     * @param blockNumber The new value of the [Swap.approveToFillTransactionCreationBlockNumber] property.
+     */
+    internal fun updateSwapApproveToFillData(
+        swapID: String,
+        chainID: String,
+        transactionHash: String?,
+        creationTime: String?,
+        blockNumber: Long?
+    ) {
+        dbQuery.updateSwapApproveToFillDataBySwapIDAndChainID(
+            approveToFillTransactionHash = transactionHash,
+            approveToFillTransactionCreationTime = creationTime,
+            approveToFillTransactionCreationBlockNumber = blockNumber,
+            id = swapID,
+            chainID = chainID
+        )
+    }
+
+    /**
+     * Updates the [Swap.fillingSwapState] property of the [Swap] with the specified [swapID] and [chainID].
+     * @param swapID The ID of the [Swap] to be updated.
+     * @param chainID The ID of the blockchain on which the [Swap] to be updated exists.
+     * @param state The new value of the [Swap.fillingSwapState] property.
+     */
+    internal fun updateFillingSwapState(swapID: String, chainID: String, state: String) {
+        dbQuery.updateFillingSwapStateBySwapIDAndChainID(
+            fillingSwapState = state,
+            id = swapID,
+            chainID = chainID
+        )
+    }
+
+    /**
+     * Updates the [Swap.fillingSwapTransactionHash], [Swap.fillingSwapTransactionCreationTime] and
+     * [Swap.fillingSwapTransactionCreationBlockNumber] properties of the [Swap] with the specified [swapID] and
+     * [chainID].
+     * @param swapID The ID of the [Swap] to be updated.
+     * @param chainID The ID of the blockchain on which the [Swap] to be updated exists.
+     * @param transactionHash The new value of the [Swap.fillingSwapTransactionHash] property.
+     * @param creationTime The new value of the [Swap.fillingSwapTransactionCreationTime] property.
+     * @param blockNumber The new value of the [Swap.fillingSwapTransactionCreationBlockNumber] property.
+     */
+    internal fun updateFillingSwapData(
+        swapID: String,
+        chainID: String,
+        transactionHash: String?,
+        creationTime: String?,
+        blockNumber: Long?
+    ) {
+        dbQuery.updateFillingSwapDataBySwapIDAndChainID(
+            fillingSwapTransactionHash = transactionHash,
+            fillingSwapTransactionCreationTime = creationTime,
+            fillingSwapTransactionCreationBlockNumber = blockNumber,
+            id = swapID,
+            chainID = chainID
         )
     }
 

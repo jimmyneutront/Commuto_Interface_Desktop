@@ -3,6 +3,7 @@ package com.commuto.interfacedesktop.swap
 import com.commuto.interfacedesktop.blockchain.BlockchainTransaction
 import com.commuto.interfacedesktop.blockchain.BlockchainTransactionException
 import com.commuto.interfacedesktop.blockchain.events.commutoswap.*
+import com.commuto.interfacedesktop.blockchain.events.erc20.ApprovalEvent
 import com.commuto.interfacedesktop.offer.Offer
 import com.commuto.interfacedesktop.offer.OfferService
 import java.math.BigInteger
@@ -28,6 +29,10 @@ class TestSwapService: SwapNotifiable {
      * Does nothing, required to adopt [SwapNotifiable]. Should not be used.
      */
     override suspend fun handleNewSwap(takenOffer: Offer) {}
+    /**
+     * Does nothing, required to adopt [SwapNotifiable]. Should not be used.
+     */
+    override suspend fun handleTokenTransferApprovalEvent(event: ApprovalEvent) {}
     /**
      * Does nothing, required to adopt [SwapNotifiable]. Should not be used.
      */

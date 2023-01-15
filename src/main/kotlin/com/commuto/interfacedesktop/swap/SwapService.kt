@@ -5,6 +5,8 @@ import com.commuto.interfacedesktop.blockchain.BlockchainTransaction
 import com.commuto.interfacedesktop.blockchain.BlockchainTransactionException
 import com.commuto.interfacedesktop.blockchain.BlockchainTransactionType
 import com.commuto.interfacedesktop.blockchain.events.commutoswap.*
+import com.commuto.interfacedesktop.blockchain.events.erc20.ApprovalEvent
+import com.commuto.interfacedesktop.blockchain.events.erc20.TokenTransferApprovalPurpose
 import com.commuto.interfacedesktop.database.DatabaseService
 import com.commuto.interfacedesktop.db.Swap as DatabaseSwap
 import com.commuto.interfacedesktop.extension.asByteArray
@@ -12,12 +14,14 @@ import com.commuto.interfacedesktop.key.KeyManagerService
 import com.commuto.interfacedesktop.offer.Offer
 import com.commuto.interfacedesktop.offer.OfferDirection
 import com.commuto.interfacedesktop.offer.OfferService
+import com.commuto.interfacedesktop.offer.TokenTransferApprovalState
 import com.commuto.interfacedesktop.p2p.P2PService
 import com.commuto.interfacedesktop.p2p.SwapMessageNotifiable
 import com.commuto.interfacedesktop.p2p.messages.MakerInformationMessage
 import com.commuto.interfacedesktop.p2p.messages.TakerInformationMessage
 import com.commuto.interfacedesktop.settlement.SettlementMethod
 import com.commuto.interfacedesktop.swap.validation.validateSwapForClosing
+import com.commuto.interfacedesktop.swap.validation.validateSwapForFilling
 import com.commuto.interfacedesktop.swap.validation.validateSwapForReportingPaymentReceived
 import com.commuto.interfacedesktop.swap.validation.validateSwapForReportingPaymentSent
 import com.commuto.interfacedesktop.util.DateFormatter
@@ -182,9 +186,9 @@ class SwapService @Inject constructor(
      * [CommutoSwap](https://github.com/jimmyneutront/commuto-protocol/blob/main/CommutoSwap.sol) contract, calls the
      * CommutoSwap contract's [fillSwap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#fill-swap)
      * function (via [blockchainService]), persistently updates the state of [swapToFill] to
-     * [SwapState.FILL_SWAP_TRANSACTION_BROADCAST], and sets [swapToFill]'s [Swap.requiresFill] property to false.
+     * [SwapState.FILL_SWAP_TRANSACTION_SENT], and sets [swapToFill]'s [Swap.requiresFill] property to false.
      * Finally, on the main coroutine dispatcher, this updates [swapToFill]'s [Swap.state] value to
-     * [SwapState.FILL_SWAP_TRANSACTION_BROADCAST].
+     * [SwapState.FILL_SWAP_TRANSACTION_SENT].
      *
      * @param swapToFill The [Swap] that this function will fill.
      * @param afterPossibilityCheck A lambda that will be executed after this has ensured that the swap can be filled.
@@ -227,7 +231,7 @@ class SwapService @Inject constructor(
                 databaseService.updateSwapState(
                     swapID = swapIDB64String,
                     chainID = swapToFill.chainID.toString(),
-                    state = SwapState.FILL_SWAP_TRANSACTION_BROADCAST.asString,
+                    state = SwapState.FILL_SWAP_TRANSACTION_SENT.asString,
                 )
                 databaseService.updateSwapRequiresFill(
                     swapID = swapIDB64String,
@@ -237,11 +241,318 @@ class SwapService @Inject constructor(
                 // This is not a MutableState property, so we can upgrade it from a background thread
                 swapToFill.requiresFill = false
                 withContext(Dispatchers.Main) {
-                    swapToFill.state.value = SwapState.FILL_SWAP_TRANSACTION_BROADCAST
+                    swapToFill.state.value = SwapState.FILL_SWAP_TRANSACTION_SENT
                 }
             } catch (exception: Exception) {
                 logger.error("fillSwap: encountered exception during call for ${swapToFill.id}", exception)
                 throw exception
+            }
+        }
+    }
+
+    /**
+     * Attempts to create a [RawTransaction] that can call
+     * [approve](https://ethereum.org/en/developers/docs/standards/tokens/erc-20/) on an ERC20 contract in order to fill
+     * a maker-as-seller swap made by the user of this interface.
+     *
+     * @param swapToFill The [Swap] to be filled, for which this is creating a token transfer approval transaction.
+     *
+     * @return A [RawTransaction] capable of approving a token transfer of the taken swap amount of [swapToFill].
+     */
+    suspend fun createApproveTokenTransferToFillSwapTransaction(swapToFill: Swap): RawTransaction {
+        return withContext(Dispatchers.IO) {
+            try {
+                logger.info("createApproveTokenTransferToFillSwapTransaction: creating for ${swapToFill.id} for " +
+                        "amount ${swapToFill.takenSwapAmount}")
+                validateSwapForFilling(swap = swapToFill)
+                blockchainService.createApproveTransferTransaction(
+                    tokenAddress = swapToFill.stablecoin,
+                    spender = blockchainService.getCommutoSwapAddress(),
+                    amount = swapToFill.takenSwapAmount
+                )
+            } catch (exception: Exception) {
+                logger.error("createApproveTokenTransferToFillSwapTransaction, encountered exception", exception)
+                throw exception
+            }
+        }
+    }
+
+    /**
+     * Attempts to call [approve](https://ethereum.org/en/developers/docs/standards/tokens/erc-20/) on an ERC20 contract
+     * in order to fill a maker-as-seller swap for which the user of this interface is the maker.
+     *
+     * On the IO coroutine dispatcher, this calls [validateSwapForFilling], and then creates another [RawTransaction] to
+     * approve a transfer equal to [swapToFill]'s taken swap amount, and then ensures that the data of this transaction
+     * matches the data of [approveTokenTransferToFillSwapTransaction]. (If they do not match, then
+     * [approveTokenTransferToFillSwapTransaction] was not created with the data supplied to this function.) Then this
+     * signs [approveTokenTransferToFillSwapTransaction] and creates a [BlockchainTransaction] to wrap it. Then this
+     * persistently stores the token transfer approval data for said [BlockchainTransaction] and persistently updates
+     * the token transfer approval state of [swapToFill] to [TokenTransferApprovalState.SENDING_TRANSACTION]. Then, on
+     * the main coroutine dispatcher, this updates the [Swap.approvingToFillState] property of [swapToFill] to
+     * [TokenTransferApprovalState.SENDING_TRANSACTION] and sets the [Swap.approvingToFillTransaction] property of
+     * [swapToFill] to said [BlockchainTransaction]. Then, on the global coroutine dispatcher, this calls
+     * [BlockchainService.sendTransaction], passing said [BlockchainTransaction]. When this call returns, this
+     * persistently updates the approving to fill state of [swapToFill] to
+     * [TokenTransferApprovalState.AWAITING_TRANSACTION_CONFIRMATION]. Then, on the main coroutine dispatcher, this
+     * updates the [Swap.approvingToFillState] property of [swapToFill] to
+     * [TokenTransferApprovalState.AWAITING_TRANSACTION_CONFIRMATION].
+     *
+     * @param swapToFill The swap that will be filled, for which this is approving a token transfer.
+     * @param approveTokenTransferToFillSwapTransaction An optional [RawTransaction] that can approve a token transfer
+     * for the proper amount.
+     *
+     * @throws [SwapServiceException] if [approveTokenTransferToFillSwapTransaction] is `null` or if the data of
+     * [approveTokenTransferToFillSwapTransaction] does not match that of the transaction this function creates using
+     * the supplied arguments.
+     */
+    suspend fun approveTokenTransferToFillSwap(
+        swapToFill: Swap,
+        approveTokenTransferToFillSwapTransaction: RawTransaction?
+    ) {
+        withContext(Dispatchers.IO) {
+            val encoder = Base64.getEncoder()
+            try {
+                logger.info("approveTokenTransferToFillSwap: validating for ${swapToFill.id}")
+                validateSwapForFilling(swap = swapToFill)
+                logger.info("approveTokenTransferToFillSwap: recreating RawTransaction to approve transfer of " +
+                        "${swapToFill.takenSwapAmount} tokens at contract ${swapToFill.stablecoin} for ${swapToFill
+                            .id}")
+                val recreatedTransaction = blockchainService.createApproveTransferTransaction(
+                    tokenAddress = swapToFill.stablecoin,
+                    spender = blockchainService.getCommutoSwapAddress(),
+                    amount = swapToFill.takenSwapAmount
+                )
+                if (approveTokenTransferToFillSwapTransaction == null) {
+                    throw SwapServiceException(message = "Transaction was null during approveTokenTransferToFillSwap " +
+                            "call for ${swapToFill.id}")
+                }
+                if (recreatedTransaction.data != approveTokenTransferToFillSwapTransaction.data) {
+                    throw SwapServiceException(message = "Data of approveTokenTransferToFillSwap did not match that " +
+                            "of transaction created with supplied data for ${swapToFill.id}")
+                }
+                logger.info("approveTokenTransferToFillSwap: signing transaction for ${swapToFill.id}")
+                val signedTransactionData = blockchainService.signTransaction(
+                    transaction = approveTokenTransferToFillSwapTransaction,
+                    chainID = swapToFill.chainID
+                )
+                val signedTransactionHex = Numeric.toHexString(signedTransactionData)
+                val blockchainTransactionForApprovingTransfer = BlockchainTransaction(
+                    transaction = approveTokenTransferToFillSwapTransaction,
+                    transactionHash = Hash.sha3(signedTransactionHex),
+                    latestBlockNumberAtCreation = blockchainService.newestBlockNum,
+                    type = BlockchainTransactionType.APPROVE_TOKEN_TRANSFER_TO_FILL_SWAP
+                )
+                val dateString = DateFormatter.createDateString(blockchainTransactionForApprovingTransfer
+                    .timeOfCreation)
+                logger.info("approveTokenTransferToFillSwap: persistently storing approve transfer data for " +
+                        "${swapToFill.id}, including tx hash ${blockchainTransactionForApprovingTransfer
+                            .transactionHash}")
+                databaseService.updateSwapApproveToFillData(
+                    swapID = encoder.encodeToString(swapToFill.id.asByteArray()),
+                    chainID = swapToFill.chainID.toString(),
+                    transactionHash = blockchainTransactionForApprovingTransfer.transactionHash,
+                    creationTime = dateString,
+                    blockNumber = blockchainTransactionForApprovingTransfer.latestBlockNumberAtCreation.toLong()
+                )
+                logger.info("approveTokenTransferToFillSwap: persistently updating approvingToFillState for " +
+                        "${swapToFill.id} to SENDING_TRANSACTION")
+                databaseService.updateSwapApproveToFillState(
+                    swapID = encoder.encodeToString(swapToFill.id.asByteArray()),
+                    chainID = swapToFill.chainID.toString(),
+                    state = TokenTransferApprovalState.SENDING_TRANSACTION.asString,
+                )
+                logger.info("approveTokenTransferToFillSwap: updating approvingToFillState for ${swapToFill
+                    .id} to SENDING_TRANSACTION and storing tx ${blockchainTransactionForApprovingTransfer
+                    .transactionHash} in swap")
+                withContext(Dispatchers.Main) {
+                    swapToFill.approvingToFillTransaction = blockchainTransactionForApprovingTransfer
+                    swapToFill.approvingToFillState.value = TokenTransferApprovalState.SENDING_TRANSACTION
+                }
+                logger.info("approveTokenTransferToFillSwap: sending ${blockchainTransactionForApprovingTransfer
+                    .transactionHash} for ${swapToFill.id}")
+                blockchainService.sendTransaction(
+                    transaction = blockchainTransactionForApprovingTransfer,
+                    signedRawTransactionDataAsHex = signedTransactionHex,
+                    chainID = swapToFill.chainID
+                )
+                logger.info("approveTokenTransferToFillSwap: persistently updating approvingToFillState of " +
+                        "${swapToFill.id} to AWAITING_TRANSACTION_CONFIRMATION")
+                databaseService.updateSwapApproveToFillState(
+                    swapID = encoder.encodeToString(swapToFill.id.asByteArray()),
+                    chainID = swapToFill.chainID.toString(),
+                    state = TokenTransferApprovalState.AWAITING_TRANSACTION_CONFIRMATION.asString,
+                )
+                logger.info("approveTokenTransferToFillSwap: updating approvingToFillState to " +
+                        "AWAITING_TRANSACTION_CONFIRMATION for ${swapToFill.id}")
+                withContext(Dispatchers.Main) {
+                    swapToFill.approvingToFillState.value = TokenTransferApprovalState.AWAITING_TRANSACTION_CONFIRMATION
+                }
+            } catch (exception: Exception) {
+                logger.error("approveTokenTransferToFillSwap: encountered exception, setting " +
+                        "approvingToFillState of ${swapToFill.id} to exception and setting approvingToFill exception",
+                    exception)
+                databaseService.updateSwapApproveToFillState(
+                    swapID = encoder.encodeToString(swapToFill.id.asByteArray()),
+                    chainID = swapToFill.chainID.toString(),
+                    state = TokenTransferApprovalState.AWAITING_TRANSACTION_CONFIRMATION.asString,
+                )
+                withContext(Dispatchers.Main) {
+                    swapToFill.approvingToFillException = exception
+                    swapToFill.approvingToFillState.value = TokenTransferApprovalState.EXCEPTION
+                }
+            }
+        }
+    }
+
+    /**
+     * Attempts to create a [RawTransaction] that will fill a maker-as-seller
+     * [Swap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#fill-swap) made by the user of this
+     * interface.
+     *
+     * This calls [validateSwapForFilling], and then calls [BlockchainService.createFillSwapTransaction], passing the
+     * [Swap.id] property of [swap].
+     *
+     * @param swap The [Swap] to be filled.
+     *
+     * @return A [RawTransaction] capable of filling [swap].
+     */
+    suspend fun createFillSwapTransaction(swap: Swap): RawTransaction {
+        return withContext(Dispatchers.IO) {
+            try {
+                logger.info("createFillSwapTransaction: creating for ${swap.id}")
+                validateSwapForFilling(swap = swap)
+                blockchainService.createFillSwapTransaction(
+                    swapID = swap.id,
+                    chainID = swap.chainID
+                )
+            } catch (exception: Exception) {
+                logger.error("createFillSwapTransaction: encountered exception", exception)
+                throw exception
+            }
+        }
+    }
+
+    /**
+     * Attempts to fill a maker-as-seller [Swap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#swap)
+     * made by the user of this interface.
+     *
+     * On the IO coroutine dispatcher, this calls [validateSwapForFilling], and then creates another [RawTransaction] to
+     * fill [swap] and ensures that the data of this transaction matches the data of [swapFillingTransaction]. (If they
+     * do not match, then [swapFillingTransaction] was not created with the data contained in [swap].) Then this signs
+     * [swapFillingTransaction] and creates a [BlockchainTransaction] to wrap it. Then this persistently stores the swap
+     * filling data for said [BlockchainTransaction], and persistently updates the swap filling state of [swap] to
+     * [FillingSwapState.SENDING_TRANSACTION]. Then, on the main coroutine dispatcher, this updates the
+     * [Swap.fillingSwapState] property of [swap] to [FillingSwapState.SENDING_TRANSACTION] and sets the
+     * [Swap.swapFillingTransaction] property of [swap] to said [BlockchainTransaction]. Then, on the global coroutine
+     * dispatcher, this calls [BlockchainService.sendTransaction], passing said [BlockchainTransaction]. When this call
+     * returns, this persistently updates the state of [swap] to [SwapState.FILL_SWAP_TRANSACTION_SENT] and the swap
+     * filling state of [Swap] to [FillingSwapState.AWAITING_TRANSACTION_CONFIRMATION]. Then, on the main coroutine
+     * dispatcher, this updates the [Swap.state] property of [swap] to [SwapState.FILL_SWAP_TRANSACTION_SENT] and the
+     * [Swap.fillingSwapState] property of [swap] to [FillingSwapState.AWAITING_TRANSACTION_CONFIRMATION].
+     *
+     * @param swap The [Swap] to fill.
+     * @param swapFillingTransaction An optional [RawTransaction] that can fill [swap].
+     *
+     * @throws [SwapServiceException] if [swapFillingTransaction] is `null` or if the data of [swapFillingTransaction]
+     * does not match that of the transaction this function creates using [swap].
+     */
+    suspend fun fillSwap(
+        swap: Swap,
+        swapFillingTransaction: RawTransaction?
+    ) {
+        withContext(Dispatchers.IO) {
+            val encoder = Base64.getEncoder()
+            try {
+                logger.info("fillSwap: filling ${swap.id}")
+                validateSwapForFilling(swap = swap)
+                logger.info("fillSwap: recreating RawTransaction to fill ${swap.id} to ensure " +
+                        "swapFillingTransaction was created with the contents of swap")
+                val recreatedTransaction = blockchainService.createFillSwapTransaction(
+                    swapID = swap.id,
+                    chainID = swap.chainID
+                )
+                if (swapFillingTransaction == null) {
+                    throw SwapServiceException(message = "Transaction was null during fillSwap call for ${swap.id}")
+                }
+                if (recreatedTransaction.data != swapFillingTransaction.data) {
+                    throw SwapServiceException(message = "Data of swapFillingTransaction did not match that of " +
+                            "transaction created with swap ${swap.id}")
+                }
+                logger.info("fillSwap: signing transaction for ${swap.id}")
+                val signedTransactionData = blockchainService.signTransaction(
+                    transaction = swapFillingTransaction,
+                    chainID = swap.chainID,
+                )
+                val signedTransactionHex = Numeric.toHexString(signedTransactionData)
+                val blockchainTransactionForSwapFilling = BlockchainTransaction(
+                    transaction = swapFillingTransaction,
+                    transactionHash = Hash.sha3(signedTransactionHex),
+                    latestBlockNumberAtCreation = blockchainService.newestBlockNum,
+                    type = BlockchainTransactionType.FILL_SWAP
+                )
+                val dateString = DateFormatter.createDateString(blockchainTransactionForSwapFilling.timeOfCreation)
+                logger.info("fillSwap: persistently storing swap filling data for ${swap.id}, including tx " +
+                        "hash ${blockchainTransactionForSwapFilling.transactionHash}")
+                databaseService.updateFillingSwapData(
+                    swapID = encoder.encodeToString(swap.id.asByteArray()),
+                    chainID = swap.chainID.toString(),
+                    transactionHash = blockchainTransactionForSwapFilling.transactionHash,
+                    creationTime = dateString,
+                    blockNumber = blockchainTransactionForSwapFilling.latestBlockNumberAtCreation.toLong()
+                )
+                logger.info("fillSwap: persistently updating fillingSwapState for ${swap.id} to " +
+                        FillingSwapState.SENDING_TRANSACTION.asString
+                )
+                databaseService.updateFillingSwapState(
+                    swapID = encoder.encodeToString(swap.id.asByteArray()),
+                    chainID = swap.chainID.toString(),
+                    state = FillingSwapState.SENDING_TRANSACTION.asString,
+                )
+                logger.info("fillSwap: updating fillingSwapState to SENDING_TRANSACTION and storing tx " +
+                        "${blockchainTransactionForSwapFilling.transactionHash} in ${swap.id}")
+                withContext(Dispatchers.Main) {
+                    swap.swapFillingTransaction = blockchainTransactionForSwapFilling
+                    swap.fillingSwapState.value = FillingSwapState.SENDING_TRANSACTION
+                }
+                logger.info("fillSwap: sending ${blockchainTransactionForSwapFilling.transactionHash} for " +
+                        swap.id)
+                blockchainService.sendTransaction(
+                    transaction = blockchainTransactionForSwapFilling,
+                    signedRawTransactionDataAsHex = signedTransactionHex,
+                    chainID = swap.chainID
+                )
+                logger.info("fillSwap: persistently updating state of ${swap.id} to ${SwapState
+                    .FILL_SWAP_TRANSACTION_SENT.asString}")
+                databaseService.updateSwapState(
+                    swapID = encoder.encodeToString(swap.id.asByteArray()),
+                    chainID = swap.chainID.toString(),
+                    state = SwapState.FILL_SWAP_TRANSACTION_SENT.asString
+                )
+                logger.info("fillSwap: persistently updating fillingSwapState of ${swap.id} to " +
+                        "AWAITING_TRANSACTION_CONFIRMATION")
+                databaseService.updateFillingSwapState(
+                    swapID = encoder.encodeToString(swap.id.asByteArray()),
+                    chainID = swap.chainID.toString(),
+                    state = FillingSwapState.AWAITING_TRANSACTION_CONFIRMATION.asString,
+                )
+                logger.info("fillSwap: updating state to ${SwapState.FILL_SWAP_TRANSACTION_SENT.asString} and " +
+                        "fillingSwapState to AWAITING_TRANSACTION_CONFIRMATION for ${swap.id}")
+                withContext(Dispatchers.Main) {
+                    swap.state.value = SwapState.FILL_SWAP_TRANSACTION_SENT
+                    swap.fillingSwapState.value = FillingSwapState.AWAITING_TRANSACTION_CONFIRMATION
+                }
+            } catch (exception: Exception) {
+                logger.error("fillSwap: encountered exception while filling ${swap.id}, setting " +
+                        "fillingSwapState to EXCEPTION", exception)
+                databaseService.updateFillingSwapState(
+                    swapID = encoder.encodeToString(swap.id.asByteArray()),
+                    chainID = swap.chainID.toString(),
+                    state = FillingSwapState.EXCEPTION.asString,
+                )
+                withContext(Dispatchers.Main) {
+                    swap.fillingSwapException = exception
+                    swap.fillingSwapState.value = FillingSwapState.EXCEPTION
+                }
             }
         }
     }
@@ -840,12 +1151,32 @@ class SwapService @Inject constructor(
      * The function called by [BlockchainService] in order to notify [SwapService] that a monitored swap-related
      * [BlockchainTransaction] has failed (either has been confirmed and failed, or has been dropped.)
      *
+     * If [transaction] is of type [BlockchainTransactionType.APPROVE_TOKEN_TRANSFER_TO_FILL_SWAP], then this finds the
+     * swap with the corresponding approving to fill transaction hash, persistently updates its approving to fill state
+     * to [TokenTransferApprovalState.EXCEPTION], and on the main coroutine dispatcher sets its
+     * [Swap.approvingToFillException] to `exception` and updates its [Swap.approvingToFillState] property to
+     * [TokenTransferApprovalState.EXCEPTION].
+     *
+     * If [transaction] is of type [BlockchainTransactionType.FILL_SWAP], then this finds the swap with the
+     * corresponding swap filling transaction hash, persistently updates its state to [SwapState.AWAITING_FILLING],
+     * persistently updates its swap filling state to [FillingSwapState.EXCEPTION] and on the main coroutine dispatcher
+     * sets the [Swap.state] property to [SwapState.AWAITING_FILLING], the [Swap.fillingSwapException] property to
+     * [exception], and the [Swap.fillingSwapState] to [FillingSwapState.EXCEPTION].
+     *
      * If [transaction] is of type [BlockchainTransactionType.REPORT_PAYMENT_SENT], then this finds the swap with the
      * corresponding reporting payment sent transaction hash, persistently updates its reporting payment sent state to
-     * [ReportingPaymentSentState.EXCEPTION]` and its state to [SwapState.AWAITING_PAYMENT_SENT], and on the main
+     * [ReportingPaymentSentState.EXCEPTION] and its state to [SwapState.AWAITING_PAYMENT_SENT], and on the main
      * coroutine dispatcher sets its [Swap.reportingPaymentSentException] to [exception], updates its
      * [Swap.reportingPaymentSentState] property to [ReportingPaymentSentState.EXCEPTION], and updates its [Swap.state]
      * property to [SwapState.AWAITING_PAYMENT_SENT].
+     *
+     * If [transaction] is of type [BlockchainTransactionType.REPORT_PAYMENT_RECEIVED], then this finds the swap with
+     * the corresponding reporting payment received transaction hash, persistently updates its reporting payment
+     * received state to [ReportingPaymentReceivedState.EXCEPTION` and its state to
+     * [SwapState.AWAITING_PAYMENT_RECEIVED], and on the main coroutine dispatcher sets its
+     * [Swap.reportingPaymentReceivedException] to [exception], updates its [Swap.reportingPaymentReceivedState]
+     * property to [ReportingPaymentReceivedState.EXCEPTION], and updates its [Swap.state] property to
+     * [SwapState.AWAITING_PAYMENT_RECEIVED].
      *
      * @param transaction The [BlockchainTransaction] wrapping the on-chain transaction that has failed.
      * @param exception A [BlockchainTransactionException] describing why the on-chain transaction has failed.
@@ -866,6 +1197,72 @@ class SwapService @Inject constructor(
                 throw SwapServiceException(message = "handleFailedTransaction: received an offer-related transaction " +
                         transaction.transactionHash
                 )
+            }
+            BlockchainTransactionType.APPROVE_TOKEN_TRANSFER_TO_FILL_SWAP -> {
+                val swap = swapTruthSource.swaps.firstNotNullOfOrNull { uuidSwapEntry ->
+                    if (uuidSwapEntry.value.approvingToFillTransaction?.transactionHash
+                            .equals(transaction.transactionHash)) {
+                        uuidSwapEntry.value
+                    } else {
+                        null
+                    }
+                }
+                if (swap != null) {
+                    logger.warn("handleFailedTransaction: found swap ${swap.id} on ${swap.chainID} with " +
+                            "approve to fill transaction ${transaction.transactionHash}, updating " +
+                            "approvingToFillState to EXCEPTION in persistent storage")
+                    databaseService.updateSwapApproveToFillState(
+                        swapID = encoder.encodeToString(swap.id.asByteArray()),
+                        chainID = swap.chainID.toString(),
+                        state = TokenTransferApprovalState.EXCEPTION.asString,
+                    )
+                    logger.warn("handleFailedTransaction: setting approvingToFillException and updating " +
+                            "approvingToFillState to EXCEPTION for ${swap.id}")
+                    withContext(Dispatchers.Main) {
+                        swap.approvingToFillException = exception
+                        swap.approvingToFillState.value = TokenTransferApprovalState.EXCEPTION
+                    }
+                } else {
+                    logger.warn("handleFailedTransaction: swap with approve to fill transaction ${transaction
+                        .transactionHash} not found in swapTruthSource")
+                }
+            }
+            BlockchainTransactionType.FILL_SWAP -> {
+                val swap = swapTruthSource.swaps.firstNotNullOfOrNull { uuidSwapEntry ->
+                    if (uuidSwapEntry.value.swapFillingTransaction?.transactionHash
+                            .equals(transaction.transactionHash)) {
+                        uuidSwapEntry.value
+                    } else {
+                        null
+                    }
+                }
+                if (swap != null) {
+                    logger.warn("handleFailedTransaction: found swap ${swap.id} on ${swap.chainID} with swap " +
+                            "filling transaction ${transaction.transactionHash}, updating state to ${SwapState
+                                .AWAITING_FILLING.asString} and fillingSwapState to ${FillingSwapState.EXCEPTION
+                                .asString} in persistent storage")
+                    databaseService.updateSwapState(
+                        swapID = encoder.encodeToString(swap.id.asByteArray()),
+                        chainID = swap.chainID.toString(),
+                        state = SwapState.AWAITING_FILLING.asString
+                    )
+                    databaseService.updateFillingSwapState(
+                        swapID = encoder.encodeToString(swap.id.asByteArray()),
+                        chainID = swap.chainID.toString(),
+                        state = FillingSwapState.EXCEPTION.asString,
+                    )
+                    logger.warn("handleFailedTransaction: setting state to ${SwapState.AWAITING_FILLING
+                        .asString}, setting fillingSwapException and updating fillingSwapState to ${FillingSwapState
+                        .EXCEPTION.asString} for ${swap.id}")
+                    withContext(Dispatchers.Main) {
+                        swap.state.value = SwapState.AWAITING_FILLING
+                        swap.fillingSwapException = exception
+                        swap.fillingSwapState.value = FillingSwapState.EXCEPTION
+                    }
+                } else {
+                    logger.warn("handleFailedTransaction: swap with swap filling transaction ${transaction
+                        .transactionHash} not found in swapTruthSource")
+                }
             }
             BlockchainTransactionType.REPORT_PAYMENT_SENT -> {
                 val swap = swapTruthSource.swaps.firstNotNullOfOrNull { uuidSwapEntry ->
@@ -1085,6 +1482,14 @@ class SwapService @Inject constructor(
             chainID = newSwap.chainID.toString(),
             state = newSwap.state.value.asString,
             role = newSwap.role.asString,
+            approveToFillState = newSwap.approvingToFillState.value.asString,
+            approveToFillTransactionHash = null,
+            approveToFillTransactionCreationTime = null,
+            approveToFillTransactionCreationBlockNumber = null,
+            fillingSwapState = newSwap.fillingSwapState.value.asString,
+            fillingSwapTransactionHash = null,
+            fillingSwapTransactionCreationTime = null,
+            fillingSwapTransactionCreationBlockNumber = null,
             reportPaymentSentState = newSwap.reportingPaymentSentState.value.asString,
             reportPaymentSentTransactionHash = null,
             reportPaymentSentTransactionCreationTime = null,
@@ -1314,19 +1719,81 @@ class SwapService @Inject constructor(
     }
 
     /**
+     * The method called by [BlockchainService] to notify [SwapService] of an [ApprovalEvent].
+     *
+     * If the purpose of [ApprovalEvent] is [TokenTransferApprovalPurpose.FILL_SWAP], this gets the swap with the
+     * corresponding approving to fill transaction hash, persistently updates its approving to fill state to
+     * [TokenTransferApprovalState.COMPLETED], and then on the main coroutine dispatcher sets its
+     * [Swap.approvingToFillState] to [TokenTransferApprovalState.COMPLETED].
+     *
+     * @param event The [ApprovalEvent] of which [SwapService] is being notified.
+     *
+     * @throws [SwapServiceException] if [event] has an offer-related purpose.
+     */
+    override suspend fun handleTokenTransferApprovalEvent(event: ApprovalEvent) {
+        logger.info("handleTokenTransferApprovalEvent: handling event with tx hash ${event.transactionHash} " +
+                "and purpose ${event.purpose.asString}")
+        val encoder = Base64.getEncoder()
+        when (event.purpose) {
+            TokenTransferApprovalPurpose.OPEN_OFFER, TokenTransferApprovalPurpose.TAKE_OFFER -> {
+                throw SwapServiceException(message = "handleTokenTransferApprovalEvent: received a offer-related " +
+                        "event of purpose ${event.purpose.asString} with tx hash ${event.transactionHash}")
+            }
+            TokenTransferApprovalPurpose.FILL_SWAP -> {
+                swapTruthSource.swaps.firstNotNullOfOrNull { uuidSwapEntry ->
+                    if (uuidSwapEntry.value.approvingToFillTransaction?.transactionHash.equals(event.transactionHash)) {
+                        uuidSwapEntry.value
+                    } else {
+                        null
+                    }
+                }?.let { swap ->
+                    logger.info("handleTokenTransferApprovalEvent: found swap ${swap.id} with approvingToFill tx " +
+                            "hash ${event.transactionHash}, persistently updating approvingToFillState to " +
+                            TokenTransferApprovalState.COMPLETED.asString
+                    )
+                    databaseService.updateSwapApproveToFillState(
+                        swapID = encoder.encodeToString(swap.id.asByteArray()),
+                        chainID = swap.chainID.toString(),
+                        state = TokenTransferApprovalState.COMPLETED.asString
+                    )
+                    logger.info("handleTokenTransferApprovalEvent: updating approvingToFillState to " +
+                            "${TokenTransferApprovalState.COMPLETED.asString} for ${swap.id}")
+                    withContext(Dispatchers.Main) {
+                        swap.approvingToFillState.value = TokenTransferApprovalState.COMPLETED
+                    }
+                } ?: run {
+                    logger.info("handleTokenTransferApprovalEvent: swap with approving to fill transaction " +
+                            "${event.transactionHash} not found in swapTruthSource")
+                }
+            }
+        }
+    }
+
+    /**
      * The function called by [BlockchainService] to notify [SwapService] of a [SwapFilledEvent].
      *
-     * Once notified, [SwapService] checks in [swapTruthSource] for a [Swap` with the ID specified in [event]. If it
-     * finds such a swap, it ensures that the chain ID of the swap and the chain ID of [event] match. Then, if the role
-     * of the swap is [SwapRole.MAKER_AND_BUYER] or [SwapRole.TAKER_AND_SELLER], it logs a warning, since
-     * [SwapFilledEvent]s should not be emitted for such swaps. Otherwise, the role is [SwapRole.MAKER_AND_SELLER] or
-     * [SwapRole.TAKER_AND_BUYER], and this persistently sets the state of the swap to [SwapState.AWAITING_PAYMENT_SENT]
-     * and requiresFill to `false`, and then does the same to the [Swap] object on the main coroutine dispatcher.
+     * Once notified, [SwapService] checks in [swapTruthSource] for a [Swap] with the ID specified in [event]. If it
+     * finds such a [Swap], it ensures that the chain ID of the [Swap] and the chain ID of [event] match. Then it checks
+     * whether the swap is a maker-as-seller swap, and then whether the user is the maker and seller in the [Swap]. If
+     * both of these conditions are met, then this checks if the swap has a non-`null` transaction for calling
+     * [fillSwap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#fill-swap). If it does, then this
+     * compares the hash of that transaction and the transaction hash contained in [event] If the two do not match, this
+     * sets a flag indicating that the swap filling transaction must be updated. If the swap does not have such a
+     * transaction, this flag is also set. If the user is not the maker and seller (and thus must be the buyer and
+     * taker, since this function will have already returned in other cases) in the [Swap], this flag is also set. If
+     * this flag is set, then this updates the [Swap], both in [swapTruthSource] and in persistent storage, with a new
+     * [BlockchainTransaction] containing the hash specified in [event]. Then, regardless of whether this flag is set,
+     * this persistently sets the [Swap.requiresFill] property of the [Swap] to `false`, persistently updates the
+     * [Swap.state] property of the [Swap] to [SwapState.AWAITING_PAYMENT_SENT], and then, on the main coroutine
+     * dispatcher, sets the [Swap.requiresFill] property of the [Swap] to `false` and sets the [Swap.state] property of
+     * the [Swap] to [SwapState.AWAITING_PAYMENT_SENT]. Then, no longer on the main coroutine dispatcher, if the user is
+     * the maker and seller in this [Swap], this updates the [Swap.fillingSwapState] of the [Swap] to
+     * [FillingSwapState.COMPLETED], both in persistent storage and in the [Swap] itself.
      *
      * @param event The [SwapFilledEvent] of which [SwapService] is being notified.
      *
-     * @throws SwapServiceException if the chain ID of [event] and of the [Swap] with the ID specified in [event] do not
-     * match.
+     * @throws SwapServiceException if the chain ID of [event] and the chain ID of the [Swap] with the ID specified in
+     * [event] do not match.
      */
     override suspend fun handleSwapFilledEvent(event: SwapFilledEvent) {
         logger.info("handleSwapFilledEvent: handing for ${event.swapID}")
@@ -1350,25 +1817,88 @@ class SwapService @Inject constructor(
                             swap.role.asString)
                 }
                 SwapRole.MAKER_AND_SELLER, SwapRole.TAKER_AND_BUYER -> {
+                    val encoder = Base64.getEncoder()
                     logger.info("handleSwapFilledEvent: handing for ${event.swapID} as ${swap.role.asString}")
-                    /*
-                    We have gotten confirmation that the fillSwap transaction has been confirmed, so we update the state
-                    of the swap to indicate that we are waiting for the buyer to send traditional currency payment
-                     */
-                    val swapIDB64String = Base64.getEncoder().encodeToString(event.swapID.asByteArray())
+                    var mustUpdateSwapFilledTransaction = false
+                    if (swap.role == SwapRole.MAKER_AND_SELLER) {
+                        val swapFillingTransaction = swap.swapFillingTransaction
+                        if (swapFillingTransaction != null) {
+                            if (swapFillingTransaction.transactionHash == event.transactionHash) {
+                                logger.info("handleSwapFilledEvent: tx hash ${event.transactionHash} of event " +
+                                        "matches that for swap ${swap.id}: ${swapFillingTransaction.transactionHash}")
+                            } else {
+                                logger.info("handleSwapFilledEvent: tx hash ${event.transactionHash} of event does " +
+                                        "not match that for swap ${event.swapID}: ${swapFillingTransaction
+                                            .transactionHash}, updating with new transaction hash")
+                                mustUpdateSwapFilledTransaction = true
+                            }
+                        } else {
+                            logger.info("handleSwapFilledEvent: swap ${event.swapID} for which user is maker and " +
+                                    "seller has no swap filling transaction, updating with transaction hash ${event
+                                        .transactionHash}")
+                            mustUpdateSwapFilledTransaction = true
+                        }
+                    } else {
+                        logger.info("handleSwapFilledEvent: user is taker and buyer for ${event.swapID}, updating " +
+                                "with transaction hash ${event.transactionHash}")
+                        mustUpdateSwapFilledTransaction = true
+                    }
+                    if (mustUpdateSwapFilledTransaction) {
+                        val swapFillingTransaction = BlockchainTransaction(
+                            transactionHash = event.transactionHash,
+                            timeOfCreation = Date(),
+                            latestBlockNumberAtCreation = BigInteger.ZERO,
+                            type = BlockchainTransactionType.FILL_SWAP
+                        )
+                        withContext(Dispatchers.Main) {
+                            swap.swapFillingTransaction = swapFillingTransaction
+                        }
+                        logger.warn("handleSwapFilledEvent: persistently storing tx data, including hash ${event
+                            .transactionHash} for ${event.swapID}")
+                        val dateString = DateFormatter.createDateString(swapFillingTransaction.timeOfCreation)
+                        databaseService.updateFillingSwapData(
+                            swapID = encoder.encodeToString(swap.id.asByteArray()),
+                            chainID = event.chainID.toString(),
+                            transactionHash = swapFillingTransaction.transactionHash,
+                            creationTime = dateString,
+                            blockNumber = swapFillingTransaction.latestBlockNumberAtCreation.toLong()
+                        )
+                    }
+                    logger.info("handleSwapFilledEvent: persistently setting requiresFill property of ${event
+                        .swapID} to false")
                     databaseService.updateSwapRequiresFill(
-                        swapID = swapIDB64String,
+                        swapID = encoder.encodeToString(swap.id.asByteArray()),
                         chainID = event.chainID.toString(),
                         requiresFill = false
                     )
+                    logger.info("handleSwapFilledEvent: persistently updating state of ${event.swapID} to ${SwapState
+                        .AWAITING_PAYMENT_SENT.asString}")
                     databaseService.updateSwapState(
-                        swapID = swapIDB64String,
+                        swapID = encoder.encodeToString(swap.id.asByteArray()),
                         chainID = event.chainID.toString(),
                         state = SwapState.AWAITING_PAYMENT_SENT.asString
                     )
-                    swap.requiresFill = false
+                    logger.info("handleSwapFilledEvent: setting requiresFill property of ${event.swapID} to false " +
+                            "and setting state of ${SwapState.AWAITING_PAYMENT_SENT.asString}")
                     withContext(Dispatchers.Main) {
-                        swap.state.value =  SwapState.AWAITING_PAYMENT_SENT
+                        swap.requiresFill = false
+                        swap.state.value = SwapState.AWAITING_PAYMENT_SENT
+                    }
+                    if (swap.role == SwapRole.MAKER_AND_SELLER) {
+                        logger.info("handleSwapFilledEvent: user is maker and seller for ${event.swapID} so " +
+                                "persistently updating fillingSwapState to ${FillingSwapState.COMPLETED.asString}")
+                        databaseService.updateFillingSwapState(
+                            swapID = encoder.encodeToString(swap.id.asByteArray()),
+                            chainID = swap.chainID.toString(),
+                            state = FillingSwapState.COMPLETED.asString
+                        )
+                        logger.info("handleSwapFilledEvent: updating fillingSwapState to ${FillingSwapState.COMPLETED
+                            .asString}")
+                        withContext(Dispatchers.Main) {
+                            swap.fillingSwapState.value = FillingSwapState.COMPLETED
+                        }
+                    } else {
+                        logger.info("handleSwapFilledEvent: user is taker and buyer for ${event.swapID}")
                     }
                 }
             }

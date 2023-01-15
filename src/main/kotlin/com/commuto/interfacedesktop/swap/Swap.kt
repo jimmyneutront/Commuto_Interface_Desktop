@@ -5,6 +5,7 @@ import androidx.compose.runtime.mutableStateOf
 import com.commuto.interfacedesktop.blockchain.BlockchainTransaction
 import com.commuto.interfacedesktop.blockchain.structs.SwapStruct
 import com.commuto.interfacedesktop.offer.OfferDirection
+import com.commuto.interfacedesktop.offer.TokenTransferApprovalState
 import com.commuto.interfacedesktop.settlement.SettlementMethod
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
@@ -43,12 +44,26 @@ import java.util.*
  * @property settlementMethod A [SettlementMethod] derived by deserializing [onChainSettlementMethod].
  * @property state Indicates the current state of this swap, as described in the
  * [Commuto Interface Specification](https://github.com/jimmyneutront/commuto-whitepaper/blob/main/commuto-interface-specification.txt).
- * @property fillingSwapState (This property is used only if the user of this interface is the maker of this swap and is
- * selling stablecoin.) This indicates whether we are currently filling this swap, and if so, what part of the swap
+ * @property approvingToFillState If this swap is a maker-and-seller swap and was made by the user of this interface,
+ * this indicates whether a token transfer is being approved in order to fill the swap, and if so, what part of the
+ * token transfer approval process it is in. Otherwise, this property is not used.
+ * @property approvingToFillException (This property is used only if this swap is a maker-and-seller swap and was made
+ * by the user of this interface.) The [Exception] that occurred during the token transfer approval process in order to
+ * fill the swap, or `null` if no such exception has occurred.
+ * @property approvingToFillTransaction (This property is used only if this swap is a maker-and-seller swap and was made
+ * by the user of this interface.) The [BlockchainTransaction] that has approved a token transfer in order to fill this
+ * swap. Note that this transaction may be: not yet sent to a blockchain node, pending, confirmed and successful,
+ * confirmed and failed, or dropped.
+ * @property fillingSwapState (This property is used only if this swap is a maker-and-seller swap and was made by the
+ * user of this interface.) This indicates whether we are currently filling this swap, and if so, what part of the swap
  * filling process we are in.
- * @property fillingSwapException (This property is used only if the user of this interface is the maker of this swap
- * and is selling stablecoin.) The [Exception] that we encountered during the swap filling process, or `null` of no such
- * exception has occurred.
+ * @property fillingSwapException (This property is used only if this swap is a maker-and-seller swap and was made by
+ * the user of this interface.) The [Exception] that we encountered during the swap filling process, or `null` of no
+ * such exception has occurred.
+ * @property swapFillingTransaction The [BlockchainTransaction] that called
+ * [fillSwap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#fill-swap) in order to fill this swap. Note
+ * that this transaction may be: not yet sent to a blockchain node, pending, confirmed and successful, confirmed and
+ * failed, or dropped.
  * @property reportingPaymentSentState (This property is used only if the user of this interface is the buyer in this
  * swap.) This indicates whether we are currently reporting that we have sent fiat payment to the seller in this swap by
  * calling [reportPaymentSent](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#report-payment-sent), and
@@ -123,8 +138,13 @@ class Swap(
 
     val state: MutableState<SwapState> = mutableStateOf(state)
 
+    val approvingToFillState: MutableState<TokenTransferApprovalState> = mutableStateOf(TokenTransferApprovalState.NONE)
+    var approvingToFillException: Exception? = null
+    var approvingToFillTransaction: BlockchainTransaction? = null
+
     val fillingSwapState = mutableStateOf(FillingSwapState.NONE)
     var fillingSwapException: Exception? = null
+    var swapFillingTransaction: BlockchainTransaction? = null
 
     val reportingPaymentSentState = mutableStateOf(ReportingPaymentSentState.NONE)
     var reportingPaymentSentException: Exception? = null

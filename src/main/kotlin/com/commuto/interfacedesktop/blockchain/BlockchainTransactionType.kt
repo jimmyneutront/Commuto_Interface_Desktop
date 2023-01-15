@@ -20,6 +20,13 @@ package com.commuto.interfacedesktop.blockchain
  * @property TAKE_OFFER Indicates that a [BlockchainTransaction] takes an
  * [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer) by calling
  * [takeOffer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#take-offer).
+ * @property APPROVE_TOKEN_TRANSFER_TO_FILL_SWAP Indicates that a [BlockchainTransaction] approves a token transfer by
+ * calling [approve](https://docs.openzeppelin.com/contracts/2.x/api/token/erc20#IERC20-approve-address-uint256-) in
+ * order to fill a maker as seller [Swap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#swap) made by
+ * the user of this interface.
+ * @property TAKE_OFFER Indicates that a [BlockchainTransaction] fills a maker-as-seller
+ * [Swap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#swap) made by the user of this interface by
+ * calling [fillSwap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#fill-swap).
  * @property REPORT_PAYMENT_SENT Indicates that a [BlockchainTransaction] reports that payment has been sent for a
  * swap by calling
  * [reportPaymentSent](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#report-payment-sent)
@@ -38,6 +45,8 @@ enum class BlockchainTransactionType {
     EDIT_OFFER,
     APPROVE_TOKEN_TRANSFER_TO_TAKE_OFFER,
     TAKE_OFFER,
+    APPROVE_TOKEN_TRANSFER_TO_FILL_SWAP,
+    FILL_SWAP,
     REPORT_PAYMENT_SENT,
     REPORT_PAYMENT_RECEIVED,
     CLOSE_SWAP;
@@ -50,6 +59,8 @@ enum class BlockchainTransactionType {
             EDIT_OFFER -> "editOffer"
             APPROVE_TOKEN_TRANSFER_TO_TAKE_OFFER -> "approveTokenTransferToTakeOffer"
             TAKE_OFFER -> "takeOffer"
+            APPROVE_TOKEN_TRANSFER_TO_FILL_SWAP -> "approveTokenTransferToFillSwap"
+            FILL_SWAP -> "fillSwap"
             REPORT_PAYMENT_SENT -> "reportPaymentSent"
             REPORT_PAYMENT_RECEIVED -> "reportPaymentReceived"
             CLOSE_SWAP -> "closeSwap"

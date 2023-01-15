@@ -775,6 +775,14 @@ class OfferServiceTests {
             chainID = swap.chainID.toString(),
             state = swap.state.value.asString,
             role = swap.role.asString,
+            approveToFillState = swap.approvingToFillState.value.asString,
+            approveToFillTransactionHash = null,
+            approveToFillTransactionCreationTime = null,
+            approveToFillTransactionCreationBlockNumber = null,
+            fillingSwapState = swap.fillingSwapState.value.asString,
+            fillingSwapTransactionHash = null,
+            fillingSwapTransactionCreationTime = null,
+            fillingSwapTransactionCreationBlockNumber = null,
             reportPaymentSentState = swap.reportingPaymentSentState.value.asString,
             reportPaymentSentTransactionHash = null,
             reportPaymentSentTransactionCreationTime = null,
@@ -1834,6 +1842,7 @@ class OfferServiceTests {
                 exception: BlockchainTransactionException
             ) {}
             override suspend fun handleNewSwap(takenOffer: Offer) {}
+            override suspend fun handleTokenTransferApprovalEvent(event: ApprovalEvent) {}
             override suspend fun handleSwapFilledEvent(event: SwapFilledEvent) {}
             override suspend fun handlePaymentSentEvent(event: PaymentSentEvent) {}
             override suspend fun handlePaymentReceivedEvent(event: PaymentReceivedEvent) {}
@@ -2003,6 +2012,7 @@ class OfferServiceTests {
                 this.swapID = takenOffer.id
                 this.chainID = takenOffer.chainID
             }
+            override suspend fun handleTokenTransferApprovalEvent(event: ApprovalEvent) {}
             override suspend fun handleSwapFilledEvent(event: SwapFilledEvent) {}
             override suspend fun handlePaymentSentEvent(event: PaymentSentEvent) {}
             override suspend fun handlePaymentReceivedEvent(event: PaymentReceivedEvent) {}
@@ -3609,6 +3619,14 @@ class OfferServiceTests {
             chainID = swapInTruthSource.chainID.toString(),
             state = swapInTruthSource.state.value.asString,
             role = "takerAndSeller",
+            approveToFillState = swapInTruthSource.approvingToFillState.value.asString,
+            approveToFillTransactionHash = null,
+            approveToFillTransactionCreationTime = null,
+            approveToFillTransactionCreationBlockNumber = null,
+            fillingSwapState = swapInTruthSource.fillingSwapState.value.asString,
+            fillingSwapTransactionHash = null,
+            fillingSwapTransactionCreationTime = null,
+            fillingSwapTransactionCreationBlockNumber = null,
             reportPaymentSentState = swapInTruthSource.reportingPaymentSentState.value.asString,
             reportPaymentSentTransactionHash = null,
             reportPaymentSentTransactionCreationTime = null,

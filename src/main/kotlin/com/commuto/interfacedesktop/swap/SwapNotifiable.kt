@@ -4,6 +4,7 @@ import com.commuto.interfacedesktop.blockchain.BlockchainService
 import com.commuto.interfacedesktop.blockchain.BlockchainTransaction
 import com.commuto.interfacedesktop.blockchain.BlockchainTransactionException
 import com.commuto.interfacedesktop.blockchain.events.commutoswap.*
+import com.commuto.interfacedesktop.blockchain.events.erc20.ApprovalEvent
 import com.commuto.interfacedesktop.offer.Offer
 import com.commuto.interfacedesktop.offer.OfferService
 import java.math.BigInteger
@@ -47,6 +48,15 @@ interface SwapNotifiable {
      * swap.
      */
     suspend fun handleNewSwap(takenOffer: Offer)
+
+    /**
+     * The method called by [com.commuto.interfacedesktop.blockchain.BlockchainService] in order to notify the
+     * class implementing this interface of an [ApprovalEvent].
+     *
+     * @param event The [ApprovalEvent] of which the class implementing this interface is being notified and should
+     * handle in the implementation of this method.
+     */
+    suspend fun handleTokenTransferApprovalEvent(event: ApprovalEvent)
 
     /**
      * The function called by [BlockchainService] in order to notify the class implementing this interface of a
