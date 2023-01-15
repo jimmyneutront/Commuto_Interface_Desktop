@@ -726,8 +726,9 @@ class OffersViewModel @Inject constructor(private val offerService: OfferService
      * Attempts to create a [RawTransaction] that can take [offer] (which should NOT be made by the user of this
      * interface) by calling [takeOffer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#take-offer).
      *
-     * This passes all passed data (along with a [StablecoinInformationRepository]) and then passes the resulting
-     * transaction and key pair to [createdTransactionAndKeyPairHandler] or exception to [exceptionHandler].
+     * This passes all passed data (along with a [StablecoinInformationRepository]) to [offerService]'s
+     * [OfferService.createTakeOfferTransaction] and then passes the resulting transaction and key pair to
+     * [createdTransactionAndKeyPairHandler] or exception to [exceptionHandler].
      *
      * @param offer The [Offer] to be taken.
      * @param takenSwapAmount The [BigDecimal] amount of stablecoin that the user wants to buy/sell. If the offer has
@@ -739,7 +740,7 @@ class OffersViewModel @Inject constructor(private val offerService: OfferService
      * must have method and currency fields matching [makerSettlementMethod].
      * @param createdTransactionAndKeyPairHandler A lambda that will accept and handle the created [RawTransaction] and
      * [KeyPair].
-     * @param exceptionHandler A lambda that will accept and handle any error that occurs during the transaction
+     * @param exceptionHandler A lambda that will accept and handle any exception that occurs during the transaction
      * creation process.
      */
     override fun createTakeOfferTransaction(
@@ -816,7 +817,7 @@ class OffersViewModel @Inject constructor(private val offerService: OfferService
                     takerKeyPair = keyPair,
                     offerTakingTransaction = offerTakingTransaction,
                 )
-                logger.info("takeOffer successfully sent transaction for ${offer.id}")
+                logger.info("takeOffer: successfully sent transaction for ${offer.id}")
             } catch (exception: Exception) {
                 logger.error("takeOffer: got exception during call for ${offer.id}", exception)
                 withContext(Dispatchers.Main) {

@@ -1,6 +1,7 @@
 package com.commuto.interfacedesktop.ui.swap
 
 import androidx.compose.runtime.mutableStateMapOf
+import com.commuto.interfacedesktop.offer.TokenTransferApprovalState
 import com.commuto.interfacedesktop.swap.*
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -94,6 +95,7 @@ class SwapViewModel @Inject constructor(private val swapService: SwapService): U
      *
      * @param swap The [Swap] to fill.
      */
+    @Deprecated("Use the new transaction pipeline with improved transaction state management")
     override fun fillSwap(swap: Swap) {
         viewModelScope.launch {
             try {
@@ -132,6 +134,146 @@ class SwapViewModel @Inject constructor(private val swapService: SwapService): U
                     swap = swap,
                     state = FillingSwapState.EXCEPTION
                 )
+            }
+        }
+    }
+
+    /**
+     * Attempts to create a [RawTransaction] to approve a token transfer in order to fill a swap.
+     *
+     * This passes [swap] to [SwapService.createFillSwapTransaction] and then passes the resulting transaction to
+     * [createdTransactionHandler] or exception to [exceptionHandler].
+     *
+     * @param swap The [Swap] to be filled.
+     * @param createdTransactionHandler A lambda that will accept and handle the created [RawTransaction].
+     * @param exceptionHandler A lambda that will accept and handle any exception that occurs during the transaction
+     * creation process.
+     */
+    override fun createApproveTokenTransferToFillSwapTransaction(
+        swap: Swap,
+        createdTransactionHandler: (RawTransaction) -> Unit,
+        exceptionHandler: (Exception) -> Unit
+    ) {
+        viewModelScope.launch {
+            logger.info("createApproveTokenTransferToTakeOfferTransaction: creating for ${swap.id}")
+            try {
+                val createdTransaction = swapService.createApproveTokenTransferToFillSwapTransaction(
+                    swapToFill = swap
+                )
+                withContext(Dispatchers.Main) {
+                    createdTransactionHandler(createdTransaction)
+                }
+            } catch (exception: Exception) {
+                withContext(Dispatchers.Main) {
+                    exceptionHandler(exception)
+                }
+            }
+        }
+    }
+
+    /**
+     * Attempts to approve a token transfer in order to fill a swap.
+     *
+     * This clears [swap]'s [Swap.approvingToFillException] property and sets its [Swap.approvingToFillState] to
+     * [TokenTransferApprovalState.VALIDATING], and then passes all data to [swapService]'s
+     * [SwapService.approveTokenTransferToFillSwap] function. When this function returns, this sets [swap]'s
+     * [Swap.approvingToFillState] to [TokenTransferApprovalState.AWAITING_TRANSACTION_CONFIRMATION].
+     *
+     * @param swap The [Swap] to be filled.
+     * @param approveTokenTransferToFillSwapTransaction An optional [RawTransaction] that can create a token transfer
+     * allowance of the taken swap amount of the token specified by [swap].
+     */
+    override fun approveTokenTransferToFillSwap(
+        swap: Swap,
+        approveTokenTransferToFillSwapTransaction: RawTransaction?
+    ) {
+        swap.approvingToFillException = null
+        swap.approvingToFillState.value = TokenTransferApprovalState.VALIDATING
+        viewModelScope.launch {
+            logger.info("approveTokenTransferToFillSwap: approving for ${swap.id}")
+            try {
+                swapService.approveTokenTransferToFillSwap(
+                    swapToFill = swap,
+                    approveTokenTransferToFillSwapTransaction = approveTokenTransferToFillSwapTransaction,
+                )
+                logger.info("approveTokenTransferToFillSwap: successfully approved transfer for ${swap.id}")
+                withContext(Dispatchers.Main) {
+                    swap.approvingToFillState.value = TokenTransferApprovalState.AWAITING_TRANSACTION_CONFIRMATION
+                }
+            } catch (exception: Exception) {
+                logger.error("approveTokenTransferToFillSwap: got exception during call for ${swap.id}")
+                withContext(Dispatchers.Main) {
+                    swap.approvingToFillException = exception
+                    swap.approvingToFillState.value = TokenTransferApprovalState.EXCEPTION
+                }
+            }
+        }
+    }
+
+    /**
+     * Attempts to create a [RawTransaction] that can fill [swap] (which should be a maker-as-seller swap made by the
+     * user of this interface) by calling
+     * [fillSwap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#fill-swap).
+     *
+     * This passes [swap] to [swapService]'s [SwapService.createFillSwapTransaction] and then passes the resulting
+     * transaction to [createdTransactionHandler] or exception to [exceptionHandler].
+     *
+     * @param swap The [Swap] to be filled.
+     * @param createdTransactionHandler A lambda that will accept and handle the created [RawTransaction].
+     * @param exceptionHandler A lambda that will accept and handle any exception that occurs during the transaction
+     * creation process.
+     */
+    override fun createFillSwapTransaction(
+        swap: Swap,
+        createdTransactionHandler: (RawTransaction) -> Unit,
+        exceptionHandler: (Exception) -> Unit
+    ) {
+        viewModelScope.launch {
+            logger.info("createFillSwapTransaction: creating for ${swap.id}")
+            try {
+                val createdTransaction = swapService.createFillSwapTransaction(
+                    swap = swap
+                )
+                withContext(Dispatchers.Main) {
+                    createdTransactionHandler(createdTransaction)
+                }
+            } catch (exception: Exception) {
+                withContext(Dispatchers.Main) {
+                    exceptionHandler(exception)
+                }
+            }
+        }
+    }
+
+    /**
+     * Attempts to fill a [Swap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#swap).
+     *
+     * This clears the swap-filling-related [Exception] of [swap] and sets [swap]'s [Swap.fillingSwapState] to
+     * [FillingSwapState.VALIDATING], and then passes all data to [swapService]'s [SwapService.fillSwap] function.
+     *
+     * @param swap The [Swap] to be filled.
+     * @param swapFillingTransaction An optional [RawTransaction] can fill [swap].
+     */
+    override fun fillSwap(
+        swap: Swap,
+        swapFillingTransaction: RawTransaction?
+    ) {
+        swap.fillingSwapException = null
+        swap.fillingSwapState.value = FillingSwapState.VALIDATING
+        viewModelScope.launch {
+            logger.info("fillSwap: filling ${swap.id}")
+            try {
+                swapService.fillSwap(
+                    swap = swap,
+                    swapFillingTransaction = swapFillingTransaction,
+                )
+                logger.info("fillSwap: successfully sent transaction for ${swap.id}")
+            } catch (exception: Exception) {
+                logger.error("fillSwap: got error during call for ${swap.id}", exception)
+                withContext(Dispatchers.Main) {
+                    swap.fillingSwapException = exception
+                    swap.fillingSwapState.value = FillingSwapState.EXCEPTION
+                }
             }
         }
     }

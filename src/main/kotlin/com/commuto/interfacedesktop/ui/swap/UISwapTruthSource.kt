@@ -14,8 +14,62 @@ interface UISwapTruthSource: SwapTruthSource {
      *
      * @param swap The [Swap] to fill.
      */
+    @Deprecated("Use the new transaction pipeline with improved transaction state management")
     fun fillSwap(
         swap: Swap
+    )
+
+    /**
+     * Attempts to create a [RawTransaction] to approve a token transfer in order to fill a swap.
+     *
+     * @param swap The [Swap] to be filled.
+     * @param createdTransactionHandler A lambda that will accept and handle the created [RawTransaction].
+     * @param exceptionHandler A lambda that will accept and handle any exception that occurs during the transaction
+     * creation process.
+     */
+    fun createApproveTokenTransferToFillSwapTransaction(
+        swap: Swap,
+        createdTransactionHandler: (RawTransaction) -> Unit,
+        exceptionHandler: (Exception) -> Unit
+    )
+
+    /**
+     * Attempts to approve a token transfer in order to fill a swap.
+     *
+     * @param swap The [Swap] to be filled.
+     * @param approveTokenTransferToFillSwapTransaction An optional [RawTransaction] that can create a token transfer
+     * allowance of the taken swap amount of the token specified by [swap].
+     */
+    fun approveTokenTransferToFillSwap(
+        swap: Swap,
+        approveTokenTransferToFillSwapTransaction: RawTransaction?
+    )
+
+    /**
+     * Attempts to create a [RawTransaction] that can fill [swap] (which should be a maker-as-seller swap made by the
+     * user of this interface) by calling
+     * [fillSwap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#fill-swap).
+     *
+     * @param swap The [Swap] to be filled.
+     * @param createdTransactionHandler A lambda that will accept and handle the created [RawTransaction].
+     * @param exceptionHandler A lambda that will accept and handle any exception that occurs during the transaction
+     * creation process.
+     */
+    fun createFillSwapTransaction(
+        swap: Swap,
+        createdTransactionHandler: (RawTransaction) -> Unit,
+        exceptionHandler: (Exception) -> Unit
+    )
+
+    /**
+     * Attempts to fill a [Swap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#swap).
+     *
+     * @param swap The [Swap] to be filled.
+     * @param swapFillingTransaction An optional [RawTransaction] can fill [swap].
+     */
+    fun fillSwap(
+        swap: Swap,
+        swapFillingTransaction: RawTransaction?
     )
 
     /**

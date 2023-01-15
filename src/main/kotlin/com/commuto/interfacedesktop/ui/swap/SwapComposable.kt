@@ -23,6 +23,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogState
+import com.commuto.interfacedesktop.offer.TokenTransferApprovalState
 import com.commuto.interfacedesktop.settlement.SettlementMethod
 import com.commuto.interfacedesktop.swap.*
 import com.commuto.interfacedesktop.ui.StablecoinInformation
@@ -171,6 +172,7 @@ fun SwapComposable(
             ActionButton(
                 swap = swap,
                 swapTruthSource = swapTruthSource,
+                stablecoinInformation = stablecoinInformation,
             )
             Button(
                 onClick = {},
@@ -462,40 +464,181 @@ fun SwapStateComposable(swapState: MutableState<SwapState>, userRole: SwapRole, 
  *
  * @param swap The [Swap] for which this [ActionButton] displays a button.
  * @param swapTruthSource The [UISwapTruthSource] that acts as a single source of truth for all swap-related data.
+ * @param stablecoinInformation An optional [StablecoinInformation] for [swap]'s stablecoin.
  */
 @Composable
-fun ActionButton(swap: Swap, swapTruthSource: UISwapTruthSource) {
+fun ActionButton(swap: Swap, swapTruthSource: UISwapTruthSource, stablecoinInformation: StablecoinInformation?) {
+
+    /**
+     * Indicates whether we are showing the dialog that allows the user to approve a token transfer in order to fill the
+     * swap, if they are the maker and seller.
+     */
+    val isShowingApproveToFillDialog = remember { mutableStateOf(false) }
+
+    /**
+     * Indicates whether we are showing the dialog that allows the user to fill the swap, if they are the maker and
+     * seller.
+     */
+    val isShowingFillSwapDialog = remember { mutableStateOf(false) }
+
     if (swap.state.value == SwapState.AWAITING_FILLING && swap.role == SwapRole.MAKER_AND_SELLER) {
         // If the swap state is awaitingFilling and we are the maker and seller, then we display the "Fill Swap" button
-        if (swap.fillingSwapState.value != FillingSwapState.NONE &&
-            swap.fillingSwapState.value != FillingSwapState.EXCEPTION) {
+        if (swap.approvingToFillState.value == TokenTransferApprovalState.VALIDATING ||
+            swap.approvingToFillState.value == TokenTransferApprovalState.SENDING_TRANSACTION) {
             Text(
-                text = swap.fillingSwapState.value.description,
-                style =  MaterialTheme.typography.h6,
+                text = "Approving ${stablecoinInformation?.currencyCode ?: "Stablecoin"} Transfer in Order to Fill Swap"
             )
-        }
-        if (swap.fillingSwapState.value == FillingSwapState.EXCEPTION) {
+        } else if (swap.approvingToFillState.value == TokenTransferApprovalState.AWAITING_TRANSACTION_CONFIRMATION) {
             Text(
-                text = swap.fillingSwapException?.message ?: "An unknown exception occurred",
-                style =  MaterialTheme.typography.h6,
+                text = "Awaiting Confirmation of Transfer Approval"
+            )
+        } else if (swap.approvingToFillState.value == TokenTransferApprovalState.EXCEPTION) {
+            Text(
+                text = swap.approvingToFillException?.message
+                    ?: ("An unknown error occured while approving the token " +
+                            "transer"),
                 color = Color.Red
             )
+        } else if (swap.approvingToFillState.value == TokenTransferApprovalState.COMPLETED) {
+            if (swap.fillingSwapState.value == FillingSwapState.VALIDATING ||
+                swap.fillingSwapState.value == FillingSwapState.SENDING_TRANSACTION) {
+                Text(
+                    text = "Filling Swap"
+                )
+            } else if (swap.fillingSwapState.value == FillingSwapState.AWAITING_TRANSACTION_CONFIRMATION) {
+                Text(
+                    text = "Awaiting Confirmation that Swap is Filled"
+                )
+            } else if (swap.fillingSwapState.value == FillingSwapState.EXCEPTION) {
+                Text(
+                    text = swap.fillingSwapException?.message ?: "An unknown error occurred while filling the Swap"
+                )
+            }
         }
         BlankActionButton(
             action = {
-                if (swap.fillingSwapState.value == FillingSwapState.NONE ||
-                    swap.fillingSwapState.value == FillingSwapState.EXCEPTION) {
-                    swapTruthSource.fillSwap(
-                        swap = swap
-                    )
+                if (swap.approvingToFillState.value == TokenTransferApprovalState.NONE ||
+                    swap.approvingToFillState.value == TokenTransferApprovalState.EXCEPTION) {
+                    isShowingApproveToFillDialog.value = true
+                } else if (swap.approvingToFillState.value == TokenTransferApprovalState.COMPLETED) {
+                    if (swap.fillingSwapState.value == FillingSwapState.NONE ||
+                        swap.fillingSwapState.value == FillingSwapState.COMPLETED) {
+                        isShowingFillSwapDialog.value = true
+                    }
                 }
             },
-            labelText = when (swap.fillingSwapState.value) {
-                FillingSwapState.NONE, FillingSwapState.EXCEPTION -> "Fill Swap"
-                FillingSwapState.COMPLETED -> "Swap Filled"
-                else -> "Filling Swap"
+            labelText = if (
+                swap.approvingToFillState.value == TokenTransferApprovalState.NONE ||
+                swap.approvingToFillState.value == TokenTransferApprovalState.EXCEPTION) {
+                "Approve Transfer to Fill Swap"
+            } else if (swap.approvingToFillState.value == TokenTransferApprovalState.COMPLETED) {
+                if (swap.fillingSwapState.value == FillingSwapState.NONE ||
+                    swap.fillingSwapState.value == FillingSwapState.EXCEPTION) {
+                    "Fill Swap"
+                } else if (swap.fillingSwapState.value == FillingSwapState.COMPLETED) {
+                    "Swap Filled"
+                } else if (swap.fillingSwapState.value == FillingSwapState.AWAITING_TRANSACTION_CONFIRMATION) {
+                    "Waiting for Confirmation"
+                } else {
+                    "Filling Swap"
+                }
+            } else if (swap.approvingToFillState.value == TokenTransferApprovalState
+                    .AWAITING_TRANSACTION_CONFIRMATION) {
+                "Waiting for Confirmation"
+            } else {
+                "Approving Transfer to Fill Swap"
             }
         )
+        if (isShowingApproveToFillDialog.value) {
+            Dialog(
+                onCloseRequest = {},
+                state = DialogState(
+                    width = 500.dp,
+                    height = 600.dp,
+                ),
+                title = "Approve Token Transfer",
+                undecorated = true,
+                resizable = false,
+                content = {
+                    Box(
+                        modifier = Modifier
+                            .width(600.dp)
+                            .height(800.dp)
+                    ) {
+                        TransactionGasDetailsComposable(
+                            closeDialog = { isShowingApproveToFillDialog.value = false },
+                            title = "Approve Token Transfer",
+                            buttonLabel = "Approve Token Transfer",
+                            buttonAction = { createdTransaction ->
+                                swapTruthSource.approveTokenTransferToFillSwap(
+                                    swap = swap,
+                                    approveTokenTransferToFillSwapTransaction = createdTransaction,
+                                )
+                            },
+                            runOnAppearance = { approveTokenTransferTransaction, transactionCreationException ->
+                                if (swap.approvingToFillState.value == TokenTransferApprovalState.NONE ||
+                                    swap.approvingToFillState.value == TokenTransferApprovalState.EXCEPTION) {
+                                    swapTruthSource.createApproveTokenTransferToFillSwapTransaction(
+                                        swap = swap,
+                                        createdTransactionHandler = { createdTransaction ->
+                                            approveTokenTransferTransaction.value = createdTransaction
+                                        },
+                                        exceptionHandler = { exception ->
+                                            transactionCreationException.value = exception
+                                        }
+                                    )
+                                }
+                            }
+                        )
+                    }
+                }
+            )
+        }
+        if (isShowingApproveToFillDialog.value) {
+            Dialog(
+                onCloseRequest = {},
+                state = DialogState(
+                    width = 500.dp,
+                    height = 600.dp,
+                ),
+                title = "Fill Swap",
+                undecorated = true,
+                resizable = false,
+                content = {
+                    Box(
+                        modifier = Modifier
+                            .width(600.dp)
+                            .height(800.dp)
+                    ) {
+                        TransactionGasDetailsComposable(
+                            closeDialog = { isShowingApproveToFillDialog.value },
+                            title = "Fill Swap",
+                            buttonLabel = "Fill Swap",
+                            buttonAction = { createdTransaction ->
+                                swapTruthSource.fillSwap(
+                                    swap = swap,
+                                    swapFillingTransaction = createdTransaction,
+                                )
+                            },
+                            runOnAppearance = { fillSwapTransaction, transactionCreationException ->
+                                if (swap.fillingSwapState.value == FillingSwapState.NONE ||
+                                    swap.fillingSwapState.value == FillingSwapState.EXCEPTION) {
+                                    swapTruthSource.createFillSwapTransaction(
+                                        swap = swap,
+                                        createdTransactionHandler = { createdTransaction ->
+                                            fillSwapTransaction.value = createdTransaction
+                                        },
+                                        exceptionHandler = { exception ->
+                                            transactionCreationException.value = exception
+                                        }
+                                    )
+                                }
+                            }
+                        )
+                    }
+                }
+            )
+        }
     } else if (swap.state.value == SwapState.AWAITING_PAYMENT_SENT && (swap.role == SwapRole.MAKER_AND_SELLER ||
                 swap.role == SwapRole.TAKER_AND_SELLER)) {
         /*
