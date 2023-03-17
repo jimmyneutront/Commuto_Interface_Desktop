@@ -28,9 +28,9 @@ fun validateSwapForFilling(swap: Swap) {
         throw SwapDataValidationException(desc = "This Swap is already being filled.")
     }
     if (swap.role != SwapRole.MAKER_AND_SELLER) {
-        throw SwapDataValidationException("Only Maker-As-Seller Swaps can be filled")
+        throw SwapDataValidationException(desc = "Only Maker-As-Seller Swaps can be filled.")
     }
     if (swap.state.value != SwapState.AWAITING_FILLING) {
-        throw SwapDataValidationException("This Swap cannot currently be filled")
+        throw SwapDataValidationException(desc = "This Swap cannot currently be filled.")
     }
 }

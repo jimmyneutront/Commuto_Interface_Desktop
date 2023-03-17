@@ -20,7 +20,7 @@ package com.commuto.interfacedesktop.swap
  * [fillSwap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#fill-swap) for the corresponding swap.
  * @property asString Returns a [String] corresponding to a particular case of [FillingSwapState]. This is primarily
  * used for database storage.
- * @property description A human readable string describing the current state.
+ * @property description A human-readable string describing the current state.
  */
 enum class FillingSwapState {
     NONE,

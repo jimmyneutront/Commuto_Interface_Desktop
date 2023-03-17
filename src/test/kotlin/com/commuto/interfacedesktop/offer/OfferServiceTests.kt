@@ -795,6 +795,10 @@ class OfferServiceTests {
             closeSwapTransactionHash = null,
             closeSwapTransactionCreationTime = null,
             closeSwapTransactionCreationBlockNumber = null,
+            raisingDisputeState = swap.raisingDisputeState.value.asString,
+            raisingDisputeTransactionHash = null,
+            raisingDisputeTransactionCreationTime = null,
+            raisingDisputeTransactionCreationBlockNumber = null,
         )
         databaseService.storeSwap(swapForDatabase)
 
@@ -3639,6 +3643,10 @@ class OfferServiceTests {
             closeSwapTransactionHash = null,
             closeSwapTransactionCreationTime = null,
             closeSwapTransactionCreationBlockNumber = null,
+            raisingDisputeState = swapInTruthSource.raisingDisputeState.value.asString,
+            raisingDisputeTransactionHash = null,
+            raisingDisputeTransactionCreationTime = null,
+            raisingDisputeTransactionCreationBlockNumber = null,
         )
         assertEquals(expectedSwapInDatabase, swapInDatabase)
 

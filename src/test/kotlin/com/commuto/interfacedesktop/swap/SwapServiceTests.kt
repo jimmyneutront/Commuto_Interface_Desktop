@@ -159,6 +159,10 @@ class SwapServiceTests {
             closeSwapTransactionHash = null,
             closeSwapTransactionCreationTime = null,
             closeSwapTransactionCreationBlockNumber = null,
+            raisingDisputeState = swap.raisingDisputeState.value.asString,
+            raisingDisputeTransactionHash = null,
+            raisingDisputeTransactionCreationTime = null,
+            raisingDisputeTransactionCreationBlockNumber = null,
         )
         databaseService.storeSwap(swapForDatabase)
 
@@ -286,6 +290,10 @@ class SwapServiceTests {
             closeSwapTransactionHash = null,
             closeSwapTransactionCreationTime = null,
             closeSwapTransactionCreationBlockNumber = null,
+            raisingDisputeState = swap.raisingDisputeState.value.asString,
+            raisingDisputeTransactionHash = null,
+            raisingDisputeTransactionCreationTime = null,
+            raisingDisputeTransactionCreationBlockNumber = null,
         )
         databaseService.storeSwap(swapForDatabase)
 
@@ -415,6 +423,10 @@ class SwapServiceTests {
             closeSwapTransactionHash = null,
             closeSwapTransactionCreationTime = null,
             closeSwapTransactionCreationBlockNumber = null,
+            raisingDisputeState = swap.raisingDisputeState.value.asString,
+            raisingDisputeTransactionHash = null,
+            raisingDisputeTransactionCreationTime = null,
+            raisingDisputeTransactionCreationBlockNumber = null,
         )
         databaseService.storeSwap(swapForDatabase)
 
@@ -541,6 +553,10 @@ class SwapServiceTests {
             closeSwapTransactionHash = null,
             closeSwapTransactionCreationTime = null,
             closeSwapTransactionCreationBlockNumber = null,
+            raisingDisputeState = swap.raisingDisputeState.value.asString,
+            raisingDisputeTransactionHash = null,
+            raisingDisputeTransactionCreationTime = null,
+            raisingDisputeTransactionCreationBlockNumber = null,
         )
         databaseService.storeSwap(swapForDatabase)
 
@@ -667,6 +683,10 @@ class SwapServiceTests {
             closeSwapTransactionHash = null,
             closeSwapTransactionCreationTime = null,
             closeSwapTransactionCreationBlockNumber = null,
+            raisingDisputeState = swap.raisingDisputeState.value.asString,
+            raisingDisputeTransactionHash = null,
+            raisingDisputeTransactionCreationTime = null,
+            raisingDisputeTransactionCreationBlockNumber = null,
         )
         databaseService.storeSwap(swapForDatabase)
 
@@ -811,6 +831,10 @@ class SwapServiceTests {
             closeSwapTransactionHash = null,
             closeSwapTransactionCreationTime = null,
             closeSwapTransactionCreationBlockNumber = null,
+            raisingDisputeState = swap.raisingDisputeState.value.asString,
+            raisingDisputeTransactionHash = null,
+            raisingDisputeTransactionCreationTime = null,
+            raisingDisputeTransactionCreationBlockNumber = null,
         )
         databaseService.storeSwap(swapForDatabase)
 
@@ -1099,6 +1123,10 @@ class SwapServiceTests {
             closeSwapTransactionHash = null,
             closeSwapTransactionCreationTime = null,
             closeSwapTransactionCreationBlockNumber = null,
+            raisingDisputeState = swap.raisingDisputeState.value.asString,
+            raisingDisputeTransactionHash = null,
+            raisingDisputeTransactionCreationTime = null,
+            raisingDisputeTransactionCreationBlockNumber = null,
         )
         databaseService.storeSwap(swapForDatabase)
 
@@ -1238,6 +1266,10 @@ class SwapServiceTests {
             closeSwapTransactionHash = null,
             closeSwapTransactionCreationTime = null,
             closeSwapTransactionCreationBlockNumber = null,
+            raisingDisputeState = swap.raisingDisputeState.value.asString,
+            raisingDisputeTransactionHash = null,
+            raisingDisputeTransactionCreationTime = null,
+            raisingDisputeTransactionCreationBlockNumber = null,
         )
         databaseService.storeSwap(swapForDatabase)
 
@@ -1398,6 +1430,10 @@ class SwapServiceTests {
             closeSwapTransactionHash = null,
             closeSwapTransactionCreationTime = null,
             closeSwapTransactionCreationBlockNumber = null,
+            raisingDisputeState = swap.raisingDisputeState.value.asString,
+            raisingDisputeTransactionHash = null,
+            raisingDisputeTransactionCreationTime = null,
+            raisingDisputeTransactionCreationBlockNumber = null,
         )
         databaseService.storeSwap(swapForDatabase)
 
@@ -1542,6 +1578,10 @@ class SwapServiceTests {
             closeSwapTransactionHash = null,
             closeSwapTransactionCreationTime = null,
             closeSwapTransactionCreationBlockNumber = null,
+            raisingDisputeState = swap.raisingDisputeState.value.asString,
+            raisingDisputeTransactionHash = null,
+            raisingDisputeTransactionCreationTime = null,
+            raisingDisputeTransactionCreationBlockNumber = null,
         )
         databaseService.storeSwap(swapForDatabase)
 
@@ -1672,6 +1712,10 @@ class SwapServiceTests {
             closeSwapTransactionHash = null,
             closeSwapTransactionCreationTime = null,
             closeSwapTransactionCreationBlockNumber = null,
+            raisingDisputeState = swap.raisingDisputeState.value.asString,
+            raisingDisputeTransactionHash = null,
+            raisingDisputeTransactionCreationTime = null,
+            raisingDisputeTransactionCreationBlockNumber = null,
         )
         databaseService.storeSwap(swapForDatabase)
 
@@ -1837,6 +1881,10 @@ class SwapServiceTests {
             closeSwapTransactionHash = null,
             closeSwapTransactionCreationTime = null,
             closeSwapTransactionCreationBlockNumber = null,
+            raisingDisputeState = swap.raisingDisputeState.value.asString,
+            raisingDisputeTransactionHash = null,
+            raisingDisputeTransactionCreationTime = null,
+            raisingDisputeTransactionCreationBlockNumber = null,
         )
         databaseService.storeSwap(swapForDatabase)
 
@@ -1970,6 +2018,10 @@ class SwapServiceTests {
             closeSwapTransactionHash = null,
             closeSwapTransactionCreationTime = null,
             closeSwapTransactionCreationBlockNumber = null,
+            raisingDisputeState = swap.raisingDisputeState.value.asString,
+            raisingDisputeTransactionHash = null,
+            raisingDisputeTransactionCreationTime = null,
+            raisingDisputeTransactionCreationBlockNumber = null,
         )
         databaseService.storeSwap(swapForDatabase)
 
@@ -2104,6 +2156,10 @@ class SwapServiceTests {
             closeSwapTransactionHash = null,
             closeSwapTransactionCreationTime = null,
             closeSwapTransactionCreationBlockNumber = null,
+            raisingDisputeState = swap.raisingDisputeState.value.asString,
+            raisingDisputeTransactionHash = null,
+            raisingDisputeTransactionCreationTime = null,
+            raisingDisputeTransactionCreationBlockNumber = null,
         )
         databaseService.storeSwap(swapForDatabase)
 
@@ -2267,6 +2323,10 @@ class SwapServiceTests {
             closeSwapTransactionHash = null,
             closeSwapTransactionCreationTime = null,
             closeSwapTransactionCreationBlockNumber = null,
+            raisingDisputeState = swap.raisingDisputeState.value.asString,
+            raisingDisputeTransactionHash = null,
+            raisingDisputeTransactionCreationTime = null,
+            raisingDisputeTransactionCreationBlockNumber = null,
         )
         databaseService.storeSwap(swapForDatabase)
 
@@ -2401,6 +2461,10 @@ class SwapServiceTests {
             closeSwapTransactionHash = null,
             closeSwapTransactionCreationTime = null,
             closeSwapTransactionCreationBlockNumber = null,
+            raisingDisputeState = swap.raisingDisputeState.value.asString,
+            raisingDisputeTransactionHash = null,
+            raisingDisputeTransactionCreationTime = null,
+            raisingDisputeTransactionCreationBlockNumber = null,
         )
         databaseService.storeSwap(swapForDatabase)
 
@@ -2537,6 +2601,10 @@ class SwapServiceTests {
             closeSwapTransactionHash = null,
             closeSwapTransactionCreationTime = null,
             closeSwapTransactionCreationBlockNumber = null,
+            raisingDisputeState = swap.raisingDisputeState.value.asString,
+            raisingDisputeTransactionHash = null,
+            raisingDisputeTransactionCreationTime = null,
+            raisingDisputeTransactionCreationBlockNumber = null,
         )
         databaseService.storeSwap(swapForDatabase)
 
@@ -2699,6 +2767,10 @@ class SwapServiceTests {
             closeSwapTransactionHash = null,
             closeSwapTransactionCreationTime = null,
             closeSwapTransactionCreationBlockNumber = null,
+            raisingDisputeState = swap.raisingDisputeState.value.asString,
+            raisingDisputeTransactionHash = null,
+            raisingDisputeTransactionCreationTime = null,
+            raisingDisputeTransactionCreationBlockNumber = null,
         )
         databaseService.storeSwap(swapForDatabase)
 
@@ -2832,6 +2904,10 @@ class SwapServiceTests {
             closeSwapTransactionHash = null,
             closeSwapTransactionCreationTime = null,
             closeSwapTransactionCreationBlockNumber = null,
+            raisingDisputeState = swap.raisingDisputeState.value.asString,
+            raisingDisputeTransactionHash = null,
+            raisingDisputeTransactionCreationTime = null,
+            raisingDisputeTransactionCreationBlockNumber = null,
         )
         databaseService.storeSwap(swapForDatabase)
 
@@ -2969,6 +3045,10 @@ class SwapServiceTests {
             closeSwapTransactionHash = null,
             closeSwapTransactionCreationTime = null,
             closeSwapTransactionCreationBlockNumber = null,
+            raisingDisputeState = swap.raisingDisputeState.value.asString,
+            raisingDisputeTransactionHash = null,
+            raisingDisputeTransactionCreationTime = null,
+            raisingDisputeTransactionCreationBlockNumber = null,
         )
         databaseService.storeSwap(swapForDatabase)
 

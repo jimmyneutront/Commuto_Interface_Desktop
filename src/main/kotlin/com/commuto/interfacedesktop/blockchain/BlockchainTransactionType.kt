@@ -36,6 +36,8 @@ package com.commuto.interfacedesktop.blockchain
  * @property CLOSE_SWAP Indicates that a [BlockchainTransaction] reports that payment has been received for
  * a swap by calling
  * [closeSwap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#close-swap)
+ * @property RAISE_DISPUTE Indicates that a [BlockchainTransaction] raises a dispute for a swap by calling
+ * [raiseDispute](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#raise-dispute)
  * @property asString A human-readable string describing an instance of this type.
  */
 enum class BlockchainTransactionType {
@@ -49,7 +51,8 @@ enum class BlockchainTransactionType {
     FILL_SWAP,
     REPORT_PAYMENT_SENT,
     REPORT_PAYMENT_RECEIVED,
-    CLOSE_SWAP;
+    CLOSE_SWAP,
+    RAISE_DISPUTE;
 
     val asString: String
         get() = when(this) {
@@ -64,6 +67,7 @@ enum class BlockchainTransactionType {
             REPORT_PAYMENT_SENT -> "reportPaymentSent"
             REPORT_PAYMENT_RECEIVED -> "reportPaymentReceived"
             CLOSE_SWAP -> "closeSwap"
+            RAISE_DISPUTE -> "raiseDispute"
         }
 
 }

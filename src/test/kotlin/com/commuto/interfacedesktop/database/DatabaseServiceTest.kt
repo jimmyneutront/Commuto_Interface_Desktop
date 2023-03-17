@@ -1111,6 +1111,10 @@ class DatabaseServiceTest {
             closeSwapTransactionHash = "a_tx_hash_here",
             closeSwapTransactionCreationTime = "a_time_here",
             closeSwapTransactionCreationBlockNumber = -1L,
+            raisingDisputeState = "a_raisingDisputeState_here",
+            raisingDisputeTransactionHash = "a_tx_hash_here",
+            raisingDisputeTransactionCreationTime = "a_time_here",
+            raisingDisputeTransactionCreationBlockNumber = -1L,
         )
         databaseService.storeSwap(swapToStore)
         val anotherSwapToStore = Swap(
@@ -1163,6 +1167,10 @@ class DatabaseServiceTest {
             closeSwapTransactionHash = "a_tx_hash_here",
             closeSwapTransactionCreationTime = "a_time_here",
             closeSwapTransactionCreationBlockNumber = -1L,
+            raisingDisputeState = "a_raisingDisputeState_here",
+            raisingDisputeTransactionHash = "a_tx_hash_here",
+            raisingDisputeTransactionCreationTime = "a_time_here",
+            raisingDisputeTransactionCreationBlockNumber = -1L,
         )
         // This should do nothing and not throw
         databaseService.storeSwap(anotherSwapToStore)
@@ -1228,6 +1236,10 @@ class DatabaseServiceTest {
             closeSwapTransactionHash = "a_tx_hash_here",
             closeSwapTransactionCreationTime = "a_time_here",
             closeSwapTransactionCreationBlockNumber = -1L,
+            raisingDisputeState = "a_raisingDisputeState_here",
+            raisingDisputeTransactionHash = "a_tx_hash_here",
+            raisingDisputeTransactionCreationTime = "a_time_here",
+            raisingDisputeTransactionCreationBlockNumber = -1L,
         )
         databaseService.storeSwap(swapToStore)
         databaseService.updateSwapRequiresFill("a_uuid", "a_chain_id", false)
@@ -1291,6 +1303,10 @@ class DatabaseServiceTest {
             closeSwapTransactionHash = "a_tx_hash_here",
             closeSwapTransactionCreationTime = "a_time_here",
             closeSwapTransactionCreationBlockNumber = -1L,
+            raisingDisputeState = "a_raisingDisputeState_here",
+            raisingDisputeTransactionHash = "a_tx_hash_here",
+            raisingDisputeTransactionCreationTime = "a_time_here",
+            raisingDisputeTransactionCreationBlockNumber = -1L,
         )
         databaseService.storeSwap(swapToStore)
         databaseService.updateSwapMakerPrivateSettlementMethodData(
@@ -1358,6 +1374,10 @@ class DatabaseServiceTest {
             closeSwapTransactionHash = "a_tx_hash_here",
             closeSwapTransactionCreationTime = "a_time_here",
             closeSwapTransactionCreationBlockNumber = -1L,
+            raisingDisputeState = "a_raisingDisputeState_here",
+            raisingDisputeTransactionHash = "a_tx_hash_here",
+            raisingDisputeTransactionCreationTime = "a_time_here",
+            raisingDisputeTransactionCreationBlockNumber = -1L,
         )
         databaseService.storeSwap(swapToStore)
         databaseService.updateSwapTakerPrivateSettlementMethodData(
@@ -1424,6 +1444,10 @@ class DatabaseServiceTest {
             closeSwapTransactionHash = "a_tx_hash_here",
             closeSwapTransactionCreationTime = "a_time_here",
             closeSwapTransactionCreationBlockNumber = -1L,
+            raisingDisputeState = "a_raisingDisputeState_here",
+            raisingDisputeTransactionHash = "a_tx_hash_here",
+            raisingDisputeTransactionCreationTime = "a_time_here",
+            raisingDisputeTransactionCreationBlockNumber = -1L,
         )
         databaseService.storeSwap(swapToStore)
         databaseService.updateSwapIsPaymentSent("a_uuid", "a_chain_id", true)
@@ -1486,6 +1510,10 @@ class DatabaseServiceTest {
             closeSwapTransactionHash = "a_tx_hash_here",
             closeSwapTransactionCreationTime = "a_time_here",
             closeSwapTransactionCreationBlockNumber = -1L,
+            raisingDisputeState = "a_raisingDisputeState_here",
+            raisingDisputeTransactionHash = "a_tx_hash_here",
+            raisingDisputeTransactionCreationTime = "a_time_here",
+            raisingDisputeTransactionCreationBlockNumber = -1L,
         )
         databaseService.storeSwap(swapToStore)
         databaseService.updateSwapIsPaymentReceived("a_uuid", "a_chain_id", true)
@@ -1548,6 +1576,10 @@ class DatabaseServiceTest {
             closeSwapTransactionHash = "a_tx_hash_here",
             closeSwapTransactionCreationTime = "a_time_here",
             closeSwapTransactionCreationBlockNumber = -1L,
+            raisingDisputeState = "a_raisingDisputeState_here",
+            raisingDisputeTransactionHash = "a_tx_hash_here",
+            raisingDisputeTransactionCreationTime = "a_time_here",
+            raisingDisputeTransactionCreationBlockNumber = -1L,
         )
         databaseService.storeSwap(swapToStore)
         databaseService.updateSwapHasBuyerClosed("a_uuid", "a_chain_id", true)
@@ -1610,6 +1642,10 @@ class DatabaseServiceTest {
             closeSwapTransactionHash = "a_tx_hash_here",
             closeSwapTransactionCreationTime = "a_time_here",
             closeSwapTransactionCreationBlockNumber = -1L,
+            raisingDisputeState = "a_raisingDisputeState_here",
+            raisingDisputeTransactionHash = "a_tx_hash_here",
+            raisingDisputeTransactionCreationTime = "a_time_here",
+            raisingDisputeTransactionCreationBlockNumber = -1L,
         )
         databaseService.storeSwap(swapToStore)
         databaseService.updateSwapHasSellerClosed("a_uuid", "a_chain_id", true)
@@ -1672,6 +1708,10 @@ class DatabaseServiceTest {
             closeSwapTransactionHash = "a_tx_hash_here",
             closeSwapTransactionCreationTime = "a_time_here",
             closeSwapTransactionCreationBlockNumber = -1L,
+            raisingDisputeState = "a_raisingDisputeState_here",
+            raisingDisputeTransactionHash = "a_tx_hash_here",
+            raisingDisputeTransactionCreationTime = "a_time_here",
+            raisingDisputeTransactionCreationBlockNumber = -1L,
         )
         databaseService.storeSwap(swapToStore)
         databaseService.updateSwapState("a_uuid", "a_chain_id", "a_new_state_here")
@@ -1735,6 +1775,10 @@ class DatabaseServiceTest {
             closeSwapTransactionHash = "a_tx_hash_here",
             closeSwapTransactionCreationTime = "a_time_here",
             closeSwapTransactionCreationBlockNumber = -1L,
+            raisingDisputeState = "a_raisingDisputeState_here",
+            raisingDisputeTransactionHash = "a_tx_hash_here",
+            raisingDisputeTransactionCreationTime = "a_time_here",
+            raisingDisputeTransactionCreationBlockNumber = -1L,
         )
         databaseService.storeSwap(swapToStore)
         databaseService.updateSwapApproveToFillState(
@@ -1803,6 +1847,10 @@ class DatabaseServiceTest {
             closeSwapTransactionHash = "a_tx_hash_here",
             closeSwapTransactionCreationTime = "a_time_here",
             closeSwapTransactionCreationBlockNumber = -1L,
+            raisingDisputeState = "a_raisingDisputeState_here",
+            raisingDisputeTransactionHash = "a_tx_hash_here",
+            raisingDisputeTransactionCreationTime = "a_time_here",
+            raisingDisputeTransactionCreationBlockNumber = -1L,
         )
         databaseService.storeSwap(swapToStore)
         databaseService.updateSwapApproveToFillData(
@@ -1874,6 +1922,10 @@ class DatabaseServiceTest {
             closeSwapTransactionHash = "a_tx_hash_here",
             closeSwapTransactionCreationTime = "a_time_here",
             closeSwapTransactionCreationBlockNumber = -1L,
+            raisingDisputeState = "a_raisingDisputeState_here",
+            raisingDisputeTransactionHash = "a_tx_hash_here",
+            raisingDisputeTransactionCreationTime = "a_time_here",
+            raisingDisputeTransactionCreationBlockNumber = -1L,
         )
         databaseService.storeSwap(swapToStore)
         databaseService.updateFillingSwapState(
@@ -1942,6 +1994,10 @@ class DatabaseServiceTest {
             closeSwapTransactionHash = "a_tx_hash_here",
             closeSwapTransactionCreationTime = "a_time_here",
             closeSwapTransactionCreationBlockNumber = -1L,
+            raisingDisputeState = "a_raisingDisputeState_here",
+            raisingDisputeTransactionHash = "a_tx_hash_here",
+            raisingDisputeTransactionCreationTime = "a_time_here",
+            raisingDisputeTransactionCreationBlockNumber = -1L,
         )
         databaseService.storeSwap(swapToStore)
         databaseService.updateFillingSwapData(
@@ -2013,6 +2069,10 @@ class DatabaseServiceTest {
             closeSwapTransactionHash = "a_tx_hash_here",
             closeSwapTransactionCreationTime = "a_time_here",
             closeSwapTransactionCreationBlockNumber = -1L,
+            raisingDisputeState = "a_raisingDisputeState_here",
+            raisingDisputeTransactionHash = "a_tx_hash_here",
+            raisingDisputeTransactionCreationTime = "a_time_here",
+            raisingDisputeTransactionCreationBlockNumber = -1L,
         )
         databaseService.storeSwap(swapToStore)
         databaseService.updateReportPaymentSentState(
@@ -2081,6 +2141,10 @@ class DatabaseServiceTest {
             closeSwapTransactionHash = "a_tx_hash_here",
             closeSwapTransactionCreationTime = "a_time_here",
             closeSwapTransactionCreationBlockNumber = -1L,
+            raisingDisputeState = "a_raisingDisputeState_here",
+            raisingDisputeTransactionHash = "a_tx_hash_here",
+            raisingDisputeTransactionCreationTime = "a_time_here",
+            raisingDisputeTransactionCreationBlockNumber = -1L,
         )
         databaseService.storeSwap(swapToStore)
         databaseService.updateReportPaymentSentData(
@@ -2152,6 +2216,10 @@ class DatabaseServiceTest {
             closeSwapTransactionHash = "a_tx_hash_here",
             closeSwapTransactionCreationTime = "a_time_here",
             closeSwapTransactionCreationBlockNumber = -1L,
+            raisingDisputeState = "a_raisingDisputeState_here",
+            raisingDisputeTransactionHash = "a_tx_hash_here",
+            raisingDisputeTransactionCreationTime = "a_time_here",
+            raisingDisputeTransactionCreationBlockNumber = -1L,
         )
         databaseService.storeSwap(swapToStore)
         databaseService.updateReportPaymentReceivedState(
@@ -2161,6 +2229,82 @@ class DatabaseServiceTest {
         )
         val returnedSwap = databaseService.getSwap(id = "a_uuid")
         assertEquals("a_new_reportingPaymentReceivedState_here", returnedSwap!!.reportPaymentReceivedState)
+    }
+
+    /**
+     * Ensures that code to update a persistently stored swap's [Swap.reportPaymentReceivedTransactionHash],
+     * [Swap.reportPaymentReceivedTransactionCreationTime] and
+     * [Swap.reportPaymentReceivedTransactionCreationBlockNumber] properties work properly.
+     */
+    @Test
+    fun testUpdateReportingPaymentReceivedData() = runBlocking {
+        val swapToStore = Swap(
+            id = "a_uuid",
+            isCreated = 1L,
+            requiresFill = 0L,
+            maker = "maker_address",
+            makerInterfaceID = "maker_interface_id",
+            taker = "taker_address",
+            takerInterfaceID = "taker_interface_id",
+            stablecoin = "stablecoin_address",
+            amountLowerBound = "lower_bound_amount",
+            amountUpperBound = "upper_bound_amount",
+            securityDepositAmount = "security_deposit_amount",
+            takenSwapAmount = "taken_swap_amount",
+            serviceFeeAmount = "service_fee_amount",
+            serviceFeeRate = "service_fee_rate",
+            onChainDirection = "direction",
+            settlementMethod = "settlement_method",
+            makerPrivateData = "maker_private_data",
+            makerPrivateDataInitializationVector = "maker_init_vector",
+            takerPrivateData = "taker_private_data",
+            takerPrivateDataInitializationVector = "taker_private_data",
+            protocolVersion = "some_version",
+            isPaymentSent = 0L,
+            isPaymentReceived = 0L,
+            hasBuyerClosed = 0L,
+            hasSellerClosed = 0L,
+            disputeRaiser = "dispute_raiser",
+            chainID = "a_chain_id",
+            state = "a_state_here",
+            role = "a_role_here",
+            approveToFillState = "a_tokenTransferApprovalState_here",
+            approveToFillTransactionHash = "a_tx_hash_here",
+            approveToFillTransactionCreationTime = "a_time_here",
+            approveToFillTransactionCreationBlockNumber = -1L,
+            fillingSwapState = "a_fillingSwapState_here",
+            fillingSwapTransactionHash = "a_tx_hash_here",
+            fillingSwapTransactionCreationTime = "a_time_here",
+            fillingSwapTransactionCreationBlockNumber = -1L,
+            reportPaymentSentState = "a_reportingPaymentSentState_here",
+            reportPaymentSentTransactionHash = "a_tx_hash_here",
+            reportPaymentSentTransactionCreationTime = "a_time_here",
+            reportPaymentSentTransactionCreationBlockNumber = null,
+            reportPaymentReceivedState = "a_reportingPaymentReceivedState_here",
+            reportPaymentReceivedTransactionHash = null,
+            reportPaymentReceivedTransactionCreationTime = null,
+            reportPaymentReceivedTransactionCreationBlockNumber = null,
+            closeSwapState = "a_closeSwapState_here",
+            closeSwapTransactionHash = "a_tx_hash_here",
+            closeSwapTransactionCreationTime = "a_time_here",
+            closeSwapTransactionCreationBlockNumber = -1L,
+            raisingDisputeState = "a_raisingDisputeState_here",
+            raisingDisputeTransactionHash = "a_tx_hash_here",
+            raisingDisputeTransactionCreationTime = "a_time_here",
+            raisingDisputeTransactionCreationBlockNumber = -1L,
+        )
+        databaseService.storeSwap(swapToStore)
+        databaseService.updateReportPaymentReceivedData(
+            swapID = "a_uuid",
+            chainID = "a_chain_id",
+            transactionHash = "a_tx_hash_here",
+            creationTime = "a_creation_time",
+            blockNumber = -1L
+        )
+        val returnedSwapAfterUpdate = databaseService.getSwap(id = "a_uuid")
+        assertEquals("a_tx_hash_here", returnedSwapAfterUpdate!!.reportPaymentReceivedTransactionHash)
+        assertEquals("a_creation_time", returnedSwapAfterUpdate.reportPaymentReceivedTransactionCreationTime)
+        assertEquals(-1L, returnedSwapAfterUpdate.reportPaymentReceivedTransactionCreationBlockNumber)
     }
 
     /**
@@ -2218,6 +2362,10 @@ class DatabaseServiceTest {
             closeSwapTransactionHash = "a_tx_hash_here",
             closeSwapTransactionCreationTime = "a_time_here",
             closeSwapTransactionCreationBlockNumber = -1L,
+            raisingDisputeState = "a_raisingDisputeState_here",
+            raisingDisputeTransactionHash = "a_tx_hash_here",
+            raisingDisputeTransactionCreationTime = "a_time_here",
+            raisingDisputeTransactionCreationBlockNumber = -1L,
         )
         databaseService.storeSwap(swapToStore)
         databaseService.updateCloseSwapState(
@@ -2286,6 +2434,10 @@ class DatabaseServiceTest {
             closeSwapTransactionHash = null,
             closeSwapTransactionCreationTime = null,
             closeSwapTransactionCreationBlockNumber = null,
+            raisingDisputeState = "a_raisingDisputeState_here",
+            raisingDisputeTransactionHash = "a_tx_hash_here",
+            raisingDisputeTransactionCreationTime = "a_time_here",
+            raisingDisputeTransactionCreationBlockNumber = -1L,
         )
         databaseService.storeSwap(swapToStore)
         databaseService.updateCloseSwapData(
@@ -2302,12 +2454,10 @@ class DatabaseServiceTest {
     }
 
     /**
-     * Ensures that code to update a persistently stored swap's [Swap.reportPaymentReceivedTransactionHash],
-     * [Swap.reportPaymentReceivedTransactionCreationTime] and
-     * [Swap.reportPaymentReceivedTransactionCreationBlockNumber] properties work properly.
+     * Ensures that code to update a persistently stored swap's [Swap.raisingDisputeState] property works properly.
      */
     @Test
-    fun testUpdateReportingPaymentReceivedData() = runBlocking {
+    fun testUpdateRaisingDisputeState() = runBlocking {
         val swapToStore = Swap(
             id = "a_uuid",
             isCreated = 1L,
@@ -2349,18 +2499,94 @@ class DatabaseServiceTest {
             reportPaymentSentState = "a_reportingPaymentSentState_here",
             reportPaymentSentTransactionHash = "a_tx_hash_here",
             reportPaymentSentTransactionCreationTime = "a_time_here",
-            reportPaymentSentTransactionCreationBlockNumber = null,
+            reportPaymentSentTransactionCreationBlockNumber = -1L,
             reportPaymentReceivedState = "a_reportingPaymentReceivedState_here",
-            reportPaymentReceivedTransactionHash = null,
-            reportPaymentReceivedTransactionCreationTime = null,
-            reportPaymentReceivedTransactionCreationBlockNumber = null,
+            reportPaymentReceivedTransactionHash = "a_tx_hash_here",
+            reportPaymentReceivedTransactionCreationTime = "a_time_here",
+            reportPaymentReceivedTransactionCreationBlockNumber = -1L,
             closeSwapState = "a_closeSwapState_here",
             closeSwapTransactionHash = "a_tx_hash_here",
             closeSwapTransactionCreationTime = "a_time_here",
             closeSwapTransactionCreationBlockNumber = -1L,
+            raisingDisputeState = "a_raisingDisputeState_here",
+            raisingDisputeTransactionHash = "a_tx_hash_here",
+            raisingDisputeTransactionCreationTime = "a_time_here",
+            raisingDisputeTransactionCreationBlockNumber = -1L,
         )
         databaseService.storeSwap(swapToStore)
-        databaseService.updateReportPaymentReceivedData(
+        databaseService.updateRaisingDisputeState(
+            swapID = "a_uuid",
+            chainID = "a_chain_id",
+            state = "a_new_raisingDisputeState_here",
+        )
+        val returnedSwap = databaseService.getSwap(id = "a_uuid")
+        Assert.assertEquals("a_new_raisingDisputeState_here", returnedSwap!!.raisingDisputeState)
+    }
+
+    /**
+     * Ensures that code to update a persistently stored swap's [Swap.raisingDisputeTransactionHash],
+     * [Swap.raisingDisputeTransactionCreationTime] and [Swap.raisingDisputeTransactionCreationBlockNumber] properties
+     * work properly.
+     */
+    @Test
+    fun testUpdateRaisingDisputeData() = runBlocking {
+        val swapToStore = Swap(
+            id = "a_uuid",
+            isCreated = 1L,
+            requiresFill = 0L,
+            maker = "maker_address",
+            makerInterfaceID = "maker_interface_id",
+            taker = "taker_address",
+            takerInterfaceID = "taker_interface_id",
+            stablecoin = "stablecoin_address",
+            amountLowerBound = "lower_bound_amount",
+            amountUpperBound = "upper_bound_amount",
+            securityDepositAmount = "security_deposit_amount",
+            takenSwapAmount = "taken_swap_amount",
+            serviceFeeAmount = "service_fee_amount",
+            serviceFeeRate = "service_fee_rate",
+            onChainDirection = "direction",
+            settlementMethod = "settlement_method",
+            makerPrivateData = "maker_private_data",
+            makerPrivateDataInitializationVector = "maker_init_vector",
+            takerPrivateData = "taker_private_data",
+            takerPrivateDataInitializationVector = "taker_private_data",
+            protocolVersion = "some_version",
+            isPaymentSent = 0L,
+            isPaymentReceived = 0L,
+            hasBuyerClosed = 0L,
+            hasSellerClosed = 0L,
+            disputeRaiser = "dispute_raiser",
+            chainID = "a_chain_id",
+            state = "a_state_here",
+            role = "a_role_here",
+            approveToFillState = "a_tokenTransferApprovalState_here",
+            approveToFillTransactionHash = "a_tx_hash_here",
+            approveToFillTransactionCreationTime = "a_time_here",
+            approveToFillTransactionCreationBlockNumber = -1L,
+            fillingSwapState = "a_fillingSwapState_here",
+            fillingSwapTransactionHash = "a_tx_hash_here",
+            fillingSwapTransactionCreationTime = "a_time_here",
+            fillingSwapTransactionCreationBlockNumber = -1L,
+            reportPaymentSentState = "a_reportingPaymentSentState_here",
+            reportPaymentSentTransactionHash = "a_tx_hash_here",
+            reportPaymentSentTransactionCreationTime = "a_time_here",
+            reportPaymentSentTransactionCreationBlockNumber = -1L,
+            reportPaymentReceivedState = "a_reportingPaymentReceivedState_here",
+            reportPaymentReceivedTransactionHash = "a_tx_hash_here",
+            reportPaymentReceivedTransactionCreationTime = "a_time_here",
+            reportPaymentReceivedTransactionCreationBlockNumber = -1L,
+            closeSwapState = "a_closeSwapState_here",
+            closeSwapTransactionHash = "a_tx_hash_here",
+            closeSwapTransactionCreationTime = "a_time_here",
+            closeSwapTransactionCreationBlockNumber = -1L,
+            raisingDisputeState = "a_raisingDisputeState_here",
+            raisingDisputeTransactionHash = null,
+            raisingDisputeTransactionCreationTime = null,
+            raisingDisputeTransactionCreationBlockNumber = null,
+        )
+        databaseService.storeSwap(swapToStore)
+        databaseService.updateRaisingDisputeData(
             swapID = "a_uuid",
             chainID = "a_chain_id",
             transactionHash = "a_tx_hash_here",
@@ -2368,9 +2594,9 @@ class DatabaseServiceTest {
             blockNumber = -1L
         )
         val returnedSwapAfterUpdate = databaseService.getSwap(id = "a_uuid")
-        assertEquals("a_tx_hash_here", returnedSwapAfterUpdate!!.reportPaymentReceivedTransactionHash)
-        assertEquals("a_creation_time", returnedSwapAfterUpdate.reportPaymentReceivedTransactionCreationTime)
-        assertEquals(-1L, returnedSwapAfterUpdate.reportPaymentReceivedTransactionCreationBlockNumber)
+        Assert.assertEquals("a_tx_hash_here", returnedSwapAfterUpdate!!.raisingDisputeTransactionHash)
+        Assert.assertEquals("a_creation_time", returnedSwapAfterUpdate.raisingDisputeTransactionCreationTime)
+        Assert.assertEquals(-1L, returnedSwapAfterUpdate.raisingDisputeTransactionCreationBlockNumber)
     }
 
     /**

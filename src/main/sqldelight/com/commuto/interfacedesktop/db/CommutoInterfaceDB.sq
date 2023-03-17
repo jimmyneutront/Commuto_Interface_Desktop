@@ -123,7 +123,11 @@ reportPaymentReceivedTransactionCreationBlockNumber INTEGER,
 closeSwapState TEXT NOT NULL,
 closeSwapTransactionHash TEXT,
 closeSwapTransactionCreationTime TEXT,
-closeSwapTransactionCreationBlockNumber INTEGER
+closeSwapTransactionCreationBlockNumber INTEGER,
+raisingDisputeState TEXT NOT NULL,
+raisingDisputeTransactionHash TEXT,
+raisingDisputeTransactionCreationTime TEXT,
+raisingDisputeTransactionCreationBlockNumber INTEGER
 );
 
 createUserSettlementMethodTable:
@@ -267,7 +271,11 @@ INSERT INTO Swap(
     closeSwapState,
     closeSwapTransactionHash,
     closeSwapTransactionCreationTime,
-    closeSwapTransactionCreationBlockNumber
+    closeSwapTransactionCreationBlockNumber,
+    raisingDisputeState,
+    raisingDisputeTransactionHash,
+    raisingDisputeTransactionCreationTime,
+    raisingDisputeTransactionCreationBlockNumber
 )
 VALUES(?, ?, ?, ?, ?, ?, ?,
  ?, ?, ?, ?, ?,
@@ -282,7 +290,8 @@ VALUES(?, ?, ?, ?, ?, ?, ?,
  ?, ?,
  ?, ?,
  ?, ?, ?,
- ?, ?);
+ ?, ?,
+ ?, ? ,?, ?);
 
 insertUserSettlementMethod:
 INSERT INTO UserSettlementMethod(
@@ -473,6 +482,18 @@ UPDATE Swap
 SET closeSwapTransactionHash = ?,
 closeSwapTransactionCreationTime = ?,
 closeSwapTransactionCreationBlockNumber = ?
+WHERE id = ? AND chainID = ?;
+
+updateRaisingDisputeStateBySwapIDAndChainID:
+UPDATE Swap
+SET raisingDisputeState = ?
+WHERE id = ? AND chainID = ?;
+
+updateRaisingDisputeDataBySwapIDAndChainID:
+UPDATE Swap
+SET raisingDisputeTransactionHash = ?,
+raisingDisputeTransactionCreationTime = ?,
+raisingDisputeTransactionCreationBlockNumber = ?
 WHERE id = ? AND chainID = ?;
 
 updateUserSettlementMethodByID:

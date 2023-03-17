@@ -1181,7 +1181,7 @@ class SwapService @Inject constructor(
      * @param transaction The [BlockchainTransaction] wrapping the on-chain transaction that has failed.
      * @param exception A [BlockchainTransactionException] describing why the on-chain transaction has failed.
      *
-     * @throws [SwapServiceException] if this is passed an offer-related [BlockchainTransaction].
+     * @throws [SwapServiceException] if this is passed a non-swap-related [BlockchainTransaction].
      */
     override suspend fun handleFailedTransaction(
         transaction: BlockchainTransaction,
@@ -1193,10 +1193,10 @@ class SwapService @Inject constructor(
         when (transaction.type) {
             BlockchainTransactionType.APPROVE_TOKEN_TRANSFER_TO_OPEN_OFFER, BlockchainTransactionType.OPEN_OFFER,
             BlockchainTransactionType.CANCEL_OFFER, BlockchainTransactionType.EDIT_OFFER,
-            BlockchainTransactionType.APPROVE_TOKEN_TRANSFER_TO_TAKE_OFFER, BlockchainTransactionType.TAKE_OFFER -> {
-                throw SwapServiceException(message = "handleFailedTransaction: received an offer-related transaction " +
-                        transaction.transactionHash
-                )
+            BlockchainTransactionType.APPROVE_TOKEN_TRANSFER_TO_TAKE_OFFER, BlockchainTransactionType.TAKE_OFFER,
+            BlockchainTransactionType.RAISE_DISPUTE -> {
+                throw SwapServiceException(message = "handleFailedTransaction: received a non-swap-related " +
+                        "transaction ${transaction.transactionHash}")
             }
             BlockchainTransactionType.APPROVE_TOKEN_TRANSFER_TO_FILL_SWAP -> {
                 val swap = swapTruthSource.swaps.firstNotNullOfOrNull { uuidSwapEntry ->
@@ -1502,6 +1502,10 @@ class SwapService @Inject constructor(
             closeSwapTransactionHash = null,
             closeSwapTransactionCreationTime = null,
             closeSwapTransactionCreationBlockNumber = null,
+            raisingDisputeState = newSwap.raisingDisputeState.value.asString,
+            raisingDisputeTransactionHash = null,
+            raisingDisputeTransactionCreationTime = null,
+            raisingDisputeTransactionCreationBlockNumber = null,
         )
         databaseService.storeSwap(swapForDatabase)
         // Add new Swap to swapTruthSource

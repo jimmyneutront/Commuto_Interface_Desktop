@@ -275,7 +275,11 @@ internal class Database(databaseDriverFactory: DatabaseDriverFactory) {
             closeSwapState = swap.closeSwapState,
             closeSwapTransactionHash = swap.closeSwapTransactionHash,
             closeSwapTransactionCreationTime = swap.closeSwapTransactionCreationTime,
-            closeSwapTransactionCreationBlockNumber = swap.closeSwapTransactionCreationBlockNumber
+            closeSwapTransactionCreationBlockNumber = swap.closeSwapTransactionCreationBlockNumber,
+            raisingDisputeState = swap.raisingDisputeState,
+            raisingDisputeTransactionHash = swap.raisingDisputeTransactionHash,
+            raisingDisputeTransactionCreationTime = swap.raisingDisputeTransactionCreationTime,
+            raisingDisputeTransactionCreationBlockNumber = swap.raisingDisputeTransactionCreationBlockNumber,
         )
     }
 
@@ -838,7 +842,7 @@ internal class Database(databaseDriverFactory: DatabaseDriverFactory) {
      * Updates the [Swap.closeSwapState] property of the [Swap] with the specified [swapID] and [chainID].
      * @param swapID The ID of the [Swap] to be updated.
      * @param chainID The ID of the blockchain on which the [Swap] to be updated exists.
-     * @paran state The new value of the [Swap.closeSwapState] property
+     * @param state The new value of the [Swap.closeSwapState] property
      */
     internal fun updateCloseSwapState(swapID: String, chainID: String, state: String) {
         dbQuery.updateCloseSwapStateBySwapIDAndChainID(
@@ -869,6 +873,46 @@ internal class Database(databaseDriverFactory: DatabaseDriverFactory) {
             closeSwapTransactionHash = transactionHash,
             closeSwapTransactionCreationTime = creationTime,
             closeSwapTransactionCreationBlockNumber = blockNumber,
+            id = swapID,
+            chainID = chainID
+        )
+    }
+
+    /**
+     * Updates the [Swap.raisingDisputeState] property of the [Swap] with the specified [swapID] and [chainID].
+     * @param swapID The ID of the [Swap] to be updated.
+     * @param chainID The ID of the blockchain on which the [Swap] to be updated exists.
+     * @param state The new value of the [Swap.raisingDisputeState] property
+     */
+    internal fun updateRaisingDisputeState(swapID: String, chainID: String, state: String) {
+        dbQuery.updateRaisingDisputeStateBySwapIDAndChainID(
+            raisingDisputeState = state,
+            id = swapID,
+            chainID = chainID
+        )
+    }
+
+    /**
+     * Updates the [Swap.raisingDisputeTransactionHash], [Swap.raisingDisputeTransactionCreationTime] and
+     * [Swap.raisingDisputeTransactionCreationBlockNumber] properties of the [Swap] with the specified [swapID] and
+     * [chainID].
+     * @param swapID The ID of the [Swap] to be updated.
+     * @param chainID The ID of the blockchain on which the [Swap] to be updated exists.
+     * @param transactionHash The new value of the [Swap.raisingDisputeTransactionHash] property.
+     * @param creationTime The new value of the [Swap.raisingDisputeTransactionCreationTime] property.
+     * @param blockNumber The new value of the [Swap.raisingDisputeTransactionCreationBlockNumber] property.
+     */
+    internal fun updateRaisingDisputeData(
+        swapID: String,
+        chainID: String,
+        transactionHash: String?,
+        creationTime: String?,
+        blockNumber: Long?
+    ) {
+        dbQuery.updateRaisingDisputeDataBySwapIDAndChainID(
+            raisingDisputeTransactionHash = transactionHash,
+            raisingDisputeTransactionCreationTime = creationTime,
+            raisingDisputeTransactionCreationBlockNumber = blockNumber,
             id = swapID,
             chainID = chainID
         )

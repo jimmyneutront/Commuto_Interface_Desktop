@@ -8,6 +8,7 @@ import com.commuto.interfacedesktop.blockchain.events.erc20.TokenTransferApprova
 import com.commuto.interfacedesktop.blockchain.structs.OfferStruct
 import com.commuto.interfacedesktop.blockchain.structs.SwapStruct
 import com.commuto.interfacedesktop.contractwrapper.CommutoSwap
+import com.commuto.interfacedesktop.contractwrapper.CommutoSwap.Dispute
 import com.commuto.interfacedesktop.extension.asByteArray
 import com.commuto.interfacedesktop.offer.OfferNotifiable
 import com.commuto.interfacedesktop.offer.OfferService
@@ -719,8 +720,8 @@ class BlockchainService (private val exceptionHandler: BlockchainExceptionNotifi
      * @param swapStruct The [SwapStruct] containing the data of the
      * [Offer](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#offer) to be taken.
      *
-     * @return An [RawTransaction] as described above, that will take the offer specified by [offerID] using the
-     * data supplied in [swapStruct].
+     * @return A [RawTransaction] as described above, that will take the offer specified by [offerID] using the data
+     * supplied in [swapStruct].
      */
     suspend fun createTakeOfferTransaction(offerID: UUID, swapStruct: SwapStruct): RawTransaction {
         val function = org.web3j.abi.datatypes.Function(
@@ -1162,6 +1163,110 @@ class BlockchainService (private val exceptionHandler: BlockchainExceptionNotifi
     }
 
     /**
+     * Uses the [CommutoSwap.getActiveDisputeAgents] method to get the addresses of all active dispute agents.
+     *
+     * @return A [Deferred] that results in a [MutableList] of [String]s, which are the addresses of all active dispute
+     * agents.
+     */
+    fun getActiveDisputeAgentsAsync(): Deferred<MutableList<Any?>> {
+        return commutoSwap.activeDisputeAgents.sendAsync().asDeferred()
+    }
+
+    /**
+     * Creates and returns an EIP1559 [RawTransaction] from the user's account to call CommutoSwap's
+     * [raiseDispute](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#raise-dispute) function, with
+     * estimated gas limit, max priority fee per gas, max fee per gas, and with a nonce determined from all currently
+     * known transactions, including those that are still pending.
+     *
+     * @param swapID The ID of the [Swap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#swap) for which
+     * a dispute will be raised.
+     * @param chainID The ID of the blockchain on which the swap with the ID specified by [swapID] exists.
+     * @param disputeAgent0 The address of the first selected active dispute agent.
+     * @param disputeAgent1 The address of the second selected active dispute agent.
+     * @param disputeAgent2 The address of the third selected active dispute agent.
+     *
+     * @return A [RawTransaction] as described above, that will raise a dispute for the swap specified by [swapID] on
+     * the chain specified by [chainID], using the supplied dispute agent addresses.
+     */
+    suspend fun createRaiseDisputeTransaction(
+        swapID: UUID,
+        chainID: BigInteger,
+        disputeAgent0: String,
+        disputeAgent1: String,
+        disputeAgent2: String
+    ): RawTransaction {
+        val function = org.web3j.abi.datatypes.Function(
+            "raiseDispute",
+            listOf(
+                org.web3j.abi.datatypes.generated.Bytes16(swapID.asByteArray()),
+                org.web3j.abi.datatypes.Address(160, disputeAgent0),
+                org.web3j.abi.datatypes.Address(160, disputeAgent1),
+                org.web3j.abi.datatypes.Address(160, disputeAgent2)
+            ),
+            listOf()
+        )
+        val encodedFunction = CommutoFunctionEncoder.encode(function)
+        val transactionForGasEstimate = Transaction(
+            creds.address.toString(),
+            BigInteger.ZERO,
+            null, // No gasPrice because we are specifying maxFeePerGas
+            BigInteger.valueOf(30_000_000),
+            commutoSwap.contractAddress,
+            BigInteger.ZERO,
+            encodedFunction,
+            chainID.toLong(),
+            BigInteger.valueOf(1_000_000), // maxPriorityFeePerGas (temporary value)
+            BigInteger.valueOf(875_000_000), // maxFeePerGas (temporary value)
+        )
+        val nonce = web3.ethGetTransactionCount(
+            creds.address,
+            DefaultBlockParameter.valueOf("pending")
+        ).sendAsync().asDeferred()
+        val gasLimit = web3.ethEstimateGas(transactionForGasEstimate).sendAsync().asDeferred().await().amountUsed
+        // Get the fee history from the last 20 blocks, from the 75th to the 100th percentile.
+        val feeHistory = web3.ethFeeHistory(
+            20,
+            DefaultBlockParameter.valueOf("latest"),
+            listOf(75.0)
+        ).sendAsync().asDeferred().await().feeHistory
+        // Calculate the average of the 75th percentile reward values from the last 20 blocks and use this as the
+        // maxPriorityFeePerGas
+        val maxPriorityFeePerGas = BigInteger.ZERO.let { finalTipFee ->
+            feeHistory.reward.map { it.first() }.forEach { finalTipFee.add(it) }
+            finalTipFee.divide(BigInteger.valueOf(feeHistory.reward.count().toLong()))
+        }
+        // Calculate the 75th percentile base fee per gas value from the last 20 blocks and use this as the
+        // baseFeePerGas
+        val baseFeePerGas = BigInteger.ZERO.let {
+            val percentileIndex = floor(0.75 * feeHistory.baseFeePerGas.count()).toInt()
+            feeHistory.baseFeePerGas.sorted()[percentileIndex]
+        }
+        val maxFeePerGas = baseFeePerGas + maxPriorityFeePerGas
+        return RawTransaction.createTransaction(
+            chainID.toLong(),
+            nonce.await().transactionCount,
+            gasLimit,
+            transactionForGasEstimate.to,
+            BigInteger.ZERO, // value
+            transactionForGasEstimate.data,
+            maxPriorityFeePerGas,
+            maxFeePerGas
+        )
+    }
+
+    /**
+     * Uses the [CommutoSwap.getDispute] method to get all on-chain data about the dispute for the swap with the
+     * specified ID, and returns the deferred result.
+     *
+     * @param id The ID of the swap corresponding to the dispute to return.
+     *
+     * @return A [Deferred] with a [Dispute] result.
+     */
+    fun getDisputeAsync(id: UUID): Deferred<Dispute> {
+        return commutoSwap.getDispute(id.asByteArray()).sendAsync().asDeferred()
+    }
+
+    /**
      * Parses the given [EthBlock.Block] in search of
      * [CommutoSwap](https://github.com/jimmyneutront/commuto-protocol/blob/main/CommutoSwap.sol)
      * events, and creates a list of all such events that it finds. Then this iterates through all remaining monitored
@@ -1242,6 +1347,9 @@ class BlockchainService (private val exceptionHandler: BlockchainExceptionNotifi
                                 exception = monitoredTransactionException
                             )
                         }
+                        BlockchainTransactionType.RAISE_DISPUTE -> {
+                            // TODO: Have DisputeService handle failed transaction here
+                        }
                     }
                 }
             }
@@ -1315,6 +1423,9 @@ class BlockchainService (private val exceptionHandler: BlockchainExceptionNotifi
                             eventsInReceipt.addAll(commutoSwap.getBuyerClosedEvents(transactionReceipt))
                             eventsInReceipt.addAll(commutoSwap.getSellerClosedEvents(transactionReceipt))
                         }
+                        BlockchainTransactionType.RAISE_DISPUTE -> {
+                            eventsInReceipt.addAll(commutoSwap.getDisputeRaisedEvents(transactionReceipt))
+                        }
                     }
                 } else {
                     logger.warn("parseDeferredReceiptOptional: monitored tx ${transactionReceipt.transactionHash} of " +
@@ -1343,6 +1454,9 @@ class BlockchainService (private val exceptionHandler: BlockchainExceptionNotifi
                                 monitoredTransaction,
                                 exception = exception
                             )
+                        }
+                        BlockchainTransactionType.RAISE_DISPUTE -> {
+                            // TODO: Have DisputeService handle failed transaction here
                         }
                     }
                 }

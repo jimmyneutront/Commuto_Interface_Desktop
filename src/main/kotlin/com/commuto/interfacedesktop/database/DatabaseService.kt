@@ -1071,6 +1071,10 @@ open class DatabaseService(
             closeSwapTransactionHash = swap.closeSwapTransactionHash,
             closeSwapTransactionCreationTime = swap.closeSwapTransactionCreationTime,
             closeSwapTransactionCreationBlockNumber = swap.closeSwapTransactionCreationBlockNumber,
+            raisingDisputeState = swap.raisingDisputeState,
+            raisingDisputeTransactionHash = swap.raisingDisputeTransactionHash,
+            raisingDisputeTransactionCreationTime = swap.raisingDisputeTransactionCreationTime,
+            raisingDisputeTransactionCreationBlockNumber = swap.raisingDisputeTransactionCreationBlockNumber,
         )
         try {
             withContext(databaseServiceContext) {
@@ -1467,7 +1471,7 @@ open class DatabaseService(
         withContext(databaseServiceContext) {
             database.updateCloseSwapState(swapID, chainID, state)
         }
-        logger.info("updateCloseSwapState: set value to $state for offer with B64 ID $swapID, if present")
+        logger.info("updateCloseSwapState: set value to $state for swap with B64 ID $swapID, if present")
     }
 
     /**
@@ -1503,6 +1507,57 @@ open class DatabaseService(
         }
         logger.info("updateCloseSwapData: set values to $transactionHash, $creationTime and $blockNumber for offer " +
                 "with B64 ID $swapID, if present")
+    }
+
+    /**
+     * Updates the [Swap.raisingDisputeState] property of a persistently stored
+     * [Swap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#swap) with the specified [swapID] and
+     * [chainID].
+     *
+     * @param swapID The ID of the swap to be updated, as a Base64-[String] of bytes.
+     * @param chainID The blockchain ID of the swap to be updated, as a [String].
+     * @param state The new value of the swap's [Swap.raisingDisputeState] property.
+     */
+    @OptIn(DelicateCoroutinesApi::class)
+    suspend fun updateRaisingDisputeState(swapID: String, chainID: String, state: String) {
+        withContext(databaseServiceContext) {
+            database.updateRaisingDisputeState(swapID, chainID, state)
+        }
+        logger.info("updateRaisingDisputeState: set value to $state for swap with B64 ID $swapID, if present")
+    }
+
+    /**
+     * Updates the [Swap.raisingDisputeTransactionHash], [Swap.raisingDisputeTransactionCreationTime] and
+     * [Swap.raisingDisputeTransactionCreationBlockNumber] properties of a persistently stored
+     * [Swap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#swap) with the specified [swapID] and
+     * [chainID].
+     *
+     * @param swapID The ID of the swap to be updated, as a Base64-[String] of bytes.
+     * @param chainID The blockchain ID of the swap to be updated, as a [String].
+     * @param transactionHash The new value of the swap's [Swap.raisingDisputeTransactionHash] property, as a
+     * transaction hash as a hexadecimal string with "0x" prefix.
+     * @param creationTime The new value of the swap's [Swap.raisingDisputeTransactionCreationTime] property.
+     * @param blockNumber The new value of the swap's [Swap.raisingDisputeTransactionCreationBlockNumber] property.
+     */
+    @OptIn(DelicateCoroutinesApi::class)
+    suspend fun updateRaisingDisputeData(
+        swapID: String,
+        chainID: String,
+        transactionHash: String?,
+        creationTime: String?,
+        blockNumber: Long?
+    ) {
+        withContext(databaseServiceContext) {
+            database.updateRaisingDisputeData(
+                swapID = swapID,
+                chainID = chainID,
+                transactionHash = transactionHash,
+                creationTime = creationTime,
+                blockNumber = blockNumber,
+            )
+        }
+        logger.info("updateRaisingDisputeData: set values to $transactionHash, $creationTime and $blockNumber for " +
+                "swap with B64 ID $swapID, if present")
     }
 
     /**
@@ -1604,6 +1659,10 @@ open class DatabaseService(
                 closeSwapTransactionCreationTime = dbSwaps[0].closeSwapTransactionCreationTime,
                 closeSwapTransactionCreationBlockNumber = dbSwaps[0]
                     .closeSwapTransactionCreationBlockNumber,
+                raisingDisputeState = dbSwaps[0].raisingDisputeState,
+                raisingDisputeTransactionHash = dbSwaps[0].raisingDisputeTransactionHash,
+                raisingDisputeTransactionCreationTime = dbSwaps[0].raisingDisputeTransactionCreationTime,
+                raisingDisputeTransactionCreationBlockNumber = dbSwaps[0].raisingDisputeTransactionCreationBlockNumber,
             )
         } else {
             logger.info("getSwap: no swap found with B64 ID $id")

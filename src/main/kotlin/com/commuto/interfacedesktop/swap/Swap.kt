@@ -4,6 +4,8 @@ import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
 import com.commuto.interfacedesktop.blockchain.BlockchainTransaction
 import com.commuto.interfacedesktop.blockchain.structs.SwapStruct
+import com.commuto.interfacedesktop.dispute.DisputeState
+import com.commuto.interfacedesktop.dispute.RaisingDisputeState
 import com.commuto.interfacedesktop.offer.OfferDirection
 import com.commuto.interfacedesktop.offer.TokenTransferApprovalState
 import com.commuto.interfacedesktop.settlement.SettlementMethod
@@ -104,6 +106,17 @@ import java.util.*
  * this swap's settlement method, or `null` if such data does not exist.
  * @property takerPrivateSettlementMethodData The private settlement method data belonging to the taker of this swap for
  * this swap's settlement method, or `null` if such data does not exist.
+ * @property disputeState Indicates the state of the dispute corresponding to this swap. Will be [DisputeState.NONE] if
+ * this swap is not disputed.
+ * @property raisingDisputeState This indicates whether we are currently disputing this swap by calling
+ * [raiseDispute](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#raise-dispute), and if so, what part of
+ * the dispute-raising process we are in.
+ * @property raisingDisputeException The [Exception] that we encountered during the dispute raising process, or `null`
+ * if no such exception has occurred.
+ * @property raisingDisputeTransaction The [BlockchainTransaction] that called
+ * [raiseDispute](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#raise-dispute) for this swap. If the
+ * user of this interface is not the dispute raiser, all properties of this [BlockchainTransaction] except the
+ * transaction hash may not be accurate.
  */
 class Swap(
     val isCreated: Boolean,
@@ -163,6 +176,12 @@ class Swap(
 
     var makerPrivateSettlementMethodData: String? = null
     var takerPrivateSettlementMethodData: String? = null
+
+    val disputeState = mutableStateOf(DisputeState.NONE)
+
+    val raisingDisputeState = mutableStateOf(RaisingDisputeState.NONE)
+    var raisingDisputeException: Exception? = null
+    var raisingDisputeTransaction: BlockchainTransaction? = null
 
     init {
         when (this.direction) {

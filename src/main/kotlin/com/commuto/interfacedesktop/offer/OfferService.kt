@@ -1703,6 +1703,10 @@ class OfferService (
                     closeSwapTransactionHash = null,
                     closeSwapTransactionCreationTime = null,
                     closeSwapTransactionCreationBlockNumber = null,
+                    raisingDisputeState = newSwap.raisingDisputeState.value.asString,
+                    raisingDisputeTransactionHash = null,
+                    raisingDisputeTransactionCreationTime = null,
+                    raisingDisputeTransactionCreationBlockNumber = null,
                 )
                 databaseService.storeSwap(swap = swapForDatabase)
                 logger.info("takeOffer: signing transaction for ${offerToTake.id}")
@@ -2065,6 +2069,10 @@ class OfferService (
                     closeSwapTransactionHash = null,
                     closeSwapTransactionCreationTime = null,
                     closeSwapTransactionCreationBlockNumber = null,
+                    raisingDisputeState = newSwap.raisingDisputeState.value.asString,
+                    raisingDisputeTransactionHash = null,
+                    raisingDisputeTransactionCreationTime = null,
+                    raisingDisputeTransactionCreationBlockNumber = null,
                 )
                 databaseService.storeSwap(swapForDatabase)
                 afterPersistentStorage?.invoke()
@@ -2177,6 +2185,8 @@ class OfferService (
      *
      * @param transaction The [BlockchainTransaction] wrapping the on-chain transaction that has failed.
      * @param exception A [BlockchainTransactionException] describing why the on-chain transaction has failed.
+     *
+     * @throws [SwapServiceException] if this is passed a non-offer-related [BlockchainTransaction].
      */
     override suspend fun handleFailedTransaction(
         transaction: BlockchainTransaction,
@@ -2403,9 +2413,9 @@ class OfferService (
             }
             BlockchainTransactionType.APPROVE_TOKEN_TRANSFER_TO_FILL_SWAP, BlockchainTransactionType.FILL_SWAP,
             BlockchainTransactionType.REPORT_PAYMENT_SENT, BlockchainTransactionType.REPORT_PAYMENT_RECEIVED,
-            BlockchainTransactionType.CLOSE_SWAP -> {
-                throw OfferServiceException(message = "handleFailedTransaction: received a swap-related transaction " +
-                        transaction.transactionHash
+            BlockchainTransactionType.CLOSE_SWAP, BlockchainTransactionType.RAISE_DISPUTE -> {
+                throw OfferServiceException(message = "handleFailedTransaction: received a non-offer-related " +
+                        "transaction ${transaction.transactionHash}"
                 )
             }
         }
