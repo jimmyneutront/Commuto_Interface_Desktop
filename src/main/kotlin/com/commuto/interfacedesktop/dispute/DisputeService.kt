@@ -2,11 +2,13 @@ package com.commuto.interfacedesktop.dispute
 
 import com.commuto.interfacedesktop.blockchain.BlockchainService
 import com.commuto.interfacedesktop.blockchain.BlockchainTransaction
+import com.commuto.interfacedesktop.blockchain.BlockchainTransactionException
 import com.commuto.interfacedesktop.blockchain.BlockchainTransactionType
 import com.commuto.interfacedesktop.database.DatabaseService
 import com.commuto.interfacedesktop.dispute.validation.validateSwapForRaisingDispute
 import com.commuto.interfacedesktop.extension.asByteArray
 import com.commuto.interfacedesktop.swap.Swap
+import com.commuto.interfacedesktop.swap.SwapTruthSource
 import com.commuto.interfacedesktop.util.DateFormatter
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -15,21 +17,39 @@ import org.web3j.crypto.Hash
 import org.web3j.crypto.RawTransaction
 import org.web3j.utils.Numeric
 import java.util.*
+import javax.inject.Inject
+import javax.inject.Singleton
 
 /**
  * The main Dispute service. It is responsible for processing and organizing swap-related data.
  *
  * @property databaseService The [DatabaseService] that this [DisputeService] uses for persistent storage.
+ * @property swapTruthSource The [SwapTruthSource] containing all [Swap]s.
  * @property blockchainService The [BlockchainService] that this uses to interact with the blockchain.
  * @property logger The [org.slf4j.Logger] that this class uses for logging.
  */
-class DisputeService constructor(
+@Singleton
+class DisputeService @Inject constructor(
     private val databaseService: DatabaseService,
-){
+): DisputeNotifiable {
+
+    private lateinit var swapTruthSource: SwapTruthSource
 
     private lateinit var blockchainService: BlockchainService
 
     private val logger = LoggerFactory.getLogger(javaClass)
+
+    /**
+     * Used to set the [swapTruthSource] property. This can only be called once.
+     *
+     * @param newTruthSource The new value of the [swapTruthSource] property, which cannot be null.
+     */
+    fun setSwapTruthSource(newTruthSource: SwapTruthSource) {
+        check(!::swapTruthSource.isInitialized) {
+            "swapTruthSource is already initialized"
+        }
+        swapTruthSource = newTruthSource
+    }
 
     /**
      * Used to set the [blockchainService] property. This can only be called once.
@@ -199,6 +219,64 @@ class DisputeService constructor(
                 withContext(Dispatchers.Main) {
                     swap.raisingDisputeException = exception
                     swap.raisingDisputeState.value = RaisingDisputeState.EXCEPTION
+                }
+            }
+        }
+    }
+
+    /**
+     * The function called by [BlockchainService] in order to notify [DisputeService] that a monitored dispute-related
+     * [BlockchainTransaction] has failed (either has been confirmed and failed, or has been dropped.)
+     *
+     * @param transaction The [BlockchainTransaction] wrapping the on-chain transaction that has failed.
+     * @param exception A [BlockchainTransactionException] describing why the on-chain transaction has failed.
+     *
+     * @throws [DisputeServiceException] if this is passed a non-dispute-related [BlockchainTransaction].
+     */
+    override suspend fun handleFailedTransaction(
+        transaction: BlockchainTransaction,
+        exception: BlockchainTransactionException
+    ) {
+        logger.warn("handleFailedTransaction: handling ${transaction.transactionHash} of type " +
+                "${transaction.type.asString} with exception ${exception.message}")
+        val encoder = Base64.getEncoder()
+        when (transaction.type) {
+            BlockchainTransactionType.APPROVE_TOKEN_TRANSFER_TO_OPEN_OFFER, BlockchainTransactionType.OPEN_OFFER,
+            BlockchainTransactionType.CANCEL_OFFER, BlockchainTransactionType.EDIT_OFFER,
+            BlockchainTransactionType.APPROVE_TOKEN_TRANSFER_TO_TAKE_OFFER, BlockchainTransactionType.TAKE_OFFER,
+            BlockchainTransactionType.APPROVE_TOKEN_TRANSFER_TO_FILL_SWAP, BlockchainTransactionType.FILL_SWAP,
+            BlockchainTransactionType.REPORT_PAYMENT_SENT, BlockchainTransactionType.REPORT_PAYMENT_RECEIVED,
+            BlockchainTransactionType.CLOSE_SWAP -> {
+                throw DisputeServiceException(message = "handleFailedTransaction: received a non-swap-related " +
+                        "transaction ${transaction.transactionHash}")
+            }
+            BlockchainTransactionType.RAISE_DISPUTE -> {
+                val swap = swapTruthSource.swaps.firstNotNullOfOrNull { uuidSwapEntry ->
+                    if (uuidSwapEntry.value.raisingDisputeTransaction?.transactionHash
+                            .equals(transaction.transactionHash)) {
+                        uuidSwapEntry.value
+                    } else {
+                        null
+                    }
+                }
+                if (swap != null) {
+                    logger.warn("handleFailedTransaction: found swap ${swap.id} on ${swap.chainID} with raising " +
+                            "dispute transaction ${transaction.transactionHash}, updating raisingDisputeState to " +
+                            "${RaisingDisputeState.EXCEPTION.asString} in persistent storage")
+                    databaseService.updateRaisingDisputeState(
+                        swapID = encoder.encodeToString(swap.id.asByteArray()),
+                        chainID = swap.chainID.toString(),
+                        state = RaisingDisputeState.EXCEPTION.asString,
+                    )
+                    logger.warn("handleFailedTransaction: setting raisingDisputeException and updating " +
+                            "raisingDisputeState to ${RaisingDisputeState.EXCEPTION.asString} for for ${swap.id}")
+                    withContext(Dispatchers.Main) {
+                        swap.raisingDisputeException = exception
+                        swap.raisingDisputeState.value = RaisingDisputeState.EXCEPTION
+                    }
+                } else {
+                    logger.warn("handleFailedTransaction: swap with dispute raising transaction ${transaction
+                        .transactionHash} not found in swapTruthSource")
                 }
             }
         }

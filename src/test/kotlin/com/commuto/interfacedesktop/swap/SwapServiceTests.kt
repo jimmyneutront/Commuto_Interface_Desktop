@@ -8,6 +8,7 @@ import com.commuto.interfacedesktop.blockchain.*
 import com.commuto.interfacedesktop.blockchain.events.commutoswap.*
 import com.commuto.interfacedesktop.database.DatabaseService
 import com.commuto.interfacedesktop.database.DatabaseDriverFactory
+import com.commuto.interfacedesktop.dispute.TestDisputeService
 import com.commuto.interfacedesktop.db.Swap as DatabaseSwap
 import com.commuto.interfacedesktop.extension.asByteArray
 import com.commuto.interfacedesktop.key.KeyManagerService
@@ -941,6 +942,7 @@ class SwapServiceTests {
             exceptionHandler = exceptionHandler,
             offerService = TestOfferService(),
             swapService = swapService,
+            disputeService = TestDisputeService(),
             web3 = w3,
             commutoSwapAddress = testingServerResponse.commutoSwapAddress
         )
@@ -1339,6 +1341,7 @@ class SwapServiceTests {
             exceptionHandler = exceptionHandler,
             offerService = TestOfferService(),
             swapService = swapService,
+            disputeService = TestDisputeService(),
             web3 = w3,
             commutoSwapAddress = testingServerResponse.commutoSwapAddress
         )
@@ -1791,6 +1794,7 @@ class SwapServiceTests {
             exceptionHandler = exceptionHandler,
             offerService = TestOfferService(),
             swapService = swapService,
+            disputeService = TestDisputeService(),
             web3 = w3,
             commutoSwapAddress = testingServerResponse.commutoSwapAddress
         )
@@ -2233,6 +2237,7 @@ class SwapServiceTests {
             exceptionHandler = exceptionHandler,
             offerService = TestOfferService(),
             swapService = swapService,
+            disputeService = TestDisputeService(),
             web3 = w3,
             commutoSwapAddress = testingServerResponse.commutoSwapAddress
         )
@@ -2677,6 +2682,7 @@ class SwapServiceTests {
             exceptionHandler = exceptionHandler,
             offerService = TestOfferService(),
             swapService = swapService,
+            disputeService = TestDisputeService(),
             web3 = w3,
             commutoSwapAddress = testingServerResponse.commutoSwapAddress
         )

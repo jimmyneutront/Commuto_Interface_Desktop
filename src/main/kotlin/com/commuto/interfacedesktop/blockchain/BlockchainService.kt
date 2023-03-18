@@ -9,6 +9,7 @@ import com.commuto.interfacedesktop.blockchain.structs.OfferStruct
 import com.commuto.interfacedesktop.blockchain.structs.SwapStruct
 import com.commuto.interfacedesktop.contractwrapper.CommutoSwap
 import com.commuto.interfacedesktop.contractwrapper.CommutoSwap.Dispute
+import com.commuto.interfacedesktop.dispute.DisputeNotifiable
 import com.commuto.interfacedesktop.extension.asByteArray
 import com.commuto.interfacedesktop.offer.OfferNotifiable
 import com.commuto.interfacedesktop.offer.OfferService
@@ -52,6 +53,7 @@ import kotlin.math.floor
  * @property offerService: An object to which [BlockchainService] will pass offer-related events
  * when they occur.
  * @property swapService An object to which [BlockchainService] will pass swap-related events when they occur.
+ * @property disputeService An object to which [BlockchainService] will pass dispute-related events when they occur.
  * @property web3 The [Web3j] instance that [BlockchainService] uses to interact with the
  * EVM-compatible blockchain.
  * @property logger The [org.slf4j.Logger] that this class uses for logging.
@@ -76,17 +78,20 @@ import kotlin.math.floor
 class BlockchainService (private val exceptionHandler: BlockchainExceptionNotifiable,
                          private val offerService: OfferNotifiable,
                          private val swapService: SwapNotifiable,
+                         private val disputeService: DisputeNotifiable,
                          private val web3: CommutoWeb3j,
                          commutoSwapAddress: String) {
 
     @Inject constructor(
         errorHandler: BlockchainExceptionNotifiable,
         offerService: OfferNotifiable,
-        swapService: SwapNotifiable
+        swapService: SwapNotifiable,
+        disputeService: DisputeNotifiable,
     ):
             this(errorHandler,
                 offerService,
                 swapService,
+                disputeService,
                 CommutoWeb3j(HttpService(System.getenv("BLOCKCHAIN_NODE"))),
                 "0x687F36336FCAB8747be1D41366A416b41E7E1a96"
             )
@@ -312,7 +317,7 @@ class BlockchainService (private val exceptionHandler: BlockchainExceptionNotifi
      * is not equal to [signedRawTransactionDataAsHex], this throws an [IllegalStateException].
      *
      * @param transaction The [BlockchainTransaction] containing the [RawTransaction] from which
-     * [signedRawTransactionDataAsHex] was created, to be sent to t he node as a raw transaction.
+     * [signedRawTransactionDataAsHex] was created, to be sent to the node as a raw transaction.
      * @param signedRawTransactionDataAsHex The signed raw transaction wrapped by [BlockchainTransaction] as a
      * hexadecimal string, which will be sent to the blockchain node.
      * @param chainID The ID of the blockchain to which this transaction should be sent.
@@ -1348,7 +1353,10 @@ class BlockchainService (private val exceptionHandler: BlockchainExceptionNotifi
                             )
                         }
                         BlockchainTransactionType.RAISE_DISPUTE -> {
-                            // TODO: Have DisputeService handle failed transaction here
+                            disputeService.handleFailedTransaction(
+                                transaction = monitoredTransaction,
+                                exception = monitoredTransactionException
+                            )
                         }
                     }
                 }
@@ -1441,7 +1449,7 @@ class BlockchainService (private val exceptionHandler: BlockchainExceptionNotifi
                         BlockchainTransactionType.APPROVE_TOKEN_TRANSFER_TO_TAKE_OFFER,
                         BlockchainTransactionType.TAKE_OFFER, -> {
                             offerService.handleFailedTransaction(
-                                monitoredTransaction,
+                                transaction = monitoredTransaction,
                                 exception = exception
                             )
                         }
@@ -1451,12 +1459,15 @@ class BlockchainService (private val exceptionHandler: BlockchainExceptionNotifi
                         BlockchainTransactionType.REPORT_PAYMENT_RECEIVED,
                         BlockchainTransactionType.CLOSE_SWAP -> {
                             swapService.handleFailedTransaction(
-                                monitoredTransaction,
+                                transaction = monitoredTransaction,
                                 exception = exception
                             )
                         }
                         BlockchainTransactionType.RAISE_DISPUTE -> {
-                            // TODO: Have DisputeService handle failed transaction here
+                            disputeService.handleFailedTransaction(
+                                transaction = monitoredTransaction,
+                                exception = exception
+                            )
                         }
                     }
                 }

@@ -5,6 +5,7 @@ import com.commuto.interfacedesktop.blockchain.events.commutoswap.*
 import com.commuto.interfacedesktop.blockchain.events.erc20.ApprovalEvent
 import com.commuto.interfacedesktop.database.DatabaseDriverFactory
 import com.commuto.interfacedesktop.database.DatabaseService
+import com.commuto.interfacedesktop.dispute.TestDisputeService
 import com.commuto.interfacedesktop.key.KeyManagerService
 import com.commuto.interfacedesktop.offer.*
 import com.commuto.interfacedesktop.swap.SwapNotifiable
@@ -54,6 +55,7 @@ class BlockchainServiceTest {
             errorHandler = TestBlockchainExceptionHandler(),
             offerService = offersService,
             swapService = TestSwapService(),
+            disputeService = TestDisputeService(),
         )
         blockchainService.listenLoop()
     }
@@ -116,6 +118,7 @@ class BlockchainServiceTest {
             exceptionHandler = blockchainExceptionHandler,
             offerService = offerService,
             swapService = TestSwapService(),
+            disputeService = TestDisputeService(),
             web3 = w3,
             commutoSwapAddress = testingServerResponse.commutoSwapAddress
         )
@@ -218,6 +221,7 @@ class BlockchainServiceTest {
             exceptionHandler = blockchainExceptionHandler,
             offerService = offerService,
             swapService = TestSwapService(),
+            disputeService = TestDisputeService(),
             web3 = w3,
             commutoSwapAddress = testingServerResponse.commutoSwapAddress
         )
@@ -303,6 +307,7 @@ class BlockchainServiceTest {
             exceptionHandler = exceptionHandler,
             offerService = offerService,
             swapService = TestSwapService(),
+            disputeService = TestDisputeService(),
             web3 = w3,
             commutoSwapAddress = testingServerResponse.commutoSwapAddress
         )
@@ -397,6 +402,7 @@ class BlockchainServiceTest {
             exceptionHandler = blockchainExceptionHandler,
             offerService = offerService,
             swapService = TestSwapService(),
+            disputeService = TestDisputeService(),
             web3 = w3,
             commutoSwapAddress = testingServerResponse.commutoSwapAddress
         )
@@ -489,6 +495,7 @@ class BlockchainServiceTest {
             exceptionHandler = blockchainExceptionHandler,
             offerService = offerServiceForNonMonitoredTxns,
             swapService = TestSwapService(),
+            disputeService = TestDisputeService(),
             web3 = w3,
             commutoSwapAddress = testingServerResponse.commutoSwapAddress
         )
@@ -510,6 +517,7 @@ class BlockchainServiceTest {
             exceptionHandler = blockchainExceptionHandler,
             offerService = offerServiceForMonitoredTxns,
             swapService = TestSwapService(),
+            disputeService = TestDisputeService(),
             web3 = w3,
             commutoSwapAddress = testingServerResponse.commutoSwapAddress
         )
@@ -606,6 +614,7 @@ class BlockchainServiceTest {
             exceptionHandler = blockchainExceptionHandler,
             offerService = offerService,
             swapService = TestSwapService(),
+            disputeService = TestDisputeService(),
             web3 = w3,
             commutoSwapAddress = testingServerResponse.commutoSwapAddress
         )
@@ -677,6 +686,7 @@ class BlockchainServiceTest {
             exceptionHandler,
             TestOfferService(),
             swapService,
+            disputeService = TestDisputeService(),
             w3,
             testingServerResponse.commutoSwapAddress
         )
@@ -746,6 +756,7 @@ class BlockchainServiceTest {
             exceptionHandler,
             TestOfferService(),
             swapService,
+            disputeService = TestDisputeService(),
             w3,
             testingServerResponse.commutoSwapAddress
         )
@@ -815,6 +826,7 @@ class BlockchainServiceTest {
             exceptionHandler,
             TestOfferService(),
             swapService,
+            disputeService = TestDisputeService(),
             w3,
             testingServerResponse.commutoSwapAddress
         )
@@ -887,6 +899,7 @@ class BlockchainServiceTest {
             exceptionHandler,
             TestOfferService(),
             swapService,
+            disputeService = TestDisputeService(),
             w3,
             testingServerResponse.commutoSwapAddress
         )
@@ -959,6 +972,7 @@ class BlockchainServiceTest {
             exceptionHandler,
             TestOfferService(),
             swapService,
+            disputeService = TestDisputeService(),
             w3,
             testingServerResponse.commutoSwapAddress
         )
@@ -1021,6 +1035,7 @@ class BlockchainServiceTest {
             exceptionHandler = blockchainExceptionHandler,
             offerService = offerService,
             swapService = TestSwapService(),
+            disputeService = TestDisputeService(),
             web3 = w3,
             commutoSwapAddress = "0x0000000000000000000000000000000000000000"
         )

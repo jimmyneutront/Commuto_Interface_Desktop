@@ -10,6 +10,7 @@ import com.commuto.interfacedesktop.blockchain.events.erc20.ApprovalEvent
 import com.commuto.interfacedesktop.blockchain.events.erc20.TokenTransferApprovalPurpose
 import com.commuto.interfacedesktop.database.DatabaseDriverFactory
 import com.commuto.interfacedesktop.database.DatabaseService
+import com.commuto.interfacedesktop.dispute.TestDisputeService
 import com.commuto.interfacedesktop.extension.asByteArray
 import com.commuto.interfacedesktop.key.KeyManagerService
 import com.commuto.interfacedesktop.key.keys.KeyPair
@@ -1034,6 +1035,7 @@ class OfferServiceTests {
             exceptionHandler = exceptionHandler,
             offerService = offerService,
             swapService = TestSwapService(),
+            disputeService = TestDisputeService(),
             web3 = w3,
             commutoSwapAddress = testingServerResponse.commutoSwapAddress
         )
@@ -1217,6 +1219,7 @@ class OfferServiceTests {
             exceptionHandler = exceptionHandler,
             offerService = offerService,
             swapService = TestSwapService(),
+            disputeService = TestDisputeService(),
             web3 = w3,
             commutoSwapAddress = testingServerResponse.commutoSwapAddress
         )
@@ -1342,6 +1345,7 @@ class OfferServiceTests {
             exceptionHandler = exceptionHandler,
             offerService = offerService,
             swapService = TestSwapService(),
+            disputeService = TestDisputeService(),
             web3 = w3,
             commutoSwapAddress = testingServerResponse.commutoSwapAddress
         )
@@ -1483,6 +1487,7 @@ class OfferServiceTests {
             exceptionHandler = exceptionHandler,
             offerService = offerServiceForMonitoredTxn,
             swapService = TestSwapService(),
+            disputeService = TestDisputeService(),
             web3 = w3,
             commutoSwapAddress = testingServerResponse.commutoSwapAddress
         )
@@ -1675,6 +1680,7 @@ class OfferServiceTests {
             exceptionHandler = exceptionHandler,
             offerService = offerService,
             swapService = TestSwapService(),
+            disputeService = TestDisputeService(),
             web3 = w3,
             commutoSwapAddress = testingServerResponse.commutoSwapAddress
         )
@@ -1868,6 +1874,7 @@ class OfferServiceTests {
             exceptionHandler = exceptionHandler,
             offerService = offerService,
             swapService = swapService,
+            disputeService = TestDisputeService(),
             web3 = w3,
             commutoSwapAddress = testingServerResponse.commutoSwapAddress
         )
@@ -2052,6 +2059,7 @@ class OfferServiceTests {
             exceptionHandler = exceptionHandler,
             offerService = offerService,
             swapService = swapService,
+            disputeService = TestDisputeService(),
             web3 = w3,
             commutoSwapAddress = testingServerResponse.commutoSwapAddress
         )
@@ -2222,6 +2230,7 @@ class OfferServiceTests {
             exceptionHandler = exceptionHandler,
             offerService = offerService,
             swapService = TestSwapService(),
+            disputeService = TestDisputeService(),
             web3 = w3,
             commutoSwapAddress = testingServerResponse.commutoSwapAddress
         )
@@ -2455,6 +2464,7 @@ class OfferServiceTests {
             exceptionHandler = exceptionHandler,
             offerService = offerService,
             swapService = TestSwapService(),
+            disputeService = TestDisputeService(),
             web3 = w3,
             commutoSwapAddress = testingServerResponse.commutoSwapAddress
         )
@@ -2692,6 +2702,7 @@ class OfferServiceTests {
             exceptionHandler = exceptionHandler,
             offerService = offerService,
             swapService = TestSwapService(),
+            disputeService = TestDisputeService(),
             web3 = w3,
             commutoSwapAddress = testingServerResponse.commutoSwapAddress
         )
@@ -2751,6 +2762,7 @@ class OfferServiceTests {
             exceptionHandler = exceptionHandler,
             offerService = offerService,
             swapService = TestSwapService(),
+            disputeService = TestDisputeService(),
             web3 = w3,
             commutoSwapAddress = testingServerResponse.commutoSwapAddress
         )
@@ -2991,6 +3003,7 @@ class OfferServiceTests {
             exceptionHandler = exceptionHandler,
             offerService = offerService,
             swapService = TestSwapService(),
+            disputeService = TestDisputeService(),
             web3 = w3,
             commutoSwapAddress = testingServerResponse.commutoSwapAddress
         )
@@ -3143,6 +3156,7 @@ class OfferServiceTests {
             exceptionHandler = exceptionHandler,
             offerService = offerService,
             swapService = TestSwapService(),
+            disputeService = TestDisputeService(),
             web3 = w3,
             commutoSwapAddress = testingServerResponse.commutoSwapAddress
         )
@@ -3340,6 +3354,7 @@ class OfferServiceTests {
             exceptionHandler = exceptionHandler,
             offerService = offerService,
             swapService = TestSwapService(),
+            disputeService = TestDisputeService(),
             web3 = w3,
             commutoSwapAddress = testingServerResponse.commutoSwapAddress
         )
