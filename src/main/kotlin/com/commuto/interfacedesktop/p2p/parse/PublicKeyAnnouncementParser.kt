@@ -1,4 +1,4 @@
-package com.commuto.interfacedesktop.p2p
+package com.commuto.interfacedesktop.p2p.parse
 
 import com.commuto.interfacedesktop.key.keys.PublicKey
 import com.commuto.interfacedesktop.p2p.messages.PublicKeyAnnouncement

@@ -44,7 +44,7 @@ import javax.inject.Singleton
  * [SwapTruthSource].
  *
  * @property databaseService The [DatabaseService] that this [SwapService] uses for persistent storage.
- * @property keyManagerService The [KeyManagerService] that this [SwapService] will use for managing keys.
+ * @property keyManagerService The [KeyManagerService] that this [SwapService] uses for managing keys.
  * @property swapTruthSource The [SwapTruthSource] in which this is responsible for maintaining an accurate list of
  * swaps. If this is not yet initialized, event handling methods will throw the corresponding error.
  * @property blockchainService The [BlockchainService] that this uses to interact with the blockchain.
@@ -1502,6 +1502,7 @@ class SwapService @Inject constructor(
             closeSwapTransactionHash = null,
             closeSwapTransactionCreationTime = null,
             closeSwapTransactionCreationBlockNumber = null,
+            disputeState = newSwap.disputeState.value.asString,
             raisingDisputeState = newSwap.raisingDisputeState.value.asString,
             raisingDisputeTransactionHash = null,
             raisingDisputeTransactionCreationTime = null,

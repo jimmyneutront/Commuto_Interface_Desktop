@@ -124,6 +124,7 @@ closeSwapState TEXT NOT NULL,
 closeSwapTransactionHash TEXT,
 closeSwapTransactionCreationTime TEXT,
 closeSwapTransactionCreationBlockNumber INTEGER,
+disputeState TEXT NOT NULL,
 raisingDisputeState TEXT NOT NULL,
 raisingDisputeTransactionHash TEXT,
 raisingDisputeTransactionCreationTime TEXT,
@@ -272,6 +273,7 @@ INSERT INTO Swap(
     closeSwapTransactionHash,
     closeSwapTransactionCreationTime,
     closeSwapTransactionCreationBlockNumber,
+    disputeState,
     raisingDisputeState,
     raisingDisputeTransactionHash,
     raisingDisputeTransactionCreationTime,
@@ -291,6 +293,7 @@ VALUES(?, ?, ?, ?, ?, ?, ?,
  ?, ?,
  ?, ?, ?,
  ?, ?,
+ ?,
  ?, ? ,?, ?);
 
 insertUserSettlementMethod:
@@ -482,6 +485,11 @@ UPDATE Swap
 SET closeSwapTransactionHash = ?,
 closeSwapTransactionCreationTime = ?,
 closeSwapTransactionCreationBlockNumber = ?
+WHERE id = ? AND chainID = ?;
+
+updateSwapDisputeStateBySwapIDAndChainID:
+UPDATE Swap
+SET disputeState = ?
 WHERE id = ? AND chainID = ?;
 
 updateRaisingDisputeStateBySwapIDAndChainID:

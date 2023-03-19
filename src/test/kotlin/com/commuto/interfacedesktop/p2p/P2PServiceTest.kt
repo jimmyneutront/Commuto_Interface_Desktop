@@ -11,6 +11,7 @@ import com.commuto.interfacedesktop.p2p.messages.MakerInformationMessage
 import com.commuto.interfacedesktop.p2p.messages.PublicKeyAnnouncement
 import com.commuto.interfacedesktop.p2p.messages.TakerInformationMessage
 import com.commuto.interfacedesktop.p2p.parse.parseMakerInformationMessage
+import com.commuto.interfacedesktop.p2p.parse.parsePublicKeyAnnouncement
 import com.commuto.interfacedesktop.p2p.parse.parseTakerInformationMessage
 import com.commuto.interfacedesktop.p2p.serializable.messages.SerializableEncryptedMessage
 import com.commuto.interfacedesktop.p2p.serializable.messages.SerializablePublicKeyAnnouncementMessage
@@ -38,6 +39,7 @@ import java.nio.ByteBuffer
 import java.nio.charset.Charset
 import java.security.MessageDigest
 import java.util.*
+import kotlin.test.assertNotNull
 
 /**
  * Tests for [P2PService].
@@ -530,6 +532,53 @@ class P2PServiceTest {
         assertEquals("maker_settlement_method_details", swapService.message!!.settlementMethodDetails)
         assert(makerKeyPair.interfaceId.contentEquals(swapService.senderInterfaceID))
         assert(takerKeyPair.interfaceId.contentEquals(swapService.recipientInterfaceID))
+
+    }
+
+    /**
+     * Ensures that [P2PService.announcePublicKeyAsUserForDispute] functions properly.
+     */
+    @Test
+    fun testAnnouncePublicKeyAsUserForDispute() {
+
+        val databaseService = DatabaseService(DatabaseDriverFactory())
+        databaseService.createTables()
+        val keyManagerService = KeyManagerService(databaseService)
+
+        val mxClient = MatrixClientServerApiClient(
+            baseUrl = Url("https://matrix.org"),
+            httpClientFactory = {
+                HttpClient(it).config {
+                    install(HttpTimeout) {
+                        socketTimeoutMillis = 60_000
+                    }
+                }
+            }
+        ).apply { accessToken.value = "not_a_real_token" }
+
+        class TestP2PService : P2PService(
+            TestP2PExceptionHandler(),
+            TestOfferMessageNotifiable(),
+            TestSwapMessageNotifiable(),
+            mxClient,
+            keyManagerService
+        ) {
+            var receivedMessage: String? = null
+            override suspend fun sendMessage(message: String) {
+                receivedMessage = message
+            }
+        }
+        val p2pService = TestP2PService()
+
+        val keyPair = KeyPair()
+
+        runBlocking {
+            p2pService.announcePublicKeyAsUserForDispute(
+                keyPair = keyPair
+            )
+        }
+
+        assertNotNull(p2pService.receivedMessage)
 
     }
 

@@ -276,6 +276,7 @@ internal class Database(databaseDriverFactory: DatabaseDriverFactory) {
             closeSwapTransactionHash = swap.closeSwapTransactionHash,
             closeSwapTransactionCreationTime = swap.closeSwapTransactionCreationTime,
             closeSwapTransactionCreationBlockNumber = swap.closeSwapTransactionCreationBlockNumber,
+            disputeState = swap.disputeState,
             raisingDisputeState = swap.raisingDisputeState,
             raisingDisputeTransactionHash = swap.raisingDisputeTransactionHash,
             raisingDisputeTransactionCreationTime = swap.raisingDisputeTransactionCreationTime,
@@ -873,6 +874,20 @@ internal class Database(databaseDriverFactory: DatabaseDriverFactory) {
             closeSwapTransactionHash = transactionHash,
             closeSwapTransactionCreationTime = creationTime,
             closeSwapTransactionCreationBlockNumber = blockNumber,
+            id = swapID,
+            chainID = chainID
+        )
+    }
+
+    /**
+     * Updates the [Swap.disputeState] property of the [Swap] with the specified [swapID] and [chainID].
+     * @param swapID The ID of the [Swap] to be updated.
+     * @param chainID The ID of the blockchain on which the [Swap] to be updated exists.
+     * @param state The new value of the [Swap.disputeState] property.
+     */
+    internal fun updateSwapDisputeState(swapID: String, chainID: String, state: String) {
+        dbQuery.updateSwapDisputeStateBySwapIDAndChainID(
+            disputeState = state,
             id = swapID,
             chainID = chainID
         )

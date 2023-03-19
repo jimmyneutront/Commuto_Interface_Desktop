@@ -1071,6 +1071,7 @@ open class DatabaseService(
             closeSwapTransactionHash = swap.closeSwapTransactionHash,
             closeSwapTransactionCreationTime = swap.closeSwapTransactionCreationTime,
             closeSwapTransactionCreationBlockNumber = swap.closeSwapTransactionCreationBlockNumber,
+            disputeState = swap.disputeState,
             raisingDisputeState = swap.raisingDisputeState,
             raisingDisputeTransactionHash = swap.raisingDisputeTransactionHash,
             raisingDisputeTransactionCreationTime = swap.raisingDisputeTransactionCreationTime,
@@ -1510,6 +1511,23 @@ open class DatabaseService(
     }
 
     /**
+     * Updates the [Swap.disputeState] property of a persistently stored
+     * [Swap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#swap) with the specified [swapID] and
+     * [chainID].
+     *
+     * @param swapID The ID of the swap to be updated, as a Base64-[String] of bytes.
+     * @param chainID: The blockchain ID of the swap to be updated, as a [String].
+     * @param state The new value of the swap's [Swap.disputeState] property.
+     */
+    @OptIn(DelicateCoroutinesApi::class)
+    suspend fun updateSwapDisputeState(swapID: String, chainID: String, state: String) {
+        withContext(databaseServiceContext) {
+            database.updateSwapDisputeState(swapID, chainID, state)
+        }
+        logger.info("updateSwapDisputeState: set value to $state for swap with B64 ID $swapID, if present")
+    }
+
+    /**
      * Updates the [Swap.raisingDisputeState] property of a persistently stored
      * [Swap](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#swap) with the specified [swapID] and
      * [chainID].
@@ -1659,6 +1677,7 @@ open class DatabaseService(
                 closeSwapTransactionCreationTime = dbSwaps[0].closeSwapTransactionCreationTime,
                 closeSwapTransactionCreationBlockNumber = dbSwaps[0]
                     .closeSwapTransactionCreationBlockNumber,
+                disputeState = dbSwaps[0].disputeState,
                 raisingDisputeState = dbSwaps[0].raisingDisputeState,
                 raisingDisputeTransactionHash = dbSwaps[0].raisingDisputeTransactionHash,
                 raisingDisputeTransactionCreationTime = dbSwaps[0].raisingDisputeTransactionCreationTime,

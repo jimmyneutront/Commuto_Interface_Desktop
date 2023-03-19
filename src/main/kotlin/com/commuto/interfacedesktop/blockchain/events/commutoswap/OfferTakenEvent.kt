@@ -21,14 +21,14 @@ data class OfferTakenEvent(val offerID: UUID, val takerInterfaceID: ByteArray, v
         /**
          * Creates an [OfferTakenEvent] from a [CommutoSwap.OfferTakenEventResponse] and a specified [chainID].
          *
-         * @param event The [CommutoSwap.OfferTakenEventResponse] containing the offer ID of a taken offer and and the
+         * @param event The [CommutoSwap.OfferTakenEventResponse] containing the offer ID of a taken offer and the
          * interface ID of the taker of the offer as [ByteArray]s.
-         * @param chainID: The ID of the blockchain on which this event was emitted.
+         * @param chainID The ID of the blockchain on which this event was emitted.
          *
          * @return A new [OfferTakenEvent] with an offer ID as a [UUID] derived from [event]'s offer ID [ByteArray],
          * [takerInterfaceID] equal to that from [event], and the specified [chainID].
          */
-        fun fromEventResponse(event: CommutoSwap.OfferTakenEventResponse, chainID: BigInteger): OfferTakenEvent{
+        fun fromEventResponse(event: CommutoSwap.OfferTakenEventResponse, chainID: BigInteger): OfferTakenEvent {
             val offerIdByteBuffer = ByteBuffer.wrap(event.offerID)
             val mostSigBits = offerIdByteBuffer.long
             val leastSigBits = offerIdByteBuffer.long

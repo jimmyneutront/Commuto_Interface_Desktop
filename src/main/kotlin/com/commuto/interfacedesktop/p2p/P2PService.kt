@@ -8,8 +8,11 @@ import com.commuto.interfacedesktop.key.keys.KeyPair
 import com.commuto.interfacedesktop.key.keys.PublicKey
 import com.commuto.interfacedesktop.offer.OfferService
 import com.commuto.interfacedesktop.p2p.create.createMakerInformationMessage
+import com.commuto.interfacedesktop.p2p.create.createPublicKeyAnnouncement
+import com.commuto.interfacedesktop.p2p.create.createPublicKeyAnnouncementAsUserForDispute
 import com.commuto.interfacedesktop.p2p.create.createTakerInformationMessage
 import com.commuto.interfacedesktop.p2p.parse.parseMakerInformationMessage
+import com.commuto.interfacedesktop.p2p.parse.parsePublicKeyAnnouncement
 import com.commuto.interfacedesktop.p2p.parse.parseTakerInformationMessage
 import com.commuto.interfacedesktop.p2p.serializable.messages.SerializableEncryptedMessage
 import com.commuto.interfacedesktop.swap.SwapService
@@ -386,6 +389,27 @@ open class P2PService constructor(
             settlementMethodDetails = settlementMethodDetails
         )
         logger.info("sendMakerInformation: sending for $swapID")
+        sendMessage(messageString)
+    }
+
+    /**
+     * Creates a
+     * [Public Key Announcement as a user for a dispute](https://github.com/jimmyneutront/commuto-whitepaper/blob/main/commuto-interface-specification.txt#L256)
+     * using the given key pair and sends it using the [sendMessage] function.
+     *
+     * @param keyPair The key pair containing the public key to be announced.
+     */
+    open suspend fun announcePublicKeyAsUserForDispute(
+        keyPair: KeyPair
+    ) {
+        val encoder = Base64.getEncoder()
+        logger.info("announcePublicKeyAnnouncementAsUserForDispute: creating for ${encoder.encodeToString(keyPair
+            .interfaceId)}")
+        val messageString = createPublicKeyAnnouncementAsUserForDispute(
+            keyPair = keyPair
+        )
+        logger.info("announcePublicKeyAnnouncementAsUserForDispute: sending for ${encoder.encodeToString(keyPair
+            .interfaceId)}")
         sendMessage(messageString)
     }
 

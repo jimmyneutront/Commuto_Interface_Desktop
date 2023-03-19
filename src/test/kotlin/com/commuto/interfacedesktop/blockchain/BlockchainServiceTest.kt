@@ -5,6 +5,7 @@ import com.commuto.interfacedesktop.blockchain.events.commutoswap.*
 import com.commuto.interfacedesktop.blockchain.events.erc20.ApprovalEvent
 import com.commuto.interfacedesktop.database.DatabaseDriverFactory
 import com.commuto.interfacedesktop.database.DatabaseService
+import com.commuto.interfacedesktop.dispute.DisputeNotifiable
 import com.commuto.interfacedesktop.dispute.TestDisputeService
 import com.commuto.interfacedesktop.key.KeyManagerService
 import com.commuto.interfacedesktop.offer.*
@@ -981,6 +982,81 @@ class BlockchainServiceTest {
             withTimeout(60_000) {
                 val event = swapService.sellerClosedEventChannel.receive()
                 assertEquals(expectedSwapID, event.swapID)
+            }
+        }
+    }
+
+    /**
+     * Tests [BlockchainService] to ensure it detects and handles
+     * [DisputeRaised](https://www.commuto.xyz/docs/technical-reference/core-tec-ref#disputeraised) events properly.
+     */
+    @Test
+    fun testListenDisputeRaised() {
+        @Serializable
+        data class TestingServerResponse(
+            val commutoSwapAddress: String,
+            val swapID: String,
+            val disputeAgent0: String,
+            val disputeAgent1: String,
+            val disputeAgent2: String,
+        )
+
+        val testingServiceUrl = "http://localhost:8546/test_blockchainservice_listen"
+        val testingServerClient = HttpClient(OkHttp) {
+            install(ContentNegotiation) {
+                json()
+            }
+            install(HttpTimeout) {
+                socketTimeoutMillis = 90_000
+                requestTimeoutMillis = 90_000
+            }
+        }
+        val testingServerResponse: TestingServerResponse = runBlocking {
+            testingServerClient.get(testingServiceUrl) {
+                url {
+                    parameters.append(
+                        "events",
+                        "offer-opened-taken-DisputeRaised"
+                    )
+                }
+            }.body()
+        }
+        val expectedSwapID = UUID.fromString(testingServerResponse.swapID)
+
+        val w3 = CommutoWeb3j(HttpService(System.getenv("BLOCKCHAIN_NODE")))
+
+        val exceptionHandler = TestBlockchainExceptionHandler()
+
+        // We need this TestDisputeService to track handling of DisputeRaised events
+        class TestDisputeService: DisputeNotifiable {
+            val disputeRaisedEventChannel = Channel<DisputeRaisedEvent>()
+            override suspend fun handleFailedTransaction(
+                transaction: BlockchainTransaction,
+                exception: BlockchainTransactionException
+            ) {}
+
+            override suspend fun handleDisputeRaisedEvent(event: DisputeRaisedEvent) {
+                disputeRaisedEventChannel.send(event)
+            }
+        }
+        val disputeService = TestDisputeService()
+
+        val blockchainService = BlockchainService(
+            exceptionHandler = exceptionHandler,
+            offerService = TestOfferService(),
+            swapService = TestSwapService(),
+            disputeService = disputeService,
+            web3 = w3,
+            commutoSwapAddress = testingServerResponse.commutoSwapAddress
+        )
+        blockchainService.listen()
+        runBlocking {
+            withTimeout(60_000) {
+                val event = disputeService.disputeRaisedEventChannel.receive()
+                assertEquals(expectedSwapID, event.swapID)
+                assertEquals(testingServerResponse.disputeAgent0.lowercase(), event.disputeAgent0.lowercase())
+                assertEquals(testingServerResponse.disputeAgent1.lowercase(), event.disputeAgent1.lowercase())
+                assertEquals(testingServerResponse.disputeAgent2.lowercase(), event.disputeAgent2.lowercase())
             }
         }
     }

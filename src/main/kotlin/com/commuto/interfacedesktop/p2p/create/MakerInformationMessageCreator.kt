@@ -27,7 +27,7 @@ fun createMakerInformationMessage(
     swapID: UUID,
     settlementMethodDetails: String?
 ): String {
-// Setup encoder
+    // Setup encoder
     val encoder = Base64.getEncoder()
 
     // TODO: Note (in interface spec) that we are using a UUID string for the swap UUID
