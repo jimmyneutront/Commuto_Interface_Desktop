@@ -131,6 +131,55 @@ raisingDisputeTransactionCreationTime TEXT,
 raisingDisputeTransactionCreationBlockNumber INTEGER
 );
 
+createSwapAndDisputeTable:
+CREATE TABLE SwapAndDispute(
+id TEXT UNIQUE NOT NULL,
+isCreated INTEGER NOT NULL,
+requiresFill INTEGER NOT NULL,
+maker TEXT NOT NULL,
+makerInterfaceID TEXT NOT NULL,
+taker TEXT NOT NULL,
+takerInterfaceID TEXT NOT NULL,
+stablecoin TEXT NOT NULL,
+amountLowerBound TEXT NOT NULL,
+amountUpperBound TEXT NOT NULL,
+securityDepositAmount TEXT NOT NULL,
+takenSwapAmount TEXT NOT NULL,
+serviceFeeAmount TEXT NOT NULL,
+serviceFeeRate TEXT NOT NULL,
+onChainDirection TEXT NOT NULL,
+settlementMethod TEXT NOT NULL,
+protocolVersion TEXT NOT NULL,
+isPaymentSent INTEGER NOT NULL,
+isPaymentReceived INTEGER NOT NULL,
+hasBuyerClosed INTEGER NOT NULL,
+hasSellerClosed INTEGER NOT NULL,
+disputeRaiser TEXT NOT NULL,
+disputeRaisedBlockNumber INTEGER NOT NULL,
+disputeAgent0 TEXT NOT NULL,
+disputeAgent1 TEXT NOT NULL,
+disputeAgent2 TEXT NOT NULL,
+hasDisputeAgent0Proposed INTEGER NOT NULL,
+disputeAgent0MakerPayout INTEGER NOT NULL,
+disputeAgent0TakerPayout INTEGER NOT NULL,
+disputeAgent0ConfiscationPayout INTEGER NOT NULL,
+hasDisputeAgent1Proposed INTEGER NOT NULL,
+disputeAgent1MakerPayout INTEGER NOT NULL,
+disputeAgent1TakerPayout INTEGER NOT NULL,
+disputeAgent1ConfiscationPayout INTEGER NOT NULL,
+hasDisputeAgent2Proposed INTEGER NOT NULL,
+disputeAgent2MakerPayout INTEGER NOT NULL,
+disputeAgent2TakerPayout INTEGER NOT NULL,
+disputeAgent2ConfiscationPayout INTEGER NOT NULL,
+matchingProposals INTEGER NOT NULL,
+makerReaction INTEGER NOT NULL,
+takerReaction INTEGER NOT NULL,
+onChainState INTEGER NOT NULL,
+hasMakerPaidOut INTEGER NOT NULL,
+hasTakerPaidOut INTEGER NOT NULL,
+totalWithoutSpentServiceFees INTEGER NOT NULL
+);
+
 createUserSettlementMethodTable:
 CREATE TABLE UserSettlementMethod(
 settlementMethodID TEXT UNIQUE NOT NULL,
@@ -295,6 +344,66 @@ VALUES(?, ?, ?, ?, ?, ?, ?,
  ?, ?,
  ?,
  ?, ? ,?, ?);
+
+insertSwapAndDispute:
+INSERT INTO SwapAndDispute(
+    id,
+    isCreated,
+    requiresFill,
+    maker,
+    makerInterfaceID,
+    taker,
+    takerInterfaceID,
+    stablecoin,
+    amountLowerBound,
+    amountUpperBound,
+    securityDepositAmount,
+    takenSwapAmount,
+    serviceFeeAmount,
+    serviceFeeRate,
+    onChainDirection,
+    settlementMethod,
+    protocolVersion,
+    isPaymentSent,
+    isPaymentReceived,
+    hasBuyerClosed,
+    hasSellerClosed,
+    disputeRaiser,
+    disputeRaisedBlockNumber,
+    disputeAgent0,
+    disputeAgent1,
+    disputeAgent2,
+    hasDisputeAgent0Proposed,
+    disputeAgent0MakerPayout,
+    disputeAgent0TakerPayout,
+    disputeAgent0ConfiscationPayout,
+    hasDisputeAgent1Proposed,
+    disputeAgent1MakerPayout,
+    disputeAgent1TakerPayout,
+    disputeAgent1ConfiscationPayout,
+    hasDisputeAgent2Proposed,
+    disputeAgent2MakerPayout,
+    disputeAgent2TakerPayout,
+    disputeAgent2ConfiscationPayout,
+    matchingProposals,
+    makerReaction,
+    takerReaction,
+    onChainState,
+    hasMakerPaidOut,
+    hasTakerPaidOut,
+    totalWithoutSpentServiceFees
+)
+VALUES(
+?, ?, ?, ?, ?,
+?, ?, ?, ?, ?,
+?, ?, ?, ?, ?,
+?, ?, ?, ?, ?,
+?, ?, ?, ?, ?,
+?, ?, ?, ?, ?,
+?, ?, ?, ?, ?,
+?, ?, ?, ?, ?,
+?, ?, ?, ?, ?
+);
 
 insertUserSettlementMethod:
 INSERT INTO UserSettlementMethod(
@@ -533,6 +642,10 @@ selectSwapBySwapID:
 SELECT * FROM Swap
 WHERE id = ?;
 
+selectSwapAndDisputeBySwapID:
+SELECT * FROM SwapAndDispute
+WHERE id = ?;
+
 selectUserSettlementMethodByID:
 SELECT * FROM UserSettlementMethod
 WHERE settlementMethodID = ?;
@@ -574,6 +687,9 @@ DELETE FROM PublicKey;
 
 removeAllSwaps:
 DELETE FROM Swap;
+
+removeAllSwapAndDisputes:
+DELETE FROM SwapAndDispute;
 
 removeAllUserSettlementMethods:
 DELETE FROM UserSettlementMethod;

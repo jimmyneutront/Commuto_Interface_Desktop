@@ -112,6 +112,15 @@ internal class Database(databaseDriverFactory: DatabaseDriverFactory) {
     }
 
     /**
+     * Returns SwapAndDisputes with the specified swap ID.
+     * @param id The swap ID of the SwapAndDisputes to be returned.
+     * @return A [List] of [SwapAndDispute]s with swap IDs equal to [id].
+     */
+    internal fun selectSwapAndDisputeBySwapID(id: String): List<SwapAndDispute> {
+        return dbQuery.selectSwapAndDisputeBySwapID(id).executeAsList()
+    }
+
+    /**
      * Returns the user's [UserSettlementMethod]s with the specified ID.
      * @param id The ID of the settlement methods to be returned.
      * @return A [List] of [UserSettlementMethod]s
@@ -222,7 +231,7 @@ internal class Database(databaseDriverFactory: DatabaseDriverFactory) {
 
     /**
      * Inserts a [Swap] into the database.
-     * @param swap The [Swap] to be inserted ino the database.
+     * @param swap The [Swap] to be inserted into the database.
      */
     internal fun insertSwap(swap: Swap) {
         dbQuery.insertSwap(
@@ -281,6 +290,60 @@ internal class Database(databaseDriverFactory: DatabaseDriverFactory) {
             raisingDisputeTransactionHash = swap.raisingDisputeTransactionHash,
             raisingDisputeTransactionCreationTime = swap.raisingDisputeTransactionCreationTime,
             raisingDisputeTransactionCreationBlockNumber = swap.raisingDisputeTransactionCreationBlockNumber,
+        )
+    }
+
+    /**
+     * Inserts a [SwapAndDispute] into the database.
+     * @param swapAndDispute The [SwapAndDispute] to be inserted into the database.
+     */
+    internal fun insertSwapAndDispute(swapAndDispute: SwapAndDispute) {
+        dbQuery.insertSwapAndDispute(
+            id = swapAndDispute.id,
+            isCreated = swapAndDispute.isCreated,
+            requiresFill = swapAndDispute.requiresFill,
+            maker = swapAndDispute.maker,
+            makerInterfaceID = swapAndDispute.makerInterfaceID,
+            taker = swapAndDispute.taker,
+            takerInterfaceID = swapAndDispute.takerInterfaceID,
+            stablecoin = swapAndDispute.stablecoin,
+            amountLowerBound = swapAndDispute.amountLowerBound,
+            amountUpperBound = swapAndDispute.amountUpperBound,
+            securityDepositAmount = swapAndDispute.securityDepositAmount,
+            takenSwapAmount = swapAndDispute.takenSwapAmount,
+            serviceFeeAmount = swapAndDispute.serviceFeeAmount,
+            serviceFeeRate = swapAndDispute.serviceFeeRate,
+            onChainDirection = swapAndDispute.onChainDirection,
+            settlementMethod = swapAndDispute.settlementMethod,
+            protocolVersion = swapAndDispute.protocolVersion,
+            isPaymentSent = swapAndDispute.isPaymentSent,
+            isPaymentReceived = swapAndDispute.isPaymentReceived,
+            hasBuyerClosed = swapAndDispute.hasBuyerClosed,
+            hasSellerClosed = swapAndDispute.hasSellerClosed,
+            disputeRaiser = swapAndDispute.disputeRaiser,
+            disputeRaisedBlockNumber = swapAndDispute.disputeRaisedBlockNumber,
+            disputeAgent0 = swapAndDispute.disputeAgent0,
+            disputeAgent1 = swapAndDispute.disputeAgent1,
+            disputeAgent2 = swapAndDispute.disputeAgent2,
+            hasDisputeAgent0Proposed = swapAndDispute.hasDisputeAgent0Proposed,
+            disputeAgent0MakerPayout = swapAndDispute.disputeAgent0MakerPayout,
+            disputeAgent0TakerPayout = swapAndDispute.disputeAgent0TakerPayout,
+            disputeAgent0ConfiscationPayout = swapAndDispute.disputeAgent0ConfiscationPayout,
+            hasDisputeAgent1Proposed = swapAndDispute.hasDisputeAgent1Proposed,
+            disputeAgent1MakerPayout = swapAndDispute.disputeAgent1MakerPayout,
+            disputeAgent1TakerPayout = swapAndDispute.disputeAgent1TakerPayout,
+            disputeAgent1ConfiscationPayout = swapAndDispute.disputeAgent0ConfiscationPayout,
+            hasDisputeAgent2Proposed = swapAndDispute.hasDisputeAgent2Proposed,
+            disputeAgent2MakerPayout = swapAndDispute.disputeAgent2MakerPayout,
+            disputeAgent2TakerPayout = swapAndDispute.disputeAgent2TakerPayout,
+            disputeAgent2ConfiscationPayout = swapAndDispute.disputeAgent2ConfiscationPayout,
+            matchingProposals = swapAndDispute.matchingProposals,
+            makerReaction = swapAndDispute.makerReaction,
+            takerReaction = swapAndDispute.takerReaction,
+            onChainState = swapAndDispute.onChainState,
+            hasMakerPaidOut = swapAndDispute.hasMakerPaidOut,
+            hasTakerPaidOut = swapAndDispute.hasTakerPaidOut,
+            totalWithoutSpentServiceFees = swapAndDispute.totalWithoutSpentServiceFees,
         )
     }
 

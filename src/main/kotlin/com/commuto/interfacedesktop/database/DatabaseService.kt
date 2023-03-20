@@ -1690,6 +1690,62 @@ open class DatabaseService(
     }
 
     /**
+     * Persistently stores a [SwapAndDispute]. If a [SwapAndDispute] with the specified ID already exists in the
+     * database, this does nothing.
+     *
+     * @param swapAndDispute The [SwapAndDispute] to be stored in the database.
+     *
+     * @throws Exception if database insertion is unsuccessful for a reason OTHER than UNIQUE constraint failure.
+     */
+    @OptIn(DelicateCoroutinesApi::class)
+    suspend fun storeSwapAndDispute(swapAndDispute: SwapAndDispute) {
+        try {
+            withContext(databaseServiceContext) {
+                database.insertSwapAndDispute(swapAndDispute)
+            }
+            logger.info("storeSwapAndDispute: stored swap and dispute with B64 ID ${swapAndDispute.id}")
+        } catch (exception: SQLiteException) {
+            /*
+            The result code for a UNIQUE constraint failure; see here: https://www.sqlite.org/rescode.html
+            If a Swap with the specified ID already exists, we do nothing.
+             */
+            if (exception.resultCode.code != 2067) {
+                throw exception
+            }
+            logger.info("storeSwapAndDispute: swap and dispute with B64 ID ${swapAndDispute.id} already exists in " +
+                    "database")
+        }
+    }
+
+    /**
+     * Retrieves the persistently stored [SwapAndDispute] with the given ID, or returns null if no such [SwapAndDispute]
+     * is present.
+     *
+     * @param id The ID of the swap corresponding to the [SwapAndDispute] to return, as a Base64-[String] of bytes.
+     *
+     * @throws IllegalStateException if multiple [SwapAndDispute]s are found for a single ID, or if the ID of the
+     * [SwapAndDispute] returned from the database query does not match [id].
+     */
+    @OptIn(DelicateCoroutinesApi::class)
+    suspend fun getSwapAndDispute(id: String): SwapAndDispute? {
+        val dbSwapAndDisputes: List<SwapAndDispute> = withContext(databaseServiceContext) {
+            database.selectSwapAndDisputeBySwapID(id)
+        }
+        return if (dbSwapAndDisputes.size > 1) {
+            throw IllegalStateException("Multiple swap and disputes found with given id $id")
+        } else if (dbSwapAndDisputes.size == 1) {
+            check(dbSwapAndDisputes[0].id == id) {
+                "Returned swap and dispute ID ${dbSwapAndDisputes[0].id} did not match specified swap ID $id"
+            }
+            logger.info("getSwapAndDispute: returning swap and dispute with B64 ID $id")
+            dbSwapAndDisputes.first()
+        } else {
+            logger.info("getSwapAndDispute: no swap and dispute found with B64 ID $id")
+            null
+        }
+    }
+
+    /**
      * Persistently stores the settlement method string and private data string, associating them with the given UUID
      * string. The private settlement method data is encrypted with [databaseKey] and a new initialization vector.
      *

@@ -2690,6 +2690,113 @@ class DatabaseServiceTest {
     }
 
     /**
+     * Ensures the code to store and get a [SwapAndDispute] from persistent storage
+     */
+    @Test
+    fun testStoreAndGetSwapAndDispute() = runBlocking {
+        val swapAndDisputeToStore = SwapAndDispute(
+            id = "a_uuid",
+            isCreated = 1L,
+            requiresFill = 0L,
+            maker = "maker_address",
+            makerInterfaceID = "maker_interface_id",
+            taker = "taker_address",
+            takerInterfaceID = "taker_interface_id",
+            stablecoin = "stablecoin_address",
+            amountLowerBound = "lower_bound_amount",
+            amountUpperBound = "upper_bound_amount",
+            securityDepositAmount = "security_deposit_amount",
+            takenSwapAmount = "taken_swap_amount",
+            serviceFeeAmount = "service_fee_amount",
+            serviceFeeRate = "service_fee_rate",
+            onChainDirection = "direction",
+            settlementMethod = "settlement_method",
+            protocolVersion = "some_version",
+            isPaymentSent = 0L,
+            isPaymentReceived = 0L,
+            hasBuyerClosed = 0L,
+            hasSellerClosed = 0L,
+            disputeRaiser = "dispute_raiser",
+            disputeRaisedBlockNumber = 0L,
+            disputeAgent0 = "da0_address",
+            disputeAgent1 = "da1_address",
+            disputeAgent2 = "da2_address",
+            hasDisputeAgent0Proposed = 0L,
+            disputeAgent0MakerPayout = 0L,
+            disputeAgent0TakerPayout = 0L,
+            disputeAgent0ConfiscationPayout = 0L,
+            hasDisputeAgent1Proposed = 0L,
+            disputeAgent1MakerPayout = 0L,
+            disputeAgent1TakerPayout = 0L,
+            disputeAgent1ConfiscationPayout = 0L,
+            hasDisputeAgent2Proposed = 0L,
+            disputeAgent2MakerPayout = 0L,
+            disputeAgent2TakerPayout = 0L,
+            disputeAgent2ConfiscationPayout = 0L,
+            matchingProposals = 0L,
+            makerReaction = 0L,
+            takerReaction = 0L,
+            onChainState = 0L,
+            hasMakerPaidOut = 0L,
+            hasTakerPaidOut = 0L,
+            totalWithoutSpentServiceFees = 0L,
+        )
+        databaseService.storeSwapAndDispute(swapAndDisputeToStore)
+        val anotherSwapAndDisputeToStore = SwapAndDispute(
+            id = "a_uuid",
+            isCreated = 1L,
+            requiresFill = 0L,
+            maker = "maker_address",
+            makerInterfaceID = "maker_interface_id",
+            taker = "taker_address",
+            takerInterfaceID = "taker_interface_id",
+            stablecoin = "stablecoin_address",
+            amountLowerBound = "lower_bound_amount",
+            amountUpperBound = "upper_bound_amount",
+            securityDepositAmount = "security_deposit_amount",
+            takenSwapAmount = "taken_swap_amount",
+            serviceFeeAmount = "service_fee_amount",
+            serviceFeeRate = "service_fee_rate",
+            onChainDirection = "direction",
+            settlementMethod = "settlement_method",
+            protocolVersion = "some_version",
+            isPaymentSent = 0L,
+            isPaymentReceived = 0L,
+            hasBuyerClosed = 0L,
+            hasSellerClosed = 0L,
+            disputeRaiser = "dispute_raiser",
+            disputeRaisedBlockNumber = 0L,
+            disputeAgent0 = "da0_address",
+            disputeAgent1 = "da1_address",
+            disputeAgent2 = "da2_address",
+            hasDisputeAgent0Proposed = 0L,
+            disputeAgent0MakerPayout = 0L,
+            disputeAgent0TakerPayout = 0L,
+            disputeAgent0ConfiscationPayout = 0L,
+            hasDisputeAgent1Proposed = 0L,
+            disputeAgent1MakerPayout = 0L,
+            disputeAgent1TakerPayout = 0L,
+            disputeAgent1ConfiscationPayout = 0L,
+            hasDisputeAgent2Proposed = 0L,
+            disputeAgent2MakerPayout = 0L,
+            disputeAgent2TakerPayout = 0L,
+            disputeAgent2ConfiscationPayout = 0L,
+            matchingProposals = 0L,
+            makerReaction = 0L,
+            takerReaction = 0L,
+            onChainState = 0L,
+            hasMakerPaidOut = 0L,
+            hasTakerPaidOut = 0L,
+            totalWithoutSpentServiceFees = 0L,
+        )
+        // This should do nothing and not throw
+        databaseService.storeSwapAndDispute(anotherSwapAndDisputeToStore)
+        // This should not throw since only one such SwapAndDispute should exist in the database
+        val returnedSwap = databaseService.getSwapAndDispute("a_uuid")
+        assertEquals(swapAndDisputeToStore, returnedSwap)
+    }
+
+    /**
      * Ensures code to store and get settlement methods works properly.
      */
     @Test
