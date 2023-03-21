@@ -22,6 +22,7 @@ internal class Database(databaseDriverFactory: DatabaseDriverFactory) {
         dbQuery.createPublicKeyTable()
         dbQuery.createKeyPairTable()
         dbQuery.createSwapTable()
+        dbQuery.createSwapAndDisputeTable()
         dbQuery.createUserSettlementMethodTable()
     }
 
@@ -321,6 +322,7 @@ internal class Database(databaseDriverFactory: DatabaseDriverFactory) {
             hasBuyerClosed = swapAndDispute.hasBuyerClosed,
             hasSellerClosed = swapAndDispute.hasSellerClosed,
             disputeRaiser = swapAndDispute.disputeRaiser,
+            chainID = swapAndDispute.chainID,
             disputeRaisedBlockNumber = swapAndDispute.disputeRaisedBlockNumber,
             disputeAgent0 = swapAndDispute.disputeAgent0,
             disputeAgent1 = swapAndDispute.disputeAgent1,
@@ -344,6 +346,7 @@ internal class Database(databaseDriverFactory: DatabaseDriverFactory) {
             hasMakerPaidOut = swapAndDispute.hasMakerPaidOut,
             hasTakerPaidOut = swapAndDispute.hasTakerPaidOut,
             totalWithoutSpentServiceFees = swapAndDispute.totalWithoutSpentServiceFees,
+            disputeAgent0InterfaceID = swapAndDispute.disputeAgent0InterfaceID,
         )
     }
 

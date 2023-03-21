@@ -155,29 +155,31 @@ isPaymentReceived INTEGER NOT NULL,
 hasBuyerClosed INTEGER NOT NULL,
 hasSellerClosed INTEGER NOT NULL,
 disputeRaiser TEXT NOT NULL,
-disputeRaisedBlockNumber INTEGER NOT NULL,
+chainID TEXT NOT NULL,
+disputeRaisedBlockNumber TEXT NOT NULL,
 disputeAgent0 TEXT NOT NULL,
 disputeAgent1 TEXT NOT NULL,
 disputeAgent2 TEXT NOT NULL,
 hasDisputeAgent0Proposed INTEGER NOT NULL,
-disputeAgent0MakerPayout INTEGER NOT NULL,
-disputeAgent0TakerPayout INTEGER NOT NULL,
-disputeAgent0ConfiscationPayout INTEGER NOT NULL,
+disputeAgent0MakerPayout TEXT NOT NULL,
+disputeAgent0TakerPayout TEXT NOT NULL,
+disputeAgent0ConfiscationPayout TEXT NOT NULL,
 hasDisputeAgent1Proposed INTEGER NOT NULL,
-disputeAgent1MakerPayout INTEGER NOT NULL,
-disputeAgent1TakerPayout INTEGER NOT NULL,
-disputeAgent1ConfiscationPayout INTEGER NOT NULL,
+disputeAgent1MakerPayout TEXT NOT NULL,
+disputeAgent1TakerPayout TEXT NOT NULL,
+disputeAgent1ConfiscationPayout TEXT NOT NULL,
 hasDisputeAgent2Proposed INTEGER NOT NULL,
-disputeAgent2MakerPayout INTEGER NOT NULL,
-disputeAgent2TakerPayout INTEGER NOT NULL,
-disputeAgent2ConfiscationPayout INTEGER NOT NULL,
+disputeAgent2MakerPayout TEXT NOT NULL,
+disputeAgent2TakerPayout TEXT NOT NULL,
+disputeAgent2ConfiscationPayout TEXT NOT NULL,
 matchingProposals INTEGER NOT NULL,
 makerReaction INTEGER NOT NULL,
 takerReaction INTEGER NOT NULL,
 onChainState INTEGER NOT NULL,
 hasMakerPaidOut INTEGER NOT NULL,
 hasTakerPaidOut INTEGER NOT NULL,
-totalWithoutSpentServiceFees INTEGER NOT NULL
+totalWithoutSpentServiceFees TEXT NOT NULL,
+disputeAgent0InterfaceID TEXT
 );
 
 createUserSettlementMethodTable:
@@ -369,6 +371,7 @@ INSERT INTO SwapAndDispute(
     hasBuyerClosed,
     hasSellerClosed,
     disputeRaiser,
+    chainID,
     disputeRaisedBlockNumber,
     disputeAgent0,
     disputeAgent1,
@@ -391,7 +394,8 @@ INSERT INTO SwapAndDispute(
     onChainState,
     hasMakerPaidOut,
     hasTakerPaidOut,
-    totalWithoutSpentServiceFees
+    totalWithoutSpentServiceFees,
+    disputeAgent0InterfaceID
 )
 VALUES(
 ?, ?, ?, ?, ?,
@@ -402,7 +406,8 @@ VALUES(
 ?, ?, ?, ?, ?,
 ?, ?, ?, ?, ?,
 ?, ?, ?, ?, ?,
-?, ?, ?, ?, ?
+?, ?, ?, ?, ?,
+?, ?
 );
 
 insertUserSettlementMethod:
@@ -611,6 +616,11 @@ UPDATE Swap
 SET raisingDisputeTransactionHash = ?,
 raisingDisputeTransactionCreationTime = ?,
 raisingDisputeTransactionCreationBlockNumber = ?
+WHERE id = ? AND chainID = ?;
+
+updateSwapAndDisputeAgent0InterfaceID:
+UPDATE SwapAndDispute
+SET disputeAgent0InterfaceID = ?
 WHERE id = ? AND chainID = ?;
 
 updateUserSettlementMethodByID:
