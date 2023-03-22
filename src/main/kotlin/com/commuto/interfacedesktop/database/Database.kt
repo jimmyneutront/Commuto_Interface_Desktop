@@ -1000,6 +1000,26 @@ internal class Database(databaseDriverFactory: DatabaseDriverFactory) {
     }
 
     /**
+     * Updates the [SwapAndDispute.disputeAgent0InterfaceID] property of the [Swap] with the  specified [id] and
+     * [chainID].
+     * @param id The ID of the swap corresponding to the [SwapAndDispute] to be updated.
+     * @param chainID The ID of the blockchain on which the swap and dispute corresponding to the [SwapAndDispute]
+     * exist.
+     * @param disputeAgent0InterfaceID The new value of the [SwapAndDispute.disputeAgent0InterfaceID] property.
+     */
+    internal fun updateSwapAndDisputeAgent0InterfaceID(
+        id: String,
+        chainID: String,
+        disputeAgent0InterfaceID: String,
+    ) {
+        dbQuery.updateSwapAndDisputeAgent0InterfaceID(
+            id = id,
+            chainID = chainID,
+            disputeAgent0InterfaceID = disputeAgent0InterfaceID,
+        )
+    }
+
+    /**
      * Updates the [UserSettlementMethod.privateData] and [UserSettlementMethod.privateDataInitializationVector]
      * properties of the [UserSettlementMethod] with the specified [id].
      * @param id The ID of the [UserSettlementMethod] to be updated.
