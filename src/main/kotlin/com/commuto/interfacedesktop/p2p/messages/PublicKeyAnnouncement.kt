@@ -4,7 +4,7 @@ import com.commuto.interfacedesktop.key.keys.PublicKey
 import java.util.*
 
 /**
- * This represents a Public Key Announcement], as described in the
+ * This represents a Public Key Announcement, as described in the
  * [Interface Specification](https://github.com/jimmyneutront/commuto-whitepaper/blob/main/commuto-interface-specification.txt#L50).
  *
  * @param id The ID of the offer corresponding to this [PublicKeyAnnouncement].

@@ -12,6 +12,7 @@ import com.commuto.interfacedesktop.p2p.messages.PublicKeyAnnouncement
 import com.commuto.interfacedesktop.p2p.messages.TakerInformationMessage
 import com.commuto.interfacedesktop.p2p.parse.parseMakerInformationMessage
 import com.commuto.interfacedesktop.p2p.parse.parsePublicKeyAnnouncement
+import com.commuto.interfacedesktop.p2p.parse.parsePublicKeyAnnouncementAsUserForDispute
 import com.commuto.interfacedesktop.p2p.parse.parseTakerInformationMessage
 import com.commuto.interfacedesktop.p2p.serializable.messages.SerializableEncryptedMessage
 import com.commuto.interfacedesktop.p2p.serializable.messages.SerializablePublicKeyAnnouncementMessage
@@ -39,7 +40,6 @@ import java.nio.ByteBuffer
 import java.nio.charset.Charset
 import java.security.MessageDigest
 import java.util.*
-import kotlin.test.assertNotNull
 
 /**
  * Tests for [P2PService].
@@ -578,7 +578,8 @@ class P2PServiceTest {
             )
         }
 
-        assertNotNull(p2pService.receivedMessage)
+        val createdPublicKeyAnnouncement = parsePublicKeyAnnouncementAsUserForDispute(p2pService.receivedMessage)
+        assert(keyPair.interfaceId.contentEquals(createdPublicKeyAnnouncement!!.publicKey.interfaceId))
 
     }
 

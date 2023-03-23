@@ -403,13 +403,11 @@ open class P2PService constructor(
         keyPair: KeyPair
     ) {
         val encoder = Base64.getEncoder()
-        logger.info("announcePublicKeyAnnouncementAsUserForDispute: creating for ${encoder.encodeToString(keyPair
-            .interfaceId)}")
+        logger.info("announcePublicKeyAsUserForDispute: creating for ${encoder.encodeToString(keyPair.interfaceId)}")
         val messageString = createPublicKeyAnnouncementAsUserForDispute(
             keyPair = keyPair
         )
-        logger.info("announcePublicKeyAnnouncementAsUserForDispute: sending for ${encoder.encodeToString(keyPair
-            .interfaceId)}")
+        logger.info("announcePublicKeyAsUserForDispute: sending for ${encoder.encodeToString(keyPair.interfaceId)}")
         sendMessage(messageString)
     }
 

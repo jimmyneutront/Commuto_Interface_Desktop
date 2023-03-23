@@ -1,26 +1,24 @@
 package com.commuto.interfacedesktop.p2p.parse
 
 import com.commuto.interfacedesktop.key.keys.PublicKey
-import com.commuto.interfacedesktop.p2p.messages.PublicKeyAnnouncement
+import com.commuto.interfacedesktop.p2p.messages.PublicKeyAnnouncementAsUserForDispute
 import com.commuto.interfacedesktop.p2p.serializable.messages.SerializablePublicKeyAnnouncementMessage
-import com.commuto.interfacedesktop.p2p.serializable.payloads.SerializablePublicKeyAnnouncementPayload
+import com.commuto.interfacedesktop.p2p.serializable.payloads.SerializablePublicKeyAnnouncementAsUserForDisputePayload
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
-import java.nio.ByteBuffer
 import java.nio.charset.Charset
 import java.security.MessageDigest
 import java.util.*
 
 /**
- * Attempts to restore a [PublicKeyAnnouncement] from a given [String].
+ * Attempts to restore a [PublicKeyAnnouncementAsUserForDispute] from a given [String].
  *
- * @param messageString An optional [String] from which to try to restore a [PublicKeyAnnouncement].
+ * @param messageString An optional [String] from which to try to restore a [PublicKeyAnnouncementAsUserForDispute].
  *
- * @return A [PublicKeyAnnouncement] if [messageString] contains a valid
- * [Public Key Announcement](https://github.com/jimmyneutront/commuto-whitepaper/blob/main/commuto-interface-specification.txt),
- * or `null` if it does not.
+ * @return A [PublicKeyAnnouncementAsUserForDispute] if [messageString] contains a valid Public Key Announcement as the
+ * user for a dispute, or `null` if it does not.
  */
-fun parsePublicKeyAnnouncement(messageString: String?): PublicKeyAnnouncement? {
+fun parsePublicKeyAnnouncementAsUserForDispute(messageString: String?): PublicKeyAnnouncementAsUserForDispute? {
     // Setup decoder
     val decoder = Base64.getDecoder()
     // Return null if no message string is given
@@ -33,8 +31,8 @@ fun parsePublicKeyAnnouncement(messageString: String?): PublicKeyAnnouncement? {
     } catch (e: Exception) {
         return null
     }
-    // Ensure that the message is a Public Key announcement message
-    if (message.msgType != "pka") {
+    // Ensure that the message is a Public Key Announcement as User For Dispute message
+    if (message.msgType != "disputeUserPka") {
         return null
     }
 
@@ -53,30 +51,19 @@ fun parsePublicKeyAnnouncement(messageString: String?): PublicKeyAnnouncement? {
     }
     val payload = try {
         val payloadString = payloadBytes.toString(Charset.forName("UTF-8"))
-        Json.decodeFromString<SerializablePublicKeyAnnouncementPayload>(payloadString)
+        Json.decodeFromString<SerializablePublicKeyAnnouncementAsUserForDisputePayload>(payloadString)
     } catch (e: Exception) {
         return null
     }
 
-    // Get the offer ID in the announcement
-    val messageOfferId = try {
-        val offerIdByteArray = decoder.decode(payload.offerId)
-        val offerIdByteBuffer = ByteBuffer.wrap(offerIdByteArray)
-        val mostSigBits = offerIdByteBuffer.long
-        val leastSigBits = offerIdByteBuffer.long
-        UUID(mostSigBits, leastSigBits)
-    } catch (e: Exception) {
-        return null
-    }
-
-    // Re-create maker's public key
+    // Re-create dispute raiser's public key
     val publicKey = try {
         PublicKey(decoder.decode(payload.pubKey))
     } catch (e: Exception) {
         return null
     }
 
-    // Check that interface id of maker's key matches value in "sender" field of message
+    // Check that interface id of dispute raiser's key matches value in "sender" field of message
     if (!senderInterfaceID.contentEquals(publicKey.interfaceId)) {
         return null
     }
@@ -87,7 +74,7 @@ fun parsePublicKeyAnnouncement(messageString: String?): PublicKeyAnnouncement? {
     // Verify signature
     return try {
         when (publicKey.verifySignature(payloadDataHash, decoder.decode(message.signature))) {
-            true -> PublicKeyAnnouncement(messageOfferId, publicKey)
+            true -> PublicKeyAnnouncementAsUserForDispute(publicKey)
             false -> null
         }
     } catch (e: Exception) {
