@@ -1735,6 +1735,23 @@ open class DatabaseService(
     }
 
     /**
+     * Removes every [SwapAndDispute] with a swap ID equal to [id] and a chain ID equal to [chainID] from persistent
+     * storage.
+     *
+     * @param id The ID of the swap corresponding to the [SwapAndDispute] to be removed, as a UUID [String].
+     * @param chainID The blockchain ID of the swap corresponding to the [SwapAndDispute] to be removed, as a [String].
+     *
+     * @throws Exception If deletion is unsuccessful.
+     */
+    @OptIn(DelicateCoroutinesApi::class)
+    suspend fun deleteSwapAndDisputes(id: String, chainID: String) {
+        withContext(databaseServiceContext) {
+            database.deleteSwapAndDispute(id, chainID)
+        }
+        logger.info("deleteSwapAndDisputes: deleted SwapAndDispute with ID $id and chain ID $chainID, if present")
+    }
+
+    /**
      * Retrieves the persistently stored [SwapAndDispute] with the given ID, or returns null if no such [SwapAndDispute]
      * is present.
      *

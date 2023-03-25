@@ -1104,6 +1104,18 @@ internal class Database(databaseDriverFactory: DatabaseDriverFactory) {
     }
 
     /**
+     * Deletes all [SwapAndDispute]s corresponding to swaps with the specified ID and chain ID from the database.
+     * @param id The ID of the swap corresponding to the [SwapAndDispute]s to be deleted.
+     * @param chainID The blockchain ID of the swap corresponding to the [SwapAndDispute] to be deleted.
+     */
+    internal fun deleteSwapAndDispute(id: String, chainID: String) {
+        dbQuery.deleteSwapBySwapIDAndChainID(
+            id = id,
+            chainID = chainID,
+        )
+    }
+
+    /**
      * Deletes all [UserSettlementMethod]s with the specified ID from the database.
      * @param id The ID of the [UserSettlementMethod]s to be deleted.
      */
