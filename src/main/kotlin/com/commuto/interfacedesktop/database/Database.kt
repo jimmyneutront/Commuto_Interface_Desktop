@@ -346,6 +346,7 @@ internal class Database(databaseDriverFactory: DatabaseDriverFactory) {
             hasMakerPaidOut = swapAndDispute.hasMakerPaidOut,
             hasTakerPaidOut = swapAndDispute.hasTakerPaidOut,
             totalWithoutSpentServiceFees = swapAndDispute.totalWithoutSpentServiceFees,
+            role = swapAndDispute.role,
             disputeAgent0InterfaceID = swapAndDispute.disputeAgent0InterfaceID,
         )
     }

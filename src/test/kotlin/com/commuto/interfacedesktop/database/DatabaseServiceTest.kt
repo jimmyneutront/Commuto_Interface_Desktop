@@ -2741,6 +2741,7 @@ class DatabaseServiceTest {
             hasMakerPaidOut = 0L,
             hasTakerPaidOut = 0L,
             totalWithoutSpentServiceFees = "an_amount_here",
+            role = "a_role_here",
             disputeAgent0InterfaceID = "an_interface_id",
         )
         databaseService.storeSwapAndDispute(swapAndDisputeToStore)
@@ -2791,6 +2792,7 @@ class DatabaseServiceTest {
             hasMakerPaidOut = 0L,
             hasTakerPaidOut = 0L,
             totalWithoutSpentServiceFees = "an_amount_here",
+            role = "a_role_here",
             disputeAgent0InterfaceID = "an_interface_id",
         )
         // This should do nothing and not throw
@@ -2849,6 +2851,7 @@ class DatabaseServiceTest {
             hasMakerPaidOut = 0L,
             hasTakerPaidOut = 0L,
             totalWithoutSpentServiceFees = "an_amount_here",
+            role = "a_role_here",
             disputeAgent0InterfaceID = null,
         )
         databaseService.storeSwapAndDispute(swapAndDisputeToStore)

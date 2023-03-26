@@ -179,6 +179,7 @@ onChainState INTEGER NOT NULL,
 hasMakerPaidOut INTEGER NOT NULL,
 hasTakerPaidOut INTEGER NOT NULL,
 totalWithoutSpentServiceFees TEXT NOT NULL,
+role TEXT NOT NULL,
 disputeAgent0InterfaceID TEXT
 );
 
@@ -395,6 +396,7 @@ INSERT INTO SwapAndDispute(
     hasMakerPaidOut,
     hasTakerPaidOut,
     totalWithoutSpentServiceFees,
+    role,
     disputeAgent0InterfaceID
 )
 VALUES(
@@ -407,7 +409,7 @@ VALUES(
 ?, ?, ?, ?, ?,
 ?, ?, ?, ?, ?,
 ?, ?, ?, ?, ?,
-?, ?
+?, ?, ?
 );
 
 insertUserSettlementMethod:
