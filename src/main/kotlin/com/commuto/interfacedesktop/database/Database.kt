@@ -348,6 +348,7 @@ internal class Database(databaseDriverFactory: DatabaseDriverFactory) {
             totalWithoutSpentServiceFees = swapAndDispute.totalWithoutSpentServiceFees,
             role = swapAndDispute.role,
             disputeAgent0InterfaceID = swapAndDispute.disputeAgent0InterfaceID,
+            state = swapAndDispute.state,
         )
     }
 
@@ -1062,6 +1063,21 @@ internal class Database(databaseDriverFactory: DatabaseDriverFactory) {
         dbQuery.updateSwapStateBySwapIDAndChainID(
             state = state,
             id = swapID,
+            chainID = chainID
+        )
+    }
+
+    /**
+     * Updates the [SwapAndDispute.state] property of the [SwapAndDispute] with the specified [id] and [chainID].
+     * @param id The ID of the swap corresponding to the [SwapAndDispute] to be updated.
+     * @param chainID The ID of the blockchain on which the swap corresponding to the [SwapAndDispute] to be updated
+     * exists.
+     * @param state The new value of the [SwapAndDispute.state] property.
+     */
+    internal fun updateSwapAndDisputeState(id: String, chainID: String, state: String) {
+        dbQuery.updateSwapAndDisputeStateByIDAndChainID(
+            state = state,
+            id = id,
             chainID = chainID
         )
     }

@@ -180,7 +180,8 @@ hasMakerPaidOut INTEGER NOT NULL,
 hasTakerPaidOut INTEGER NOT NULL,
 totalWithoutSpentServiceFees TEXT NOT NULL,
 role TEXT NOT NULL,
-disputeAgent0InterfaceID TEXT
+disputeAgent0InterfaceID TEXT,
+state TEXT NOT NULL
 );
 
 createUserSettlementMethodTable:
@@ -397,7 +398,8 @@ INSERT INTO SwapAndDispute(
     hasTakerPaidOut,
     totalWithoutSpentServiceFees,
     role,
-    disputeAgent0InterfaceID
+    disputeAgent0InterfaceID,
+    state
 )
 VALUES(
 ?, ?, ?, ?, ?,
@@ -409,7 +411,7 @@ VALUES(
 ?, ?, ?, ?, ?,
 ?, ?, ?, ?, ?,
 ?, ?, ?, ?, ?,
-?, ?, ?
+?, ?, ?, ?
 );
 
 insertUserSettlementMethod:
@@ -623,6 +625,11 @@ WHERE id = ? AND chainID = ?;
 updateSwapAndDisputeAgent0InterfaceID:
 UPDATE SwapAndDispute
 SET disputeAgent0InterfaceID = ?
+WHERE id = ? AND chainID = ?;
+
+updateSwapAndDisputeStateByIDAndChainID:
+UPDATE SwapAndDispute
+SET state = ?
 WHERE id = ? AND chainID = ?;
 
 updateUserSettlementMethodByID:

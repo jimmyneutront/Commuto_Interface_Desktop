@@ -1735,6 +1735,23 @@ open class DatabaseService(
     }
 
     /**
+     * Updates the [SwapAndDispute.state] property of a persistently stored SwapAndDispute with the specified [id] and
+     * [chainID].
+     *
+     * @param id The ID of the swap corresponding to the SwapAndDispute to be updated, as a UUID [String].
+     * @param chainID The blockchain ID of the swap corresponding to the SwapAndDispute to be updated, as a [String].
+     * @param state The new value of the [SwapAndDispute]'s [SwapAndDispute.state] property.
+     */
+    @OptIn(DelicateCoroutinesApi::class)
+    suspend fun updateSwapAndDisputeState(id: String, chainID: String, state: String) {
+        withContext(databaseServiceContext) {
+            database.updateSwapAndDisputeState(id, chainID, state)
+        }
+        logger.info("updateSwapAndDisputeState: set value to $state for SwapAndDispute with ID $id on $chainID, if " +
+                "present")
+    }
+
+    /**
      * Removes every [SwapAndDispute] with a swap ID equal to [id] and a chain ID equal to [chainID] from persistent
      * storage.
      *
