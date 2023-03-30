@@ -2,7 +2,7 @@ package com.commuto.interfacedesktop.p2p.create
 
 import com.commuto.interfacedesktop.key.keys.KeyPair
 import com.commuto.interfacedesktop.key.keys.PublicKey
-import com.commuto.interfacedesktop.key.keys.newSymmetricKey
+import com.commuto.interfacedesktop.key.keys.SymmetricKey
 import com.commuto.interfacedesktop.p2p.serializable.messages.SerializableEncryptedMessage
 import com.commuto.interfacedesktop.p2p.serializable.payloads.SerializableMakerInformationMessagePayload
 import kotlinx.serialization.encodeToString
@@ -42,7 +42,7 @@ fun createMakerInformationMessage(
     val payloadUTF8Bytes = Json.encodeToString(payload).toByteArray()
 
     // Generate a new AES-256 key and initialization vector, and encrypt the payload bytes
-    val symmetricKey = newSymmetricKey()
+    val symmetricKey = SymmetricKey()
     val encryptedPayload = symmetricKey.encrypt(payloadUTF8Bytes)
 
     // Create signature of encrypted payload

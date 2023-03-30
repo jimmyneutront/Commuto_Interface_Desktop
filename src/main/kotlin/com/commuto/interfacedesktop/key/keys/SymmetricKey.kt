@@ -34,6 +34,16 @@ class SymmetricKey {
     }
 
     /**
+     * Creates a new [SymmetricKey] wrapped around a new AES-256 [SecretKey].
+     */
+    constructor() {
+        val keyGenerator = KeyGenerator.getInstance("AES")
+        keyGenerator.init(256)
+        key = keyGenerator.generateKey()
+        keyBytes = key.encoded
+    }
+
+    /**
      * Creates a new initialization vector and then performs AES encryption on the given bytes with this [SymmetricKey]
      * using CBC with PKCS#5 padding.
      *
@@ -79,16 +89,4 @@ class SymmetricKey {
 class SymmetricallyEncryptedData(data: ByteArray, iv: ByteArray) {
     val encryptedData = data
     val initializationVector = iv
-}
-
-// TODO: make this a no-argument constructor of SymmetricKey
-/**
- * Creates a new [SymmetricKey] wrapped around a new AES-256 [SecretKey].
- *
- * @return A new [SymmetricKey].
- */
-fun newSymmetricKey(): SymmetricKey {
-    val keyGenerator = KeyGenerator.getInstance("AES")
-    keyGenerator.init(256)
-    return SymmetricKey(keyGenerator.generateKey())
 }

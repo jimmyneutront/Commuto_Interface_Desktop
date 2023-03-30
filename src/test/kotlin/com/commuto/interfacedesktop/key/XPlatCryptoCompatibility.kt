@@ -16,7 +16,7 @@ class XPlatCryptoCompatibility {
      */
     @Test
     fun testPrintSymmetricallyEncryptedMsg() {
-        val key = newSymmetricKey()
+        val key = SymmetricKey()
         val encoder = Base64.getEncoder()
         println("Key B64:\n" + encoder.encodeToString(key.keyBytes))
         val encryptedData: SymmetricallyEncryptedData = key.encrypt("test".toByteArray())

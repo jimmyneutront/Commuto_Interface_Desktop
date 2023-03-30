@@ -7,7 +7,7 @@ class SymmetricKeyTests {
 
     @Test
     fun testSymmetricEncryption() {
-        val key: SymmetricKey = newSymmetricKey()
+        val key = SymmetricKey()
         val charset = Charset.forName("UTF-16")
         val originalData = "test".toByteArray(charset)
         val encryptedData = key.encrypt(originalData)

@@ -120,14 +120,14 @@ fun parsePublicKeyAnnouncement(messageString: String, makerInterfaceId: ByteArra
     val payloadDataHash = MessageDigest.getInstance("SHA-256").digest(payloadBytes)
 
     //Verify signature
-    try {
+    return try {
         if (publicKey.verifySignature(payloadDataHash, decoder.decode(message.signature))) {
-            return publicKey
+            publicKey
         } else {
-            return null
+            null
         }
     } catch (e: Exception) {
-        return null
+        null
     }
 }
 
@@ -172,7 +172,7 @@ fun createTakerInfoMessage(keyPair: KeyPair, makerPubKey: PublicKey, swapId: Byt
     val payloadUTF8Bytes = payloadString.toByteArray(Charset.forName("UTF-8"))
 
     //Generate a new symmetric key and initialization vector, and encrypt the payload bytes
-    val symmetricKey = newSymmetricKey()
+    val symmetricKey = SymmetricKey()
     val encryptedPayload = symmetricKey.encrypt(payloadUTF8Bytes)
 
     //Set "payload" field of message
@@ -197,6 +197,8 @@ fun createTakerInfoMessage(keyPair: KeyPair, makerPubKey: PublicKey, swapId: Byt
     val messageString = Json.encodeToString(message)
     return messageString
 }
+
+private val json = Json { ignoreUnknownKeys = true }
 
 fun parseTakerInfoMessage(messageString: String, keyPair: KeyPair, takerInterfaceId: ByteArray,
                           swapId: ByteArray): Pair<PublicKey, SerializablePaymentMethodDetails>? {
@@ -349,7 +351,7 @@ fun createMakerInfoMessage(keyPair: KeyPair, takerPubKey: PublicKey, swapId: Byt
     val payloadUTF8Bytes = payloadString.toByteArray(Charset.forName("UTF-8"))
 
     //Generate a new symmetric key and initialization vector, and encrypt the payload bytes
-    val symmetricKey = newSymmetricKey()
+    val symmetricKey = SymmetricKey()
     val encryptedPayload = symmetricKey.encrypt(payloadUTF8Bytes)
 
     //Set "payload" field of message

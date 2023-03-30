@@ -591,7 +591,7 @@ internal class CommutoCoreInteraction {
             //TODO: Save taker's public key locally (parseTakerInfoMessage already does this)
 
             //Prepare maker info message
-            val makerInfoMessageKey = newSymmetricKey()
+            val makerInfoMessageKey = SymmetricKey()
             val symmetricallyEncryptedPayload = makerInfoMessageKey.encrypt(ownPaymentDetails)
             val takerPublicKey = keyManagerService.getPublicKey(takerInterfaceId!!)
             val encryptedKey = takerPublicKey!!.encrypt(makerInfoMessageKey.keyBytes)
@@ -719,7 +719,7 @@ internal class CommutoCoreInteraction {
                 ownPaymentDetails.toString(Charset.forName("UTF-8"))
             )
             val takerInfoPayload = Json.encodeToString(takerInfoPayloadObject).toByteArray(Charset.forName("UTF-8"))
-            val takerInfoMessageKey = newSymmetricKey()
+            val takerInfoMessageKey = SymmetricKey()
             val symmetricallyEncryptedPayload = takerInfoMessageKey.encrypt(takerInfoPayload)
             val payloadDataHash = MessageDigest.getInstance("SHA-256").digest(symmetricallyEncryptedPayload.encryptedData)
             val takerInfoMsgObject = TakerInfoMessage(
