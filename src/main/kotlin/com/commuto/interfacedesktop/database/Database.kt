@@ -351,6 +351,8 @@ internal class Database(databaseDriverFactory: DatabaseDriverFactory) {
             state = swapAndDispute.state,
             makerCommunicationKey = swapAndDispute.makerCommunicationKey,
             mCKInitializationVector = swapAndDispute.mCKInitializationVector,
+            takerCommunicationKey = swapAndDispute.takerCommunicationKey,
+            tCKInitializationVector = swapAndDispute.tCKInitializationVector,
         )
     }
 
@@ -1043,6 +1045,29 @@ internal class Database(databaseDriverFactory: DatabaseDriverFactory) {
             chainID = chainID,
             makerCommunicationKey = encryptedKey,
             mCKInitializationVector = initializationVector
+        )
+    }
+
+    /**
+     * Updates the [SwapAndDispute.takerCommunicationKey] and [SwapAndDispute.tCKInitializationVector] properties of the
+     * [Swap] with the specified [id] and [chainID].
+     * @param id the ID of the swap corresponding to the [SwapAndDispute] to be updated.
+     * @param chainID The ID of the blockchain on which the swap and dispute corresponding to the [SwapAndDispute]
+     * exist.
+     * @param encryptedKey The new value of the [SwapAndDispute.takerCommunicationKey] property.
+     * @param initializationVector The new value of the [SwapAndDispute.tCKInitializationVector] property.
+     */
+    internal fun updateSwapAndDisputeTakerCommunicationKey(
+        id: String,
+        chainID: String,
+        encryptedKey: String,
+        initializationVector: String
+    ) {
+        dbQuery.updateSwapAndDisputeTakerCommunicationKeyByIDAndChainID(
+            id = id,
+            chainID = chainID,
+            takerCommunicationKey = encryptedKey,
+            tCKInitializationVector = initializationVector
         )
     }
 

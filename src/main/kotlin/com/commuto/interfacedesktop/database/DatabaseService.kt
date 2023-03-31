@@ -1752,28 +1752,63 @@ open class DatabaseService(
     }
 
     /**
-     * Updates the maker communication key of a persistently stored [SwapAndDispute] corresponding to the swap with the
+     * Updates the Maker Communication Key of a persistently stored [SwapAndDispute] corresponding to the swap with the
      * specified [id] and [chainID]. The new key is encrypted with [databaseKey] and a new initialization vector.
      *
      * @param id The ID of the swap corresponding to the [SwapAndDispute] to be updated, as a UUID-4 [String].
      * @param chainID The blockchain ID of the swap corresponding to the [SwapAndDispute] to be updated, as a [String].
-     * @param key The maker communication key, as a Base64-[String] of bytes.
+     * @param key The Maker Communication Key, as a Base64-[String] of bytes.
      */
     @OptIn(DelicateCoroutinesApi::class)
     suspend fun updateSwapAndDisputeMakerCommunicationKey(id: String, chainID: String, key: String) {
-        val keyByteArray = key.toByteArray()
-        val encryptedKey = databaseKey.encrypt(keyByteArray)
-        val encoder = Base64.getEncoder()
-        val privateCipherDataString = encoder.encodeToString(encryptedKey.encryptedData)
-        val initializationVectorString = encoder.encodeToString(encryptedKey.initializationVector)
+        val encryptedKeyAndIV = encryptCommunicationKeyForStorage(key = key)
         withContext(databaseServiceContext) {
             database.updateSwapAndDisputeMakerCommunicationKey(
                 id = id,
                 chainID = chainID,
-                encryptedKey = privateCipherDataString,
-                initializationVector = initializationVectorString,
+                encryptedKey = encryptedKeyAndIV.first,
+                initializationVector = encryptedKeyAndIV.second,
             )
         }
+    }
+
+    /**
+     * Updates the Taker Communication Key of a persistently stored [SwapAndDispute] corresponding to the swap with the
+     * specified [id] and [chainID]. The new key is encrypted with [databaseKey] and a new initialization vector.
+     *
+     * @param id The ID of the swap corresponding to the [SwapAndDispute] to be updated, as a UUID-4 [String].
+     * @param chainID The blockchain ID of the swap corresponding to the [SwapAndDispute] to be updated, as a [String].
+     * @param key The Taker Communication Key, as a Base64-[String] of bytes.
+     */
+    @OptIn(DelicateCoroutinesApi::class)
+    suspend fun updateSwapAndDisputeTakerCommunicationKey(id: String, chainID: String, key: String) {
+        val encryptedKeyAndIV = encryptCommunicationKeyForStorage(key = key)
+        withContext(databaseServiceContext) {
+            database.updateSwapAndDisputeTakerCommunicationKey(
+                id = id,
+                chainID = chainID,
+                encryptedKey = encryptedKeyAndIV.first,
+                initializationVector = encryptedKeyAndIV.second,
+            )
+        }
+    }
+
+    /**
+     * Encrypts [key] using [databaseKey] and a new initialization vector, and returns the encrypted key and the
+     * initialization vector as Base64-[String]s.
+     *
+     * @param key The communication key to encrypt, as a Base64-[String] of bytes.
+     *
+     * @return A [Pair] containing the encrypted key and the initialization vector as Base64-[String]s, in that order.
+     */
+    fun encryptCommunicationKeyForStorage(key: String): Pair<String, String> {
+        val keyByteArray = key.toByteArray()
+        val encryptedKey = databaseKey.encrypt(keyByteArray)
+        val encoder = Base64.getEncoder()
+        return Pair(
+            encoder.encodeToString(encryptedKey.encryptedData),
+            encoder.encodeToString(encryptedKey.initializationVector)
+        )
     }
 
     /**
@@ -1833,21 +1868,60 @@ open class DatabaseService(
                 "${swapAndDispute.id} on ${swapAndDispute.chainID}")
         val makerCommunicationKeyCipherString = swapAndDispute.makerCommunicationKey
         val mCKInitializationVectorEncoded = swapAndDispute.mCKInitializationVector
-        if (makerCommunicationKeyCipherString != null && mCKInitializationVectorEncoded != null) {
-            val decoder = Base64.getDecoder()
-            val keyCipherData = decoder.decode(makerCommunicationKeyCipherString)
-            val mCKInitializationVector = decoder.decode(mCKInitializationVectorEncoded)
-            return if (keyCipherData != null && mCKInitializationVector != null) {
-                val privateDataObject = SymmetricallyEncryptedData(
-                    data = keyCipherData,
-                    iv = mCKInitializationVector
-                )
-                databaseKey.decrypt(privateDataObject).decodeToString()
-            } else {
-                null
-            }
+        return if (makerCommunicationKeyCipherString != null && mCKInitializationVectorEncoded != null) {
+            decryptCommunicationKey(
+                communicationKeyCipherString = makerCommunicationKeyCipherString,
+                encodedInitializationVector = mCKInitializationVectorEncoded
+            )
         } else {
-            return null
+            null
+        }
+    }
+
+    /**
+     * Attempts to decrypt the Taker Communication Key from a supplied [SwapAndDispute] using [databaseKey].
+     *
+     * @param swapAndDispute The [SwapAndDispute] from which to attempt to decrypt the Taker Communication Key.
+     *
+     * @return The decrypted Taker Communication Key as a [String], or `null` if the key does not exist.
+     */
+    fun decryptTakerCommunicationKeyFromSwapAndDispute(swapAndDispute: SwapAndDispute): String? {
+        logger.info("decryptTakerCommunicationKeyFromSwapAndDispute: getting for swap and dispute with id " +
+                "${swapAndDispute.id} on ${swapAndDispute.chainID}")
+        val takerCommunicationKeyCipherString = swapAndDispute.takerCommunicationKey
+        val tCKInitializationVectorEncoded = swapAndDispute.tCKInitializationVector
+        return if (takerCommunicationKeyCipherString != null && tCKInitializationVectorEncoded != null) {
+            decryptCommunicationKey(
+                communicationKeyCipherString = takerCommunicationKeyCipherString,
+                encodedInitializationVector = tCKInitializationVectorEncoded
+            )
+        } else {
+            null
+        }
+    }
+
+    /**
+     * Attempts to decrypt a communication key from a supplied cipher string and initialization vector using
+     * [databaseKey].
+     *
+     * @param communicationKeyCipherString The encrypted key, as a Base64-[String].
+     * @param encodedInitializationVector The initialization vector with which [communicationKeyCipherString] was
+     * encrypted, as a Base64-[String].
+     *
+     * @return The decrypted communication key as a [String], or `null` if the key does not exist.
+     */
+    fun decryptCommunicationKey(communicationKeyCipherString: String, encodedInitializationVector: String): String? {
+        val decoder = Base64.getDecoder()
+        val keyCipherData = decoder.decode(communicationKeyCipherString)
+        val initializationVector = decoder.decode(encodedInitializationVector)
+        return if (keyCipherData != null && initializationVector != null) {
+            val privateDataObject = SymmetricallyEncryptedData(
+                data = keyCipherData,
+                iv = initializationVector
+            )
+            databaseKey.decrypt(privateDataObject).decodeToString()
+        } else {
+            null
         }
     }
 
