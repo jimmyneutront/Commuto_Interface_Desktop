@@ -2748,6 +2748,8 @@ class DatabaseServiceTest {
             mCKInitializationVector = null,
             takerCommunicationKey = null,
             tCKInitializationVector = null,
+            disputeAgentCommunicationKey = null,
+            dACKInitializationVector = null,
         )
         databaseService.storeSwapAndDispute(swapAndDisputeToStore)
         val anotherSwapAndDisputeToStore = SwapAndDispute(
@@ -2804,6 +2806,8 @@ class DatabaseServiceTest {
             mCKInitializationVector = null,
             takerCommunicationKey = null,
             tCKInitializationVector = null,
+            disputeAgentCommunicationKey = null,
+            dACKInitializationVector = null,
         )
         // This should do nothing and not throw
         databaseService.storeSwapAndDispute(anotherSwapAndDisputeToStore)
@@ -2872,6 +2876,8 @@ class DatabaseServiceTest {
             mCKInitializationVector = null,
             takerCommunicationKey = null,
             tCKInitializationVector = null,
+            disputeAgentCommunicationKey = null,
+            dACKInitializationVector = null,
         )
         databaseService.storeSwapAndDispute(swapAndDisputeToStore)
         databaseService.updateSwapAndDisputeAgent0InterfaceID(
@@ -2942,6 +2948,8 @@ class DatabaseServiceTest {
             mCKInitializationVector = null,
             takerCommunicationKey = null,
             tCKInitializationVector = null,
+            disputeAgentCommunicationKey = null,
+            dACKInitializationVector = null,
         )
         databaseService.storeSwapAndDispute(swapAndDisputeToStore)
         databaseService.updateSwapAndDisputeState(
@@ -3009,6 +3017,8 @@ class DatabaseServiceTest {
             mCKInitializationVector = null,
             takerCommunicationKey = null,
             tCKInitializationVector = null,
+            disputeAgentCommunicationKey = null,
+            dACKInitializationVector = null,
         )
         databaseService.storeSwapAndDispute(swapAndDisputeToStore)
         databaseService.updateSwapAndDisputeMakerCommunicationKey(
@@ -3021,13 +3031,21 @@ class DatabaseServiceTest {
             chainID = "a_chain_id",
             key = "a_taker_key_here",
         )
+        databaseService.updateSwapAndDisputeAgentCommunicationKey(
+            id = "a_uuid",
+            chainID = "a_chain_id",
+            key = "a_dispute_agent_key_here",
+        )
         val returnedSwapAndDispute = databaseService.getSwapAndDispute("a_uuid")
         val returnedMakerCommunicationKey = databaseService
             .decryptMakerCommunicationKeyFromSwapAndDispute(returnedSwapAndDispute!!)
         val returnedTakerCommunicationKey = databaseService
             .decryptTakerCommunicationKeyFromSwapAndDispute(returnedSwapAndDispute)
+        val returnedDisputeAgentCommunicationKey = databaseService
+            .decryptDisputeAgentCommunicationKeyFromSwapAndDispute(returnedSwapAndDispute)
         assertEquals("a_maker_key_here", returnedMakerCommunicationKey)
         assertEquals("a_taker_key_here", returnedTakerCommunicationKey)
+        assertEquals("a_dispute_agent_key_here", returnedDisputeAgentCommunicationKey)
     }
 
     /**

@@ -1794,6 +1794,28 @@ open class DatabaseService(
     }
 
     /**
+     * Updates the Dispute Agent Communication Key of a persistently stored [SwapAndDispute] corresponding to the swap
+     * with the specified [id] and [chainID]. The new key is encrypted with [databaseKey] and a new initialization
+     * vector.
+     *
+     * @param id The ID of the swap corresponding to the [SwapAndDispute] to be updated, as a UUID-4 [String].
+     * @param chainID The blockchain ID of the swap corresponding to the [SwapAndDispute] to be updated, as a [String].
+     * @param key The Dispute Agent Communication Key, as a Base64-[String] of bytes.
+     */
+    @OptIn(DelicateCoroutinesApi::class)
+    suspend fun updateSwapAndDisputeAgentCommunicationKey(id: String, chainID: String, key: String) {
+        val encryptedKeyAndIV = encryptCommunicationKeyForStorage(key = key)
+        withContext(databaseServiceContext) {
+            database.updateSwapAndDisputeAgentCommunicationKey(
+                id = id,
+                chainID = chainID,
+                encryptedKey = encryptedKeyAndIV.first,
+                initializationVector = encryptedKeyAndIV.second,
+            )
+        }
+    }
+
+    /**
      * Encrypts [key] using [databaseKey] and a new initialization vector, and returns the encrypted key and the
      * initialization vector as Base64-[String]s.
      *
@@ -1864,7 +1886,7 @@ open class DatabaseService(
      * @return The decrypted Maker Communication Key as a [String], or `null` if the key does not exist.
      */
     fun decryptMakerCommunicationKeyFromSwapAndDispute(swapAndDispute: SwapAndDispute): String? {
-        logger.info("decryptMakerCommunicationKeyFromSwapAndDispute: getting for swap and dispute with id " +
+        logger.info("decryptMakerCommunicationKeyFromSwapAndDispute: decrypting for swap and dispute with id " +
                 "${swapAndDispute.id} on ${swapAndDispute.chainID}")
         val makerCommunicationKeyCipherString = swapAndDispute.makerCommunicationKey
         val mCKInitializationVectorEncoded = swapAndDispute.mCKInitializationVector
@@ -1886,7 +1908,7 @@ open class DatabaseService(
      * @return The decrypted Taker Communication Key as a [String], or `null` if the key does not exist.
      */
     fun decryptTakerCommunicationKeyFromSwapAndDispute(swapAndDispute: SwapAndDispute): String? {
-        logger.info("decryptTakerCommunicationKeyFromSwapAndDispute: getting for swap and dispute with id " +
+        logger.info("decryptTakerCommunicationKeyFromSwapAndDispute: decrypting for swap and dispute with id " +
                 "${swapAndDispute.id} on ${swapAndDispute.chainID}")
         val takerCommunicationKeyCipherString = swapAndDispute.takerCommunicationKey
         val tCKInitializationVectorEncoded = swapAndDispute.tCKInitializationVector
@@ -1894,6 +1916,28 @@ open class DatabaseService(
             decryptCommunicationKey(
                 communicationKeyCipherString = takerCommunicationKeyCipherString,
                 encodedInitializationVector = tCKInitializationVectorEncoded
+            )
+        } else {
+            null
+        }
+    }
+
+    /**
+     * Attempts to decrypt the Dispute Agent Communication Key from a supplied [SwapAndDispute] using [databaseKey].
+     *
+     * @param swapAndDispute The [SwapAndDispute] from which to attempt to decrypt the Dispute Agent Communication Key.
+     *
+     * @return The decrypted Dispute Agent Communication Key as a [String], or `null` if the key does not exist.
+     */
+    fun decryptDisputeAgentCommunicationKeyFromSwapAndDispute(swapAndDispute: SwapAndDispute): String? {
+        logger.info("decryptDisputeAgentCommunicationKeyFromSwapAndDispute: decrypting for swap and dispute with id " +
+                "${swapAndDispute.id} on ${swapAndDispute.chainID}")
+        val disputeAgentCommunicationKeyCipherString = swapAndDispute.disputeAgentCommunicationKey
+        val dACKInitializationVectorEncoded = swapAndDispute.dACKInitializationVector
+        return if (disputeAgentCommunicationKeyCipherString != null && dACKInitializationVectorEncoded != null) {
+            decryptCommunicationKey(
+                communicationKeyCipherString = disputeAgentCommunicationKeyCipherString,
+                encodedInitializationVector = dACKInitializationVectorEncoded,
             )
         } else {
             null

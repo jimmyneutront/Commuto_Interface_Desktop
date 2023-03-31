@@ -185,7 +185,9 @@ state TEXT NOT NULL,
 makerCommunicationKey TEXT,
 mCKInitializationVector TEXT,
 takerCommunicationKey TEXT,
-tCKInitializationVector TEXT
+tCKInitializationVector TEXT,
+disputeAgentCommunicationKey TEXT,
+dACKInitializationVector TEXT
 );
 
 createUserSettlementMethodTable:
@@ -407,7 +409,9 @@ INSERT INTO SwapAndDispute(
     makerCommunicationKey,
     mCKInitializationVector,
     takerCommunicationKey,
-    tCKInitializationVector
+    tCKInitializationVector,
+    disputeAgentCommunicationKey,
+    dACKInitializationVector
 )
 VALUES(
 ?, ?, ?, ?, ?,
@@ -420,7 +424,7 @@ VALUES(
 ?, ?, ?, ?, ?,
 ?, ?, ?, ?, ?,
 ?, ?, ?, ?, ?,
-?, ?, ?
+?, ?, ?, ?, ?
 );
 
 insertUserSettlementMethod:
@@ -651,6 +655,12 @@ updateSwapAndDisputeTakerCommunicationKeyByIDAndChainID:
 UPDATE SwapAndDispute
 SET takerCommunicationKey = ?,
 tCKInitializationVector = ?
+WHERE id = ? AND chainID = ?;
+
+updateSwapAndDisputeAgentCommunicationKeyByIDAndChainID:
+UPDATE SwapAndDispute
+SET disputeAgentCommunicationKey = ?,
+dACKInitializationVector = ?
 WHERE id = ? AND chainID = ?;
 
 updateUserSettlementMethodByID:
