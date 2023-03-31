@@ -349,6 +349,8 @@ internal class Database(databaseDriverFactory: DatabaseDriverFactory) {
             role = swapAndDispute.role,
             disputeAgent0InterfaceID = swapAndDispute.disputeAgent0InterfaceID,
             state = swapAndDispute.state,
+            makerCommunicationKey = swapAndDispute.makerCommunicationKey,
+            mCKInitializationVector = swapAndDispute.mCKInitializationVector,
         )
     }
 
@@ -1002,7 +1004,7 @@ internal class Database(databaseDriverFactory: DatabaseDriverFactory) {
     }
 
     /**
-     * Updates the [SwapAndDispute.disputeAgent0InterfaceID] property of the [Swap] with the  specified [id] and
+     * Updates the [SwapAndDispute.disputeAgent0InterfaceID] property of the [Swap] with the specified [id] and
      * [chainID].
      * @param id The ID of the swap corresponding to the [SwapAndDispute] to be updated.
      * @param chainID The ID of the blockchain on which the swap and dispute corresponding to the [SwapAndDispute]
@@ -1018,6 +1020,29 @@ internal class Database(databaseDriverFactory: DatabaseDriverFactory) {
             id = id,
             chainID = chainID,
             disputeAgent0InterfaceID = disputeAgent0InterfaceID,
+        )
+    }
+
+    /**
+     * Updates the [SwapAndDispute.makerCommunicationKey] and [SwapAndDispute.mCKInitializationVector] properties of the
+     * [Swap] with the specified [id] and [chainID].
+     * @param id the ID of the swap corresponding to the [SwapAndDispute] to be updated.
+     * @param chainID The ID of the blockchain on which the swap and dispute corresponding to the [SwapAndDispute]
+     * exist.
+     * @param encryptedKey The new value of the [SwapAndDispute.makerCommunicationKey] property.
+     * @param initializationVector The new value of the [SwapAndDispute.mCKInitializationVector] property.
+     */
+    internal fun updateSwapAndDisputeMakerCommunicationKey(
+        id: String,
+        chainID: String,
+        encryptedKey: String,
+        initializationVector: String
+    ) {
+        dbQuery.updateSwapAndDisputeMakerCommunicationKeyByIDAndChainID(
+            id = id,
+            chainID = chainID,
+            makerCommunicationKey = encryptedKey,
+            mCKInitializationVector = initializationVector
         )
     }
 

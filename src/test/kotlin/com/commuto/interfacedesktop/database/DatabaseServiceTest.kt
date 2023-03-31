@@ -2744,6 +2744,8 @@ class DatabaseServiceTest {
             role = "a_role_here",
             disputeAgent0InterfaceID = "an_interface_id",
             state = "a_state_here",
+            makerCommunicationKey = null,
+            mCKInitializationVector = null,
         )
         databaseService.storeSwapAndDispute(swapAndDisputeToStore)
         val anotherSwapAndDisputeToStore = SwapAndDispute(
@@ -2796,12 +2798,14 @@ class DatabaseServiceTest {
             role = "a_role_here",
             disputeAgent0InterfaceID = "an_interface_id",
             state = "a_state_here",
+            makerCommunicationKey = null,
+            mCKInitializationVector = null,
         )
         // This should do nothing and not throw
         databaseService.storeSwapAndDispute(anotherSwapAndDisputeToStore)
         // This should not throw since only one such SwapAndDispute should exist in the database
-        val returnedSwap = databaseService.getSwapAndDispute("a_uuid")
-        assertEquals(swapAndDisputeToStore, returnedSwap)
+        val returnedSwapAndDispute = databaseService.getSwapAndDispute("a_uuid")
+        assertEquals(swapAndDisputeToStore, returnedSwapAndDispute)
     }
 
     /**
@@ -2860,6 +2864,8 @@ class DatabaseServiceTest {
             role = "a_role_here",
             disputeAgent0InterfaceID = null,
             state = "a_state_here",
+            makerCommunicationKey = null,
+            mCKInitializationVector = null,
         )
         databaseService.storeSwapAndDispute(swapAndDisputeToStore)
         databaseService.updateSwapAndDisputeAgent0InterfaceID(
@@ -2867,8 +2873,8 @@ class DatabaseServiceTest {
             chainID = "a_chain_id",
             interfaceID = "an_interface_id"
         )
-        val returnedSwap = databaseService.getSwapAndDispute("a_uuid")
-        assertEquals("an_interface_id", returnedSwap?.disputeAgent0InterfaceID)
+        val returnedSwapAndDispute = databaseService.getSwapAndDispute("a_uuid")
+        assertEquals("an_interface_id", returnedSwapAndDispute?.disputeAgent0InterfaceID)
     }
 
     /**
@@ -2926,6 +2932,8 @@ class DatabaseServiceTest {
             role = "a_role_here",
             disputeAgent0InterfaceID = "an_interface_id",
             state = "a_state_here",
+            makerCommunicationKey = null,
+            mCKInitializationVector = null,
         )
         databaseService.storeSwapAndDispute(swapAndDisputeToStore)
         databaseService.updateSwapAndDisputeState(
@@ -2933,8 +2941,75 @@ class DatabaseServiceTest {
             chainID = "a_chain_id",
             state = "a_new_state_here",
         )
-        val returnedSwap = databaseService.getSwapAndDispute("a_uuid")
-        assertEquals("a_new_state_here", returnedSwap?.state)
+        val returnedSwapAndDispute = databaseService.getSwapAndDispute("a_uuid")
+        assertEquals("a_new_state_here", returnedSwapAndDispute?.state)
+    }
+
+    @Test
+    fun testUpdateSwapAndDisputeMakerCommunicationKey() = runBlocking {
+        val swapAndDisputeToStore = SwapAndDispute(
+            id = "a_uuid",
+            isCreated = 1L,
+            requiresFill = 0L,
+            maker = "maker_address",
+            makerInterfaceID = "maker_interface_id",
+            taker = "taker_address",
+            takerInterfaceID = "taker_interface_id",
+            stablecoin = "stablecoin_address",
+            amountLowerBound = "lower_bound_amount",
+            amountUpperBound = "upper_bound_amount",
+            securityDepositAmount = "security_deposit_amount",
+            takenSwapAmount = "taken_swap_amount",
+            serviceFeeAmount = "service_fee_amount",
+            serviceFeeRate = "service_fee_rate",
+            onChainDirection = "direction",
+            settlementMethod = "settlement_method",
+            protocolVersion = "some_version",
+            isPaymentSent = 0L,
+            isPaymentReceived = 0L,
+            hasBuyerClosed = 0L,
+            hasSellerClosed = 0L,
+            disputeRaiser = "dispute_raiser",
+            chainID = "a_chain_id",
+            disputeRaisedBlockNumber = "a_block_number",
+            disputeAgent0 = "da0_address",
+            disputeAgent1 = "da1_address",
+            disputeAgent2 = "da2_address",
+            hasDisputeAgent0Proposed = 0L,
+            disputeAgent0MakerPayout = "an_amount_here",
+            disputeAgent0TakerPayout = "an_amount_here",
+            disputeAgent0ConfiscationPayout = "an_amount_here",
+            hasDisputeAgent1Proposed = 0L,
+            disputeAgent1MakerPayout = "an_amount_here",
+            disputeAgent1TakerPayout = "an_amount_here",
+            disputeAgent1ConfiscationPayout = "an_amount_here",
+            hasDisputeAgent2Proposed = 0L,
+            disputeAgent2MakerPayout = "an_amount_here",
+            disputeAgent2TakerPayout = "an_amount_here",
+            disputeAgent2ConfiscationPayout = "an_amount_here",
+            matchingProposals = 0L,
+            makerReaction = 0L,
+            takerReaction = 0L,
+            onChainState = 0L,
+            hasMakerPaidOut = 0L,
+            hasTakerPaidOut = 0L,
+            totalWithoutSpentServiceFees = "an_amount_here",
+            role = "a_role_here",
+            disputeAgent0InterfaceID = "an_interface_id",
+            state = "a_state_here",
+            makerCommunicationKey = null,
+            mCKInitializationVector = null,
+        )
+        databaseService.storeSwapAndDispute(swapAndDisputeToStore)
+        databaseService.updateSwapAndDisputeMakerCommunicationKey(
+            id = "a_uuid",
+            chainID = "a_chain_id",
+            key = "a_key_here",
+        )
+        val returnedSwapAndDispute = databaseService.getSwapAndDispute("a_uuid")
+        val returnedMakerCommunicationKey = databaseService
+            .decryptMakerCommunicationKeyFromSwapAndDispute(returnedSwapAndDispute!!)
+        assertEquals("a_key_here", returnedMakerCommunicationKey)
     }
 
     /**

@@ -181,7 +181,9 @@ hasTakerPaidOut INTEGER NOT NULL,
 totalWithoutSpentServiceFees TEXT NOT NULL,
 role TEXT NOT NULL,
 disputeAgent0InterfaceID TEXT,
-state TEXT NOT NULL
+state TEXT NOT NULL,
+makerCommunicationKey TEXT,
+mCKInitializationVector TEXT
 );
 
 createUserSettlementMethodTable:
@@ -399,7 +401,9 @@ INSERT INTO SwapAndDispute(
     totalWithoutSpentServiceFees,
     role,
     disputeAgent0InterfaceID,
-    state
+    state,
+    makerCommunicationKey,
+    mCKInitializationVector
 )
 VALUES(
 ?, ?, ?, ?, ?,
@@ -411,7 +415,8 @@ VALUES(
 ?, ?, ?, ?, ?,
 ?, ?, ?, ?, ?,
 ?, ?, ?, ?, ?,
-?, ?, ?, ?
+?, ?, ?, ?, ?,
+?
 );
 
 insertUserSettlementMethod:
@@ -630,6 +635,12 @@ WHERE id = ? AND chainID = ?;
 updateSwapAndDisputeStateByIDAndChainID:
 UPDATE SwapAndDispute
 SET state = ?
+WHERE id = ? AND chainID = ?;
+
+updateSwapAndDisputeMakerCommunicationKeyByIDAndChainID:
+UPDATE SwapAndDispute
+SET makerCommunicationKey = ?,
+mCKInitializationVector = ?
 WHERE id = ? AND chainID = ?;
 
 updateUserSettlementMethodByID:
