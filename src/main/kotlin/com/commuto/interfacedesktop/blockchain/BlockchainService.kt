@@ -113,6 +113,13 @@ class BlockchainService (private val exceptionHandler: BlockchainExceptionNotifi
         return creds.address
     }
 
+    /**
+     * Returns [creds]
+     */
+    fun getCredentials(): Credentials {
+        return creds
+    }
+
     private var lastParsedBlockNum: BigInteger = BigInteger.ZERO
 
     var newestBlockNum: BigInteger = BigInteger.ZERO
@@ -1513,16 +1520,21 @@ class BlockchainService (private val exceptionHandler: BlockchainExceptionNotifi
                 owner = it._owner,
                 spender = it._spender,
                 amount = it._value,
-                eventName = if (monitoredTransaction.type == BlockchainTransactionType
-                        .APPROVE_TOKEN_TRANSFER_TO_OPEN_OFFER) {
-                    "Approval_forOpeningOffer"
-                } else if (monitoredTransaction.type == BlockchainTransactionType
-                        .APPROVE_TOKEN_TRANSFER_TO_TAKE_OFFER) {
-                    "Approval_forTakingOffer"
-                } else if (monitoredTransaction.type == BlockchainTransactionType.APPROVE_TOKEN_TRANSFER_TO_FILL_SWAP) {
-                    "Approval_forFillingSwap"
-                } else {
-                    "unknown"
+                eventName = when (monitoredTransaction.type) {
+                    BlockchainTransactionType
+                        .APPROVE_TOKEN_TRANSFER_TO_OPEN_OFFER -> {
+                        "Approval_forOpeningOffer"
+                    }
+                    BlockchainTransactionType
+                        .APPROVE_TOKEN_TRANSFER_TO_TAKE_OFFER -> {
+                        "Approval_forTakingOffer"
+                    }
+                    BlockchainTransactionType.APPROVE_TOKEN_TRANSFER_TO_FILL_SWAP -> {
+                        "Approval_forFillingSwap"
+                    }
+                    else -> {
+                        "unknown"
+                    }
                 }
             )
         }
@@ -1574,33 +1586,38 @@ class BlockchainService (private val exceptionHandler: BlockchainExceptionNotifi
                     logger.info("handleEventResponse: handling CommutoApprovalEventResponse with eventName " +
                             eventResponse.eventName
                     )
-                    if (eventResponse.eventName == "Approval_forOpeningOffer") {
-                        offerService.handleTokenTransferApprovalEvent(
-                            ApprovalEvent.fromEventResponse(
-                                eventResponse,
-                                TokenTransferApprovalPurpose.OPEN_OFFER,
-                                chainID
+                    when (eventResponse.eventName) {
+                        "Approval_forOpeningOffer" -> {
+                            offerService.handleTokenTransferApprovalEvent(
+                                ApprovalEvent.fromEventResponse(
+                                    eventResponse,
+                                    TokenTransferApprovalPurpose.OPEN_OFFER,
+                                    chainID
+                                )
                             )
-                        )
-                    } else if (eventResponse.eventName == "Approval_forTakingOffer") {
-                        offerService.handleTokenTransferApprovalEvent(
-                            ApprovalEvent.fromEventResponse(
-                                eventResponse,
-                                TokenTransferApprovalPurpose.TAKE_OFFER,
-                                chainID
+                        }
+                        "Approval_forTakingOffer" -> {
+                            offerService.handleTokenTransferApprovalEvent(
+                                ApprovalEvent.fromEventResponse(
+                                    eventResponse,
+                                    TokenTransferApprovalPurpose.TAKE_OFFER,
+                                    chainID
+                                )
                             )
-                        )
-                    } else if (eventResponse.eventName == "Approval_forFillingSwap") {
-                        swapService.handleTokenTransferApprovalEvent(
-                            ApprovalEvent.fromEventResponse(
-                                eventResponse,
-                                TokenTransferApprovalPurpose.FILL_SWAP,
-                                chainID
+                        }
+                        "Approval_forFillingSwap" -> {
+                            swapService.handleTokenTransferApprovalEvent(
+                                ApprovalEvent.fromEventResponse(
+                                    eventResponse,
+                                    TokenTransferApprovalPurpose.FILL_SWAP,
+                                    chainID
+                                )
                             )
-                        )
-                    } else {
-                        logger.warn("handleEventResponses: got CommutoApprovalEventResponse with unrecognized " +
-                                "eventName ${eventResponse.eventName}")
+                        }
+                        else -> {
+                            logger.warn("handleEventResponses: got CommutoApprovalEventResponse with unrecognized " +
+                                    "eventName ${eventResponse.eventName}")
+                        }
                     }
                 }
                 is CommutoSwap.OfferOpenedEventResponse -> {

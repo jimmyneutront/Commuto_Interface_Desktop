@@ -6,7 +6,7 @@ package com.commuto.interfacedesktop.dispute
  * @property NONE Indicates that a dispute has not been raised for the corresponding swap.
  * @property SENT_PKA Indicates that a dispute has been raised for the corresponding swap, the user is the raiser of the
  * dispute, and the user's public key has been announced.
- * @property asString A [String] corresponding to a particular case of [DisputeService].
+ * @property asString A [String] corresponding to a particular case of [DisputeState].
  */
 enum class DisputeState {
     NONE,

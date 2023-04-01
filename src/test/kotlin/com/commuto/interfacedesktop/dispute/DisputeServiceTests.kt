@@ -28,6 +28,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.Serializable
 import net.folivo.trixnity.clientserverapi.client.MatrixClientServerApiClient
 import org.junit.Test
+import org.web3j.crypto.Credentials
 import org.web3j.protocol.http.HttpService
 import java.math.BigInteger
 import java.util.*
@@ -331,6 +332,120 @@ class DisputeServiceTests {
         val swapInDatabase = databaseService.getSwap(swapForDatabase.id)
         assertEquals(DisputeState.SENT_PKA.asString, swapInDatabase?.disputeState)
         assertEquals(RaisingDisputeState.COMPLETED.asString, swapInDatabase?.raisingDisputeState)
+    }
+
+    /**
+     * Ensures that [DisputeService] properly handles [DisputeRaisedEvent]s for disputes in which the user is the first
+     * dispute agent.
+     */
+    @Test
+    fun testHandleDisputeRaisedEventForUserIsFirstDisputeAgent(): Unit = runBlocking {
+        val swapID = UUID.randomUUID()
+
+        @Serializable
+        data class TestingServerResponse(val commutoSwapAddress: String, val stablecoinAddress: String)
+        val testingServiceUrl = "http://localhost:8546/test_disputeservice_handleDisputeRaisedEvent"
+        val testingServerClient = HttpClient(OkHttp) {
+            install(ContentNegotiation) {
+                json()
+            }
+            install(HttpTimeout) {
+                socketTimeoutMillis = 90_000
+                requestTimeoutMillis = 90_000
+            }
+        }
+        val testingServerResponse: TestingServerResponse = runBlocking {
+            testingServerClient.get(testingServiceUrl){
+                url {
+                    parameters.append("events", "offer-opened-taken-DisputeRaised")
+                    parameters.append("swapID", swapID.toString())
+                }
+            }.body()
+        }
+
+        val w3 = CommutoWeb3j(HttpService(System.getenv("BLOCKCHAIN_NODE")))
+
+        val databaseService = DatabaseService(DatabaseDriverFactory())
+        databaseService.createTables()
+        val keyManagerService = KeyManagerService(databaseService)
+
+        val disputeService = DisputeService(
+            databaseService = databaseService,
+            keyManagerService = keyManagerService
+        )
+        val disputeTruthSource = TestDisputeTruthSource()
+        disputeService.setDisputeTruthSource(disputeTruthSource)
+
+        val blockchainService = BlockchainService(
+            exceptionHandler = TestBlockchainExceptionHandler(),
+            offerService = TestOfferService(),
+            swapService = TestSwapService(),
+            disputeService = disputeService,
+            web3 = w3,
+            commutoSwapAddress = testingServerResponse.commutoSwapAddress
+        )
+        disputeService.setBlockchainService(newBlockchainService = blockchainService)
+
+        val mxClient = MatrixClientServerApiClient(
+            baseUrl = Url("https://matrix.org"),
+        ).apply { accessToken.value = "" }
+        class TestP2PService: P2PService(
+            exceptionHandler = TestP2PExceptionHandler(),
+            offerService = TestOfferMessageNotifiable(),
+            swapService = TestSwapMessageNotifiable(),
+            mxClient = mxClient,
+            keyManagerService = keyManagerService,
+        ) {
+
+            var disputeAgentKeyPair: KeyPair? = null
+            var swapID: UUID? = null
+            var disputeRole: DisputeRole? = null
+            var disputeAgentEthereumKeyPair: Credentials? = null
+
+            override suspend fun announcePublicKeyAsAgentForDispute(
+                keyPair: KeyPair,
+                swapId: UUID,
+                role: DisputeRole,
+                ethereumKeyPair: Credentials
+            ) {
+                disputeAgentKeyPair = keyPair
+                this.swapID = swapId
+                disputeRole = role
+                disputeAgentEthereumKeyPair = ethereumKeyPair
+            }
+        }
+        val p2pService = TestP2PService()
+        disputeService.setP2PService(p2pService)
+
+        val event = DisputeRaisedEvent(
+            swapID = swapID,
+            disputeAgent0 = blockchainService.getAddress(),
+            disputeAgent1 = "0x_dispute_agent_1",
+            disputeAgent2 = "0x_dispute_agent_2",
+            chainID = BigInteger.valueOf(31337),
+            transactionHash = "0xa_transaction_hash_here",
+        )
+
+        disputeService.handleDisputeRaisedEvent(event = event)
+
+        val swapAndDisputeInDatabase = databaseService.getSwapAndDispute(id = swapID.toString())
+        assertEquals(DisputeRole.DISPUTE_AGENT_0.asString, swapAndDisputeInDatabase?.role)
+        assertNotNull(swapAndDisputeInDatabase?.disputeAgent0InterfaceID)
+        assertNotNull(databaseService.decryptMakerCommunicationKeyFromSwapAndDispute(swapAndDisputeInDatabase!!))
+        assertNotNull(databaseService.decryptTakerCommunicationKeyFromSwapAndDispute(swapAndDisputeInDatabase))
+        assertNotNull(databaseService.decryptDisputeAgentCommunicationKeyFromSwapAndDispute(swapAndDisputeInDatabase))
+        assertEquals(DisputeStateAsAgent.CREATED_COMMUNICATION_KEYS.asString, swapAndDisputeInDatabase.state)
+
+        val swapAndDispute = disputeTruthSource.swapAndDisputes[swapID]
+        assertEquals(DisputeRole.DISPUTE_AGENT_0, swapAndDispute?.role)
+        assertNotNull(swapAndDispute?.disputeAgent0InterfaceID)
+        assertNotNull(swapAndDispute?.makerCommunicationKey)
+        assertNotNull(swapAndDispute?.takerCommunicationKey)
+        assertNotNull(swapAndDispute?.disputeAgentCommunicationKey)
+        assertEquals(DisputeStateAsAgent.CREATED_COMMUNICATION_KEYS, swapAndDispute?.state?.value)
+
+        assertNotNull(keyManagerService.getKeyPair(swapAndDispute?.disputeAgent0InterfaceID!!))
+
     }
 
     /**

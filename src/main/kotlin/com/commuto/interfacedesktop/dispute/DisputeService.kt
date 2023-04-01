@@ -9,6 +9,8 @@ import com.commuto.interfacedesktop.database.DatabaseService
 import com.commuto.interfacedesktop.dispute.validation.validateSwapForRaisingDispute
 import com.commuto.interfacedesktop.extension.asByteArray
 import com.commuto.interfacedesktop.key.KeyManagerService
+import com.commuto.interfacedesktop.key.keys.SymmetricKey
+import com.commuto.interfacedesktop.offer.OfferDirection
 import com.commuto.interfacedesktop.p2p.P2PService
 import com.commuto.interfacedesktop.swap.Swap
 import com.commuto.interfacedesktop.swap.SwapRole
@@ -31,6 +33,7 @@ import javax.inject.Singleton
  * @property databaseService The [DatabaseService] that this [DisputeService] uses for persistent storage.
  * @property keyManagerService The [KeyManagerService] that this [DisputeService] uses for managing keys.
  * @property swapTruthSource The [SwapTruthSource] containing all [Swap]s.
+ * @property disputeTruthSource The [DisputeTruthSource] containing all [SwapAndDispute]s.
  * @property blockchainService The [BlockchainService] that this uses to interact with the blockchain.
  * @property p2pService The [P2PService] that this uses for interacting with the peer-to-peer network.
  * @property logger The [org.slf4j.Logger] that this class uses for logging.
@@ -42,6 +45,8 @@ class DisputeService @Inject constructor(
 ): DisputeNotifiable {
 
     private lateinit var swapTruthSource: SwapTruthSource
+
+    private lateinit var disputeTruthSource: DisputeTruthSource
 
     private lateinit var blockchainService: BlockchainService
 
@@ -59,6 +64,18 @@ class DisputeService @Inject constructor(
             "swapTruthSource is already initialized"
         }
         swapTruthSource = newTruthSource
+    }
+
+    /**
+     * Used to set the [disputeTruthSource] property. This can only be called once.
+     *
+     * @param newTruthSource The new value of the [disputeTruthSource] property, which cannot be null.
+     */
+    fun setDisputeTruthSource(newTruthSource: DisputeTruthSource) {
+        check(!::disputeTruthSource.isInitialized) {
+            "disputeTruthSource is already initialized"
+        }
+        disputeTruthSource = newTruthSource
     }
 
     /**
@@ -310,96 +327,234 @@ class DisputeService @Inject constructor(
      * @param event The [DisputeRaisedEvent] of which [DisputeService] is being notified.
      */
     override suspend fun handleDisputeRaisedEvent(event: DisputeRaisedEvent) {
-        logger.info("handleDisputeRaisedEvent: handling event for ${event.swapID}")
-        val swap = swapTruthSource.swaps[event.swapID]
-        if (swap == null) {
-            logger.info("handleDisputeRaisedEvent: got event for ${event.swapID} not found in swapTruthSource")
-            return
-        }
-        if (swap.chainID != event.chainID) {
-            logger.warn("handleDisputeRaisedEvent: chain ID ${event.chainID} does not match chain ID of swap " +
-                    "${swap.id}: ${swap.chainID}")
-            return
-        }
-        logger.info("handleDisputeRaisedEvent: checking dispute role for ${swap.id}")
-        val encoder = Base64.getEncoder()
-        var mustUpdateDisputeRaisedTransaction = false
-        if (swap.raisingDisputeState.value != RaisingDisputeState.NONE) {
-            val raisingDisputeTransaction = swap.raisingDisputeTransaction
-            if (raisingDisputeTransaction != null) {
-                if (raisingDisputeTransaction.transactionHash == event.transactionHash) {
-                    logger.info("handleDisputeRaisedEvent: tx hash ${event.transactionHash} of event matches that " +
-                            "for swap ${swap.id}: ${raisingDisputeTransaction.transactionHash}")
+        logger.info("handleDisputeRaisedEvent: handling event for ${event.swapID} on ${event.chainID}")
+        if (event.disputeAgent0.lowercase() == blockchainService.getAddress().lowercase()) {
+            logger.info("handleDisputeRaisedEvent: user is first dispute agent for ${event.swapID} on ${event.chainID}")
+            val swapOnChain = blockchainService.getSwap(id = event.swapID)
+                ?: throw DisputeServiceException(message = "Could not find on-chain swap ${event.swapID} on ${event
+                    .chainID} for which user is first dispute agent")
+            val disputeOnChain = blockchainService.getDisputeAsync(id = event.swapID).await()
+            val swapAndDispute = SwapAndDispute(
+                isCreated = true,
+                requiresFill = swapOnChain.requiresFill,
+                id = event.swapID,
+                maker = swapOnChain.maker,
+                makerInterfaceID = swapOnChain.makerInterfaceID,
+                taker = swapOnChain.taker,
+                takerInterfaceID = swapOnChain.takerInterfaceID,
+                stablecoin = swapOnChain.stablecoin,
+                amountLowerBound = swapOnChain.amountLowerBound,
+                amountUpperBound = swapOnChain.amountUpperBound,
+                securityDepositAmount = swapOnChain.securityDepositAmount,
+                takenSwapAmount = swapOnChain.takenSwapAmount,
+                serviceFeeAmount = swapOnChain.serviceFeeAmount,
+                serviceFeeRate = swapOnChain.serviceFeeRate,
+                direction = when (swapOnChain.direction) {
+                    BigInteger.ZERO -> OfferDirection.BUY
+                    BigInteger.ONE -> OfferDirection.SELL
+                    else -> throw DisputeServiceException("Swap ${event.swapID} has invalid direction: ${swapOnChain
+                        .direction}")
+                },
+                onChainSettlementMethod = swapOnChain.settlementMethod,
+                protocolVersion = swapOnChain.protocolVersion,
+                isPaymentSent = swapOnChain.isPaymentSent,
+                isPaymentReceived = swapOnChain.isPaymentReceived,
+                hasBuyerClosed = swapOnChain.hasBuyerClosed,
+                hasSellerClosed = swapOnChain.hasSellerClosed,
+                onChainDisputeRaiser = swapOnChain.disputeRaiser,
+                chainID = swapOnChain.chainID,
+                disputeRaisedBlockNumber = disputeOnChain.disputeRaisedBlockNum,
+                disputeAgent0 = disputeOnChain.disputeAgent0,
+                disputeAgent1 = disputeOnChain.disputeAgent1,
+                disputeAgent2 = disputeOnChain.disputeAgent2,
+                hasDisputeAgent0Proposed = disputeOnChain.hasDA0Proposed,
+                disputeAgent0MakerPayout = disputeOnChain.dA0MakerPayout,
+                disputeAgent0TakerPayout = disputeOnChain.dA0TakerPayout,
+                disputeAgent0ConfiscationPayout = disputeOnChain.dA0ConfiscationPayout,
+                hasDisputeAgent1Proposed = disputeOnChain.hasDA1Proposed,
+                disputeAgent1MakerPayout = disputeOnChain.dA1MakerPayout,
+                disputeAgent1TakerPayout = disputeOnChain.dA1TakerPayout,
+                disputeAgent1ConfiscationPayout = disputeOnChain.dA1ConfiscationPayout,
+                hasDisputeAgent2Proposed = disputeOnChain.hasDA2Proposed,
+                disputeAgent2MakerPayout = disputeOnChain.dA2MakerPayout,
+                disputeAgent2TakerPayout = disputeOnChain.dA2TakerPayout,
+                disputeAgent2ConfiscationPayout = disputeOnChain.dA2ConfiscationPayout,
+                onChainMatchingProposals = disputeOnChain.matchingProposals,
+                makerReaction = disputeOnChain.makerReaction,
+                takerReaction = disputeOnChain.takerReaction,
+                onChainState = disputeOnChain.state,
+                hasMakerPaidOut = disputeOnChain.hasMakerPaidOut,
+                hasTakerPaidOut = disputeOnChain.hasTakerPaidOut,
+                totalWithoutSpentServiceFees = disputeOnChain.totalWithoutSpentServiceFees,
+                role = DisputeRole.DISPUTE_AGENT_0,
+            )
+            logger.info("handleDisputeRaisedEvent: persistently storing ${event.swapID} on ${event.chainID} for " +
+                    "which user is first dispute agent")
+            databaseService.storeSwapAndDispute(
+                swapAndDispute = swapAndDispute.toDatabaseSwapAndDispute()
+            )
+            logger.info("handleDisputeRaisedEvent: generating key pair for user/first dispute agent for ${event
+                .swapID} on ${event.chainID}")
+            val keyPair = keyManagerService.generateKeyPair(storeResult = true)
+            val encoder = Base64.getEncoder()
+            logger.info("handleDisputeRaisedEvent: generated key pair with interface id ${encoder.encodeToString(keyPair
+                .interfaceId)} for user/first dispute agent for ${event.swapID} on ${event.chainID}, associating " +
+                    "with swapAndDispute")
+            swapAndDispute.disputeAgent0InterfaceID = keyPair.interfaceId
+            databaseService.updateSwapAndDisputeAgent0InterfaceID(
+                id = swapAndDispute.id.toString(),
+                chainID = swapAndDispute.chainID.toString(),
+                interfaceID = encoder.encodeToString(swapAndDispute.disputeAgent0InterfaceID)
+            )
+            logger.info("handleDisputeRaisedEvent: announcing key ${encoder.encodeToString(keyPair.interfaceId)} for " +
+                    "user/first dispute agent for ${event.swapID} on ${event.chainID}")
+            p2pService.announcePublicKeyAsAgentForDispute(
+                keyPair = keyPair,
+                swapId = swapAndDispute.id,
+                role = swapAndDispute.role,
+                ethereumKeyPair = blockchainService.getCredentials(),
+            )
+            logger.info("handleDisputeRaisedEvent: updating state of ${event.swapID} on ${event.chainID} to " +
+                    DisputeStateAsAgent.SENT_DISPUTE_AGENT_0_PKA.asString
+            )
+            databaseService.updateSwapAndDisputeState(
+                id = swapAndDispute.id.toString(),
+                chainID = swapAndDispute.chainID.toString(),
+                state = DisputeStateAsAgent.SENT_DISPUTE_AGENT_0_PKA.asString
+            )
+            withContext(Dispatchers.Main) {
+                swapAndDispute.state.value = DisputeStateAsAgent.SENT_DISPUTE_AGENT_0_PKA
+            }
+            logger.info("handleDisputeRaisedEvent: creating and storing symmetric keys for ${event.swapID} on ${event
+                .chainID}")
+            val makerCommunicationKey = SymmetricKey()
+            val takerCommunicationKey = SymmetricKey()
+            val disputeAgentCommunicationKey = SymmetricKey()
+            databaseService.updateSwapAndDisputeMakerCommunicationKey(
+                id = swapAndDispute.id.toString(),
+                chainID = swapAndDispute.chainID.toString(),
+                key = encoder.encodeToString(makerCommunicationKey.keyBytes),
+            )
+            databaseService.updateSwapAndDisputeTakerCommunicationKey(
+                id = swapAndDispute.id.toString(),
+                chainID = swapAndDispute.chainID.toString(),
+                key = encoder.encodeToString(takerCommunicationKey.keyBytes),
+            )
+            databaseService.updateSwapAndDisputeAgentCommunicationKey(
+                id = swapAndDispute.id.toString(),
+                chainID = swapAndDispute.chainID.toString(),
+                key = encoder.encodeToString(disputeAgentCommunicationKey.keyBytes),
+            )
+            swapAndDispute.makerCommunicationKey = makerCommunicationKey
+            swapAndDispute.takerCommunicationKey = makerCommunicationKey
+            swapAndDispute.disputeAgentCommunicationKey = disputeAgentCommunicationKey
+            logger.info("handleDisputeRaisedEvent: updating state of ${event.swapID} on ${event.chainID} to " +
+                    DisputeStateAsAgent.CREATED_COMMUNICATION_KEYS.asString
+            )
+            databaseService.updateSwapAndDisputeState(
+                id = swapAndDispute.id.toString(),
+                chainID = swapAndDispute.chainID.toString(),
+                state = DisputeStateAsAgent.CREATED_COMMUNICATION_KEYS.asString
+            )
+            withContext(Dispatchers.Main) {
+                swapAndDispute.state.value = DisputeStateAsAgent.CREATED_COMMUNICATION_KEYS
+            }
+            logger.info("handleDisputeRaisedEvent: storing ${event.swapID} on ${event.chainID} in disputeTruthSource")
+            withContext(Dispatchers.Main) {
+                disputeTruthSource.addSwapAndDispute(swapAndDispute)
+            }
+            logger.info("handleDisputeRaisedEvent: successfully handled ${event.swapID} on ${event.chainID}")
+        } else {
+            val swap = swapTruthSource.swaps[event.swapID]
+            if (swap == null) {
+                logger.info("handleDisputeRaisedEvent: got event for ${event.swapID} not found in swapTruthSource")
+                return
+            }
+            if (swap.chainID != event.chainID) {
+                logger.warn("handleDisputeRaisedEvent: chain ID ${event.chainID} does not match chain ID of swap " +
+                        "${swap.id}: ${swap.chainID}")
+                return
+            }
+            logger.info("handleDisputeRaisedEvent: checking dispute role for ${swap.id}")
+            val encoder = Base64.getEncoder()
+            var mustUpdateDisputeRaisedTransaction = false
+            if (swap.raisingDisputeState.value != RaisingDisputeState.NONE) {
+                val raisingDisputeTransaction = swap.raisingDisputeTransaction
+                if (raisingDisputeTransaction != null) {
+                    if (raisingDisputeTransaction.transactionHash == event.transactionHash) {
+                        logger.info("handleDisputeRaisedEvent: tx hash ${event.transactionHash} of event matches " +
+                                "that for swap ${swap.id}: ${raisingDisputeTransaction.transactionHash}")
+                    } else {
+                        logger.warn("handleDisputeRaisedEvent: tx hash ${event.transactionHash} of event does not " +
+                                "match that for swap ${swap.id}: ${raisingDisputeTransaction.transactionHash}, must " +
+                                "update with new transaction hash")
+                        mustUpdateDisputeRaisedTransaction = true
+                    }
                 } else {
-                    logger.warn("handleDisputeRaisedEvent: tx hash ${event.transactionHash} of event does not match " +
-                            "that for swap ${swap.id}: ${raisingDisputeTransaction.transactionHash}, must update " +
-                            "with new transaction hash")
-                    mustUpdateDisputeRaisedTransaction = true
+                    logger.warn("handleDisputeRaisedEvent: swap ${swap.id} for which user is dispute raiser has no " +
+                            "dispute raising transaction, must update with transaction hash ${event.transactionHash}")
+                }
+                logger.info("handleDisputeRaisedEvent: user is dispute raiser for ${swap.id}, retrieving key pair")
+                val interfaceID = when (swap.role) {
+                    SwapRole.MAKER_AND_BUYER, SwapRole.MAKER_AND_SELLER -> swap.makerInterfaceID
+                    SwapRole.TAKER_AND_BUYER, SwapRole.TAKER_AND_SELLER -> swap.takerInterfaceID
+                }
+                val keyPair = keyManagerService.getKeyPair(interfaceID) ?: throw DisputeServiceException("Could not " +
+                        "find user's public key for ${swap.id}")
+                logger.info("handleDisputeRaisedEvent: announcing public key for ${swap.id}")
+                p2pService.announcePublicKeyAsUserForDispute(
+                    keyPair = keyPair
+                )
+                logger.info("handleDisputeRaisedEvent: updating dispute state of ${swap.id} to " +
+                        "${DisputeState.SENT_PKA.asString} in persistent storage")
+                databaseService.updateSwapDisputeState(
+                    swapID = encoder.encodeToString(swap.id.asByteArray()),
+                    chainID = swap.chainID.toString(),
+                    state = DisputeState.SENT_PKA.asString
+                )
+                logger.info("handleDisputeRaisedEvent: updating dispute state of ${swap.id} to ${DisputeState.SENT_PKA
+                    .asString}")
+                withContext(Dispatchers.Main) {
+                    swap.disputeState.value = DisputeState.SENT_PKA
+                }
+                logger.info("handleDisputeRaisedEvent: user is dispute raiser for ${swap.id} so persistently " +
+                        "updating raisingDisputeState to ${RaisingDisputeState.COMPLETED.asString}")
+                databaseService.updateRaisingDisputeState(
+                    swapID = encoder.encodeToString(swap.id.asByteArray()),
+                    chainID = swap.chainID.toString(),
+                    state = RaisingDisputeState.COMPLETED.asString,
+                )
+                logger.info("handleDisputeRaisedEvent: updating raisingDisputeState to ${RaisingDisputeState.COMPLETED
+                    .asString}")
+                withContext(Dispatchers.Main) {
+                    swap.raisingDisputeState.value = RaisingDisputeState.COMPLETED
                 }
             } else {
-                logger.warn("handleDisputeRaisedEvent: swap ${swap.id} for which user is dispute raiser has no " +
-                        "dispute raising transaction, must update with transaction hash ${event.transactionHash}")
+                logger.info("handleDisputeRaisedEvent: user is not dispute raiser for ${swap.id}, updating with " +
+                        "transaction hash ${event.transactionHash}")
+                mustUpdateDisputeRaisedTransaction = true
             }
-            logger.info("handleDisputeRaisedEvent: user is dispute raiser for ${swap.id}, retrieving key pair")
-            val interfaceID = when (swap.role) {
-                SwapRole.MAKER_AND_BUYER, SwapRole.MAKER_AND_SELLER -> swap.makerInterfaceID
-                SwapRole.TAKER_AND_BUYER, SwapRole.TAKER_AND_SELLER -> swap.takerInterfaceID
+            if (mustUpdateDisputeRaisedTransaction) {
+                val raisingDisputeTransaction = BlockchainTransaction(
+                    transactionHash = event.transactionHash,
+                    timeOfCreation = Date(),
+                    latestBlockNumberAtCreation = BigInteger.ZERO,
+                    type = BlockchainTransactionType.RAISE_DISPUTE,
+                )
+                withContext(Dispatchers.Main) {
+                    swap.raisingDisputeTransaction = raisingDisputeTransaction
+                }
+                logger.warn("handleDisputeRaisedEvent: persistently storing tx data, including hash ${event
+                    .transactionHash} for ${event.swapID}")
+                val dateString = DateFormatter.createDateString(raisingDisputeTransaction.timeOfCreation)
+                databaseService.updateRaisingDisputeData(
+                    swapID = encoder.encodeToString(swap.id.asByteArray()),
+                    chainID = event.chainID.toString(),
+                    transactionHash = raisingDisputeTransaction.transactionHash,
+                    creationTime = dateString,
+                    blockNumber = raisingDisputeTransaction.latestBlockNumberAtCreation.toLong()
+                )
             }
-            val keyPair = keyManagerService.getKeyPair(interfaceID) ?: throw DisputeServiceException("Could not find " +
-                    "user's public key for ${swap.id}")
-            logger.info("handleDisputeRaisedEvent: announcing public key for ${swap.id}")
-            p2pService.announcePublicKeyAsUserForDispute(
-                keyPair = keyPair
-            )
-            logger.info("handleDisputeRaisedEvent: updating dispute state of ${swap.id} to " +
-                    "${DisputeState.SENT_PKA.asString} in persistent storage")
-            databaseService.updateSwapDisputeState(
-                swapID = encoder.encodeToString(swap.id.asByteArray()),
-                chainID = swap.chainID.toString(),
-                state = DisputeState.SENT_PKA.asString
-            )
-            logger.info("handleDisputeRaisedEvent: updating dispute state of ${swap.id} to ${DisputeState.SENT_PKA
-                .asString}")
-            withContext(Dispatchers.Main) {
-                swap.disputeState.value = DisputeState.SENT_PKA
-            }
-            logger.info("handleDisputeRaisedEvent: user is dispute raiser for ${swap.id} so persistently updating " +
-                    "raisingDisputeState to ${RaisingDisputeState.COMPLETED.asString}")
-            databaseService.updateRaisingDisputeState(
-                swapID = encoder.encodeToString(swap.id.asByteArray()),
-                chainID = swap.chainID.toString(),
-                state = RaisingDisputeState.COMPLETED.asString,
-            )
-            logger.info("handleDisputeRaisedEvent: updating raisingDisputeState to ${RaisingDisputeState.COMPLETED
-                .asString}")
-            withContext(Dispatchers.Main) {
-                swap.raisingDisputeState.value = RaisingDisputeState.COMPLETED
-            }
-        } else {
-            logger.info("handleDisputeRaisedEvent: user is not dispute raiser for ${swap.id}, updating with " +
-                    "transaction hash ${event.transactionHash}")
-            mustUpdateDisputeRaisedTransaction = true
-        }
-        if (mustUpdateDisputeRaisedTransaction) {
-            val raisingDisputeTransaction = BlockchainTransaction(
-                transactionHash = event.transactionHash,
-                timeOfCreation = Date(),
-                latestBlockNumberAtCreation = BigInteger.ZERO,
-                type = BlockchainTransactionType.RAISE_DISPUTE,
-            )
-            withContext(Dispatchers.Main) {
-                swap.raisingDisputeTransaction = raisingDisputeTransaction
-            }
-            logger.warn("handleDisputeRaisedEvent: persistently storing tx data, including hash ${event
-                .transactionHash} for ${event.swapID}")
-            val dateString = DateFormatter.createDateString(raisingDisputeTransaction.timeOfCreation)
-            databaseService.updateRaisingDisputeData(
-                swapID = encoder.encodeToString(swap.id.asByteArray()),
-                chainID = event.chainID.toString(),
-                transactionHash = raisingDisputeTransaction.transactionHash,
-                creationTime = dateString,
-                blockNumber = raisingDisputeTransaction.latestBlockNumberAtCreation.toLong()
-            )
         }
     }
 

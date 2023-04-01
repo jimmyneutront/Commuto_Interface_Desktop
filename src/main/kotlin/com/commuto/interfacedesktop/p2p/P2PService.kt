@@ -3,14 +3,12 @@
 
 package com.commuto.interfacedesktop.p2p
 
+import com.commuto.interfacedesktop.dispute.DisputeRole
 import com.commuto.interfacedesktop.key.KeyManagerService
 import com.commuto.interfacedesktop.key.keys.KeyPair
 import com.commuto.interfacedesktop.key.keys.PublicKey
 import com.commuto.interfacedesktop.offer.OfferService
-import com.commuto.interfacedesktop.p2p.create.createMakerInformationMessage
-import com.commuto.interfacedesktop.p2p.create.createPublicKeyAnnouncement
-import com.commuto.interfacedesktop.p2p.create.createPublicKeyAnnouncementAsUserForDispute
-import com.commuto.interfacedesktop.p2p.create.createTakerInformationMessage
+import com.commuto.interfacedesktop.p2p.create.*
 import com.commuto.interfacedesktop.p2p.parse.parseMakerInformationMessage
 import com.commuto.interfacedesktop.p2p.parse.parsePublicKeyAnnouncement
 import com.commuto.interfacedesktop.p2p.parse.parseTakerInformationMessage
@@ -33,6 +31,7 @@ import net.folivo.trixnity.core.model.RoomId
 import net.folivo.trixnity.core.model.events.Event
 import net.folivo.trixnity.core.model.events.m.room.RoomMessageEventContent
 import org.slf4j.LoggerFactory
+import org.web3j.crypto.Credentials
 import java.net.ConnectException
 import java.util.*
 import javax.inject.Inject
@@ -408,6 +407,33 @@ open class P2PService constructor(
             keyPair = keyPair
         )
         logger.info("announcePublicKeyAsUserForDispute: sending for ${encoder.encodeToString(keyPair.interfaceId)}")
+        sendMessage(messageString)
+    }
+
+    /**
+     * Creates a Public Key Announcement as an agent for a dispute using the given key pair and sends it using the
+     * [sendMessage] function.
+     *
+     * @param keyPair The key pair containing the public key to be announced.
+     * @param swapId The ID of the disputed swap for which the user is announcing a public key.
+     * @param role The role of the user within the dispute.
+     * @param ethereumKeyPair The Ethereum key pair of the user, with which the message will be signed.
+     */
+    open suspend fun announcePublicKeyAsAgentForDispute(
+        keyPair: KeyPair,
+        swapId: UUID,
+        role: DisputeRole,
+        ethereumKeyPair: Credentials,
+    ) {
+        val encoder = Base64.getEncoder()
+        logger.info("announcePublicKeyAsAgentForDispute: creating for ${encoder.encodeToString(keyPair.interfaceId)}")
+        val messageString = createPublicKeyAnnouncementAsAgentForDispute(
+            keyPair = keyPair,
+            swapId = swapId.toString(),
+            disputeRole = role,
+            ethereumKeyPair = ethereumKeyPair,
+        )
+        logger.info("announcePublicKeyAsAgentForDispute: sending for ${encoder.encodeToString(keyPair.interfaceId)}")
         sendMessage(messageString)
     }
 
