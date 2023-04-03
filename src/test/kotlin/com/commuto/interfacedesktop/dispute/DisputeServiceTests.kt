@@ -178,6 +178,32 @@ class DisputeServiceTests {
      */
     @Test
     fun testHandleDisputeRaisedEventForUserIsDisputeRaiser() = runBlocking {
+        val swapID = UUID.randomUUID()
+
+        @Serializable
+        data class TestingServerResponse(val commutoSwapAddress: String, val stablecoinAddress: String)
+        val testingServiceUrl = "http://localhost:8546/test_disputeservice_handleDisputeRaisedEvent"
+        val testingServerClient = HttpClient(OkHttp) {
+            install(ContentNegotiation) {
+                json()
+            }
+            install(HttpTimeout) {
+                socketTimeoutMillis = 90_000
+                requestTimeoutMillis = 90_000
+            }
+        }
+        val testingServerResponse: TestingServerResponse = runBlocking {
+            testingServerClient.get(testingServiceUrl){
+                url {
+                    parameters.append("events", "offer-opened-taken-DisputeRaised")
+                    parameters.append("swapID", swapID.toString())
+                    parameters.append("isUserCounterparty", "False")
+                }
+            }.body()
+        }
+
+        val w3 = CommutoWeb3j(HttpService(System.getenv("BLOCKCHAIN_NODE")))
+
         val databaseService = DatabaseService(DatabaseDriverFactory())
         databaseService.createTables()
         val keyManagerService = KeyManagerService(databaseService)
@@ -189,7 +215,15 @@ class DisputeServiceTests {
         val swapTruthSource = TestSwapTruthSource()
         disputeService.setSwapTruthSource(swapTruthSource)
 
-        val swapID = UUID.randomUUID()
+        val blockchainService = BlockchainService(
+            exceptionHandler = TestBlockchainExceptionHandler(),
+            offerService = TestOfferService(),
+            swapService = TestSwapService(),
+            disputeService = disputeService,
+            web3 = w3,
+            commutoSwapAddress = testingServerResponse.commutoSwapAddress
+        )
+        disputeService.setBlockchainService(newBlockchainService = blockchainService)
 
         val userKeyPair = keyManagerService.generateKeyPair()
 
@@ -335,6 +369,192 @@ class DisputeServiceTests {
     }
 
     /**
+     * Ensures that [DisputeService] properly handles [DisputeRaisedEvent]s for disputes raised by the user's
+     * counterparty.
+     */
+    @Test
+    fun testHandleDisputeRaisedEventForUserIsDisputeRaisingCounterparty() = runBlocking {
+        val swapID = UUID.randomUUID()
+
+        @Serializable
+        data class TestingServerResponse(val commutoSwapAddress: String, val stablecoinAddress: String)
+        val testingServiceUrl = "http://localhost:8546/test_disputeservice_handleDisputeRaisedEvent"
+        val testingServerClient = HttpClient(OkHttp) {
+            install(ContentNegotiation) {
+                json()
+            }
+            install(HttpTimeout) {
+                socketTimeoutMillis = 90_000
+                requestTimeoutMillis = 90_000
+            }
+        }
+        val testingServerResponse: TestingServerResponse = runBlocking {
+            testingServerClient.get(testingServiceUrl){
+                url {
+                    parameters.append("events", "offer-opened-taken-DisputeRaised")
+                    parameters.append("swapID", swapID.toString())
+                    parameters.append("isUserCounterparty", "True")
+                }
+            }.body()
+        }
+
+        val w3 = CommutoWeb3j(HttpService(System.getenv("BLOCKCHAIN_NODE")))
+
+        val databaseService = DatabaseService(DatabaseDriverFactory())
+        databaseService.createTables()
+        val keyManagerService = KeyManagerService(databaseService)
+
+        val disputeService = DisputeService(
+            databaseService = databaseService,
+            keyManagerService = keyManagerService
+        )
+        val swapTruthSource = TestSwapTruthSource()
+        disputeService.setSwapTruthSource(swapTruthSource)
+
+        val blockchainService = BlockchainService(
+            exceptionHandler = TestBlockchainExceptionHandler(),
+            offerService = TestOfferService(),
+            swapService = TestSwapService(),
+            disputeService = disputeService,
+            web3 = w3,
+            commutoSwapAddress = testingServerResponse.commutoSwapAddress
+        )
+        disputeService.setBlockchainService(newBlockchainService = blockchainService)
+
+        val userKeyPair = keyManagerService.generateKeyPair()
+
+        val swap = Swap(
+            isCreated = true,
+            requiresFill = false,
+            id = swapID,
+            maker = "",
+            makerInterfaceID = ByteArray(0),
+            taker = "",
+            takerInterfaceID = userKeyPair.interfaceId,
+            stablecoin = "",
+            amountLowerBound = BigInteger.ZERO,
+            amountUpperBound = BigInteger.ZERO,
+            securityDepositAmount = BigInteger.ZERO,
+            takenSwapAmount = BigInteger.ZERO,
+            serviceFeeAmount = BigInteger.ZERO,
+            serviceFeeRate = BigInteger.ZERO,
+            direction = OfferDirection.BUY,
+            onChainSettlementMethod =
+            """
+                 {
+                     "f": "USD",
+                     "p": "1.00",
+                     "m": "SWIFT"
+                 }
+                 """.trimIndent().encodeToByteArray(),
+            protocolVersion = BigInteger.ZERO,
+            isPaymentSent = false,
+            isPaymentReceived = false,
+            hasBuyerClosed = false,
+            hasSellerClosed = false,
+            onChainDisputeRaiser = BigInteger.ZERO,
+            chainID = BigInteger.valueOf(31337L),
+            state = SwapState.AWAITING_PAYMENT_SENT,
+            role = SwapRole.TAKER_AND_SELLER,
+        )
+        swapTruthSource.swaps[swapID] = swap
+        val encoder = Base64.getEncoder()
+        val swapForDatabase = DatabaseSwap(
+            id = encoder.encodeToString(swapID.asByteArray()),
+            isCreated = 1L,
+            requiresFill = 0L,
+            maker = swap.maker,
+            makerInterfaceID = encoder.encodeToString(swap.makerInterfaceID),
+            taker = swap.taker,
+            takerInterfaceID = encoder.encodeToString(swap.takerInterfaceID),
+            stablecoin = swap.stablecoin,
+            amountLowerBound = swap.amountLowerBound.toString(),
+            amountUpperBound = swap.amountUpperBound.toString(),
+            securityDepositAmount = swap.securityDepositAmount.toString(),
+            takenSwapAmount = swap.takenSwapAmount.toString(),
+            serviceFeeAmount = swap.serviceFeeAmount.toString(),
+            serviceFeeRate = swap.serviceFeeRate.toString(),
+            onChainDirection = swap.onChainDirection.toString(),
+            settlementMethod = encoder.encodeToString(swap.onChainSettlementMethod),
+            makerPrivateData = null,
+            makerPrivateDataInitializationVector = null,
+            takerPrivateData = null,
+            takerPrivateDataInitializationVector = null,
+            protocolVersion = swap.protocolVersion.toString(),
+            isPaymentSent = 0L,
+            isPaymentReceived = 0L,
+            hasBuyerClosed = 0L,
+            hasSellerClosed = 0L,
+            disputeRaiser = swap.onChainDisputeRaiser.toString(),
+            chainID = swap.chainID.toString(),
+            state = swap.state.value.asString,
+            role = swap.role.asString,
+            approveToFillState = swap.approvingToFillState.value.asString,
+            approveToFillTransactionHash = null,
+            approveToFillTransactionCreationTime = null,
+            approveToFillTransactionCreationBlockNumber = null,
+            fillingSwapState = swap.fillingSwapState.value.asString,
+            fillingSwapTransactionHash = null,
+            fillingSwapTransactionCreationTime = null,
+            fillingSwapTransactionCreationBlockNumber = null,
+            reportPaymentSentState = swap.reportingPaymentSentState.value.asString,
+            reportPaymentSentTransactionHash = null,
+            reportPaymentSentTransactionCreationTime =  null,
+            reportPaymentSentTransactionCreationBlockNumber = null,
+            reportPaymentReceivedState = swap.reportingPaymentReceivedState.value.asString,
+            reportPaymentReceivedTransactionHash = null,
+            reportPaymentReceivedTransactionCreationTime =  null,
+            reportPaymentReceivedTransactionCreationBlockNumber = null,
+            closeSwapState = swap.closingSwapState.value.asString,
+            closeSwapTransactionHash = null,
+            closeSwapTransactionCreationTime = null,
+            closeSwapTransactionCreationBlockNumber = null,
+            disputeState = swap.disputeState.value.asString,
+            raisingDisputeState = swap.raisingDisputeState.value.asString,
+            raisingDisputeTransactionHash = null,
+            raisingDisputeTransactionCreationTime = null,
+            raisingDisputeTransactionCreationBlockNumber = null,
+        )
+        databaseService.storeSwap(swapForDatabase)
+
+        val mxClient = MatrixClientServerApiClient(
+            baseUrl = Url("https://matrix.org"),
+        ).apply { accessToken.value = "" }
+        class TestP2PService: P2PService(
+            exceptionHandler = TestP2PExceptionHandler(),
+            offerService = TestOfferMessageNotifiable(),
+            swapService = TestSwapMessageNotifiable(),
+            mxClient = mxClient,
+            keyManagerService = keyManagerService,
+        ) {
+            var userKeyPair: KeyPair? = null
+            override suspend fun announcePublicKeyAsUserForDispute(
+                keyPair: KeyPair
+            ) {
+                this.userKeyPair = keyPair
+            }
+        }
+        val p2pService = TestP2PService()
+        disputeService.setP2PService(p2pService)
+
+        val event = DisputeRaisedEvent(
+            swapID = swapID,
+            disputeAgent0 = "0x_dispute_agent_0",
+            disputeAgent1 = "0x_dispute_agent_1",
+            disputeAgent2 = "0x_dispute_agent_2",
+            chainID = BigInteger.valueOf(31337),
+            transactionHash = "0xa_transaction_hash_here",
+        )
+
+        disputeService.handleDisputeRaisedEvent(event = event)
+        assert(swap.takerInterfaceID.contentEquals(p2pService.userKeyPair?.interfaceId))
+        assertEquals(DisputeState.SENT_PKA, swap.disputeState.value)
+        val swapInDatabase = databaseService.getSwap(swapForDatabase.id)
+        assertEquals(DisputeState.SENT_PKA.asString, swapInDatabase?.disputeState)
+
+    }
+
+    /**
      * Ensures that [DisputeService] properly handles [DisputeRaisedEvent]s for disputes in which the user is the first
      * dispute agent.
      */
@@ -359,6 +579,7 @@ class DisputeServiceTests {
                 url {
                     parameters.append("events", "offer-opened-taken-DisputeRaised")
                     parameters.append("swapID", swapID.toString())
+                    parameters.append("isUserCounterparty", "False")
                 }
             }.body()
         }

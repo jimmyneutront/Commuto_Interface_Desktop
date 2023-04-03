@@ -328,11 +328,11 @@ class DisputeService @Inject constructor(
      */
     override suspend fun handleDisputeRaisedEvent(event: DisputeRaisedEvent) {
         logger.info("handleDisputeRaisedEvent: handling event for ${event.swapID} on ${event.chainID}")
+        val swapOnChain = blockchainService.getSwap(id = event.swapID)
+            ?: throw DisputeServiceException(message = "Could not find on-chain swap ${event.swapID} on ${event
+                .chainID}")
         if (event.disputeAgent0.lowercase() == blockchainService.getAddress().lowercase()) {
             logger.info("handleDisputeRaisedEvent: user is first dispute agent for ${event.swapID} on ${event.chainID}")
-            val swapOnChain = blockchainService.getSwap(id = event.swapID)
-                ?: throw DisputeServiceException(message = "Could not find on-chain swap ${event.swapID} on ${event
-                    .chainID} for which user is first dispute agent")
             val disputeOnChain = blockchainService.getDisputeAsync(id = event.swapID).await()
             val swapAndDispute = SwapAndDispute(
                 isCreated = true,
@@ -475,10 +475,38 @@ class DisputeService @Inject constructor(
                         "${swap.id}: ${swap.chainID}")
                 return
             }
-            logger.info("handleDisputeRaisedEvent: checking dispute role for ${swap.id}")
             val encoder = Base64.getEncoder()
+            logger.info("handleDisputeRaisedEvent: user is swapper for ${swap.id}, retrieving key pair")
+            val interfaceID = when (swap.role) {
+                SwapRole.MAKER_AND_BUYER, SwapRole.MAKER_AND_SELLER -> swap.makerInterfaceID
+                SwapRole.TAKER_AND_BUYER, SwapRole.TAKER_AND_SELLER -> swap.takerInterfaceID
+            }
+            val keyPair = keyManagerService.getKeyPair(interfaceID) ?: throw DisputeServiceException("Could not " +
+                    "find user's public key for ${swap.id}")
+            logger.info("handleDisputeRaisedEvent: announcing public key for ${swap.id}")
+            p2pService.announcePublicKeyAsUserForDispute(
+                keyPair = keyPair
+            )
+            logger.info("handleDisputeRaisedEvent: updating dispute state of ${swap.id} to " +
+                    "${DisputeState.SENT_PKA.asString} in persistent storage")
+            databaseService.updateSwapDisputeState(
+                swapID = encoder.encodeToString(swap.id.asByteArray()),
+                chainID = swap.chainID.toString(),
+                state = DisputeState.SENT_PKA.asString
+            )
+            logger.info("handleDisputeRaisedEvent: updating dispute state of ${swap.id} to ${DisputeState.SENT_PKA
+                .asString}")
+            withContext(Dispatchers.Main) {
+                swap.disputeState.value = DisputeState.SENT_PKA
+            }
+            logger.info("handleDisputeRaisedEvent: checking dispute role for ${swap.id}")
             var mustUpdateDisputeRaisedTransaction = false
-            if (swap.raisingDisputeState.value != RaisingDisputeState.NONE) {
+            if (
+                (swapOnChain.disputeRaiser == BigInteger.ONE &&
+                        (swap.role == SwapRole.MAKER_AND_BUYER || swap.role == SwapRole.MAKER_AND_SELLER)) ||
+                (swapOnChain.disputeRaiser == BigInteger.valueOf(2L) &&
+                        (swap.role == SwapRole.TAKER_AND_BUYER || swap.role == SwapRole.TAKER_AND_SELLER))
+                ) {
                 val raisingDisputeTransaction = swap.raisingDisputeTransaction
                 if (raisingDisputeTransaction != null) {
                     if (raisingDisputeTransaction.transactionHash == event.transactionHash) {
@@ -493,29 +521,6 @@ class DisputeService @Inject constructor(
                 } else {
                     logger.warn("handleDisputeRaisedEvent: swap ${swap.id} for which user is dispute raiser has no " +
                             "dispute raising transaction, must update with transaction hash ${event.transactionHash}")
-                }
-                logger.info("handleDisputeRaisedEvent: user is dispute raiser for ${swap.id}, retrieving key pair")
-                val interfaceID = when (swap.role) {
-                    SwapRole.MAKER_AND_BUYER, SwapRole.MAKER_AND_SELLER -> swap.makerInterfaceID
-                    SwapRole.TAKER_AND_BUYER, SwapRole.TAKER_AND_SELLER -> swap.takerInterfaceID
-                }
-                val keyPair = keyManagerService.getKeyPair(interfaceID) ?: throw DisputeServiceException("Could not " +
-                        "find user's public key for ${swap.id}")
-                logger.info("handleDisputeRaisedEvent: announcing public key for ${swap.id}")
-                p2pService.announcePublicKeyAsUserForDispute(
-                    keyPair = keyPair
-                )
-                logger.info("handleDisputeRaisedEvent: updating dispute state of ${swap.id} to " +
-                        "${DisputeState.SENT_PKA.asString} in persistent storage")
-                databaseService.updateSwapDisputeState(
-                    swapID = encoder.encodeToString(swap.id.asByteArray()),
-                    chainID = swap.chainID.toString(),
-                    state = DisputeState.SENT_PKA.asString
-                )
-                logger.info("handleDisputeRaisedEvent: updating dispute state of ${swap.id} to ${DisputeState.SENT_PKA
-                    .asString}")
-                withContext(Dispatchers.Main) {
-                    swap.disputeState.value = DisputeState.SENT_PKA
                 }
                 logger.info("handleDisputeRaisedEvent: user is dispute raiser for ${swap.id} so persistently " +
                         "updating raisingDisputeState to ${RaisingDisputeState.COMPLETED.asString}")
