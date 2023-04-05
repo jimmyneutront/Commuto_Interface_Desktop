@@ -16,6 +16,7 @@ import com.commuto.interfacedesktop.key.KeyManagerService
 import com.commuto.interfacedesktop.key.keys.KeyPair
 import com.commuto.interfacedesktop.key.keys.PublicKey
 import com.commuto.interfacedesktop.p2p.P2PService
+import com.commuto.interfacedesktop.p2p.TestDisputeMessageNotifiable
 import com.commuto.interfacedesktop.p2p.TestP2PExceptionHandler
 import com.commuto.interfacedesktop.p2p.TestSwapMessageNotifiable
 import com.commuto.interfacedesktop.p2p.messages.PublicKeyAnnouncement
@@ -1136,6 +1137,7 @@ class OfferServiceTests {
             exceptionHandler = p2pExceptionHandler,
             offerService = offerService,
             swapService = TestSwapMessageNotifiable(),
+            disputeService = TestDisputeMessageNotifiable(),
             mxClient = mxClient,
             keyManagerService = keyManagerService,
         ) {
@@ -2050,6 +2052,7 @@ class OfferServiceTests {
             exceptionHandler = p2pExceptionHandler,
             offerService = offerService,
             swapService = TestSwapMessageNotifiable(),
+            disputeService = TestDisputeMessageNotifiable(),
             mxClient = mxClient,
             keyManagerService = keyManagerService,
         )

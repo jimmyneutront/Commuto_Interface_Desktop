@@ -6,9 +6,11 @@ import com.commuto.interfacedesktop.key.KeyManagerService
 import com.commuto.interfacedesktop.key.keys.KeyPair
 import com.commuto.interfacedesktop.key.keys.PublicKey
 import com.commuto.interfacedesktop.p2p.create.createMakerInformationMessage
+import com.commuto.interfacedesktop.p2p.create.createPublicKeyAnnouncementAsUserForDispute
 import com.commuto.interfacedesktop.p2p.create.createTakerInformationMessage
 import com.commuto.interfacedesktop.p2p.messages.MakerInformationMessage
 import com.commuto.interfacedesktop.p2p.messages.PublicKeyAnnouncement
+import com.commuto.interfacedesktop.p2p.messages.PublicKeyAnnouncementAsUserForDispute
 import com.commuto.interfacedesktop.p2p.messages.TakerInformationMessage
 import com.commuto.interfacedesktop.p2p.parse.parseMakerInformationMessage
 import com.commuto.interfacedesktop.p2p.parse.parsePublicKeyAnnouncement
@@ -69,6 +71,7 @@ class P2PServiceTest {
             exceptionHandler = TestP2PExceptionHandler(),
             offerService = TestOfferMessageNotifiable(),
             swapService = TestSwapMessageNotifiable(),
+            disputeService = TestDisputeMessageNotifiable(),
             mxClient = mxClient,
             keyManagerService = keyManagerService,
         )
@@ -125,6 +128,7 @@ class P2PServiceTest {
             exceptionHandler = TestP2PExceptionHandler(),
             offerService = offerService,
             swapService = TestSwapMessageNotifiable(),
+            disputeService = TestDisputeMessageNotifiable(),
             mxClient = mxClient,
             keyManagerService = keyManagerService,
         )
@@ -192,6 +196,7 @@ class P2PServiceTest {
             exceptionHandler = TestP2PExceptionHandler(),
             offerService = TestOfferMessageNotifiable(),
             swapService = TestSwapMessageNotifiable(),
+            disputeService = TestDisputeMessageNotifiable(),
             mxClient = mxClient,
             keyManagerService = keyManagerService,
         )
@@ -233,6 +238,7 @@ class P2PServiceTest {
             p2pExceptionHandler,
             TestOfferMessageNotifiable(),
             TestSwapMessageNotifiable(),
+            disputeService = TestDisputeMessageNotifiable(),
             mxClient,
             keyManagerService
         ) {
@@ -285,6 +291,7 @@ class P2PServiceTest {
             p2pExceptionHandler,
             TestOfferMessageNotifiable(),
             TestSwapMessageNotifiable(),
+            disputeService = TestDisputeMessageNotifiable(),
             mxClient,
             keyManagerService
         ) {
@@ -385,6 +392,7 @@ class P2PServiceTest {
             p2pExceptionHandler,
             TestOfferMessageNotifiable(),
             swapService,
+            disputeService = TestDisputeMessageNotifiable(),
             mxClient,
             keyManagerService
         )
@@ -420,6 +428,7 @@ class P2PServiceTest {
             TestP2PExceptionHandler(),
             TestOfferMessageNotifiable(),
             TestSwapMessageNotifiable(),
+            disputeService = TestDisputeMessageNotifiable(),
             mxClient,
             keyManagerService
         ) {
@@ -523,6 +532,7 @@ class P2PServiceTest {
             TestP2PExceptionHandler(),
             TestOfferMessageNotifiable(),
             swapService,
+            disputeService = TestDisputeMessageNotifiable(),
             mxClient,
             keyManagerService
         )
@@ -560,6 +570,7 @@ class P2PServiceTest {
             TestP2PExceptionHandler(),
             TestOfferMessageNotifiable(),
             TestSwapMessageNotifiable(),
+            disputeService = TestDisputeMessageNotifiable(),
             mxClient,
             keyManagerService
         ) {
@@ -580,6 +591,68 @@ class P2PServiceTest {
 
         val createdPublicKeyAnnouncement = parsePublicKeyAnnouncementAsUserForDispute(p2pService.receivedMessage)
         assert(keyPair.interfaceId.contentEquals(createdPublicKeyAnnouncement!!.publicKey.interfaceId))
+
+    }
+
+    /**
+     * Ensure that [P2PService.parseEvents] handles [PublicKeyAnnouncementAsUserForDispute]s properly.
+     */
+    @Test
+    fun testParsePublicKeyAnnouncementAsUserForDispute() = runBlocking {
+        val databaseService = DatabaseService(DatabaseDriverFactory())
+        databaseService.createTables()
+        val keyManagerService = KeyManagerService(databaseService)
+
+        val userKeyPair = KeyPair()
+
+        val pkaMessageString = createPublicKeyAnnouncementAsUserForDispute(
+            keyPair = userKeyPair,
+        )
+
+        val messageEventContent = RoomMessageEventContent.TextMessageEventContent(
+            body = pkaMessageString
+        )
+
+        val messageEvent = Event.MessageEvent(
+            content = messageEventContent,
+            id = EventId(full = ""),
+            sender = UserId(full = ""),
+            roomId = RoomId(full = ""),
+            originTimestamp = 0L,
+        )
+
+        val mxClient = MatrixClientServerApiClient(
+            baseUrl = Url("https://matrix.org"),
+            httpClientFactory = {
+                HttpClient(it).config {
+                    install(HttpTimeout) {
+                        socketTimeoutMillis = 60_000
+                    }
+                }
+            }
+        ).apply { accessToken.value = System.getenv("MXKY") }
+
+        class TestDisputeService: DisputeMessageNotifiable {
+            var message: PublicKeyAnnouncementAsUserForDispute? = null
+            override suspend fun handlePublicKeyAnnouncementAsUserForDispute(
+                message: PublicKeyAnnouncementAsUserForDispute
+            ) {
+                this.message = message
+            }
+        }
+        val disputeService = TestDisputeService()
+
+        val p2pService = P2PService(
+            exceptionHandler = TestP2PExceptionHandler(),
+            offerService = TestOfferMessageNotifiable(),
+            swapService = TestSwapMessageNotifiable(),
+            disputeService = disputeService,
+            mxClient,
+            keyManagerService
+        )
+        p2pService.parseEvents(events = listOf(messageEvent))
+
+        assert(userKeyPair.interfaceId.contentEquals(disputeService.message!!.publicKey.interfaceId))
 
     }
 

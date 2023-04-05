@@ -3,6 +3,7 @@ package com.commuto.interfacedesktop
 import com.commuto.interfacedesktop.blockchain.BlockchainExceptionNotifiableModule
 import com.commuto.interfacedesktop.dispute.DisputeNotifiableModule
 import com.commuto.interfacedesktop.offer.OfferNotifiableModule
+import com.commuto.interfacedesktop.p2p.DisputeMessageNotifiableModule
 import com.commuto.interfacedesktop.p2p.OfferMessageNotifiableModule
 import com.commuto.interfacedesktop.p2p.P2PExceptionNotifiableModule
 import com.commuto.interfacedesktop.p2p.SwapMessageNotifiableModule
@@ -22,6 +23,7 @@ import javax.inject.Singleton
     SwapNotifiableModule::class,
     SwapMessageNotifiableModule::class,
     DisputeNotifiableModule::class,
+    DisputeMessageNotifiableModule::class,
     BlockchainExceptionNotifiableModule::class,
     P2PExceptionNotifiableModule::class
 ])

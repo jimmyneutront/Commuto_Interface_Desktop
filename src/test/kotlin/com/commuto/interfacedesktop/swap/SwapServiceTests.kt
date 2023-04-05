@@ -853,6 +853,7 @@ class SwapServiceTests {
             exceptionHandler = p2pExceptionHandler,
             offerService = TestOfferMessageNotifiable(),
             swapService = TestSwapMessageNotifiable(),
+            disputeService = TestDisputeMessageNotifiable(),
             mxClient = mxClient,
             keyManagerService = keyManagerService,
         ) {
@@ -1019,6 +1020,7 @@ class SwapServiceTests {
             exceptionHandler = TestP2PExceptionHandler(),
             offerService = TestOfferMessageNotifiable(),
             swapService = swapService,
+            disputeService = TestDisputeMessageNotifiable(),
             mxClient = mxClient,
             keyManagerService = keyManagerService,
         ) {

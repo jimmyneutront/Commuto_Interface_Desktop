@@ -336,6 +336,7 @@ class DisputeServiceTests {
             exceptionHandler = TestP2PExceptionHandler(),
             offerService = TestOfferMessageNotifiable(),
             swapService = TestSwapMessageNotifiable(),
+            disputeService = disputeService,
             mxClient = mxClient,
             keyManagerService = keyManagerService,
         ) {
@@ -524,6 +525,7 @@ class DisputeServiceTests {
             exceptionHandler = TestP2PExceptionHandler(),
             offerService = TestOfferMessageNotifiable(),
             swapService = TestSwapMessageNotifiable(),
+            disputeService = disputeService,
             mxClient = mxClient,
             keyManagerService = keyManagerService,
         ) {
@@ -614,6 +616,7 @@ class DisputeServiceTests {
             exceptionHandler = TestP2PExceptionHandler(),
             offerService = TestOfferMessageNotifiable(),
             swapService = TestSwapMessageNotifiable(),
+            disputeService = disputeService,
             mxClient = mxClient,
             keyManagerService = keyManagerService,
         ) {

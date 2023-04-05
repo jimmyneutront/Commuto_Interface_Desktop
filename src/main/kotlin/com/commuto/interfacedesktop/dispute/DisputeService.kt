@@ -11,7 +11,9 @@ import com.commuto.interfacedesktop.extension.asByteArray
 import com.commuto.interfacedesktop.key.KeyManagerService
 import com.commuto.interfacedesktop.key.keys.SymmetricKey
 import com.commuto.interfacedesktop.offer.OfferDirection
+import com.commuto.interfacedesktop.p2p.DisputeMessageNotifiable
 import com.commuto.interfacedesktop.p2p.P2PService
+import com.commuto.interfacedesktop.p2p.messages.PublicKeyAnnouncementAsUserForDispute
 import com.commuto.interfacedesktop.swap.Swap
 import com.commuto.interfacedesktop.swap.SwapRole
 import com.commuto.interfacedesktop.swap.SwapTruthSource
@@ -28,7 +30,7 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /**
- * The main Dispute service. It is responsible for processing and organizing swap-related data.
+ * The main Dispute service. It is responsible for processing and organizing dispute-related data.
  *
  * @property databaseService The [DatabaseService] that this [DisputeService] uses for persistent storage.
  * @property keyManagerService The [KeyManagerService] that this [DisputeService] uses for managing keys.
@@ -42,7 +44,7 @@ import javax.inject.Singleton
 class DisputeService @Inject constructor(
     private val databaseService: DatabaseService,
     private val keyManagerService: KeyManagerService,
-): DisputeNotifiable {
+): DisputeNotifiable, DisputeMessageNotifiable {
 
     private lateinit var swapTruthSource: SwapTruthSource
 
@@ -562,5 +564,7 @@ class DisputeService @Inject constructor(
             }
         }
     }
+
+    override suspend fun handlePublicKeyAnnouncementAsUserForDispute(message: PublicKeyAnnouncementAsUserForDispute) {}
 
 }

@@ -11,6 +11,7 @@ import com.commuto.interfacedesktop.offer.OfferService
 import com.commuto.interfacedesktop.p2p.create.*
 import com.commuto.interfacedesktop.p2p.parse.parseMakerInformationMessage
 import com.commuto.interfacedesktop.p2p.parse.parsePublicKeyAnnouncement
+import com.commuto.interfacedesktop.p2p.parse.parsePublicKeyAnnouncementAsUserForDispute
 import com.commuto.interfacedesktop.p2p.parse.parseTakerInformationMessage
 import com.commuto.interfacedesktop.p2p.serializable.messages.SerializableEncryptedMessage
 import com.commuto.interfacedesktop.swap.SwapService
@@ -51,6 +52,8 @@ import javax.inject.Singleton
  * messages.
  * @property swapService An object that implements [SwapMessageNotifiable], to which this will pass swap-related
  * messages.
+ * @property disputeService An object that implements [DisputeMessageNotifiable], to which this will pass
+ * dispute-related messages.
  * @property mxClient A [MatrixClientServerApiClient] instance used to interact with a Matrix
  * Homeserver.
  * @property keyManagerService A [KeyManagerService] from which this gets key pairs when attempting to decrypt encrypted
@@ -69,6 +72,7 @@ open class P2PService constructor(
     private val exceptionHandler: P2PExceptionNotifiable,
     private val offerService: OfferMessageNotifiable,
     private val swapService: SwapMessageNotifiable,
+    private val disputeService: DisputeMessageNotifiable,
     private val mxClient: MatrixClientServerApiClient,
     private val keyManagerService: KeyManagerService,
 ) {
@@ -78,11 +82,13 @@ open class P2PService constructor(
         exceptionHandler: P2PExceptionNotifiable,
         offerService: OfferMessageNotifiable,
         swapService: SwapMessageNotifiable,
+        disputeService: DisputeMessageNotifiable,
         keyManagerService: KeyManagerService,
     ): this(
         exceptionHandler = exceptionHandler,
         offerService = offerService,
         swapService = swapService,
+        disputeService,
         mxClient = MatrixClientServerApiClient(
             baseUrl = Url("https://matrix.org"),
             httpClientFactory = {
@@ -206,96 +212,101 @@ open class P2PService constructor(
         }
         logger.info("parseEvents: parsing ${textMessageEvents.size} text message events")
         for (event in textMessageEvents) {
+            val messageString = try {
+                (event.content as RoomMessageEventContent.TextMessageEventContent).body
+            } catch (e: Exception) {
+                /*
+                If we can't can't get a message string from the room's content cast as TextMessageEventContent, then
+                we stop handling it and move on
+                 */
+                break
+            }
             // Handle unencrypted messages
-            val pka = parsePublicKeyAnnouncement((event.content as RoomMessageEventContent.
-            TextMessageEventContent).body)
+            val pka = parsePublicKeyAnnouncement(messageString = messageString)
             if (pka != null) {
                 logger.info("parseEvents: got Public Key Announcement message in event with Matrix event ID: " +
                         event.id.full)
                 offerService.handlePublicKeyAnnouncement(pka)
-            } else {
+                break
+            }
+            val disputeUserPka = parsePublicKeyAnnouncementAsUserForDispute(messageString = messageString)
+            if (disputeUserPka != null) {
+                logger.info("parseEvents: Got Public Key Announcement As User For Dispute in event with Matrix event " +
+                        "ID: ${event.id.full}")
+                disputeService.handlePublicKeyAnnouncementAsUserForDispute(disputeUserPka)
+                break
+            }
+            /*
+            If execution reaches this point, then we have already tried to get every possible unencrypted message
+            from the event being handled. Therefore, we now try to get an encrypted message from the event: we attempt
+            to create a SerializableEncryptedMessage from the text message event content body. Then we attempt to create
+            an interface ID from the contents of the recipient field. Then we check keyManagerService to determine if
+            we have a key pair with that interface ID. If we do, then we have determined that the event contains an
+            encrypted message sent to us, and we attempt to parse it.
+             */
+            val message = try {
+                Json.decodeFromString<SerializableEncryptedMessage>(messageString)
+            } catch (e: Exception) {
                 /*
-                If execution reaches this point, then we have already tried to get every possible unencrypted message
-                from the event being handled. Therefore, we now try to get an encrypted message from the event: We
-                attempt to cast the event content as text message event content, and then we attempt to create a
-                SerializableEncryptedMessage from the text message event content body. Then we attempt to create an
-                interface ID from the contents of the recipient field. Then we check keyManagerService to determine if
-                we have a key pair with that interface ID. If we do, then we have determined that the event contains an
-                encrypted message sent to us, and we attempt to parse it.
+                If we can't get a SerializableEncryptedMessage from the message, then we stop handling it and move
+                on
                  */
-                val messageString = try {
-                    (event.content as RoomMessageEventContent.TextMessageEventContent).body
-                } catch (e: Exception) {
-                    /*
-                    If we can't can't get a message string from the room's content cast as TextMessageEventContent, then
-                    we stop handling it and move on
-                     */
-                    break
-                }
-                val message = try {
-                    Json.decodeFromString<SerializableEncryptedMessage>(messageString)
-                } catch (e: Exception) {
-                    /*
-                    If we can't get a SerializableEncryptedMessage from the message, then we stop handling it and move
-                    on
-                     */
-                    break
-                }
-                val decoder = Base64.getDecoder()
-                val recipientInterfaceID = try {
-                    decoder.decode(message.recipient)
-                } catch (e: Exception) {
-                    /*
-                    If we can't create a recipient interface ID from the contents of the "recipient" field, then we stop
-                    handling it and move on
-                     */
-                    break
-                }
+                break
+            }
+            val decoder = Base64.getDecoder()
+            val recipientInterfaceID = try {
+                decoder.decode(message.recipient)
+            } catch (e: Exception) {
                 /*
-                If we don't have a key pair with the interface ID specified in the "recipient" field, then we don't
-                have the private key necessary to decrypt the message, (meaning we aren't the intended recipient) so
-                we stop handling it and move on
-                */
-                val recipientKeyPair = keyManagerService.getKeyPair(recipientInterfaceID)
-                    ?: break
-                val takerInformationMessage = parseTakerInformationMessage(
-                    message = message,
-                    keyPair = recipientKeyPair
-                )
-                if (takerInformationMessage != null) {
-                    logger.info("parseEvents: got Taker Information Message in event with Matrix event ID " +
-                            event.id.full)
-                    swapService.handleTakerInformationMessage(takerInformationMessage)
-                    break
-                }
-                /*
-                If execution reaches this point, then we have already tried to get every possible encrypted message that
-                doesn't require us to have the sender's public key. Therefore we attempt to create an interface ID from
-                the contents of that field, and then check keyManagerService to determine if we have a public key with
-                that interface ID. If we do, then we continue attempting to parse the message. If we do not, we log a
-                warning and break.
+                If we can't create a recipient interface ID from the contents of the "recipient" field, then we stop
+                handling it and move on
                  */
-                val senderInterfaceID = try {
-                    decoder.decode(message.sender)
-                } catch (e: Exception) {
-                    break
-                }
-                val senderPublicKey = keyManagerService.getPublicKey(senderInterfaceID)
-                    ?: break
-                val makerInformationMessage = parseMakerInformationMessage(
-                    message = message,
-                    keyPair = recipientKeyPair,
-                    publicKey = senderPublicKey
+                break
+            }
+            /*
+            If we don't have a key pair with the interface ID specified in the "recipient" field, then we don't
+            have the private key necessary to decrypt the message, (meaning we aren't the intended recipient) so
+            we stop handling it and move on
+            */
+            val recipientKeyPair = keyManagerService.getKeyPair(recipientInterfaceID)
+                ?: break
+            val takerInformationMessage = parseTakerInformationMessage(
+                message = message,
+                keyPair = recipientKeyPair
+            )
+            if (takerInformationMessage != null) {
+                logger.info("parseEvents: got Taker Information Message in event with Matrix event ID " +
+                        event.id.full)
+                swapService.handleTakerInformationMessage(takerInformationMessage)
+                break
+            }
+            /*
+            If execution reaches this point, then we have already tried to get every possible encrypted message that
+            doesn't require us to have the sender's public key. Therefore we attempt to create an interface ID from
+            the contents of that field, and then check keyManagerService to determine if we have a public key with
+            that interface ID. If we do, then we continue attempting to parse the message. If we do not, we log a
+            warning and break.
+             */
+            val senderInterfaceID = try {
+                decoder.decode(message.sender)
+            } catch (e: Exception) {
+                break
+            }
+            val senderPublicKey = keyManagerService.getPublicKey(senderInterfaceID)
+                ?: break
+            val makerInformationMessage = parseMakerInformationMessage(
+                message = message,
+                keyPair = recipientKeyPair,
+                publicKey = senderPublicKey
+            )
+            if (makerInformationMessage != null) {
+                logger.info("parseEvents: got Maker Information Message in event with Matrix event ID " +
+                        event.id.full)
+                swapService.handleMakerInformationMessage(
+                    message = makerInformationMessage,
+                    senderInterfaceID = senderInterfaceID,
+                    recipientInterfaceID = recipientInterfaceID
                 )
-                if (makerInformationMessage != null) {
-                    logger.info("parseEvents: got Maker Information Message in event with Matrix event ID " +
-                            event.id.full)
-                    swapService.handleMakerInformationMessage(
-                        message = makerInformationMessage,
-                        senderInterfaceID = senderInterfaceID,
-                        recipientInterfaceID = recipientInterfaceID
-                    )
-                }
             }
         }
     }
