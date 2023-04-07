@@ -355,6 +355,8 @@ internal class Database(databaseDriverFactory: DatabaseDriverFactory) {
             tCKInitializationVector = swapAndDispute.tCKInitializationVector,
             disputeAgentCommunicationKey = swapAndDispute.disputeAgentCommunicationKey,
             dACKInitializationVector = swapAndDispute.dACKInitializationVector,
+            sentKeyToMaker = swapAndDispute.sentKeyToMaker,
+            sentKeyToTaker = swapAndDispute.sentKeyToTaker,
         )
     }
 

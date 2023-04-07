@@ -72,6 +72,10 @@ import java.util.*
  * disputed swap.
  * @property disputeAgentCommunicationKey The [SymmetricKey] with which dispute agents communicate with each other for
  * the disputed swap.
+ * @property sentKeyToMaker Indicates whether the user of this interface has sent [makerCommunicationKey] to the maker
+ * of ths disputed swap. If the user of this interface is not the first dispute agent, this is not used.
+ * @property sentKeyToTaker Indicates whether the user of this interface has sent [takerCommunicationKey] to the taker
+ *  * of ths disputed swap. If the user of this interface is not the first dispute agent, this is not used.
  */
 data class SwapAndDispute(
     val isCreated: Boolean,
@@ -130,6 +134,9 @@ data class SwapAndDispute(
     var makerCommunicationKey: SymmetricKey? = null
     var takerCommunicationKey: SymmetricKey? = null
     var disputeAgentCommunicationKey: SymmetricKey? = null
+
+    var sentKeyToMaker = false
+    var sentKeyToTaker = false
 
     fun toDatabaseSwapAndDispute(): DatabaseSwapAndDispute {
         val encoder = Base64.getEncoder()
@@ -198,6 +205,8 @@ data class SwapAndDispute(
             tCKInitializationVector = null,
             disputeAgentCommunicationKey = null,
             dACKInitializationVector = null,
+            sentKeyToMaker = if (sentKeyToMaker) 1L else 0L,
+            sentKeyToTaker = if (sentKeyToTaker) 1L else 0L,
         )
     }
 

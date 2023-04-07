@@ -187,7 +187,9 @@ mCKInitializationVector TEXT,
 takerCommunicationKey TEXT,
 tCKInitializationVector TEXT,
 disputeAgentCommunicationKey TEXT,
-dACKInitializationVector TEXT
+dACKInitializationVector TEXT,
+sentKeyToMaker INTEGER NOT NULL,
+sentKeyToTaker INTEGER NOT NULL
 );
 
 createUserSettlementMethodTable:
@@ -411,7 +413,9 @@ INSERT INTO SwapAndDispute(
     takerCommunicationKey,
     tCKInitializationVector,
     disputeAgentCommunicationKey,
-    dACKInitializationVector
+    dACKInitializationVector,
+    sentKeyToMaker,
+    sentKeyToTaker
 )
 VALUES(
 ?, ?, ?, ?, ?,
@@ -424,7 +428,8 @@ VALUES(
 ?, ?, ?, ?, ?,
 ?, ?, ?, ?, ?,
 ?, ?, ?, ?, ?,
-?, ?, ?, ?, ?
+?, ?, ?, ?, ?,
+?, ?
 );
 
 insertUserSettlementMethod:
@@ -661,6 +666,16 @@ updateSwapAndDisputeAgentCommunicationKeyByIDAndChainID:
 UPDATE SwapAndDispute
 SET disputeAgentCommunicationKey = ?,
 dACKInitializationVector = ?
+WHERE id = ? AND chainID = ?;
+
+updateSwapAndDisputeSentKeyToMakerByIDAndChainID:
+UPDATE SwapAndDispute
+SET sentKeyToMaker = ?
+WHERE id = ? AND chainID = ?;
+
+updateSwapAndDisputeSentKeyToTakerByIDAndChainID:
+UPDATE SwapAndDispute
+SET sentKeyToTaker = ?
 WHERE id = ? AND chainID = ?;
 
 updateUserSettlementMethodByID:
