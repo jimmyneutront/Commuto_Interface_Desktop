@@ -6,6 +6,7 @@ import com.commuto.interfacedesktop.p2p.serializable.messages.SerializablePublic
 import com.commuto.interfacedesktop.p2p.serializable.payloads.SerializablePublicKeyAnnouncementAsUserForDisputePayload
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
+import java.math.BigInteger
 import java.nio.charset.Charset
 import java.security.MessageDigest
 import java.util.*
@@ -56,6 +57,18 @@ fun parsePublicKeyAnnouncementAsUserForDispute(messageString: String?): PublicKe
         return null
     }
 
+    val swapID = try {
+        UUID.fromString(payload.id)
+    } catch (e: Exception) {
+        return null
+    }
+
+    val chainID = try {
+        BigInteger(payload.chainID)
+    } catch (e: Exception) {
+        return null
+    }
+
     // Re-create dispute raiser's public key
     val publicKey = try {
         PublicKey(decoder.decode(payload.pubKey))
@@ -74,7 +87,7 @@ fun parsePublicKeyAnnouncementAsUserForDispute(messageString: String?): PublicKe
     // Verify signature
     return try {
         when (publicKey.verifySignature(payloadDataHash, decoder.decode(message.signature))) {
-            true -> PublicKeyAnnouncementAsUserForDispute(publicKey)
+            true -> PublicKeyAnnouncementAsUserForDispute(swapID, chainID, publicKey)
             false -> null
         }
     } catch (e: Exception) {

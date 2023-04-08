@@ -12,11 +12,16 @@ import java.util.*
 /**
  * Creates a Public Key Announcement as a user for a dispute, given a public key.
  *
+ * @param id The ID of the disputed swap for which a public key is being announced, as a [String].
+ * @param chainID The ID of the blockchain on which the disputed swap for which a public key is being announced esists,
+ * as a [String].
  * @param keyPair The [KeyPair] containing the public key to be announced.
  *
  * @return A JSON [String] that is the Public Key Announcement.
  */
 fun createPublicKeyAnnouncementAsUserForDispute(
+    id: String,
+    chainID: String,
     keyPair: KeyPair,
 ): String {
     //Setup encoder
@@ -27,6 +32,8 @@ fun createPublicKeyAnnouncementAsUserForDispute(
 
     // Create payload object
     val payload = SerializablePublicKeyAnnouncementAsUserForDisputePayload(
+        id = id,
+        chainID = chainID,
         pubKey = publicKeyString,
     )
 

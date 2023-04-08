@@ -38,6 +38,7 @@ import net.folivo.trixnity.core.model.events.Event
 import net.folivo.trixnity.core.model.events.m.room.RoomMessageEventContent
 import org.junit.Assert.assertEquals
 import org.junit.Test
+import java.math.BigInteger
 import java.nio.ByteBuffer
 import java.nio.charset.Charset
 import java.security.MessageDigest
@@ -581,16 +582,22 @@ class P2PServiceTest {
         }
         val p2pService = TestP2PService()
 
+        val id = UUID.randomUUID()
+        val chainID = BigInteger.ZERO
         val keyPair = KeyPair()
 
         runBlocking {
             p2pService.announcePublicKeyAsUserForDispute(
+                id = id.toString(),
+                chainID = chainID.toString(),
                 keyPair = keyPair
             )
         }
 
         val createdPublicKeyAnnouncement = parsePublicKeyAnnouncementAsUserForDispute(p2pService.receivedMessage)
-        assert(keyPair.interfaceId.contentEquals(createdPublicKeyAnnouncement!!.publicKey.interfaceId))
+        assertEquals(id, createdPublicKeyAnnouncement!!.id)
+        assertEquals(chainID, createdPublicKeyAnnouncement.chainID)
+        assert(keyPair.interfaceId.contentEquals(createdPublicKeyAnnouncement.publicKey.interfaceId))
 
     }
 
@@ -603,9 +610,13 @@ class P2PServiceTest {
         databaseService.createTables()
         val keyManagerService = KeyManagerService(databaseService)
 
+        val id = UUID.randomUUID()
+        val chainID = BigInteger.ZERO
         val userKeyPair = KeyPair()
 
         val pkaMessageString = createPublicKeyAnnouncementAsUserForDispute(
+            id = id.toString(),
+            chainID = chainID.toString(),
             keyPair = userKeyPair,
         )
 
@@ -652,6 +663,8 @@ class P2PServiceTest {
         )
         p2pService.parseEvents(events = listOf(messageEvent))
 
+        assertEquals(id, disputeService.message!!.id)
+        assertEquals(chainID, disputeService.message!!.chainID)
         assert(userKeyPair.interfaceId.contentEquals(disputeService.message!!.publicKey.interfaceId))
 
     }

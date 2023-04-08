@@ -407,14 +407,21 @@ open class P2PService constructor(
      * [Public Key Announcement as a user for a dispute](https://github.com/jimmyneutront/commuto-whitepaper/blob/main/commuto-interface-specification.txt#L256)
      * using the given key pair and sends it using the [sendMessage] function.
      *
+     * @param id The ID of the disputed swap for which a public key is being announced, as a UUID-4 [String].
+     * @param chainID The ID of the blockchain on which the disputed swap for which a public key is being announced
+     * exists, as a [String].
      * @param keyPair The key pair containing the public key to be announced.
      */
     open suspend fun announcePublicKeyAsUserForDispute(
-        keyPair: KeyPair
+        id: String,
+        chainID: String,
+        keyPair: KeyPair,
     ) {
         val encoder = Base64.getEncoder()
         logger.info("announcePublicKeyAsUserForDispute: creating for ${encoder.encodeToString(keyPair.interfaceId)}")
         val messageString = createPublicKeyAnnouncementAsUserForDispute(
+            id = id,
+            chainID = chainID,
             keyPair = keyPair
         )
         logger.info("announcePublicKeyAsUserForDispute: sending for ${encoder.encodeToString(keyPair.interfaceId)}")

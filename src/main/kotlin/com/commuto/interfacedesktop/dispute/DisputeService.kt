@@ -487,7 +487,9 @@ class DisputeService @Inject constructor(
                     "find user's public key for ${swap.id}")
             logger.info("handleDisputeRaisedEvent: announcing public key for ${swap.id}")
             p2pService.announcePublicKeyAsUserForDispute(
-                keyPair = keyPair
+                id = swap.id.toString(),
+                chainID = swap.chainID.toString(),
+                keyPair = keyPair,
             )
             logger.info("handleDisputeRaisedEvent: updating dispute state of ${swap.id} to " +
                     "${DisputeState.SENT_PKA.asString} in persistent storage")

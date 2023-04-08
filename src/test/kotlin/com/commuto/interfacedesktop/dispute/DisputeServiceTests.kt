@@ -340,10 +340,16 @@ class DisputeServiceTests {
             mxClient = mxClient,
             keyManagerService = keyManagerService,
         ) {
+            var id: String? = null
+            var chainID: String? = null
             var userKeyPair: KeyPair? = null
             override suspend fun announcePublicKeyAsUserForDispute(
+                id: String,
+                chainID: String,
                 keyPair: KeyPair
             ) {
+                this.id = id
+                this.chainID = chainID
                 this.userKeyPair = keyPair
             }
         }
@@ -361,6 +367,8 @@ class DisputeServiceTests {
 
         disputeService.handleDisputeRaisedEvent(event = event)
 
+        assertEquals(swapID.toString(), p2pService.id)
+        assertEquals(swap.chainID.toString(), p2pService.chainID)
         assert(swap.makerInterfaceID.contentEquals(p2pService.userKeyPair?.interfaceId))
         assertEquals(DisputeState.SENT_PKA, swap.disputeState.value)
         assertEquals(RaisingDisputeState.COMPLETED, swap.raisingDisputeState.value)
@@ -529,10 +537,16 @@ class DisputeServiceTests {
             mxClient = mxClient,
             keyManagerService = keyManagerService,
         ) {
+            var id: String? = null
+            var chainID: String? = null
             var userKeyPair: KeyPair? = null
             override suspend fun announcePublicKeyAsUserForDispute(
+                id: String,
+                chainID: String,
                 keyPair: KeyPair
             ) {
+                this.id = id
+                this.chainID = chainID
                 this.userKeyPair = keyPair
             }
         }
@@ -549,6 +563,8 @@ class DisputeServiceTests {
         )
 
         disputeService.handleDisputeRaisedEvent(event = event)
+        assertEquals(swapID.toString(), p2pService.id)
+        assertEquals(swap.chainID.toString(), p2pService.chainID)
         assert(swap.takerInterfaceID.contentEquals(p2pService.userKeyPair?.interfaceId))
         assertEquals(DisputeState.SENT_PKA, swap.disputeState.value)
         val swapInDatabase = databaseService.getSwap(swapForDatabase.id)
