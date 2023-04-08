@@ -1010,8 +1010,8 @@ internal class Database(databaseDriverFactory: DatabaseDriverFactory) {
     }
 
     /**
-     * Updates the [SwapAndDispute.disputeAgent0InterfaceID] property of the [Swap] with the specified [id] and
-     * [chainID].
+     * Updates the [SwapAndDispute.disputeAgent0InterfaceID] property of the [SwapAndDispute] with the specified [id]
+     * and [chainID].
      * @param id The ID of the swap corresponding to the [SwapAndDispute] to be updated.
      * @param chainID The ID of the blockchain on which the swap and dispute corresponding to the [SwapAndDispute]
      * exist.
@@ -1031,7 +1031,7 @@ internal class Database(databaseDriverFactory: DatabaseDriverFactory) {
 
     /**
      * Updates the [SwapAndDispute.makerCommunicationKey] and [SwapAndDispute.mCKInitializationVector] properties of the
-     * [Swap] with the specified [id] and [chainID].
+     * [SwapAndDispute] with the specified [id] and [chainID].
      * @param id the ID of the swap corresponding to the [SwapAndDispute] to be updated.
      * @param chainID The ID of the blockchain on which the swap and dispute corresponding to the [SwapAndDispute]
      * exist.
@@ -1054,7 +1054,7 @@ internal class Database(databaseDriverFactory: DatabaseDriverFactory) {
 
     /**
      * Updates the [SwapAndDispute.takerCommunicationKey] and [SwapAndDispute.tCKInitializationVector] properties of the
-     * [Swap] with the specified [id] and [chainID].
+     * [SwapAndDispute] with the specified [id] and [chainID].
      * @param id the ID of the swap corresponding to the [SwapAndDispute] to be updated.
      * @param chainID The ID of the blockchain on which the swap and dispute corresponding to the [SwapAndDispute]
      * exist.
@@ -1077,7 +1077,7 @@ internal class Database(databaseDriverFactory: DatabaseDriverFactory) {
 
     /**
      * Updates the [SwapAndDispute.disputeAgentCommunicationKey] and [SwapAndDispute.dACKInitializationVector]
-     * properties of the [Swap] with the specified [id] and [chainID].
+     * properties of the [SwapAndDispute] with the specified [id] and [chainID].
      * @param id the ID of the swap corresponding to the [SwapAndDispute] to be updated.
      * @param chainID The ID of the blockchain on which the swap and dispute corresponding to the [SwapAndDispute]
      * exist.
@@ -1095,6 +1095,46 @@ internal class Database(databaseDriverFactory: DatabaseDriverFactory) {
             chainID = chainID,
             disputeAgentCommunicationKey = encryptedKey,
             dACKInitializationVector = initializationVector
+        )
+    }
+
+    /**
+     * Updates the [SwapAndDispute.sentKeyToMaker] property of the [SwapAndDispute] with the specified [id] and
+     * [chainID].
+     * @param id The ID of the swap corresponding to the [SwapAndDispute] to be updated.
+     * @param chainID The ID of the blockchain on which the swap and dispute corresponding to the [SwapAndDispute]
+     * exist.
+     * @param sentKeyToMaker The new value of the [SwapAndDispute.sentKeyToMaker] property.
+     */
+    internal fun updateSwapAndDisputeSentKeyToMaker(
+        id: String,
+        chainID: String,
+        sentKeyToMaker: Long
+    ) {
+        dbQuery.updateSwapAndDisputeSentKeyToMakerByIDAndChainID(
+            id = id,
+            chainID = chainID,
+            sentKeyToMaker = sentKeyToMaker,
+        )
+    }
+
+    /**
+     * Updates the [SwapAndDispute.sentKeyToTaker] property of the [SwapAndDispute] with the specified [id] and
+     * [chainID].
+     * @param id The ID of the swap corresponding to the [SwapAndDispute] to be updated.
+     * @param chainID The ID of the blockchain on which the swap and dispute corresponding to the [SwapAndDispute]
+     * exist.
+     * @param sentKeyToTaker The new value of the [SwapAndDispute.sentKeyToMaker] property.
+     */
+    internal fun updateSwapAndDisputeSentKeyToTaker(
+        id: String,
+        chainID: String,
+        sentKeyToTaker: Long
+    ) {
+        dbQuery.updateSwapAndDisputeSentKeyToTakerByIDAndChainID(
+            id = id,
+            chainID = chainID,
+            sentKeyToTaker = sentKeyToTaker,
         )
     }
 

@@ -1816,6 +1816,42 @@ open class DatabaseService(
     }
 
     /**
+     * Updates the [SwapAndDispute.sentKeyToMaker] property of a persistently stored SwapAndDispute with the
+     * specified [id] and [chainID].
+     *
+     * @param id The ID of the swap corresponding to the SwapAndDispute to be updated, as a UUID [String].
+     * @param chainID The blockchain ID of the swap corresponding to the SwapAndDispute to be updated, as a [String].
+     * @param sentKeyToMaker The new value of the [SwapAndDispute]'s [SwapAndDispute.sentKeyToMaker] property.
+     */
+    @OptIn(DelicateCoroutinesApi::class)
+    suspend fun updateSwapAndDisputeSentKeyToMaker(id: String, chainID: String, sentKeyToMaker: Boolean) {
+        val sentKeyToMakerLong = if (sentKeyToMaker) 1L else 0L
+        withContext(databaseServiceContext) {
+            database.updateSwapAndDisputeSentKeyToMaker(id, chainID, sentKeyToMakerLong)
+        }
+        logger.info("updateSwapAndDisputeSentKeyToMaker: set value to $sentKeyToMaker for swap and dispute $id on " +
+                "$chainID, if present")
+    }
+
+    /**
+     * Updates the [SwapAndDispute.sentKeyToTaker] property of a persistently stored SwapAndDispute with the
+     * specified [id] and [chainID].
+     *
+     * @param id The ID of the swap corresponding to the SwapAndDispute to be updated, as a UUID [String].
+     * @param chainID The blockchain ID of the swap corresponding to the SwapAndDispute to be updated, as a [String].
+     * @param sentKeyToTaker The new value of the [SwapAndDispute]'s [SwapAndDispute.sentKeyToTaker] property.
+     */
+    @OptIn(DelicateCoroutinesApi::class)
+    suspend fun updateSwapAndDisputeSentKeyToTaker(id: String, chainID: String, sentKeyToTaker: Boolean) {
+        val sentKeyToTakerLong = if (sentKeyToTaker) 1L else 0L
+        withContext(databaseServiceContext) {
+            database.updateSwapAndDisputeSentKeyToTaker(id, chainID, sentKeyToTakerLong)
+        }
+        logger.info("updateSwapAndDisputeSentKeyToTaker: set value to $sentKeyToTaker for swap and dispute $id on " +
+                "$chainID, if present")
+    }
+
+    /**
      * Encrypts [key] using [databaseKey] and a new initialization vector, and returns the encrypted key and the
      * initialization vector as Base64-[String]s.
      *

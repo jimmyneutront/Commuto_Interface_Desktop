@@ -2750,6 +2750,8 @@ class DatabaseServiceTest {
             tCKInitializationVector = null,
             disputeAgentCommunicationKey = null,
             dACKInitializationVector = null,
+            sentKeyToMaker = 0L,
+            sentKeyToTaker = 0L,
         )
         databaseService.storeSwapAndDispute(swapAndDisputeToStore)
         val anotherSwapAndDisputeToStore = SwapAndDispute(
@@ -2808,6 +2810,8 @@ class DatabaseServiceTest {
             tCKInitializationVector = null,
             disputeAgentCommunicationKey = null,
             dACKInitializationVector = null,
+            sentKeyToMaker = 0L,
+            sentKeyToTaker = 0L,
         )
         // This should do nothing and not throw
         databaseService.storeSwapAndDispute(anotherSwapAndDisputeToStore)
@@ -2878,6 +2882,8 @@ class DatabaseServiceTest {
             tCKInitializationVector = null,
             disputeAgentCommunicationKey = null,
             dACKInitializationVector = null,
+            sentKeyToMaker = 0L,
+            sentKeyToTaker = 0L,
         )
         databaseService.storeSwapAndDispute(swapAndDisputeToStore)
         databaseService.updateSwapAndDisputeAgent0InterfaceID(
@@ -2950,6 +2956,8 @@ class DatabaseServiceTest {
             tCKInitializationVector = null,
             disputeAgentCommunicationKey = null,
             dACKInitializationVector = null,
+            sentKeyToMaker = 0L,
+            sentKeyToTaker = 0L,
         )
         databaseService.storeSwapAndDispute(swapAndDisputeToStore)
         databaseService.updateSwapAndDisputeState(
@@ -2961,6 +2969,9 @@ class DatabaseServiceTest {
         assertEquals("a_new_state_here", returnedSwapAndDispute?.state)
     }
 
+    /**
+     * Ensures code to update communication keys for a [SwapAndDispute] works properly.
+     */
     @Test
     fun testUpdateSwapAndDisputeCommunicationKeys() = runBlocking {
         val swapAndDisputeToStore = SwapAndDispute(
@@ -3019,6 +3030,8 @@ class DatabaseServiceTest {
             tCKInitializationVector = null,
             disputeAgentCommunicationKey = null,
             dACKInitializationVector = null,
+            sentKeyToMaker = 0L,
+            sentKeyToTaker = 0L,
         )
         databaseService.storeSwapAndDispute(swapAndDisputeToStore)
         databaseService.updateSwapAndDisputeMakerCommunicationKey(
@@ -3046,6 +3059,87 @@ class DatabaseServiceTest {
         assertEquals("a_maker_key_here", returnedMakerCommunicationKey)
         assertEquals("a_taker_key_here", returnedTakerCommunicationKey)
         assertEquals("a_dispute_agent_key_here", returnedDisputeAgentCommunicationKey)
+    }
+
+    /**
+     * Ensures code to update a persistently stored [SwapAndDispute]'s [SwapAndDispute.sentKeyToMaker] and
+     * [SwapAndDispute.sentKeyToTaker] properties works properly
+     */
+    @Test
+    fun testUpdateSwapAndDisputeSentKeys() = runBlocking {
+        val swapAndDisputeToStore = SwapAndDispute(
+            id = "a_uuid",
+            isCreated = 1L,
+            requiresFill = 0L,
+            maker = "maker_address",
+            makerInterfaceID = "maker_interface_id",
+            taker = "taker_address",
+            takerInterfaceID = "taker_interface_id",
+            stablecoin = "stablecoin_address",
+            amountLowerBound = "lower_bound_amount",
+            amountUpperBound = "upper_bound_amount",
+            securityDepositAmount = "security_deposit_amount",
+            takenSwapAmount = "taken_swap_amount",
+            serviceFeeAmount = "service_fee_amount",
+            serviceFeeRate = "service_fee_rate",
+            onChainDirection = "direction",
+            settlementMethod = "settlement_method",
+            protocolVersion = "some_version",
+            isPaymentSent = 0L,
+            isPaymentReceived = 0L,
+            hasBuyerClosed = 0L,
+            hasSellerClosed = 0L,
+            disputeRaiser = "dispute_raiser",
+            chainID = "a_chain_id",
+            disputeRaisedBlockNumber = "a_block_number",
+            disputeAgent0 = "da0_address",
+            disputeAgent1 = "da1_address",
+            disputeAgent2 = "da2_address",
+            hasDisputeAgent0Proposed = 0L,
+            disputeAgent0MakerPayout = "an_amount_here",
+            disputeAgent0TakerPayout = "an_amount_here",
+            disputeAgent0ConfiscationPayout = "an_amount_here",
+            hasDisputeAgent1Proposed = 0L,
+            disputeAgent1MakerPayout = "an_amount_here",
+            disputeAgent1TakerPayout = "an_amount_here",
+            disputeAgent1ConfiscationPayout = "an_amount_here",
+            hasDisputeAgent2Proposed = 0L,
+            disputeAgent2MakerPayout = "an_amount_here",
+            disputeAgent2TakerPayout = "an_amount_here",
+            disputeAgent2ConfiscationPayout = "an_amount_here",
+            matchingProposals = 0L,
+            makerReaction = 0L,
+            takerReaction = 0L,
+            onChainState = 0L,
+            hasMakerPaidOut = 0L,
+            hasTakerPaidOut = 0L,
+            totalWithoutSpentServiceFees = "an_amount_here",
+            role = "a_role_here",
+            disputeAgent0InterfaceID = "an_interface_id",
+            state = "a_state_here",
+            makerCommunicationKey = null,
+            mCKInitializationVector = null,
+            takerCommunicationKey = null,
+            tCKInitializationVector = null,
+            disputeAgentCommunicationKey = null,
+            dACKInitializationVector = null,
+            sentKeyToMaker = 0L,
+            sentKeyToTaker = 0L,
+        )
+        databaseService.storeSwapAndDispute(swapAndDisputeToStore)
+        databaseService.updateSwapAndDisputeSentKeyToMaker(
+            id = "a_uuid",
+            chainID = "a_chain_id",
+            sentKeyToMaker = true,
+        )
+        databaseService.updateSwapAndDisputeSentKeyToTaker(
+            id = "a_uuid",
+            chainID = "a_chain_id",
+            sentKeyToTaker = true,
+        )
+        val returnedSwapAndDispute = databaseService.getSwapAndDispute("a_uuid")
+        assertEquals(1L, returnedSwapAndDispute?.sentKeyToMaker)
+        assertEquals(1L, returnedSwapAndDispute?.sentKeyToTaker)
     }
 
     /**
