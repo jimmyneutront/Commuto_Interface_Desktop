@@ -61,6 +61,8 @@ import java.util.*
  * @param hasTakerPaidOut Corresponds to an on-chain Dispute's `hasTakerPaidOut` property.
  * @param totalWithoutSpentServiceFees Corresponds to an on-chain Dispute's `totalWithoutSpentServiceFees` property.
  * @param role The role of the user in this dispute.
+ * @property disputeRaiser The role of the swapper who raised the dispute, either the maker or the taker. Computed using
+ * [onChainDisputeRaiser].
  * @property disputeAgent0InterfaceID The interface ID derived from the first dispute agent's public key, or null if
  * this key has not yet been created/obtained.
  * @property state Indicates the current state of this SwapAndDispute from the perspective of a dispute agent, as
@@ -126,6 +128,18 @@ data class SwapAndDispute(
     val totalWithoutSpentServiceFees: BigInteger,
     val role: DisputeRole
 ) {
+
+    val disputeRaiser: DisputeRaiser = when (onChainDisputeRaiser) {
+        BigInteger.ONE -> {
+            DisputeRaiser.MAKER
+        }
+        BigInteger.valueOf(2L) -> {
+            DisputeRaiser.TAKER
+        }
+        else -> {
+            DisputeRaiser.NONE
+        }
+    }
 
     var disputeAgent0InterfaceID: ByteArray? = null
 
