@@ -5,6 +5,7 @@ import com.commuto.interfacedesktop.database.DatabaseService
 import com.commuto.interfacedesktop.key.KeyManagerService
 import com.commuto.interfacedesktop.key.keys.KeyPair
 import com.commuto.interfacedesktop.key.keys.PublicKey
+import com.commuto.interfacedesktop.key.keys.SymmetricKey
 import com.commuto.interfacedesktop.p2p.create.createMakerInformationMessage
 import com.commuto.interfacedesktop.p2p.create.createPublicKeyAnnouncementAsUserForDispute
 import com.commuto.interfacedesktop.p2p.create.createTakerInformationMessage
@@ -12,10 +13,7 @@ import com.commuto.interfacedesktop.p2p.messages.MakerInformationMessage
 import com.commuto.interfacedesktop.p2p.messages.PublicKeyAnnouncement
 import com.commuto.interfacedesktop.p2p.messages.PublicKeyAnnouncementAsUserForDispute
 import com.commuto.interfacedesktop.p2p.messages.TakerInformationMessage
-import com.commuto.interfacedesktop.p2p.parse.parseMakerInformationMessage
-import com.commuto.interfacedesktop.p2p.parse.parsePublicKeyAnnouncement
-import com.commuto.interfacedesktop.p2p.parse.parsePublicKeyAnnouncementAsUserForDispute
-import com.commuto.interfacedesktop.p2p.parse.parseTakerInformationMessage
+import com.commuto.interfacedesktop.p2p.parse.*
 import com.commuto.interfacedesktop.p2p.serializable.messages.SerializableEncryptedMessage
 import com.commuto.interfacedesktop.p2p.serializable.messages.SerializablePublicKeyAnnouncementMessage
 import com.commuto.interfacedesktop.p2p.serializable.payloads.SerializablePublicKeyAnnouncementPayload
@@ -666,6 +664,73 @@ class P2PServiceTest {
         assertEquals(id, disputeService.message!!.id)
         assertEquals(chainID, disputeService.message!!.chainID)
         assert(userKeyPair.interfaceId.contentEquals(disputeService.message!!.publicKey.interfaceId))
+
+    }
+
+    /**
+     * Ensures that [P2PService.sendCommunicationKey] functions properly.
+     */
+    @Test
+    fun testSendCommunicationKey() {
+
+        val databaseService = DatabaseService(DatabaseDriverFactory())
+        databaseService.createTables()
+        val keyManagerService = KeyManagerService(databaseService)
+
+        val mxClient = MatrixClientServerApiClient(
+            baseUrl = Url("https://matrix.org"),
+            httpClientFactory = {
+                HttpClient(it).config {
+                    install(HttpTimeout) {
+                        socketTimeoutMillis = 60_000
+                    }
+                }
+            }
+        ).apply { accessToken.value = "not_a_real_token" }
+
+        class TestP2PService : P2PService(
+            TestP2PExceptionHandler(),
+            TestOfferMessageNotifiable(),
+            TestSwapMessageNotifiable(),
+            disputeService = TestDisputeMessageNotifiable(),
+            mxClient,
+            keyManagerService
+        ) {
+            var receivedMessage: String? = null
+            override suspend fun sendMessage(message: String) {
+                receivedMessage = message
+            }
+        }
+        val p2pService = TestP2PService()
+
+        val id = UUID.randomUUID()
+        val chainID = BigInteger.ZERO
+        val communicationKey = SymmetricKey()
+        val recipientKeyPair = KeyPair()
+        val senderKeyPair = KeyPair()
+
+        val encoder = Base64.getEncoder()
+
+        runBlocking {
+            p2pService.sendCommunicationKey(
+                messageType = "MCKAnnouncement",
+                id = id.toString(),
+                chainID = chainID.toString(),
+                key = encoder.encodeToString(communicationKey.keyBytes),
+                recipientPublicKey = recipientKeyPair.getPublicKey(),
+                senderKeyPair = senderKeyPair,
+            )
+        }
+
+        val createdCommunicationKeyMessage = parseCommunicationKeyMessage(
+            message = Json.decodeFromString<SerializableEncryptedMessage>(p2pService.receivedMessage!!),
+            senderPublicKey = senderKeyPair.getPublicKey(),
+            recipientKeyPair = recipientKeyPair,
+        )
+        assertEquals("MCKAnnouncement", createdCommunicationKeyMessage!!.messageType)
+        assertEquals(id, createdCommunicationKeyMessage.swapID)
+        assertEquals(chainID, createdCommunicationKeyMessage.chainID)
+        assert(communicationKey.keyBytes.contentEquals(createdCommunicationKeyMessage.key.keyBytes))
 
     }
 

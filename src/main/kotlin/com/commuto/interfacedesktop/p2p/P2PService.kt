@@ -455,4 +455,38 @@ open class P2PService constructor(
         sendMessage(messageString)
     }
 
+    /**
+     * Creates a Communication Key Message for [key] as the first agent for a dispute of the specified [messageType] for
+     * the disputed swap with the specified ID on the blockchain with the specified chain ID, and sends it using the
+     * [sendMessage] function.
+     *
+     * @param messageType One of "MCKAnnouncement" or "TCKAnnouncement", depending on whether [key] is the maker
+     * communication key or taker communication key.
+     * @param id The ID of the disputed swap for which the user is sending a communication key.
+     * @param chainID The ID of the blockchain on which the specified swap exists.
+     * @param key The key being sent.
+     * @param recipientPublicKey The [PublicKey] belonging to the recipient of this message.
+     * @param senderKeyPair The user's [KeyPair] with which they will sign this message.
+     */
+    open suspend fun sendCommunicationKey(
+        messageType: String,
+        id: String,
+        chainID: String,
+        key: String,
+        recipientPublicKey: PublicKey,
+        senderKeyPair: KeyPair,
+    ) {
+        logger.info("sendCommunicationKey: creating $messageType for $id on $chainID")
+        val messageString = createCommunicationKeyMessage(
+            messageType = messageType,
+            id = id,
+            chainID = chainID,
+            key = key,
+            recipientPublicKey = recipientPublicKey,
+            senderKeyPair = senderKeyPair
+        )
+        logger.info("sendCommunicationKey: sending $messageType for $id on $chainID")
+        sendMessage(messageString)
+    }
+
 }
