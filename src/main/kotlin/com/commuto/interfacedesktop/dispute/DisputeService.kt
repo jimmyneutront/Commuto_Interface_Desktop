@@ -192,8 +192,8 @@ class DisputeService @Inject constructor(
                             "${swap.id}")
                 }
                 if (recreatedTransaction.data != disputeRaisingTransaction.data) {
-                    throw DisputeServiceException(message = "Data for disputeRaisingTransaction did not match that of " +
-                            "transaction created with swap ${swap.id}")
+                    throw DisputeServiceException(message = "Data for disputeRaisingTransaction did not match that " +
+                            "of transaction created with swap ${swap.id}")
                 }
                 logger.info("raiseDispute: signing transaction for ${swap.id}")
                 val signedTransactionData = blockchainService.signTransaction(
@@ -224,8 +224,9 @@ class DisputeService @Inject constructor(
                     chainID = swap.chainID.toString(),
                     state = RaisingDisputeState.SENDING_TRANSACTION.asString,
                 )
-                logger.info("raiseDispute: updating raisingDisputeState to ${RaisingDisputeState.SENDING_TRANSACTION} " +
-                        "and storing tx ${blockchainTransactionForRaisingDispute.transactionHash} in ${swap.id}")
+                logger.info("raiseDispute: updating raisingDisputeState to ${RaisingDisputeState
+                    .SENDING_TRANSACTION} and storing tx ${blockchainTransactionForRaisingDispute.transactionHash} " +
+                        "in ${swap.id}")
                 withContext(Dispatchers.Main) {
                     swap.raisingDisputeTransaction = blockchainTransactionForRaisingDispute
                     swap.raisingDisputeState.value = RaisingDisputeState.SENDING_TRANSACTION
@@ -567,6 +568,112 @@ class DisputeService @Inject constructor(
         }
     }
 
-    override suspend fun handlePublicKeyAnnouncementAsUserForDispute(message: PublicKeyAnnouncementAsUserForDispute) {}
+    /**
+     * The function called by [P2PService] to notify [DisputeService] of a [PublicKeyAnnouncementAsUserForDispute].
+     *
+     * @param message The [PublicKeyAnnouncementAsUserForDispute] of which [DisputeService] is being notified.
+     */
+    override suspend fun handlePublicKeyAnnouncementAsUserForDispute(message: PublicKeyAnnouncementAsUserForDispute) {
+        logger.info("handlePublicKeyAnnouncementAsUserForDispute: handling for ${message.id} on ${message.chainID}")
+        disputeTruthSource.swapAndDisputes[message.id]?.let { swapAndDispute ->
+            if (message.chainID == swapAndDispute.chainID) {
+                if (
+                    (message.publicKey.interfaceId.contentEquals(swapAndDispute.makerInterfaceID) &&
+                        swapAndDispute.disputeRaiser == DisputeRaiser.MAKER) ||
+                    (message.publicKey.interfaceId.contentEquals(swapAndDispute.takerInterfaceID) &&
+                        swapAndDispute.disputeRaiser == DisputeRaiser.TAKER)
+                    ) {
+                    logger.info("handlePublicKeyAnnouncementAsUserForDispute: storing dispute raiser's public key " +
+                            "for ${message.id} on ${message.chainID}")
+                    keyManagerService.storePublicKey(pubKey = message.publicKey)
+                    if (swapAndDispute.disputeRaiser == DisputeRaiser.MAKER) {
+                        if (swapAndDispute.disputeAgent0.lowercase() == blockchainService.getAddress().lowercase()) {
+                            logger.info("handlePublicKeyAnnouncementAsUserForDispute: user is first dispute agent, " +
+                                    "sending communication key to maker/dispute raiser for ${message.id} on ${message
+                                        .chainID}")
+                            val makerCommunicationKey = swapAndDispute.makerCommunicationKey
+                                ?: throw DisputeServiceException("Maker Communication Key was null while handling " +
+                                        "maker/dispute raiser's Public Key Announcement for ${message.id} on ${message
+                                            .chainID}")
+                            val disputeAgentInterfaceID = swapAndDispute.disputeAgent0InterfaceID
+                                ?: throw DisputeServiceException("disputeAgent0InterfaceID was null while handling " +
+                                        "maker/dispute raiser's Public Key Announcement for ${message.id} on ${message
+                                            .chainID}")
+                            val disputeAgentKeyPair = keyManagerService.getKeyPair(
+                                interfaceId = disputeAgentInterfaceID
+                            ) ?: throw DisputeServiceException("Dispute Agent 0 key pair was null while handling " +
+                                    "maker/dispute raiser's Public Key Announcement for ${message.id} on ${message
+                                        .chainID}")
+                            p2pService.sendCommunicationKey(
+                                messageType = "MCKAnnouncement",
+                                id = swapAndDispute.id.toString(),
+                                chainID = swapAndDispute.chainID.toString(),
+                                key = Base64.getEncoder().encodeToString(makerCommunicationKey.keyBytes),
+                                recipientPublicKey = message.publicKey,
+                                senderKeyPair = disputeAgentKeyPair
+                            )
+                            logger.info("handelPublicKeyAnnouncementAsUserForDispute: sent communication key to " +
+                                    "maker/dispute raiser for ${message.id} on ${message.chainID}, updating " +
+                                    "sentKeyToMaker")
+                            databaseService.updateSwapAndDisputeSentKeyToMaker(
+                                id = swapAndDispute.id.toString(),
+                                chainID = swapAndDispute.chainID.toString(),
+                                sentKeyToMaker = true,
+                            )
+                            withContext(Dispatchers.Main) {
+                                swapAndDispute.sentKeyToMaker = true
+                            }
+                        } else {
+                            // TODO: Handle case in which recipient is not first dispute agent
+                        }
+                    } else if (swapAndDispute.disputeRaiser == DisputeRaiser.TAKER) {
+                        if (swapAndDispute.disputeAgent0.lowercase() == blockchainService.getAddress().lowercase()) {
+                            logger.info("handlePublicKeyAnnouncementAsUserForDispute: user is first dispute agent, " +
+                                    "sending communication key to taker/dispute raiser for ${message.id} on ${message
+                                        .chainID}")
+                            val takerCommunicationKey = swapAndDispute.takerCommunicationKey
+                                ?: throw DisputeServiceException("Taker Communication Key was null while handling " +
+                                        "taker/dispute raiser's Public Key Announcement for ${message.id} on ${message
+                                            .chainID}")
+                            val disputeAgentInterfaceID = swapAndDispute.disputeAgent0InterfaceID
+                                ?: throw DisputeServiceException("disputeAgent0InterfaceID was null while handling " +
+                                        "taker/dispute raiser's Public Key Announcement for ${message.id} on ${message
+                                            .chainID}")
+                            val disputeAgentKeyPair = keyManagerService.getKeyPair(
+                                interfaceId = disputeAgentInterfaceID
+                            ) ?: throw DisputeServiceException("Dispute Agent 0 key pair was null while handling " +
+                                    "taker/dispute raiser's Public Key Announcement for ${message.id} on ${message
+                                        .chainID}")
+                            p2pService.sendCommunicationKey(
+                                messageType = "TCKAnnouncement",
+                                id = swapAndDispute.id.toString(),
+                                chainID = swapAndDispute.chainID.toString(),
+                                key = Base64.getEncoder().encodeToString(takerCommunicationKey.keyBytes),
+                                recipientPublicKey = message.publicKey,
+                                senderKeyPair = disputeAgentKeyPair
+                            )
+                            logger.info("handelPublicKeyAnnouncementAsUserForDispute: sent communication key to " +
+                                    "taker/dispute raiser for ${message.id} on ${message.chainID}, updating " +
+                                    "sentKeyToTaker")
+                            databaseService.updateSwapAndDisputeSentKeyToTaker(
+                                id = swapAndDispute.id.toString(),
+                                chainID = swapAndDispute.chainID.toString(),
+                                sentKeyToTaker = true,
+                            )
+                            withContext(Dispatchers.Main) {
+                                swapAndDispute.sentKeyToTaker = true
+                            }
+                        } else {
+                            // TODO: Handle case in which the recipient is not the first dispute agent
+                        }
+                    }
+                }
+            } else {
+                logger.warn("handlePublicKeyAnnouncementAsUserForDispute: chain ID ${message.chainID} in message did " +
+                        "not match that of swap and dispute ${message.id}: ${swapAndDispute.chainID}")
+            }
+        } ?: run {
+        }
+    }
 
 }
