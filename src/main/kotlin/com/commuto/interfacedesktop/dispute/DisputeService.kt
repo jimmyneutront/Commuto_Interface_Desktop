@@ -667,6 +667,98 @@ class DisputeService @Inject constructor(
                             // TODO: Handle case in which the recipient is not the first dispute agent
                         }
                     }
+                } else if (
+                    (message.publicKey.interfaceId.contentEquals(swapAndDispute.makerInterfaceID) &&
+                            swapAndDispute.disputeRaiser == DisputeRaiser.TAKER) ||
+                    (message.publicKey.interfaceId.contentEquals(swapAndDispute.takerInterfaceID) &&
+                            swapAndDispute.disputeRaiser == DisputeRaiser.MAKER)
+                    ) {
+                    logger.info("handlePublicKeyAnnouncementAsUserForDispute: storing non-dispute-raising " +
+                            "counterparty's public key for ${message.id} on ${message.chainID}")
+                    keyManagerService.storePublicKey(pubKey = message.publicKey)
+                    if (swapAndDispute.disputeRaiser == DisputeRaiser.MAKER) {
+                        // Message is from non-dispute-raising counterparty, so the message sender is the taker
+                        if (swapAndDispute.disputeAgent0.lowercase() == blockchainService.getAddress().lowercase()) {
+                            logger.info("handlePublicKeyAnnouncementAsUserForDispute: user is first dispute agent, " +
+                                    "sending communication key to taker/non-dispute-raising counterparty for ${message
+                                        .id} on ${message.chainID}")
+                            val takerCommunicationKey = swapAndDispute.takerCommunicationKey
+                                ?: throw DisputeServiceException("Taker Communication Key was null while handling " +
+                                        "taker/non-dispute-raising counterparty's Public Key Announcement for ${message
+                                            .id} on ${message.chainID}")
+                            val disputeAgentInterfaceID = swapAndDispute.disputeAgent0InterfaceID
+                                ?: throw DisputeServiceException("disputeAgent0InterfaceID was null while handling " +
+                                        "taker/non-dispute-raising counterparty's Public Key Announcement for ${message
+                                            .id} on ${message.chainID}")
+                            val disputeAgentKeyPair = keyManagerService.getKeyPair(
+                                interfaceId = disputeAgentInterfaceID
+                            ) ?: throw DisputeServiceException("Dispute Agent 0 key pair was null while handling " +
+                                    "taker/non-dispute-raising counterparty's Public Key Announcement for ${message
+                                        .id} on ${message.chainID}")
+                            p2pService.sendCommunicationKey(
+                                messageType = "TCKAnnouncement",
+                                id = swapAndDispute.id.toString(),
+                                chainID = swapAndDispute.chainID.toString(),
+                                key = Base64.getEncoder().encodeToString(takerCommunicationKey.keyBytes),
+                                recipientPublicKey = message.publicKey,
+                                senderKeyPair = disputeAgentKeyPair
+                            )
+                            logger.info("handelPublicKeyAnnouncementAsUserForDispute: sent communication key to " +
+                                    "taker/non-dispute-raising counterparty for ${message.id} on ${message.chainID}, " +
+                                    "updating sentKeyToTaker")
+                            databaseService.updateSwapAndDisputeSentKeyToTaker(
+                                id = swapAndDispute.id.toString(),
+                                chainID = swapAndDispute.chainID.toString(),
+                                sentKeyToTaker = true,
+                            )
+                            withContext(Dispatchers.Main) {
+                                swapAndDispute.sentKeyToTaker = true
+                            }
+                        } else {
+                            // TODO: Handle case in which recipient is not first dispute agent
+                        }
+                    } else if (swapAndDispute.disputeRaiser == DisputeRaiser.TAKER) {
+                        // Message is from non-dispute-raising counterparty, so the message sender is the maker
+                        if (swapAndDispute.disputeAgent0.lowercase() == blockchainService.getAddress().lowercase()) {
+                            logger.info("handlePublicKeyAnnouncementAsUserForDispute: user is first dispute agent, " +
+                                    "sending communication key to maker/non-dispute-raising counterparty for ${message
+                                        .id} on ${message.chainID}")
+                            val makerCommunicationKey = swapAndDispute.makerCommunicationKey
+                                ?: throw DisputeServiceException("Maker Communication Key was null while handling " +
+                                        "maker/non-dispute-raising counterparty's Public Key Announcement for ${message
+                                            .id} on ${message.chainID}")
+                            val disputeAgentInterfaceID = swapAndDispute.disputeAgent0InterfaceID
+                                ?: throw DisputeServiceException("disputeAgent0InterfaceID was null while handling " +
+                                        "maker/non-dispute-raising counterparty's Public Key Announcement for ${message
+                                            .id} on ${message.chainID}")
+                            val disputeAgentKeyPair = keyManagerService.getKeyPair(
+                                interfaceId = disputeAgentInterfaceID
+                            ) ?: throw DisputeServiceException("Dispute Agent 0 key pair was null while handling " +
+                                    "maker/non-dispute-raising counterparty's Public Key Announcement for ${message
+                                        .id} on ${message.chainID}")
+                            p2pService.sendCommunicationKey(
+                                messageType = "MCKAnnouncement",
+                                id = swapAndDispute.id.toString(),
+                                chainID = swapAndDispute.chainID.toString(),
+                                key = Base64.getEncoder().encodeToString(makerCommunicationKey.keyBytes),
+                                recipientPublicKey = message.publicKey,
+                                senderKeyPair = disputeAgentKeyPair
+                            )
+                            logger.info("handelPublicKeyAnnouncementAsUserForDispute: sent communication key to " +
+                                    "maker/non-dispute-raising counterparty for ${message.id} on ${message.chainID}, " +
+                                    "updating sentKeyToMaker")
+                            databaseService.updateSwapAndDisputeSentKeyToMaker(
+                                id = swapAndDispute.id.toString(),
+                                chainID = swapAndDispute.chainID.toString(),
+                                sentKeyToMaker = true,
+                            )
+                            withContext(Dispatchers.Main) {
+                                swapAndDispute.sentKeyToMaker = true
+                            }
+                        } else {
+                            // TODO: Handle case in which recipient is not first dispute agent
+                        }
+                    }
                 }
             } else {
                 logger.warn("handlePublicKeyAnnouncementAsUserForDispute: chain ID ${message.chainID} in message did " +

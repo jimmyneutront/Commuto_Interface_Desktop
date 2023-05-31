@@ -1000,6 +1000,161 @@ class DisputeServiceTests {
     }
 
     /**
+     * Ensures that [DisputeService] properly handles [PublicKeyAnnouncementAsUserForDispute] messages sent by the maker
+     * when they are the non-dispute-raising counterparty, when the user of this interface is the first dispute agent.
+     */
+    @Test
+    fun testHandlePublicKeyAnnouncementAsUserForDispute_asFirstDisputeAgent_makerNonDisputeRaisingCounterparty() =
+        runBlocking {
+        val swapID = UUID.randomUUID()
+
+        val databaseService = DatabaseService(DatabaseDriverFactory())
+        databaseService.createTables()
+        val keyManagerService = KeyManagerService(databaseService)
+
+        val disputeService = DisputeService(
+            databaseService = databaseService,
+            keyManagerService = keyManagerService
+        )
+        val disputeTruthSource = TestDisputeTruthSource()
+        disputeService.setDisputeTruthSource(disputeTruthSource)
+
+        val w3 = CommutoWeb3j(HttpService(System.getenv("BLOCKCHAIN_NODE")))
+
+        val blockchainService = BlockchainService(
+            exceptionHandler = TestBlockchainExceptionHandler(),
+            offerService = TestOfferService(),
+            swapService = TestSwapService(),
+            disputeService = disputeService,
+            web3 = w3,
+            commutoSwapAddress = ""
+        )
+        disputeService.setBlockchainService(newBlockchainService = blockchainService)
+
+        val mxClient = MatrixClientServerApiClient(
+            baseUrl = Url("https://matrix.org"),
+        ).apply { accessToken.value = "" }
+        class TestP2PService: P2PService(
+            exceptionHandler = TestP2PExceptionHandler(),
+            offerService = TestOfferMessageNotifiable(),
+            swapService = TestSwapMessageNotifiable(),
+            disputeService = disputeService,
+            mxClient = mxClient,
+            keyManagerService = keyManagerService,
+        ) {
+
+            var messageType: String? = null
+            var id: String? = null
+            var chainID: String? = null
+            var key: String? = null
+            var recipientPublicKey: PublicKey? = null
+            var senderKeyPair: KeyPair? = null
+
+            override suspend fun sendCommunicationKey(
+                messageType: String,
+                id: String,
+                chainID: String,
+                key: String,
+                recipientPublicKey: PublicKey,
+                senderKeyPair: KeyPair
+            ) {
+                this.messageType = messageType
+                this.id = id
+                this.chainID = chainID
+                this.key = key
+                this.recipientPublicKey = recipientPublicKey
+                this.senderKeyPair = senderKeyPair
+            }
+        }
+        val p2pService = TestP2PService()
+        disputeService.setP2PService(p2pService)
+
+        val makerKeyPair = KeyPair()
+        val makerCommunicationKey = SymmetricKey()
+        val disputeAgent0KeyPair = keyManagerService.generateKeyPair(storeResult=true)
+        val swapAndDispute = SwapAndDispute(
+            isCreated = true,
+            requiresFill = false,
+            id = swapID,
+            maker = "",
+            makerInterfaceID = makerKeyPair.interfaceId,
+            taker = "",
+            takerInterfaceID = ByteArray(0),
+            stablecoin = "",
+            amountLowerBound = BigInteger.ZERO,
+            amountUpperBound = BigInteger.ZERO,
+            securityDepositAmount = BigInteger.ZERO,
+            takenSwapAmount = BigInteger.ZERO,
+            serviceFeeAmount = BigInteger.ZERO,
+            serviceFeeRate = BigInteger.ZERO,
+            direction = OfferDirection.BUY,
+            onChainSettlementMethod =
+            """
+                 {
+                     "f": "USD",
+                     "p": "1.00",
+                     "m": "SWIFT"
+                 }
+                 """.trimIndent().encodeToByteArray(),
+            protocolVersion = BigInteger.ZERO,
+            isPaymentSent = false,
+            isPaymentReceived = false,
+            hasBuyerClosed = false,
+            hasSellerClosed = false,
+            onChainDisputeRaiser = BigInteger.valueOf(2L), // Taker is dispute raiser
+            chainID = BigInteger.valueOf(31337L),
+            disputeRaisedBlockNumber = BigInteger.ZERO,
+            disputeAgent0 = blockchainService.getAddress(),
+            disputeAgent1 = "",
+            disputeAgent2 = "",
+            hasDisputeAgent0Proposed = false,
+            disputeAgent0MakerPayout = BigInteger.ZERO,
+            disputeAgent0TakerPayout = BigInteger.ZERO,
+            disputeAgent0ConfiscationPayout = BigInteger.ZERO,
+            hasDisputeAgent1Proposed = false,
+            disputeAgent1MakerPayout = BigInteger.ZERO,
+            disputeAgent1TakerPayout = BigInteger.ZERO,
+            disputeAgent1ConfiscationPayout = BigInteger.ZERO,
+            hasDisputeAgent2Proposed = false,
+            disputeAgent2MakerPayout = BigInteger.ZERO,
+            disputeAgent2TakerPayout = BigInteger.ZERO,
+            disputeAgent2ConfiscationPayout = BigInteger.ZERO,
+            onChainMatchingProposals = BigInteger.ZERO,
+            makerReaction = BigInteger.ZERO,
+            takerReaction = BigInteger.ZERO,
+            onChainState = BigInteger.ZERO,
+            hasMakerPaidOut = false,
+            hasTakerPaidOut = false,
+            totalWithoutSpentServiceFees = BigInteger.ZERO,
+            role = DisputeRole.DISPUTE_AGENT_0,
+        )
+        swapAndDispute.makerCommunicationKey = makerCommunicationKey
+        swapAndDispute.disputeAgent0InterfaceID = disputeAgent0KeyPair.interfaceId
+        disputeTruthSource.swapAndDisputes[swapID] = swapAndDispute
+        databaseService.storeSwapAndDispute(swapAndDispute = swapAndDispute.toDatabaseSwapAndDispute())
+
+        val message = PublicKeyAnnouncementAsUserForDispute(
+            id = swapID,
+            chainID = swapAndDispute.chainID,
+            publicKey = makerKeyPair.getPublicKey()
+        )
+
+        disputeService.handlePublicKeyAnnouncementAsUserForDispute(message = message)
+
+        val makerPublicKeyInDatabase = keyManagerService.getPublicKey(swapAndDispute.makerInterfaceID)
+        assert(makerKeyPair.interfaceId.contentEquals(makerPublicKeyInDatabase!!.interfaceId))
+        assertEquals("MCKAnnouncement", p2pService.messageType)
+        assertEquals(swapID.toString(), p2pService.id)
+        assertEquals(swapAndDispute.chainID.toString(), p2pService.chainID)
+        assert(makerCommunicationKey.keyBytes.contentEquals(Base64.getDecoder().decode(p2pService.key)))
+        assert(makerKeyPair.interfaceId.contentEquals(p2pService.recipientPublicKey!!.interfaceId))
+        assert(disputeAgent0KeyPair.interfaceId.contentEquals(p2pService.senderKeyPair!!.interfaceId))
+        val swapAndDisputeInDatabase = databaseService.getSwapAndDispute(id = swapID.toString())
+        assertEquals(1L, swapAndDisputeInDatabase!!.sentKeyToMaker)
+        assert(swapAndDispute.sentKeyToMaker)
+    }
+
+    /**
      * Ensures that [DisputeService.createRaiseDisputeTransaction], [BlockchainService.createRaiseDisputeTransaction],
      * [DisputeService.raiseDispute] and [BlockchainService.createRaiseDisputeTransaction] function properly.
      */
