@@ -1735,6 +1735,23 @@ open class DatabaseService(
     }
 
     /**
+     * Updates the [SwapAndDispute.disputeAgent1InterfaceID] property of a persistently stored [SwapAndDispute] with the
+     * specified [id] and [chainID].
+     *
+     * @param id The ID of the swap corresponding to the [SwapAndDispute] to be updated, as a UUID-4 [String].
+     * @param chainID The blockchain ID of the swap corresponding to the [SwapAndDispute] to be updated, as a [String].
+     * @param interfaceID The new value of the [SwapAndDispute]'s [SwapAndDispute.disputeAgent1InterfaceID] property.
+     */
+    @OptIn(DelicateCoroutinesApi::class)
+    suspend fun updateSwapAndDisputeAgent1InterfaceID(id: String, chainID: String, interfaceID: String) {
+        withContext(databaseServiceContext) {
+            database.updateSwapAndDisputeAgent1InterfaceID(id, chainID, interfaceID)
+        }
+        logger.info("updateSwapAndDisputeAgent1InterfaceID: set value to $interfaceID for swap with B64 " +
+                "ID $id, if present")
+    }
+
+    /**
      * Updates the [SwapAndDispute.state] property of a persistently stored SwapAndDispute with the specified [id] and
      * [chainID].
      *

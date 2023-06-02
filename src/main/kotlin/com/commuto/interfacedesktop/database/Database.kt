@@ -1030,6 +1030,26 @@ internal class Database(databaseDriverFactory: DatabaseDriverFactory) {
     }
 
     /**
+     * Updates the [SwapAndDispute.disputeAgent1InterfaceID] property of the [SwapAndDispute] with the specified [id]
+     * and [chainID].
+     * @param id The ID of the swap corresponding to the [SwapAndDispute] to be updated.
+     * @param chainID The ID of the blockchain on which the swap and dispute corresponding to the [SwapAndDispute]
+     * exist.
+     * @param disputeAgent1InterfaceID The new value of the [SwapAndDispute.disputeAgent1InterfaceID] property.
+     */
+    internal fun updateSwapAndDisputeAgent1InterfaceID(
+        id: String,
+        chainID: String,
+        disputeAgent1InterfaceID: String,
+    ) {
+        dbQuery.updateSwapAndDisputeAgent1InterfaceID(
+            id = id,
+            chainID = chainID,
+            disputeAgent1InterfaceID = disputeAgent1InterfaceID,
+        )
+    }
+
+    /**
      * Updates the [SwapAndDispute.makerCommunicationKey] and [SwapAndDispute.mCKInitializationVector] properties of the
      * [SwapAndDispute] with the specified [id] and [chainID].
      * @param id the ID of the swap corresponding to the [SwapAndDispute] to be updated.
